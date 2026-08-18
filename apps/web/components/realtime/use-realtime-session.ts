@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import * as api from "@/lib/api";
 import {
@@ -538,14 +538,12 @@ export function useRealtimeSession(
   });
 
   const appendTurn = useEventCallback((turn: TranscriptTurn) => {
-    startTransition(() => {
-      setTranscript((current) => {
-        const existingIndex = current.findIndex((item) => item.id === turn.id);
-        if (existingIndex < 0) {
-          return [...current, turn];
-        }
-        return current.map((item, index) => (index === existingIndex ? turn : item));
-      });
+    setTranscript((current) => {
+      const existingIndex = current.findIndex((item) => item.id === turn.id);
+      if (existingIndex < 0) {
+        return [...current, turn];
+      }
+      return current.map((item, index) => (index === existingIndex ? turn : item));
     });
   });
 

@@ -104,6 +104,14 @@
     inset 0 -72px 96px rgba(2, 9, 14, 0.28);
 }
 
+.runtimeViewport[data-runtime-kind="vrm"][data-avatar-stage-background="neutral"] {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(226, 231, 220, 0.22), transparent 34%),
+    radial-gradient(circle at 76% 34%, rgba(214, 100, 74, 0.1), transparent 28%),
+    radial-gradient(ellipse at 50% 91%, rgba(18, 20, 18, 0.66) 0 12%, transparent 38%),
+    linear-gradient(160deg, #3a4540 0%, #27322f 50%, #182321 100%);
+}
+
 .runtimeViewport[data-runtime-kind="vrm"][data-avatar-stage-background="study"] {
   background:
     linear-gradient(rgba(151, 209, 205, 0.055) 1px, transparent 1px),

@@ -758,8 +758,8 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
   });
 
   await test.step("edit, persist, and restore the recap", async () => {
-    const summary = page.getByLabel("复盘摘要");
-    const notes = page.getByLabel("复盘备注");
+    const summary = page.getByRole("textbox", { name: "复盘摘要", exact: true });
+    const notes = page.getByRole("textbox", { name: "复盘备注", exact: true });
     await summary.fill(editedSummary);
     await notes.fill(editedNotes);
     await expect(page.getByText("已保存到本地空间")).toBeVisible({ timeout: 10_000 });

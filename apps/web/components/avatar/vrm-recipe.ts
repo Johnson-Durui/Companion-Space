@@ -149,6 +149,7 @@ const FEATURED_ORIGINAL_MODEL_IDS = new Set(["cael", "kite", "lyra", "mira"]);
 function readBundledMotionUrls(
   recipe: LooseRecipe,
   modelId: string,
+  allowFeaturedFallback: boolean,
 ): Partial<Record<CharacterPreviewState, string>> {
   const motions =
     recipe.motions && typeof recipe.motions === "object" && !Array.isArray(recipe.motions)
@@ -165,7 +166,9 @@ function readBundledMotionUrls(
   if (Object.keys(selected).length > 0) {
     return selected;
   }
-  return FEATURED_ORIGINAL_MODEL_IDS.has(modelId) ? { ...COMPANION_CC0_MOTION_URLS } : {};
+  return allowFeaturedFallback && FEATURED_ORIGINAL_MODEL_IDS.has(modelId)
+    ? { ...COMPANION_CC0_MOTION_URLS }
+    : {};
 }
 
 export function getRuntimeRecipeView(recipe: CharacterRecipe | Record<string, unknown>): RuntimeRecipeView {
@@ -228,7 +231,7 @@ export function getRuntimeRecipeView(recipe: CharacterRecipe | Record<string, un
       ),
     hairstyle: readString(looseRecipe, ["hairstyle"], "twintail"),
     modelId,
-    motionUrls: readBundledMotionUrls(looseRecipe, modelId),
+    motionUrls: readBundledMotionUrls(looseRecipe, modelId, directAssetUrl.length === 0),
     name: readString(looseRecipe, ["name", "display_name"], "Avatar"),
     outfit: readString(looseRecipe, ["outfit"], "uniform"),
     outfitColor:

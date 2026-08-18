@@ -382,7 +382,7 @@ async function openCallPage(page: Page, fixture: RealtimeFixture) {
   await expect(spaceCard).toBeVisible({ timeout: 20_000 });
   await Promise.all([
     page.waitForURL(new RegExp(`/spaces/${fixture.spaceId}$`), { timeout: 20_000 }),
-    spaceCard.getByRole("link", { name: "进入空间" }).click(),
+    spaceCard.locator(`a[href="/spaces/${fixture.spaceId}"]`).first().click(),
   ]);
 
   await Promise.all([
