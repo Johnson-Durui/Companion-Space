@@ -62,7 +62,13 @@ def _create_note_material(client, owner_token: str, *, space_id: str) -> str:
         },
     )
     assert response.status_code == 201
-    return response.json()["material"]["id"]
+    payload = response.json()
+    completed = get_container().spaces.wait_for_ingestion(
+        payload["job"]["id"],
+        timeout_seconds=2.0,
+    )
+    assert completed.status == "completed"
+    return payload["material"]["id"]
 
 
 def _create_and_end_session(
