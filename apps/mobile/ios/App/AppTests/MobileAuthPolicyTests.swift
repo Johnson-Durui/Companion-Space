@@ -15,6 +15,7 @@ final class MobileAuthPolicyTests: XCTestCase {
             "http://companion.example",
             "https://companion.example:8443",
             "http://localhost:8100",
+            "http://[::2]",
             "https://user:pass@companion.example",
             "https://companion.example/path",
             "https://companion.example?query=1",
