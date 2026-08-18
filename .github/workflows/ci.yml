@@ -198,11 +198,28 @@ jobs:
         timeout-minutes: 15
         run: |
           sudo chmod 666 /dev/kvm
-          echo no | avdmanager create avd --force --name companion-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          avdmanager list device -c | grep -Fx "pixel_2"
+          avdmanager create avd --force --name companion-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64" --device "pixel_2"
+          test -f "$ANDROID_AVD_HOME/companion-ci.ini"
+          test -f "$ANDROID_AVD_HOME/companion-ci.avd/config.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx "companion-ci"
           "$ANDROID_HOME/emulator/emulator" -avd companion-ci -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect &
+          emulator_pid=$!
           trap 'adb emu kill || true' EXIT
-          adb wait-for-device
-          until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 2; done
+          timeout 180 adb wait-for-device
+          for _ in $(seq 1 90); do
+            if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+              break
+            fi
+            if ! kill -0 "$emulator_pid"; then
+              wait "$emulator_pid"
+              exit 1
+            fi
+            sleep 2
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
           adb shell settings put global window_animation_scale 0
           adb shell settings put global transition_animation_scale 0
           adb shell settings put global animator_duration_scale 0

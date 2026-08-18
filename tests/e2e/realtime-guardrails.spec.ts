@@ -4238,7 +4238,7 @@ async function initializeAndUnlockVault(page: Page) {
   await page.goto("/vault");
 
   const statusLabels = page.locator(".status-badge");
-  await expect(page.getByRole("heading", { name: "先解锁凭据，再回到共学桌面。" })).toBeVisible();
+  await expect(page.getByRole("form", { name: /^Vault (初始化|解锁)$/ })).toHaveCount(1);
   const statusResponse = await page.request.get(`${apiBaseUrl}/api/v1/vault/status`);
   expect(statusResponse.ok()).toBeTruthy();
   const vaultStatus = await statusResponse.json() as { initialized?: unknown };

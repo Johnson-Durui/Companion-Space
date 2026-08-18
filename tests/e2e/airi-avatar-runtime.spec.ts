@@ -214,7 +214,7 @@ test("hydrates a licensed Live2D session without exposing VRM or fallback", asyn
   const resumedSelect = page.getByLabel("本次会话角色", { exact: true });
   await expect(resumedSelect).toBeDisabled({ timeout: 60_000 });
   await expect(resumedSelect).toHaveValue(imported.id);
-  await expect(page.getByRole("heading", { name: new RegExp(characterName) })).toBeVisible({
+  await expect(page.getByRole("status").filter({ hasText: characterName })).toBeVisible({
     timeout: 60_000,
   });
   const resumedRuntime = page.locator('[data-avatar-runtime-kind="live2d"]').first();
@@ -436,7 +436,7 @@ test("blocks a tampered protected archive without changing licensed text-session
   page.on("request", recordRequest);
   await startRuntimeKindProbe(page);
   await characterSelect.selectOption(imported.id);
-  await expect(page.getByRole("heading", { name: new RegExp(characterName) })).toBeVisible({
+  await expect(page.getByRole("status").filter({ hasText: characterName })).toBeVisible({
     timeout: 60_000,
   });
   const blockedRuntime = page.locator('[data-avatar-runtime-kind="character"]').first();
@@ -567,7 +567,7 @@ test("treats a same-SHA licensed archive from another character as a new loading
   await installSameShaStickyLoadingProbe(page);
   await characterSelect.selectOption(second.id);
   expect(await readSameShaStickyViolation(page)).toBe(false);
-  await expect(page.getByRole("heading", { name: new RegExp(secondName) })).toBeVisible({
+  await expect(page.getByRole("status").filter({ hasText: secondName })).toBeVisible({
     timeout: 60_000,
   });
   await expect(visibleCanvas).toHaveCount(1, { timeout: 60_000 });

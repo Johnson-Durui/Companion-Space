@@ -673,7 +673,7 @@ async function attachEvidence(testInfo: TestInfo, evidence: object): Promise<voi
 async function initializeAndUnlockVault(page: Page): Promise<string> {
   await page.goto("/vault");
   const statusLabels = page.locator(".status-badge");
-  await expect(page.getByRole("heading", { name: "先把本地凭据层立住，再连接模型。" })).toBeVisible();
+  await expect(page.getByRole("form", { name: /^Vault (初始化|解锁)$/ })).toHaveCount(1);
   const statusResponse = await page.request.get(`${apiBaseUrl}/api/v1/vault/status`);
   expect(statusResponse.status()).toBe(200);
   const vaultStatus = await statusResponse.json() as { initialized?: unknown };

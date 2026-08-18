@@ -819,7 +819,7 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
 
   await test.step("local product signals keep demo narration outside realtime latency", async () => {
     await navigateViaSidebar(page, "设置");
-    await expect(page.getByRole("heading", { name: "Local Product Signals" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "本机信号" })).toBeVisible();
     await expect(page.getByText("Activation 7/7")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/Citation accuracy/)).toBeVisible();
 
@@ -933,7 +933,7 @@ test("activates an imported AIRI VRM for one session without changing the space 
     asset_manifest: Record<string, unknown>;
     recipe: { avatar_model: string };
   };
-  expect(imported.recipe.avatar_model).toBe("vrm1_constraint_twist_sample");
+  expect(imported.recipe.avatar_model).toBe("mira");
   expect(imported.asset_manifest).toMatchObject({
     model_path: "model.vrm",
     asset_paths: ["licenses/vrm-meta.json", "model.vrm"],
@@ -1004,7 +1004,9 @@ test("activates an imported AIRI VRM for one session without changing the space 
   const previewModelResponse = await previewModelResponsePromise;
   expect(previewModelResponse.status()).toBe(200);
   expect(previewModelResponse.headers()["content-type"]).toContain("model/gltf-binary");
-  await expect(page.getByRole("heading", { name: `${importedName} · ${targetSpace.name}` }))
+  await expect(page.getByRole("heading", { name: targetSpace.name, exact: true }))
+    .toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("status").filter({ hasText: importedName }))
     .toBeVisible({ timeout: 60_000 });
   await expect(page.locator("[data-runtime-mode]").first()).toHaveAttribute(
     "data-runtime-mode",
@@ -1053,7 +1055,9 @@ test("activates an imported AIRI VRM for one session without changing the space 
   expect((await restoreImportedSessionPromise).status()).toBe(200);
   await expect(sessionCharacterSelect).toBeDisabled();
   await expect(sessionCharacterSelect).toHaveValue(imported.id);
-  await expect(page.getByRole("heading", { name: `${importedName} · ${targetSpace.name}` }))
+  await expect(page.getByRole("heading", { name: targetSpace.name, exact: true }))
+    .toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("status").filter({ hasText: importedName }))
     .toBeVisible({ timeout: 60_000 });
   await expect(page.locator("[data-runtime-mode]").first()).toHaveAttribute(
     "data-runtime-mode",
@@ -1142,7 +1146,7 @@ async function initializeAndUnlockVault(page: Page) {
 
   const statusLabels = page.locator(".status-badge");
 
-  await expect(page.getByRole("heading", { name: "先解锁凭据，再回到共学桌面。" })).toBeVisible();
+  await expect(page.getByRole("form", { name: /^Vault (初始化|解锁)$/ })).toHaveCount(1);
 
   const statusResponse = await page.request.get(`${apiBaseUrl}/api/v1/vault/status`);
   expect(statusResponse.status()).toBe(200);
