@@ -1,0 +1,32 @@
+{
+  "id": "yuzu",
+  "displayName": "柚子 Yuzu",
+  "description": "一只会陪用户学习与复盘的原创橘金小狐伙伴。",
+  "spriteVersionNumber": 2,
+  "spritesheetPath": "spritesheet.webp",
+  "spritesheetSha256": "8b32aa729d01e3880d9d2b426bee481fc32611186cc8c583f0c05ce3254815f2",
+  "atlas": {
+    "columns": 8,
+    "rows": 11,
+    "cellWidth": 192,
+    "cellHeight": 208,
+    "neutralLookFrame": {
+      "rowIndex": 0,
+      "columnIndex": 6
+    }
+  },
+  "emotionReactions": {
+    "neutral": "calm",
+    "warm": "soft",
+    "cheerful": "wave",
+    "curious": "lift",
+    "focused": "attentive",
+    "playful": "bounce",
+    "concerned": "failed"
+  },
+  "provenance": {
+    "kind": "project-original-ai-assisted",
+    "generatedFor": "Companion Space",
+    "thirdPartyCharacterOrTrademark": false
+  }
+}

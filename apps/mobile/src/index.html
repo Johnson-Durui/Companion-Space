@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f0e8" />
+    <title>连接 Companion Space</title>
+    <link rel="stylesheet" href="./index.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">COMPANION SPACE · MOBILE</p>
+        <h1 id="page-title">找到你的空间，<br />再开始陪伴。</h1>
+        <p class="lede">移动端只连接当前构建明确批准的 Companion Server。短期访问凭据只在内存中使用，长期刷新凭据由系统 Keychain 或 Keystore 加密保管。</p>
+      </section>
+
+      <section class="connection" aria-labelledby="connection-title" data-state="idle">
+        <div class="status-line"><span class="status-dot" aria-hidden="true"></span><span id="status-label">等待连接</span></div>
+        <h2 id="connection-title">连接与配对</h2>
+        <form id="connection-form" novalidate>
+          <label for="server-url">Companion Server HTTPS URL</label>
+          <input id="server-url" name="server-url" type="url" inputmode="url" autocomplete="url" autocapitalize="none" spellcheck="false" placeholder="https://companion.example.com" required />
+
+          <fieldset id="pairing-fields" hidden>
+            <legend>一次性配对信息</legend>
+            <label for="pairing-code">8 位配对码</label>
+            <input id="pairing-code" name="pairing-code" type="text" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" />
+            <label for="device-name">设备名称</label>
+            <input id="device-name" name="device-name" type="text" maxlength="80" autocomplete="off" />
+          </fieldset>
+
+          <p id="message" class="message" role="status" aria-live="polite">先验证服务器；已有设备会自动安全刷新，新设备会进入一次性配对。</p>
+          <button id="connect-button" type="submit">验证并继续</button>
+        </form>
+        <details>
+          <summary>连接诊断</summary>
+          <dl>
+            <div><dt>批准地址</dt><dd id="trusted-origins">读取中…</dd></div>
+            <div><dt>健康检查</dt><dd><code>/healthz</code></dd></div>
+            <div><dt>凭据传递</dt><dd>原生安全桥，不通过 URL</dd></div>
+          </dl>
+        </details>
+      </section>
+    </main>
+    <script src="./runtime-config.js"></script>
+    <script type="module" src="./index.js"></script>
+  </body>
+</html>

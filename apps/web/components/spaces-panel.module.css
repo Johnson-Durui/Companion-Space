@@ -1,0 +1,586 @@
+.page {
+  width: min(100%, 980px);
+  gap: clamp(28px, 5vw, 52px);
+  padding-bottom: 34px;
+}
+
+.intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-top: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 22px;
+}
+
+.intro > div,
+.createCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.kicker,
+.currentLabel,
+.stageCaption {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.intro h1,
+.sectionHeading h2,
+.createCopy h2 {
+  margin: 0;
+  color: var(--ink);
+  letter-spacing: -0.045em;
+}
+
+.intro h1 {
+  max-width: 10ch;
+  font-size: clamp(38px, 7vw, 62px);
+  line-height: 0.98;
+}
+
+.intro p,
+.createCopy p {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+.directory,
+.createSection {
+  display: grid;
+  gap: 18px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sectionHeading h2,
+.createCopy h2 {
+  font-size: clamp(23px, 4vw, 30px);
+  line-height: 1.1;
+}
+
+.sectionHeading span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.spaceList {
+  position: relative;
+  display: grid;
+  gap: 0;
+}
+
+.spaceList::before {
+  content: "";
+  position: absolute;
+  left: 25px;
+  top: 350px;
+  bottom: 28px;
+  border-left: 1px dashed color-mix(in srgb, var(--accent) 42%, var(--line));
+}
+
+.spaceRow:global(.info-card) {
+  position: relative;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  min-width: 0;
+  padding: 22px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.spaceRow.featured:global(.info-card) {
+  grid-template-columns: minmax(220px, 0.78fr) minmax(260px, 1.22fr);
+  grid-template-rows: auto auto;
+  gap: 0 34px;
+  min-height: 330px;
+  overflow: visible;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-left: 5px solid var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--panel-strong));
+}
+
+.companionStage {
+  position: relative;
+  grid-row: 1 / 3;
+  min-height: 330px;
+  overflow: hidden;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  background-color: var(--night);
+  background-image:
+    linear-gradient(90deg, rgba(16, 47, 52, 0.08), rgba(16, 47, 52, 0.5)),
+    url("/assets/characters/art/companion-study-district.webp");
+  background-position: 46% center;
+  background-size: cover;
+}
+
+.companionStage::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  border: 1px solid rgba(235, 203, 114, 0.38);
+  border-radius: 50%;
+}
+
+.companionStage::after {
+  width: 178px;
+  height: 178px;
+  right: -36px;
+  bottom: -34px;
+  box-shadow: inset 0 0 0 15px rgba(16, 47, 52, 0.16);
+}
+
+.heroPet {
+  position: absolute;
+  z-index: 1;
+  right: -4px;
+  bottom: -8px;
+  transform: scale(0.82);
+  transform-origin: bottom center;
+  filter: drop-shadow(0 14px 18px rgba(6, 23, 26, 0.36));
+}
+
+.compassMark {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  width: 38px;
+  height: 38px;
+  z-index: 2;
+  border: 1px solid var(--gold);
+  transform: rotate(45deg);
+}
+
+.compassMark::before,
+.compassMark::after {
+  content: "";
+  position: absolute;
+  background: var(--gold);
+}
+
+.compassMark::before {
+  width: 1px;
+  height: 52px;
+  left: 18px;
+  top: -8px;
+}
+
+.compassMark::after {
+  width: 52px;
+  height: 1px;
+  left: -8px;
+  top: 18px;
+}
+
+.stageCaption {
+  position: absolute;
+  z-index: 2;
+  left: 20px;
+  bottom: 18px;
+  color: #fffdf7;
+  text-shadow: 0 2px 10px rgba(6, 23, 26, 0.68);
+}
+
+.textAction {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-underline-offset: 4px;
+}
+
+.routeNode {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  isolation: isolate;
+}
+
+.routeNode::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  z-index: -1;
+  border: 1px solid color-mix(in srgb, var(--accent) 56%, var(--line));
+  background: var(--panel-strong);
+  transform: rotate(45deg);
+}
+
+.spaceMain {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.featured .spaceMain {
+  align-self: flex-end;
+  padding: 34px 30px 10px 0;
+}
+
+.spaceTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.spaceTitle {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.3;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.featured .spaceTitle {
+  font-size: clamp(26px, 4vw, 38px);
+  letter-spacing: -0.04em;
+}
+
+.spaceTitle:hover {
+  color: var(--accent-strong);
+}
+
+.goal,
+.meta {
+  margin: 0;
+}
+
+.goal {
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.featured .goal {
+  max-width: 36ch;
+  font-size: 16px;
+}
+
+.meta,
+.updated {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.featured .actions {
+  align-self: start;
+  justify-content: flex-start;
+  padding: 12px 30px 32px 0;
+}
+
+.actions > *,
+.moreActions summary,
+.moreActions button {
+  min-height: 44px;
+}
+
+.moreActions {
+  position: relative;
+}
+
+.moreActions summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  background: var(--panel-strong);
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  list-style: none;
+}
+
+.moreActions summary::-webkit-details-marker {
+  display: none;
+}
+
+.moreActions[open] summary {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.moreActions > div {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  min-width: 148px;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+  box-shadow: 0 12px 24px rgba(25, 36, 42, 0.12);
+}
+
+.moreActions > div > * {
+  width: 100%;
+}
+
+.createSection {
+  grid-template-columns: minmax(200px, 0.72fr) minmax(0, 1.28fr);
+  gap: clamp(24px, 6vw, 66px);
+  align-items: start;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--ink);
+  background: var(--panel-strong);
+}
+
+.createDisclosure > summary {
+  display: none;
+}
+
+.createDisclosure > .createSection {
+  display: grid;
+}
+
+.createForm {
+  display: grid;
+  gap: 15px;
+}
+
+.createForm input,
+.createForm button {
+  min-height: 46px;
+}
+
+.createForm button {
+  justify-self: start;
+  padding-inline: 22px;
+}
+
+.rules {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.rules summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.rules summary::after {
+  content: "+";
+  color: var(--accent);
+  font-size: 20px;
+}
+
+.rules[open] summary::after {
+  content: "收起";
+  font-size: 12px;
+}
+
+.ruleList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  padding: 14px 0 8px;
+}
+
+.ruleList div {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding-left: 14px;
+  border-left: 2px solid var(--line);
+}
+
+.ruleList p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+@media (max-width: 760px) {
+  .page {
+    gap: 32px;
+  }
+
+  .intro {
+    display: grid;
+    gap: 14px;
+    padding-top: 2px;
+  }
+
+  .intro h1 {
+    font-size: 42px;
+  }
+
+  .spaceList::before {
+    left: 20px;
+    top: 470px;
+  }
+
+  .spaceRow:global(.info-card) {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 14px;
+    padding: 20px 0;
+  }
+
+  .spaceRow.featured:global(.info-card) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 224px auto auto;
+    gap: 0;
+    min-height: 0;
+  }
+
+  .companionStage {
+    grid-row: auto;
+    min-height: 224px;
+    border-right: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  }
+
+  .heroPet {
+    right: 8px;
+    transform: scale(0.86);
+  }
+
+  .routeNode {
+    width: 40px;
+    height: 40px;
+  }
+
+  .featured .spaceMain {
+    padding: 24px 20px 8px;
+  }
+
+  .featured .spaceTitle {
+    font-size: 28px;
+  }
+
+  .actions {
+    grid-column: 2;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .featured .actions {
+    grid-column: auto;
+    padding: 12px 20px 24px;
+  }
+
+  .featured .actions > :first-child {
+    flex: 1 1 100%;
+  }
+
+  .moreActions > div {
+    right: auto;
+    left: 0;
+  }
+
+  .createDisclosure {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .createDisclosure > summary {
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 17px;
+    font-weight: 750;
+  }
+
+  .createDisclosure > summary::after {
+    content: "+";
+    color: var(--accent);
+    font-size: 21px;
+  }
+
+  .createDisclosure[open] > summary::after {
+    content: "收起";
+    font-size: 12px;
+  }
+
+  .createDisclosure:not([open]) > .createSection {
+    display: none;
+  }
+
+  .createDisclosure > .createSection,
+  .ruleList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .createDisclosure > .createSection {
+    gap: 22px;
+    margin-bottom: 20px;
+    padding: 22px 18px;
+  }
+
+  .createForm button {
+    width: 100%;
+  }
+
+  .ruleList {
+    gap: 18px;
+  }
+}
+
+@media (max-width: 390px) {
+  .spaceRow:not(.featured) .actions > a {
+    flex: 1 1 auto;
+  }
+
+  .spaceTitleRow {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroPet {
+    transform: translateX(-50%) scale(1.05);
+  }
+}

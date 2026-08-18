@@ -1,0 +1,20 @@
+Companion Space
+Copyright 2026 Companion Space contributors
+
+This product is licensed under the Apache License, Version 2.0.
+See the LICENSE file in the repository root.
+
+This distribution includes third-party software and character assets that remain
+governed by their own licenses. The complete notices are in:
+
+    assets/THIRD_PARTY_NOTICES.md
+
+The four featured study companions — 澄羽 MIRA, 曜柚 KITE, 凛序 CAEL, and
+弦灯 LYRA — use project-owned original custom VRM bodies generated in this
+repository. Those models are not Sendagaya Shino, Seed-san, Sakurada Fumiriya,
+or the VRM1 Constraint Twist Sample.
+
+The older licensed VRM files remain bundled as optional samples, not as the
+featured companion appearance. Seed-san still requires attribution to
+VirtualCast, Inc. Do not strip its embedded VRM metadata, model manifest
+entry, or third-party notice.

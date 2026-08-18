@@ -1,0 +1,36 @@
+{
+  "name": "companion-space",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "overrides": {
+    "brace-expansion": "5.0.9",
+    "dompurify": "3.4.13",
+    "js-yaml": "4.3.1",
+    "nanoid": "3.3.17",
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
+  },
+  "scripts": {
+    "dev:web": "npm run dev --workspace web -- --port 3000 --hostname 127.0.0.1",
+    "build:web": "npm run build --workspace web",
+    "build:mobile": "npm run build --workspace @companion-space/mobile",
+    "ios:device": "npm run ios:device --workspace @companion-space/mobile",
+    "check:mobile": "npm run check --workspace @companion-space/mobile",
+    "lint:web": "npm run lint --workspace web",
+    "typecheck:web": "npm run typecheck --workspace web",
+    "typecheck:mobile": "npm run typecheck --workspace @companion-space/mobile",
+    "test:original-vrm": "node scripts/generate-original-vrm.mjs --check && node scripts/verify-original-vrm-runtime.mjs",
+    "test:vrm-viseme": "node --experimental-strip-types --test scripts/vrm-viseme.test.mjs",
+    "test:runtime-config": "node --experimental-strip-types scripts/check-runtime-config.mjs",
+    "test:pet-assets": "node --test --test-isolation=none scripts/check-pet-assets.test.mjs && node scripts/check-pet-assets.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:vrm-performance": "E2E_REQUIRE_HARDWARE_RENDERING=1 E2E_HEADED=1 playwright test tests/e2e/realtime-guardrails.spec.ts --project=chromium -g \"sustains 30 fps on hardware\"",
+    "test:e2e:realtime-soak": "NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8200 NEXT_PUBLIC_REALTIME_WS_URL=ws://127.0.0.1:8200/api/v1/sessions/:sessionId/realtime npm run build:web && E2E_RUN_SOAK=1 E2E_SOAK_MINUTES=30 playwright test --config=playwright.soak.config.ts",
+    "test:e2e:realtime-soak:smoke": "NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8200 NEXT_PUBLIC_REALTIME_WS_URL=ws://127.0.0.1:8200/api/v1/sessions/:sessionId/realtime npm run build:web && E2E_RUN_SOAK=1 E2E_SOAK_MINUTES=0.2 E2E_SOAK_SAMPLE_SECONDS=2 E2E_SOAK_TURN_SECONDS=3 playwright test --config=playwright.soak.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

@@ -1,0 +1,117 @@
+.page {
+  width: min(100%, 860px);
+  gap: 22px;
+}
+
+.header {
+  display: grid;
+  gap: 10px;
+  padding: 4px 0 16px;
+  border-bottom: 2px solid #1d252b;
+}
+
+.header h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(36px, 7vw, 50px);
+  font-weight: 860;
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.header p {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--warm-text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.facts > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.facts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.facts dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.block {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.block:last-child {
+  border-bottom: 0;
+}
+
+.block h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 750;
+}
+
+.block > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.policyRow {
+  display: grid;
+  gap: 4px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.policyRow:first-of-type {
+  border-top: 0;
+}
+
+.policyRow strong {
+  color: var(--ink);
+}
+
+.policyRow p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ageCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.ageCheck input {
+  width: auto;
+  min-height: 20px;
+  margin-top: 4px;
+}

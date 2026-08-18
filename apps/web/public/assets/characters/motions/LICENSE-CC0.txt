@@ -1,0 +1,8 @@
+Companion Space CC0 motion dedication
+
+To the extent possible under law, the Companion Space project waives all
+copyright and related rights in the four `companion-*.vrma` motion files in
+this directory under CC0 1.0 Universal.
+
+License: https://creativecommons.org/publicdomain/zero/1.0/
+Generator source: scripts/generate-cc0-vrma.mjs

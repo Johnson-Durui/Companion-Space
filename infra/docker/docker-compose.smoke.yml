@@ -1,0 +1,18 @@
+services:
+  caddy:
+    volumes:
+      - companion_smoke_caddy_data:/data
+      - companion_smoke_caddy_config:/config
+
+  api:
+    environment:
+      OBJECT_STORAGE_PATH: /app/storage
+      EMBEDDING_PROVIDER: local_hybrid
+      RERANKER_PROVIDER: local
+    volumes:
+      - companion_smoke_storage:/app/storage
+
+volumes:
+  companion_smoke_caddy_data:
+  companion_smoke_caddy_config:
+  companion_smoke_storage:

@@ -1,0 +1,23 @@
+FROM node:24-bookworm-slim
+
+WORKDIR /app
+
+ARG NEXT_PUBLIC_API_BASE_URL=/
+ARG NEXT_PUBLIC_REALTIME_WS_URL=/api/v1/sessions/:sessionId/realtime
+ARG NEXT_PUBLIC_LIVE2D_RUNTIME_BRIDGE_URL=
+ARG NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL=
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+ENV NEXT_PUBLIC_REALTIME_WS_URL=${NEXT_PUBLIC_REALTIME_WS_URL}
+ENV NEXT_PUBLIC_LIVE2D_RUNTIME_BRIDGE_URL=${NEXT_PUBLIC_LIVE2D_RUNTIME_BRIDGE_URL}
+ENV NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL=${NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL}
+
+COPY package.json /app/package.json
+COPY package-lock.json /app/package-lock.json
+COPY apps/web/package.json /app/apps/web/package.json
+RUN npm ci
+
+COPY . /app
+
+RUN npm run build --workspace web
+
+CMD ["npm", "run", "start", "--workspace", "web"]

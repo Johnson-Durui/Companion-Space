@@ -1,0 +1,28 @@
+{
+  "avatar_model": "mira",
+  "avatar_framing": "full_body",
+  "stage_background": "neutral",
+  "base_model": "mini",
+  "face_style": "soft",
+  "hairstyle": "short_bob",
+  "outfit": "academy",
+  "accessories": [],
+  "palette": {
+    "skin_tone": "#f0d3ca",
+    "hair_color": "#0c5961",
+    "eye_color": "#78c9ca",
+    "outfit_color": "#f0eadf",
+    "accent_color": "#d6644a"
+  },
+  "personality": "gentle",
+  "warmth": 72,
+  "initiative": 58,
+  "humor": 44,
+  "challenge": 34,
+  "relationship_role": "friend",
+  "voice_provider": "local-neural",
+  "voice_model": "qwen3-tts-0.6b-customvoice",
+  "voice_id": "Serena",
+  "speaking_rate": 1,
+  "motions": {}
+}

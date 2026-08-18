@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companion-space.local/schemas/lesson-script.json",
+  "title": "LessonScript",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "steps"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["board", "caption", "narration"],
+        "properties": {
+          "board": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "content"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["mermaid", "markdown", "highlight"]
+              },
+              "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "target": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "kind": { "const": "highlight" }
+                  }
+                },
+                "then": {
+                  "required": ["target"]
+                }
+              }
+            ]
+          },
+          "caption": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          },
+          "narration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1200
+          }
+        }
+      }
+    }
+  }
+}

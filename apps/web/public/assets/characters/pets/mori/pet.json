@@ -1,0 +1,32 @@
+{
+  "id": "mori",
+  "displayName": "森森 Mori",
+  "description": "原创的青绿色短发学习伙伴，会用动作、表情和 16 个注视方向回应你。",
+  "spriteVersionNumber": 2,
+  "spritesheetPath": "spritesheet.webp",
+  "spritesheetSha256": "4ec03f4ef35d23674abe08df47c8131cb5d5df69ec18ab59a59bb5d84692cc51",
+  "atlas": {
+    "columns": 8,
+    "rows": 11,
+    "cellWidth": 192,
+    "cellHeight": 208,
+    "neutralLookFrame": {
+      "rowIndex": 0,
+      "columnIndex": 6
+    }
+  },
+  "emotionReactions": {
+    "neutral": "calm",
+    "warm": "soft",
+    "cheerful": "wave",
+    "curious": "lift",
+    "focused": "attentive",
+    "playful": "bounce",
+    "concerned": "failed"
+  },
+  "provenance": {
+    "kind": "project-original-ai-assisted",
+    "generatedFor": "Companion Space",
+    "thirdPartyCharacterOrTrademark": false
+  }
+}

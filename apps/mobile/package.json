@@ -1,0 +1,36 @@
+{
+  "name": "@companion-space/mobile",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check.mjs",
+    "typecheck": "tsc --noEmit",
+    "release:sync": "node scripts/sync-release-version.mjs",
+    "release:sync:check": "node scripts/sync-release-version.mjs --check",
+    "test:release-gates": "node --test --test-isolation=none scripts/release-common.test.mjs scripts/release-ios-gates.test.mjs",
+    "android:release": "node scripts/release-android.mjs",
+    "android:release:check": "node scripts/release-android.mjs --check",
+    "android:release:self-test": "node scripts/release-android.mjs --self-test",
+    "ios:release": "node scripts/release-ios.mjs",
+    "ios:release:check": "node scripts/release-ios.mjs --check",
+    "ios:release:self-test": "node scripts/release-ios.mjs --self-test",
+    "ios:device": "npm run build && cap sync ios && node scripts/normalize-native.mjs && cap open ios",
+    "native:normalize": "node scripts/normalize-native.mjs",
+    "cap:sync": "cap sync && node scripts/normalize-native.mjs",
+    "cap:add:ios": "cap add ios && node scripts/normalize-native.mjs",
+    "cap:add:android": "cap add android && node scripts/normalize-native.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.0",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/core": "8.5.0",
+    "@capacitor/filesystem": "8.1.2",
+    "@capacitor/ios": "8.5.0",
+    "@capacitor/preferences": "8.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.0",
+    "typescript": "5.8.3"
+  }
+}

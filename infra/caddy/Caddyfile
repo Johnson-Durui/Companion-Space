@@ -1,0 +1,18 @@
+{
+	admin off
+	default_sni {$MOBILE_DEFAULT_SNI:companion.localhost}
+}
+
+{$APP_HOST:companion.localhost} {
+	encode gzip zstd
+	tls internal
+
+	@api path /api/* /healthz /docs /openapi.json /ws/*
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

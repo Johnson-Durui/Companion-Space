@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companion-space.local/schemas/generated-companion-reply.json",
+  "title": "GeneratedCompanionReply",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "display_text",
+    "spoken_text",
+    "emotion",
+    "suggested_actions"
+  ],
+  "properties": {
+    "display_text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "spoken_text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "emotion": {
+      "type": "string",
+      "enum": ["neutral", "warm", "cheerful", "curious", "focused", "playful", "concerned"]
+    },
+    "suggested_actions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "board_actions": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "content"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["mermaid", "markdown", "highlight"]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": { "const": "highlight" }
+              }
+            },
+            "then": {
+              "required": ["target"]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

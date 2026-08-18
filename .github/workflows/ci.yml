@@ -1,0 +1,457 @@
+name: ci
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "mobile-v*"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Check shell files with Windows PowerShell 5.1
+        shell: powershell
+        run: .\scripts\windows-smoke.ps1
+
+      - name: Install backend dependencies
+        run: python -m pip install -r services/api/requirements-dev.txt
+
+      - name: Ruff
+        run: python -m ruff check services/api
+
+      - name: Pytest
+        env:
+          PYTHONPATH: services/api
+        run: python -m pytest services/api/tests -q
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install backend dependencies
+        run: python -m pip install -r services/api/requirements-dev.txt
+
+      - name: Ruff
+        run: python -m ruff check services/api
+
+      - name: Pytest
+        env:
+          PYTHONPATH: services/api
+        run: pytest services/api/tests -q
+
+  tts-sidecar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install sidecar test dependencies
+        run: >-
+          python -m pip install
+          fastapi==0.116.1
+          httpx==0.28.1
+          librosa==0.11.0
+          numpy==2.2.6
+          pydantic==2.11.7
+          ruff==0.12.1
+
+      - name: Ruff
+        run: python -m ruff check services/tts
+
+      - name: Sidecar unit tests
+        working-directory: services/tts
+        run: python -m unittest discover -s tests -p test_app.py -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Validate bundled pet assets
+        run: npm run test:pet-assets
+
+      - name: Validate original VRM companions
+        run: npm run test:original-vrm
+
+      - name: Validate VRM viseme synthesis
+        run: npm run test:vrm-viseme
+
+      - name: Validate runtime configuration boundaries
+        run: npm run test:runtime-config
+
+      - name: Typecheck
+        run: npm run typecheck:web
+
+      - name: Lint
+        run: npm run lint:web
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
+        run: npm run build:web
+
+  android:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [24, 36]
+    env:
+      COMPANION_MOBILE_TRUSTED_ORIGINS: https://mobile-ci.example.test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+
+      - name: Install Android SDK packages
+        run: >-
+          sdkmanager
+          "platforms;android-36"
+          "build-tools;36.0.0"
+          "emulator"
+          "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate mobile shell
+        run: |
+          npm run check:mobile
+          npm run typecheck:mobile
+          npm run build:mobile
+          npm run release:sync:check --workspace @companion-space/mobile
+          npm run test:release-gates --workspace @companion-space/mobile
+          npm run android:release:self-test --workspace @companion-space/mobile
+
+      - name: Sync Capacitor Android project
+        working-directory: apps/mobile
+        run: |
+          npx cap sync android
+          npm run native:normalize
+          npm run check
+          git diff --exit-code -- android
+
+      - name: Test, lint, and assemble Android app
+        working-directory: apps/mobile/android
+        run: >-
+          bash ./gradlew
+          :app:testDebugUnitTest
+          :app:lintDebug
+          :app:assembleDebug
+          :app:assembleRelease
+          :app:verifyReleaseBundleMetadata
+
+      - name: Run Android instrumentation tests
+        timeout-minutes: 15
+        run: |
+          sudo chmod 666 /dev/kvm
+          echo no | avdmanager create avd --force --name companion-ci --package "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
+          "$ANDROID_HOME/emulator/emulator" -avd companion-ci -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect &
+          trap 'adb emu kill || true' EXIT
+          adb wait-for-device
+          until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 2; done
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          cd apps/mobile/android
+          bash ./gradlew :app:connectedDebugAndroidTest
+
+      - name: Upload debug APK
+        if: matrix.api-level == 36
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: companion-space-android-debug
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Assert release bundle is unsigned
+        if: matrix.api-level == 36
+        run: |
+          AAB=apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          test -f "$AAB"
+          if unzip -Z1 "$AAB" | grep -Eq '^META-INF/[^/]+\.(RSA|DSA|EC|SF)$'; then
+            echo "CI release bundle unexpectedly contains a signing block" >&2
+            exit 1
+          fi
+
+      - name: Upload unsigned release bundle
+        if: matrix.api-level == 36
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: companion-space-android-release-unsigned
+          path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+  ios:
+    runs-on: macos-26
+    env:
+      COMPANION_MOBILE_TRUSTED_ORIGINS: https://mobile-ci.example.test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate mobile shell
+        run: |
+          npm run check:mobile
+          npm run typecheck:mobile
+          npm run build:mobile
+          npm run release:sync:check --workspace @companion-space/mobile
+          npm run test:release-gates --workspace @companion-space/mobile
+          npm run ios:release:self-test --workspace @companion-space/mobile
+
+      - name: Sync Capacitor iOS project
+        working-directory: apps/mobile
+        run: |
+          npx cap sync ios
+          npm run native:normalize
+          npm run check
+          git diff --exit-code -- ios
+
+      - name: Require Xcode 26 or newer
+        run: test "$(xcodebuild -version | awk '/Xcode/ { split($2, version, "."); print version[1] }')" -ge 26
+
+      - name: Validate Xcode release contract and privacy manifests
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios-release-contract"
+          xcodebuild -help > "$RUNNER_TEMP/ios-release-contract/xcodebuild-help.txt" 2>&1
+          grep -Fq 'app-store-connect' "$RUNNER_TEMP/ios-release-contract/xcodebuild-help.txt"
+          find apps/mobile/ios -name PrivacyInfo.xcprivacy -print0 | xargs -0 -n1 plutil -lint
+
+      - name: Build unsigned iOS simulator app (Debug)
+        run: >-
+          xcodebuild
+          -project apps/mobile/ios/App/App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath "$RUNNER_TEMP/CompanionDerivedData"
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Run iPhone and iPad simulator tests
+        run: |
+          IOS_IPHONE_ID="$(xcrun simctl list devices available | sed -nE 's/.*iPhone.*\(([0-9A-Fa-f-]{36})\).*/\1/p' | head -n 1)"
+          IOS_IPAD_ID="$(xcrun simctl list devices available | sed -nE 's/.*iPad.*\(([0-9A-Fa-f-]{36})\).*/\1/p' | head -n 1)"
+          test -n "$IOS_IPHONE_ID"
+          test -n "$IOS_IPAD_ID"
+          for ENTRY in "iPhone:$IOS_IPHONE_ID" "iPad:$IOS_IPAD_ID"; do
+            DEVICE_KIND="${ENTRY%%:*}"
+            DEVICE_ID="${ENTRY#*:}"
+            xcrun simctl boot "$DEVICE_ID" || true
+            xcrun simctl bootstatus "$DEVICE_ID" -b
+            xcodebuild \
+              -project apps/mobile/ios/App/App.xcodeproj \
+              -scheme App \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -destination "platform=iOS Simulator,id=$DEVICE_ID" \
+              -derivedDataPath "$RUNNER_TEMP/CompanionDerivedData-$DEVICE_KIND" \
+              -resultBundlePath "$RUNNER_TEMP/AppTests-$DEVICE_KIND.xcresult" \
+              CODE_SIGNING_ALLOWED=NO \
+              test
+            xcrun simctl shutdown "$DEVICE_ID"
+          done
+
+      - name: Create and inspect unsigned iOS archive (diagnostic only)
+        run: |
+          xcodebuild \
+            archive \
+            -project apps/mobile/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/CompanionUnsigned.xcarchive" \
+            -derivedDataPath "$RUNNER_TEMP/CompanionDeviceDerivedData" \
+            CODE_SIGNING_ALLOWED=NO
+          APP="$RUNNER_TEMP/CompanionUnsigned.xcarchive/Products/Applications/App.app"
+          test -f "$APP/Info.plist"
+          test -f "$APP/PrivacyInfo.xcprivacy"
+          plutil -lint "$APP/Info.plist"
+          plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          EXPECTED_ID="$(node -p "require('./apps/mobile/release.json').appId")"
+          EXPECTED_VERSION="$(node -p "require('./apps/mobile/release.json').marketingVersion")"
+          EXPECTED_BUILD="$(node -p "require('./apps/mobile/release.json').buildNumber")"
+          test "$(plutil -extract CFBundleIdentifier raw -o - "$APP/Info.plist")" = "$EXPECTED_ID"
+          test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP/Info.plist")" = "$EXPECTED_VERSION"
+          test "$(plutil -extract CFBundleVersion raw -o - "$APP/Info.plist")" = "$EXPECTED_BUILD"
+
+      - name: Build unsigned iOS simulator app (Release)
+        run: >-
+          xcodebuild
+          -project apps/mobile/ios/App/App.xcodeproj
+          -scheme App
+          -configuration Release
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath "$RUNNER_TEMP/CompanionDerivedData"
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Upload unsigned iOS simulator app
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: companion-space-ios-simulator-release
+          path: ${{ runner.temp }}/CompanionDerivedData/Build/Products/Release-iphonesimulator/App.app
+          if-no-files-found: error
+
+      - name: Upload iOS release-contract evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: companion-space-ios-release-contract
+          path: |
+            ${{ runner.temp }}/ios-release-contract
+            ${{ runner.temp }}/AppTests-iPhone.xcresult
+            ${{ runner.temp }}/AppTests-iPad.xcresult
+            ${{ runner.temp }}/CompanionUnsigned.xcarchive/Info.plist
+            ${{ runner.temp }}/CompanionUnsigned.xcarchive/Products/Applications/App.app/Info.plist
+            ${{ runner.temp }}/CompanionUnsigned.xcarchive/Products/Applications/App.app/PrivacyInfo.xcprivacy
+          if-no-files-found: warn
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Python dependency auditor
+        run: python -m pip install pip-audit
+
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
+
+      - name: Audit backend dependencies
+        run: python -m pip_audit -r services/api/requirements.txt
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install backend dependencies
+        run: python -m pip install -r services/api/requirements.txt
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright E2E
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Docker Compose smoke
+        run: ./scripts/docker-smoke.sh

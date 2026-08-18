@@ -1,0 +1,846 @@
+.shell {
+  --workshop-bg: #102f34;
+  --workshop-panel: rgba(16, 47, 52, 0.88);
+  --workshop-panel-strong: rgba(18, 54, 58, 0.94);
+  --workshop-line: rgba(235, 203, 114, 0.18);
+  --workshop-line-strong: rgba(235, 203, 114, 0.32);
+  --workshop-text: #fffdf7;
+  --workshop-muted: #c5d4d1;
+  --workshop-accent: #ebcb72;
+  --workshop-accent-soft: rgba(235, 203, 114, 0.14);
+  --workshop-success: #7ee0d0;
+  --workshop-danger: #ff9eab;
+  --workshop-shadow: 0 26px 70px rgba(6, 23, 26, 0.34);
+  display: grid;
+  gap: 18px;
+  color: var(--workshop-text);
+}
+
+.hero,
+.card,
+.previewCard,
+.templateButton,
+.notice,
+.error {
+  border: 1px solid var(--workshop-line);
+  background: var(--workshop-panel);
+  box-shadow: var(--workshop-shadow);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+  gap: 18px;
+  padding: 26px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(126, 224, 208, 0.12), transparent 32%),
+    radial-gradient(circle at 100% 0%, rgba(137, 216, 255, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(14, 21, 35, 0.96), rgba(11, 17, 28, 0.9));
+}
+
+.heroCopy,
+.heroMetrics,
+.card,
+.choiceStack,
+.templateRail,
+.actionBar,
+.actionCluster,
+.aside,
+.previewCard,
+.previewStateRow,
+.previewMeta,
+.sliderGrid,
+.colorGrid {
+  display: grid;
+  gap: 14px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--workshop-accent);
+}
+
+.heroCopy h2,
+.cardHeader h3,
+.previewHeader h3 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}
+
+.heroCopy h2 {
+  font-size: clamp(2rem, 3vw, 2.7rem);
+}
+
+.heroCopy p {
+  margin: 0;
+  line-height: 1.7;
+  color: var(--workshop-muted);
+}
+
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.statusPill,
+.previewStatus,
+.statusText,
+.previewAccessoryRow span {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+}
+
+.statusPill,
+.previewStatus {
+  padding: 7px 12px;
+  border: 1px solid var(--workshop-line-strong);
+  background: rgba(137, 216, 255, 0.12);
+  font-size: 12px;
+}
+
+.statusText {
+  padding: 7px 0;
+  font-size: 13px;
+  color: var(--workshop-muted);
+}
+
+.heroMetrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.heroMetrics article {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--workshop-line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.heroMetrics span,
+.previewMeta dt,
+.field span,
+.fieldHint,
+.colorField span,
+.sliderField span,
+.accessoryHeader p,
+.choiceButton span,
+.choiceHint,
+.accessoryChip span,
+.codeBlock,
+.notice,
+.error {
+  color: var(--workshop-muted);
+}
+
+.heroMetrics strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 1.05rem;
+}
+
+.heroMetrics p {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.notice,
+.error {
+  padding: 14px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+}
+
+.notice {
+  border-color: rgba(126, 224, 208, 0.24);
+  background: rgba(126, 224, 208, 0.1);
+  color: var(--workshop-success);
+}
+
+.error {
+  border-color: rgba(255, 158, 171, 0.28);
+  background: rgba(255, 158, 171, 0.1);
+  color: var(--workshop-danger);
+}
+
+.templateRail {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.rosterSection {
+  display: grid;
+  gap: 18px;
+}
+
+.rosterHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  align-items: flex-end;
+  padding: 0 4px;
+}
+
+.rosterHeader h3 {
+  margin: 7px 0 0;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+}
+
+.rosterHeader > p {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--workshop-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.researchShowcase {
+  position: relative;
+  min-height: 240px;
+  overflow: hidden;
+  border: 1px solid rgba(126, 224, 208, 0.2);
+  border-radius: 28px;
+  background: #101b28;
+  isolation: isolate;
+}
+
+.researchShowcase::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+  background: linear-gradient(90deg, rgba(10, 19, 29, 0.9) 0%, rgba(10, 19, 29, 0.54) 38%, rgba(10, 19, 29, 0.05) 74%);
+  pointer-events: none;
+}
+
+.researchShowcaseImage {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  object-fit: cover;
+}
+
+.researchShowcaseCopy {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  display: grid;
+  align-content: center;
+  width: min(520px, 62%);
+  padding: clamp(24px, 4vw, 52px);
+}
+
+.researchShowcaseCopy h2 {
+  margin: 6px 0 12px;
+  color: #f8f3ea;
+  font-size: clamp(1.55rem, 3vw, 2.6rem);
+  line-height: 1.05;
+}
+
+.researchShowcaseCopy p:last-child {
+  max-width: 42ch;
+  margin: 0;
+  color: rgba(238, 244, 246, 0.78);
+  line-height: 1.65;
+}
+
+.templateButton {
+  padding: 18px;
+  border-radius: 20px;
+  text-align: left;
+  color: var(--workshop-text);
+}
+
+.templateButtonFeatured {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 26px;
+  background: #111a27;
+  box-shadow: 0 20px 42px rgba(3, 8, 16, 0.28);
+}
+
+.templateArtwork {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: #182434;
+}
+
+.templateArtwork img {
+  object-fit: cover;
+  transition: transform 240ms ease;
+}
+
+.templateButtonFeatured:hover .templateArtwork img {
+  transform: scale(1.025);
+}
+
+.templateCopy {
+  display: grid;
+  gap: 9px;
+  padding: 17px 18px 20px;
+}
+
+.templateCopy small {
+  color: var(--workshop-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.templateCopy strong {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.templateCopy > span {
+  color: var(--workshop-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.legacyTemplates {
+  border-top: 1px solid var(--workshop-line);
+  padding-top: 4px;
+}
+
+.legacyTemplates summary {
+  min-height: 44px;
+  padding: 14px 4px;
+  color: var(--workshop-muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.templateRailCompact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding-top: 8px;
+}
+
+.templateButton strong,
+.choiceButton strong,
+.accessoryChip strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.82fr);
+  gap: 18px;
+}
+
+.main {
+  display: grid;
+  gap: 18px;
+}
+
+.card,
+.previewCard {
+  padding: 22px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(17, 25, 40, 0.94), rgba(14, 22, 34, 0.9));
+}
+
+.cardHeader,
+.previewHeader,
+.accessoryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.cardHeader h3,
+.previewHeader h3 {
+  font-size: 1.18rem;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field,
+.colorField,
+.sliderField {
+  display: grid;
+  gap: 8px;
+}
+
+.fieldHint,
+.choiceHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.avatarLifecycle {
+  display: grid;
+  gap: 10px;
+}
+
+.motionLifecycle,
+.motionRows {
+  display: grid;
+  gap: 12px;
+}
+
+.motionLifecycle {
+  padding: 16px;
+  border: 1px solid var(--workshop-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.motionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--workshop-line);
+}
+
+.motionRow > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.motionRow span,
+.motionRow small {
+  color: var(--workshop-muted);
+  overflow-wrap: anywhere;
+}
+
+.fieldFull {
+  grid-column: 1 / -1;
+}
+
+.field input,
+.field select,
+.field textarea,
+.choiceButton,
+.accessoryChip,
+.previewStateRow button,
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  border-radius: 16px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--workshop-line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--workshop-text);
+  padding: 13px 14px;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.choiceGroup {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.choiceGroup legend {
+  padding: 0;
+  font-size: 13px;
+  color: var(--workshop-muted);
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.choiceButton,
+.accessoryChip,
+.previewStateRow button,
+.templateButton,
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  border: 1px solid var(--workshop-line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--workshop-text);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.choiceButton,
+.accessoryChip,
+.previewStateRow button {
+  padding: 14px;
+  text-align: left;
+}
+
+.choiceButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
+}
+
+.choiceButton[data-active="true"],
+.accessoryChip[data-active="true"],
+.previewStateRow button[data-active="true"] {
+  border-color: rgba(137, 216, 255, 0.42);
+  background: rgba(137, 216, 255, 0.12);
+}
+
+.choiceButton:hover,
+.accessoryChip:hover,
+.templateButton:hover,
+.previewStateRow button:hover,
+.primaryButton:hover,
+.secondaryButton:hover,
+.dangerButton:hover {
+  transform: translateY(-1px);
+}
+
+.accessoryHeader {
+  margin-top: 6px;
+}
+
+.accessoryHeader span {
+  font-size: 13px;
+}
+
+.accessoryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.colorGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.colorField input {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid var(--workshop-line);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+}
+
+.sliderGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sliderField {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--workshop-line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sliderField span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sliderField strong {
+  color: var(--workshop-text);
+}
+
+.sliderField input {
+  width: 100%;
+}
+
+.aside {
+  align-content: start;
+}
+
+.runtimePreview {
+  position: relative;
+  min-height: 340px;
+  overflow: hidden;
+  border-radius: 22px;
+}
+
+.assetLoading {
+  min-height: 340px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 1px dashed var(--workshop-line-strong);
+  border-radius: 22px;
+  background: rgba(9, 13, 21, 0.72);
+  color: var(--workshop-muted);
+  line-height: 1.7;
+  text-align: center;
+}
+
+.capabilityCard,
+.capabilityList {
+  display: grid;
+  gap: 14px;
+}
+
+.capabilitySummary,
+.capabilityList p,
+.capabilityWarning {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.capabilitySummary,
+.capabilityList p {
+  color: var(--workshop-muted);
+}
+
+.capabilitySummary strong,
+.capabilityList strong {
+  color: var(--workshop-text);
+}
+
+.capabilityWarning {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 202, 123, 0.24);
+  border-radius: 16px;
+  background: rgba(255, 202, 123, 0.08);
+  color: #ffd9a1;
+}
+
+.previewStateRow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.previewStateRow button {
+  padding: 10px 6px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.previewSpeech {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--workshop-line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.previewSpeech strong {
+  display: block;
+}
+
+.previewSpeechTopline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.previewVoiceButton {
+  border: 1px solid rgba(126, 224, 208, 0.24);
+  background: rgba(126, 224, 208, 0.1);
+  color: var(--workshop-text);
+  padding: 8px 12px;
+}
+
+.previewVoiceButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.previewSpeech p {
+  margin: 0;
+  line-height: 1.7;
+  color: var(--workshop-muted);
+}
+
+.previewSpacePanel {
+  display: grid;
+  gap: 12px;
+}
+
+.defaultBindingPanel {
+  display: grid;
+  gap: 8px;
+}
+
+.previewMeta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.previewMeta div {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--workshop-line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.previewMeta dt {
+  font-size: 12px;
+}
+
+.previewMeta dd {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.codeBlock {
+  margin: 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--workshop-line);
+  background: rgba(9, 13, 21, 0.92);
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.actionBar {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.actionCluster {
+  grid-template-columns: repeat(5, auto);
+  justify-content: start;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  padding: 12px 16px;
+}
+
+.primaryButton {
+  border-color: rgba(126, 224, 208, 0.22);
+  background: linear-gradient(135deg, rgba(126, 224, 208, 0.84), rgba(137, 216, 255, 0.82));
+  color: #07111a;
+}
+
+.dangerButton {
+  color: var(--workshop-danger);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
+@media (max-width: 1180px) {
+  .hero,
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .heroMetrics,
+  .templateRail,
+  .choiceGrid,
+  .accessoryGrid,
+  .sliderGrid,
+  .colorGrid,
+  .previewMeta,
+  .actionCluster {
+    grid-template-columns: 1fr;
+  }
+
+  .actionBar {
+    grid-template-columns: 1fr;
+  }
+
+  .rosterSection .templateRail,
+  .templateRailCompact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .rosterHeader {
+    display: grid;
+    gap: 10px;
+  }
+
+  .rosterSection .templateRail {
+    display: flex;
+    gap: 14px;
+    margin-inline: -16px;
+    padding: 0 16px 8px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .rosterSection .templateRail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .templateButtonFeatured {
+    flex: 0 0 min(78vw, 292px);
+    scroll-snap-align: start;
+  }
+
+  .templateRailCompact {
+    grid-template-columns: 1fr;
+  }
+
+  .researchShowcase {
+    min-height: 360px;
+  }
+
+  .researchShowcase::after {
+    background: linear-gradient(0deg, rgba(10, 19, 29, 0.92) 0%, rgba(10, 19, 29, 0.26) 72%);
+  }
+
+  .researchShowcaseImage {
+    min-height: 360px;
+    object-position: 62% center;
+  }
+
+  .researchShowcaseCopy {
+    inset: auto 0 0;
+    width: auto;
+    padding: 24px;
+  }
+
+  .hero,
+  .card,
+  .previewCard {
+    padding: 18px;
+  }
+
+  .formGrid,
+  .previewStateRow {
+    grid-template-columns: 1fr;
+  }
+
+  .statusRow,
+  .cardHeader,
+  .previewHeader,
+  .accessoryHeader {
+    flex-direction: column;
+  }
+}

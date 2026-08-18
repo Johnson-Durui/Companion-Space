@@ -1,0 +1,683 @@
+.shell {
+  padding: 0;
+  display: grid;
+  gap: 18px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-end;
+  padding: 8px 4px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero h1,
+.stage h3,
+.captionPanel h3,
+.boardPanel h3 {
+  margin: 0;
+  font-family: inherit;
+}
+
+.heroCopy {
+  display: grid;
+  gap: 6px;
+}
+
+.heroLead {
+  margin: 0;
+  color: var(--muted);
+}
+
+.heroMeta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.heroMetaDisclosure > summary,
+.mobileDisclosure > summary,
+.callActions > summary,
+.stageSettings > summary {
+  display: none;
+}
+
+.mobileDisclosure:not([open]) > :not(summary) {
+  display: block;
+}
+
+.heroMetaDisclosure:not([open]) > .heroMeta {
+  display: grid;
+}
+
+.callActions:not([open]) > div {
+  display: flex;
+}
+
+.stageSettings:not([open]) > .stageSettingsBody {
+  display: grid;
+}
+
+.heroMeta div,
+.meterCard,
+.boardPanel,
+.captionPanel,
+.transcriptPanel,
+.notePanel,
+.composer,
+.stage {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  border: 1px solid var(--line);
+}
+
+.heroMeta span,
+.meterLabel span,
+.sliderField span,
+.panelTopline span,
+.turnTopline span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.heroMeta strong,
+.meterLabel strong,
+.turnTopline strong {
+  display: block;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  gap: 24px;
+}
+
+.stageColumn,
+.sideColumn {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.controlBar,
+.quickRow,
+.panelTopline,
+.meterLabel,
+.turnTopline,
+.citationRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.controlBar,
+.quickRow,
+.citationRow {
+  flex-wrap: wrap;
+}
+
+.stage {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: var(--night);
+}
+
+.stageVisual {
+  position: relative;
+  isolation: isolate;
+  padding-bottom: 50px;
+  overflow: hidden;
+  border-radius: 0;
+  background: #102f34;
+}
+
+.stageVisual :global([data-avatar-stage-background]) {
+  min-height: clamp(500px, 44vw, 620px);
+}
+
+.stageVisual :global([data-avatar-stage-background][role="button"]) {
+  box-shadow:
+    inset 0 0 110px rgba(25, 49, 58, 0.11),
+    inset 0 -90px 110px rgba(25, 49, 58, 0.08);
+}
+
+.stagePresence {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  max-width: none;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.stagePresence div {
+  display: grid;
+  line-height: 1.15;
+}
+
+.stagePresence strong {
+  font-size: 14px;
+}
+
+.stagePresence div > span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.presenceDot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #ef775d;
+  box-shadow: 0 0 0 4px rgba(239, 119, 93, 0.14);
+}
+
+.stageControls,
+.stageSettingsBody {
+  display: grid;
+  gap: 14px;
+}
+
+.stageSettings {
+  min-width: 0;
+}
+
+.callActions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.primaryButton,
+.secondaryButton,
+.quickButton {
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.quickButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.quickButton:focus-visible,
+.characterField select:focus-visible,
+.form textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.quickButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+  transform: none;
+}
+
+.primaryButton {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.secondaryButton,
+.quickButton {
+  background: var(--panel);
+}
+
+.meterCard,
+.boardPanel,
+.composer,
+.captionPanel,
+.transcriptPanel,
+.notePanel {
+  display: grid;
+  gap: 14px;
+}
+
+.composer {
+  border-left: 4px solid var(--warm);
+  background: var(--panel-strong);
+}
+
+.meterTrack {
+  width: 100%;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.sliderField {
+  display: grid;
+  gap: 8px;
+}
+
+.characterField {
+  display: grid;
+  gap: 8px;
+}
+
+.characterField span,
+.characterField small {
+  color: var(--muted);
+}
+
+.characterField select {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 10px 12px;
+}
+
+.sliderField input,
+.form textarea {
+  width: 100%;
+}
+
+.helperText,
+.captionText,
+.errorText {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.captionText {
+  min-height: 88px;
+  font-size: 18px;
+}
+
+.errorText {
+  color: #b03a4a;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.form textarea {
+  min-height: 120px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 14px 16px;
+  resize: vertical;
+}
+
+.transcriptList {
+  display: grid;
+  gap: 12px;
+  max-height: 720px;
+  overflow: auto;
+}
+
+.turn {
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.turn[data-role="assistant"] {
+  border-color: rgba(76, 136, 255, 0.2);
+}
+
+.turn[data-role="user"] {
+  border-color: rgba(15, 106, 99, 0.18);
+}
+
+.turn[data-role="system"] {
+  border-color: rgba(184, 111, 70, 0.18);
+}
+
+.turn p,
+.notePanel ul {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.citationRow span {
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  background: var(--accent-soft);
+  font-size: 12px;
+}
+
+.notePanel ul {
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 1180px) {
+  .hero,
+  .layout {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .heroMeta {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    padding: 8px 0 0;
+    gap: 14px;
+    padding-bottom: calc(156px + env(safe-area-inset-bottom));
+  }
+
+  .hero {
+    display: block;
+    padding: 2px 16px 0;
+  }
+
+  .heroCopy {
+    display: block;
+  }
+
+  .heroCopy > :global(.eyebrow) {
+    display: none;
+  }
+
+  .hero h1 {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: clamp(24px, 7vw, 28px);
+    line-height: 1.08;
+  }
+
+  .heroLead {
+    display: none;
+  }
+
+  .heroMetaDisclosure {
+    display: none;
+  }
+
+  .heroMetaDisclosure > summary,
+  .mobileDisclosure > summary,
+  .callActions > summary,
+  .stageSettings > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    cursor: pointer;
+    font-weight: 700;
+    list-style: none;
+  }
+
+  .heroMetaDisclosure > summary::-webkit-details-marker,
+  .mobileDisclosure > summary::-webkit-details-marker,
+  .callActions > summary::-webkit-details-marker,
+  .stageSettings > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .heroMetaDisclosure > summary::after,
+  .mobileDisclosure > summary::after,
+  .callActions > summary::after,
+  .stageSettings > summary::after {
+    content: "+";
+    color: var(--muted);
+    font-size: 20px;
+  }
+
+  .heroMetaDisclosure[open] > summary::after,
+  .mobileDisclosure[open] > summary::after,
+  .callActions[open] > summary::after,
+  .stageSettings[open] > summary::after {
+    content: "−";
+  }
+
+  .heroMetaDisclosure:not([open]) > :not(summary),
+  .mobileDisclosure:not([open]) > :not(summary),
+  .callActions:not([open]) > :not(summary),
+  .stageSettings:not([open]) > :not(summary) {
+    display: none;
+  }
+
+  .heroMeta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 8px;
+  }
+
+  .heroMeta div {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .layout,
+  .stageColumn,
+  .sideColumn {
+    display: contents;
+  }
+
+  .stage {
+    order: 1;
+    gap: 0;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel);
+    box-shadow: none;
+  }
+
+  .stageVisual {
+    padding-bottom: 48px;
+    border-radius: 17px 17px 0 0;
+  }
+
+  .stageVisual :global([data-avatar-stage-background]) {
+    min-height: clamp(400px, 112vw, 440px);
+    border-radius: 17px 17px 0 0;
+  }
+
+  .stagePresence {
+    min-height: 48px;
+    padding: 7px 12px;
+  }
+
+  .stageControls {
+    padding: 8px 12px 10px;
+    background: var(--panel);
+  }
+
+  .stageSettings {
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+    padding: 0 12px 6px;
+  }
+
+  .stageSettingsBody {
+    padding: 4px 0 10px;
+  }
+
+  .captionPanel {
+    order: 2;
+    margin: -2px 10px 0;
+    padding: 13px 15px 15px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warm);
+    border-radius: 4px 4px 14px 14px;
+    background: var(--panel);
+    box-shadow: none;
+  }
+
+  .captionPanel > :global(.eyebrow) {
+    display: none;
+  }
+
+  .captionPanel h3 {
+    font-size: 13px;
+    color: var(--warm-text);
+  }
+
+  .controlBar,
+  .meterCard,
+  .boardDisclosure,
+  .demoDisclosure,
+  .transcriptDisclosure,
+  .noteDisclosure {
+    order: 3;
+  }
+
+  .captionText {
+    min-height: 0;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .composer {
+    position: fixed;
+    z-index: 20;
+    right: 10px;
+    bottom: calc(68px + env(safe-area-inset-bottom));
+    left: 10px;
+    margin: 0;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel);
+    box-shadow: 0 12px 30px rgba(24, 57, 49, 0.14);
+  }
+
+  .quickRow {
+    display: none;
+  }
+
+  .quickRow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .quickButton {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 40px;
+    background: var(--accent-soft);
+    border-color: transparent;
+  }
+
+  .form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+  }
+
+  .form textarea {
+    height: 44px;
+    min-height: 44px;
+    max-height: 44px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    resize: none;
+  }
+
+  .form .primaryButton {
+    min-height: 44px;
+    padding-inline: 18px;
+  }
+
+  .boardDisclosure,
+  .demoDisclosure,
+  .transcriptDisclosure,
+  .noteDisclosure {
+    order: 3;
+    border-top: 1px solid rgba(32, 25, 20, 0.1);
+  }
+
+  .mobileDisclosure > .boardPanel,
+  .mobileDisclosure > .transcriptPanel,
+  .mobileDisclosure > .notePanel {
+    margin-top: 8px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .callActions {
+    width: 100%;
+    border-top: 1px solid rgba(32, 25, 20, 0.1);
+  }
+
+  .callActions > div {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding-top: 8px;
+  }
+
+  .callActions .secondaryButton {
+    min-height: 44px;
+    padding: 8px;
+  }
+
+  .controlBar > .primaryButton,
+  .pttButton {
+    flex: 1 1 calc(50% - 5px);
+    min-height: 48px;
+  }
+
+  .transcriptList {
+    max-height: 52vh;
+  }
+
+  .controlBar,
+  .panelTopline,
+  .turnTopline,
+  .meterLabel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .controlBar {
+    flex-direction: row;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryButton,
+  .secondaryButton,
+  .quickButton {
+    transition: none;
+  }
+}

@@ -1,0 +1,366 @@
+.shell {
+  padding: 30px;
+  display: grid;
+  gap: 24px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.hero h2,
+.card h3,
+.runtimeCard strong {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}
+
+.heroActions {
+  display: grid;
+  gap: 12px;
+}
+
+.templateButton,
+.segmented button,
+.accessoryChip,
+.inlineAction,
+.primaryButton {
+  border: 1px solid rgba(32, 25, 20, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.templateButton:hover,
+.segmented button:hover,
+.accessoryChip:hover,
+.inlineAction:hover,
+.primaryButton:hover {
+  transform: translateY(-1px);
+  border-color: rgba(15, 106, 99, 0.28);
+}
+
+.templateButton {
+  border-radius: 18px;
+  padding: 16px 18px;
+  text-align: left;
+  display: grid;
+  gap: 8px;
+}
+
+.templateButton strong {
+  font-size: 18px;
+}
+
+.templateButton span,
+.runtimeMeta,
+.runtimeHint,
+.summaryCard,
+.summaryPill {
+  color: var(--muted);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 24px;
+}
+
+.controls,
+.previewRail {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.card,
+.runtimeCard {
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-soft);
+  border-radius: 24px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.sectionTopline,
+.runtimeTopline,
+.exportRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field,
+.colorField,
+.sliderField {
+  display: grid;
+  gap: 8px;
+}
+
+.field span,
+.colorField span,
+.optionRow > span,
+.sliderField span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(32, 25, 20, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  padding: 12px 14px;
+  color: var(--ink);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.optionRows {
+  display: grid;
+  gap: 16px;
+}
+
+.optionRow {
+  display: grid;
+  gap: 10px;
+}
+
+.segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.segmented button,
+.accessoryChip,
+.inlineAction,
+.primaryButton {
+  border-radius: 999px;
+  padding: 10px 14px;
+}
+
+.segmented button[data-active="true"],
+.accessoryChip[data-active="true"] {
+  background: rgba(15, 106, 99, 0.12);
+  border-color: rgba(15, 106, 99, 0.32);
+  color: var(--accent);
+}
+
+.accessoryGrid,
+.colorGrid,
+.sliderStack {
+  display: grid;
+  gap: 12px;
+}
+
+.accessoryGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.colorGrid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.colorField input {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.sliderField strong {
+  margin-left: 8px;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.sliderField input {
+  width: 100%;
+}
+
+.inlineAction {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.primaryButton {
+  background: linear-gradient(135deg, rgba(15, 106, 99, 0.96), rgba(76, 136, 255, 0.9));
+  color: white;
+  border-color: transparent;
+}
+
+.runtimeViewport {
+  min-height: 360px;
+  border-radius: 24px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.92), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(232, 221, 206, 0.8));
+  display: grid;
+  place-items: center;
+}
+
+.runtimeCanvas {
+  width: 100%;
+  min-height: 360px;
+  display: block;
+}
+
+.stateBadge {
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+}
+
+.stateBadge[data-state="listening"] {
+  color: var(--accent);
+}
+
+.stateBadge[data-state="thinking"] {
+  color: var(--warm-text);
+}
+
+.stateBadge[data-state="speaking"] {
+  color: #4c88ff;
+}
+
+.fallbackPortrait {
+  --avatar-accent: #ff5a88;
+  --avatar-hair: #ff8e9d;
+  --avatar-skin: #f5d3c8;
+  --avatar-eye: #3bbeb2;
+  --avatar-outfit: #f3efe7;
+  position: relative;
+  width: min(320px, 88%);
+  aspect-ratio: 3 / 4;
+}
+
+.fallbackHalo,
+.fallbackHair,
+.fallbackFace,
+.fallbackBody {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.fallbackHalo {
+  top: 10%;
+  width: 84%;
+  height: 84%;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--avatar-accent) 24%, transparent), transparent 66%);
+  filter: blur(4px);
+}
+
+.fallbackHair {
+  top: 14%;
+  width: 60%;
+  height: 46%;
+  border-radius: 44% 44% 36% 36%;
+  background: linear-gradient(180deg, var(--avatar-hair), color-mix(in srgb, var(--avatar-hair) 70%, #1d1b27));
+}
+
+.fallbackFace {
+  top: 23%;
+  width: 42%;
+  height: 28%;
+  border-radius: 42% 42% 48% 48%;
+  background: linear-gradient(180deg, var(--avatar-skin), color-mix(in srgb, var(--avatar-skin) 86%, #ffd0c2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.fallbackFace span {
+  width: 14px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--avatar-eye), #111930);
+  display: block;
+  margin-top: 6px;
+}
+
+.fallbackBody {
+  bottom: 6%;
+  width: 58%;
+  height: 44%;
+  border-radius: 32% 32% 24% 24%;
+  background: linear-gradient(180deg, white, var(--avatar-outfit));
+  box-shadow: inset 0 0 0 8px color-mix(in srgb, var(--avatar-accent) 16%, transparent);
+}
+
+.summaryPill {
+  font-size: 12px;
+}
+
+.summaryCard {
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.52);
+  line-height: 1.7;
+}
+
+.summaryCard p,
+.summaryCard ul {
+  margin: 0;
+}
+
+.summaryCard ul {
+  padding-left: 18px;
+}
+
+@media (max-width: 1180px) {
+  .hero,
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .colorGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    padding: 20px;
+  }
+
+  .formGrid,
+  .accessoryGrid,
+  .colorGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .exportRow,
+  .runtimeTopline,
+  .sectionTopline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

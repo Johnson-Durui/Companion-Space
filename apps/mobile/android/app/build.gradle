@@ -1,0 +1,166 @@
+apply plugin: 'com.android.application'
+
+def mobileRelease = new groovy.json.JsonSlurper().parse(rootProject.file('../release.json'))
+
+def releaseSigningValue = { String name ->
+    // The guarded release script validates environment values, so they must
+    // win over any stale user-level Gradle property with the same name.
+    providers.environmentVariable(name).orElse(providers.gradleProperty(name)).getOrElse('')
+}
+def releaseSigning = [
+    storeFile: releaseSigningValue('COMPANION_ANDROID_KEYSTORE_FILE'),
+    storePassword: releaseSigningValue('COMPANION_ANDROID_KEYSTORE_PASSWORD'),
+    keyAlias: releaseSigningValue('COMPANION_ANDROID_KEY_ALIAS'),
+    keyPassword: releaseSigningValue('COMPANION_ANDROID_KEY_PASSWORD'),
+]
+def releaseSigningProvided = releaseSigning.findAll { _, value -> value }
+if (releaseSigningProvided && releaseSigningProvided.size() != releaseSigning.size()) {
+    throw new GradleException('Android release signing is incomplete. Set all COMPANION_ANDROID_KEYSTORE_FILE, COMPANION_ANDROID_KEYSTORE_PASSWORD, COMPANION_ANDROID_KEY_ALIAS and COMPANION_ANDROID_KEY_PASSWORD values.')
+}
+def releaseSigningComplete = releaseSigningProvided.size() == releaseSigning.size()
+
+android {
+    namespace = "space.companion.mobile"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId mobileRelease.appId
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode mobileRelease.buildNumber as int
+        versionName mobileRelease.marketingVersion
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (releaseSigningComplete) {
+            release {
+                storeFile file(releaseSigning.storeFile)
+                storePassword releaseSigning.storePassword
+                keyAlias releaseSigning.keyAlias
+                keyPassword releaseSigning.keyPassword
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (releaseSigningComplete) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.lifecycle('Companion Android release signing is not configured; release artifacts will be unsigned and are not publishable.')
+            }
+        }
+    }
+    lint {
+        // The generated Cordova compatibility project is intentionally empty.
+        // Lint the mobile app itself without asking AGP to package that empty
+        // dependency as a local lint AAR.
+        checkDependencies = false
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+tasks.register('verifyReleaseBundleMetadata') {
+    dependsOn 'bundleRelease'
+    doLast {
+        def bundleFile = layout.buildDirectory.file('outputs/bundle/release/app-release.aab').get().asFile
+        if (!bundleFile.isFile()) {
+            throw new GradleException("Release bundle is missing: ${bundleFile}")
+        }
+
+        def validationOutput = new ByteArrayOutputStream()
+        project.javaexec {
+            classpath = rootProject.buildscript.configurations.classpath
+            mainClass = 'com.android.tools.build.bundletool.BundleToolMain'
+            args 'validate', "--bundle=${bundleFile.absolutePath}"
+            standardOutput = validationOutput
+        }
+
+        def manifestOutput = new ByteArrayOutputStream()
+        project.javaexec {
+            classpath = rootProject.buildscript.configurations.classpath
+            mainClass = 'com.android.tools.build.bundletool.BundleToolMain'
+            args 'dump', 'manifest', "--bundle=${bundleFile.absolutePath}"
+            standardOutput = manifestOutput
+        }
+        def manifest = new XmlSlurper(false, false).parseText(manifestOutput.toString('UTF-8'))
+        def applicationId = manifest.@package.text()
+        def versionCode = manifest.@'android:versionCode'.text()
+        def versionName = manifest.@'android:versionName'.text()
+        def usesSdk = manifest.'uses-sdk'[0]
+        def minSdk = usesSdk.@'android:minSdkVersion'.text()
+        def targetSdk = usesSdk.@'android:targetSdkVersion'.text()
+        def permissions = manifest.'uses-permission'.collect { it.@'android:name'.text() }.findAll { it }.sort()
+        def microphoneFeature = manifest.'uses-feature'.find { it.@'android:name'.text() == 'android.hardware.microphone' }
+
+        def expected = [
+            applicationId: mobileRelease.appId.toString(),
+            versionCode: mobileRelease.buildNumber.toString(),
+            versionName: mobileRelease.marketingVersion.toString(),
+            minSdk: rootProject.ext.minSdkVersion.toString(),
+            targetSdk: rootProject.ext.targetSdkVersion.toString(),
+        ]
+        def actual = [
+            applicationId: applicationId,
+            versionCode: versionCode,
+            versionName: versionName,
+            minSdk: minSdk,
+            targetSdk: targetSdk,
+        ]
+        if (actual != expected) {
+            throw new GradleException("Release bundle metadata mismatch. Expected ${expected}, received ${actual}")
+        }
+        if (!permissions.contains('android.permission.RECORD_AUDIO')) {
+            throw new GradleException('Release bundle is missing android.permission.RECORD_AUDIO')
+        }
+        if (microphoneFeature == null || microphoneFeature.@'android:required'.text() != 'false') {
+            throw new GradleException('Release bundle must declare microphone hardware optional')
+        }
+
+        def metadataFile = layout.buildDirectory.file('outputs/bundle/release/bundle-metadata.json').get().asFile
+        metadataFile.parentFile.mkdirs()
+        metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson([
+            applicationId: applicationId,
+            minSdk: Integer.parseInt(minSdk),
+            microphoneRequired: false,
+            permissions: permissions,
+            targetSdk: Integer.parseInt(targetSdk),
+            versionCode: Integer.parseInt(versionCode),
+            versionName: versionName,
+        ])) + System.lineSeparator()
+        logger.lifecycle("Verified release bundle metadata: ${metadataFile}")
+    }
+}
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

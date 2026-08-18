@@ -1,0 +1,160 @@
+.player,
+.requestCard,
+.scriptCard,
+.emptyCard,
+.captionCard,
+.citationCard {
+  display: grid;
+  gap: 16px;
+}
+
+.player {
+  gap: 18px;
+}
+
+.requestCard,
+.scriptCard,
+.emptyCard,
+.captionCard,
+.citationCard {
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.requestHeader,
+.requestActions,
+.scriptHeader,
+.citationHeader,
+.transport,
+.badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.requestActions,
+.transport,
+.badges {
+  flex-wrap: wrap;
+}
+
+.requestHeader h3,
+.scriptHeader h3,
+.captionCard h4,
+.citationCard h4 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}
+
+.scriptMeta,
+.helperText,
+.errorText,
+.captionCard p,
+.narrationText {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.scriptMeta,
+.helperText {
+  color: var(--muted);
+}
+
+.errorText {
+  color: #b03a4a;
+}
+
+.narrationText {
+  color: rgba(22, 32, 52, 0.74);
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field textarea {
+  width: 100%;
+  min-height: 88px;
+  border-radius: 18px;
+  border: 1px solid rgba(32, 25, 20, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  padding: 14px 16px;
+  resize: vertical;
+}
+
+.primaryButton,
+.secondaryButton,
+.ghostButton {
+  border-radius: 999px;
+  padding: 10px 16px;
+  border: 1px solid rgba(32, 25, 20, 0.1);
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.ghostButton:hover {
+  transform: translateY(-1px);
+}
+
+.primaryButton {
+  background: linear-gradient(135deg, rgba(15, 106, 99, 0.96), rgba(76, 136, 255, 0.9));
+  color: white;
+  border-color: transparent;
+}
+
+.secondaryButton,
+.ghostButton {
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.ghostButton {
+  color: rgba(22, 32, 52, 0.7);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 12px;
+  background: rgba(76, 136, 255, 0.08);
+  color: rgba(22, 32, 52, 0.74);
+}
+
+.progressTrack {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(15, 106, 99, 0.1);
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(15, 106, 99, 0.88), rgba(76, 136, 255, 0.9));
+}
+
+@media (max-width: 760px) {
+  .requestHeader,
+  .scriptHeader,
+  .citationHeader,
+  .transport {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

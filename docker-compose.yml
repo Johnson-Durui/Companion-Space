@@ -1,0 +1,132 @@
+services:
+  caddy:
+    image: caddy:2.9
+    mem_limit: ${CADDY_MEMORY_LIMIT:-192m}
+    mem_reservation: ${CADDY_MEMORY_RESERVATION:-64m}
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_HOST: ${APP_HOST:-companion.localhost}
+      MOBILE_DEFAULT_SNI: ${MOBILE_DEFAULT_SNI:-companion.localhost}
+    ports:
+      - "${COMPANION_HTTP_PORT:-80}:80"
+      - "${COMPANION_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infra/caddy/data:/data
+      - ./infra/caddy/config:/config
+
+  api:
+    mem_limit: ${API_MEMORY_LIMIT:-5g}
+    mem_reservation: ${API_MEMORY_RESERVATION:-2g}
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      BUILTIN_NEURAL_TTS_ENABLED: ${BUILTIN_NEURAL_TTS_ENABLED:-false}
+      LOCAL_NEURAL_TTS_BASE_URL: http://neural-tts:8001
+      MALLOC_ARENA_MAX: ${API_MALLOC_ARENA_MAX:-2}
+      TOKENIZERS_PARALLELISM: "false"
+    expose:
+      - "8000"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./storage:/app/storage
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).read()"
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 40s
+
+  neural-tts:
+    profiles: ["neural-tts"]
+    mem_limit: ${TTS_MEMORY_LIMIT:-6g}
+    mem_reservation: ${TTS_MEMORY_RESERVATION:-3g}
+    build:
+      context: .
+      dockerfile: infra/docker/tts.Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TTS_DEVICE: ${TTS_DEVICE:-cuda}
+      TTS_MODEL_CACHE: /models
+      MALLOC_ARENA_MAX: ${TTS_MALLOC_ARENA_MAX:-2}
+      TOKENIZERS_PARALLELISM: "false"
+    expose:
+      - "8001"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=2).read()
+      interval: 5s
+      timeout: 3s
+      retries: 360
+      start_period: 30m
+    volumes:
+      - "${TTS_MODEL_CACHE_PATH:-qwen3_tts_model_cache}:/models"
+    deploy:
+      resources:
+        reservations:
+          memory: ${TTS_MEMORY_RESERVATION:-3g}
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  web:
+    mem_limit: ${WEB_MEMORY_LIMIT:-768m}
+    mem_reservation: ${WEB_MEMORY_RESERVATION:-256m}
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/}
+        NEXT_PUBLIC_REALTIME_WS_URL: ${NEXT_PUBLIC_REALTIME_WS_URL:-/api/v1/sessions/:sessionId/realtime}
+        NEXT_PUBLIC_LIVE2D_RUNTIME_BRIDGE_URL: ${NEXT_PUBLIC_LIVE2D_RUNTIME_BRIDGE_URL:-}
+        NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL: ${NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL:-}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/}
+      NEXT_PUBLIC_REALTIME_WS_URL: ${NEXT_PUBLIC_REALTIME_WS_URL:-/api/v1/sessions/:sessionId/realtime}
+      NEXT_PUBLIC_LIVE2D_RUNTIME_BRIDGE_URL: ${NEXT_PUBLIC_LIVE2D_RUNTIME_BRIDGE_URL:-}
+      NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL: ${NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+
+volumes:
+  qwen3_tts_model_cache:

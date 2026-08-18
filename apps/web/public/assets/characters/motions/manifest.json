@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "repository_notice": "assets/THIRD_PARTY_NOTICES.md",
+  "generator": "scripts/generate-cc0-vrma.mjs",
+  "license_path": "LICENSE-CC0.txt",
+  "motions": [
+    {
+      "id": "companion_idle",
+      "state": "idle",
+      "name": "Companion idle",
+      "file": "companion-idle.vrma",
+      "format": "VRMC_vrm_animation 1.0",
+      "author": "Companion Space project",
+      "license": "CC0 1.0 Universal",
+      "redistribution_allowed": true,
+      "modification_allowed": true,
+      "attribution_required": false,
+      "in_place": true,
+      "sha256": "0ed3bb51dfe023eb650bc20e9810ab6299845133a461c5bd8e753e5aab31b59e"
+    },
+    {
+      "id": "companion_listening",
+      "state": "listening",
+      "name": "Companion listening",
+      "file": "companion-listening.vrma",
+      "format": "VRMC_vrm_animation 1.0",
+      "author": "Companion Space project",
+      "license": "CC0 1.0 Universal",
+      "redistribution_allowed": true,
+      "modification_allowed": true,
+      "attribution_required": false,
+      "in_place": true,
+      "sha256": "a34c126931f50efd85eb4df9d9bc0fbac2f77dc8f4fe0c27ee1a841b20aa4633"
+    },
+    {
+      "id": "companion_thinking",
+      "state": "thinking",
+      "name": "Companion thinking",
+      "file": "companion-thinking.vrma",
+      "format": "VRMC_vrm_animation 1.0",
+      "author": "Companion Space project",
+      "license": "CC0 1.0 Universal",
+      "redistribution_allowed": true,
+      "modification_allowed": true,
+      "attribution_required": false,
+      "in_place": true,
+      "sha256": "29e8ebf58dc841ba03136aa4a3f8a6eaba0d0298d34a3cd139115201ef4bbe90"
+    },
+    {
+      "id": "companion_speaking",
+      "state": "speaking",
+      "name": "Companion speaking",
+      "file": "companion-speaking.vrma",
+      "format": "VRMC_vrm_animation 1.0",
+      "author": "Companion Space project",
+      "license": "CC0 1.0 Universal",
+      "redistribution_allowed": true,
+      "modification_allowed": true,
+      "attribution_required": false,
+      "in_place": true,
+      "sha256": "d9a441a5bef4f6527172a75b258493d30e8a99923284f8ed741ca2af2a49b7bb"
+    }
+  ]
+}

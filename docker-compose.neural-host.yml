@@ -1,0 +1,8 @@
+# Host-published Qwen3-TTS sidecar for the local API on 127.0.0.1:8000.
+# Docker Compose API still uses the internal hostname from docker-compose.yml.
+# Do not publish this port on 0.0.0.0.
+services:
+  neural-tts:
+    gpus: all
+    ports:
+      - "127.0.0.1:8001:8001"
