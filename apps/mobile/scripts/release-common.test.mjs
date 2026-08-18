@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -71,7 +71,11 @@ test("repository path gate rejects lexical and linked paths into the repository"
       () => requirePathOutsideRepository(resolve(repository, "missing/output"), repository, "output"),
       /outside the repository/,
     );
-    assert.equal(requirePathOutsideRepository(resolve(external, "release"), repository, "output"), resolve(external, "release"));
+    const canonicalExternal = await realpath(external);
+    assert.equal(
+      requirePathOutsideRepository(resolve(external, "release"), repository, "output"),
+      resolve(canonicalExternal, "release"),
+    );
 
     await context.test("external link resolving into repository", async (linkedContext) => {
       const link = resolve(external, "repository-link");
