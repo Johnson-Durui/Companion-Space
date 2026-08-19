@@ -1,28 +1,25 @@
 # Companion Space
 
-本地优先、单用户的二次元学习搭子。浏览器里打开空间、导入资料、选角色，用文字或实时语音共学；角色在前端以 VRM 3D 或 2D 形象演出。默认走本机 Docker + Caddy HTTPS，不把学习资料发到我们的云。
+Companion Space 是一款本地优先的二次元陪伴学习应用。你可以为不同主题创建独立空间，导入自己的资料，与虚拟角色进行文字或实时语音交流，并在会话后整理复盘、记忆和复习内容。
 
-源码许可证：**Apache License 2.0**。角色模型、动作、语音权重各自还有独立许可，见 [NOTICE](NOTICE) 和 [assets/THIRD_PARTY_NOTICES.md](assets/THIRD_PARTY_NOTICES.md)。
+项目默认运行在你自己的电脑上。资料和凭据保存在本地；如果接入 OpenAI 兼容服务、Ollama 等外部 Provider，相关请求会按照你的配置发送给对应服务。
 
-## 它现在能做什么
+## 核心能力
 
-- 本地 Vault 解锁后，用内置 Mock 或自备 Provider（OpenAI 兼容 / Ollama 等）学习。
-- 空间、资料导入、引用式 RAG、会话复盘、确认式记忆和复习项。
-- 桌面浏览器是主路径。可选 Capacitor Android / iOS 壳：同一套 Web UI，需受信 HTTPS 和 8 位配对码。
-- 共学舞台支持四主角原创定制 VRM 的面部情绪、口型、目光和一次性肢体反应；Mori / Yuzu 与 2D 卡面仍是完整备用形象。
+- **独立学习空间**：按课程、项目或兴趣组织资料、角色和对话记录。
+- **资料问答与引用**：导入资料后进行检索增强对话，并保留答案引用。
+- **文字与实时语音**：支持连续对话、语音播放和插话打断。
+- **虚拟角色演出**：支持浏览器本地 VRM 3D 角色，以及 2D 备用形象、口型、情绪、目光和动作反馈。
+- **可替换的 AI 服务**：内置 Mock 便于直接体验，也可接入 OpenAI 兼容接口、Ollama 等 Provider；长期记忆需要用户确认后才会写入。
 
-主流程：`解锁 Vault → Mock 或接入 Provider → 建空间 → 导入资料 → 选/创建角色 → 文字或实时共学 → 板书/演示 → 复盘 → 确认记忆/复习`
+<details>
+<summary>当前版本范围</summary>
 
-## 开源时请诚实对待这些边界
+当前最完整的使用路径是桌面浏览器配合本机 Docker 和 Mock 或自备 Provider。Android 与 iOS 客户端目前是连接同一服务的测试壳，需要受信任的 HTTPS 和设备配对，尚未作为商店成品发布。本项目暂不包含 WebRTC、MuseTalk、LivePortrait 或真人 talking-head 视频能力。
 
-当前 **不是** 商店成品，也 **不要** 对外宣称：
+</details>
 
-- 四主角已经是 VRoid Hub 上架精模或委托雕刻。**不是**；当前版本是 Blender + VRM Add-on 导出的项目原创定制 VRM 1.0（MToon、绘制脸、完整 Humanoid 手指），可在共学舞台运行。许可样本（Sendagaya Shino / Seed-san 等）仍会附带，可选手动加载，不能再当成主角外观。Seed-san 样本仍须署名 VirtualCast, Inc.。
-- iPhone / Android 已经端到端做完或可上架。移动壳存在，商店签名、隐私问卷和真机矩阵未完成。
-- WebRTC、MuseTalk、LivePortrait 或真人 talking-head 已经实现。没有。
-- 把历史性能测试数字当成这次新跑出来的证据。
-
-桌面浏览器 + Mock 是今晚 clone 后应走通的路径。iPhone 配对、Docker 里是否已是最新镜像，取决于你自己的机器，而不是这份源码保证。
+源码采用 **Apache License 2.0**。角色模型、动作、语音权重和示例素材可能适用各自的许可要求，详见 [NOTICE](NOTICE) 和 [第三方素材说明](assets/THIRD_PARTY_NOTICES.md)。
 
 ## 第三方：一步启动
 
