@@ -1,5 +1,7 @@
 # Companion Space
 
+**简体中文** | [English](README.en.md)
+
 Companion Space 是一款本地优先的二次元陪伴学习应用。你可以为不同主题创建独立空间，导入自己的资料，与虚拟角色进行文字或实时语音交流，并在会话后整理复盘、记忆和复习内容。
 
 项目默认运行在你自己的电脑上。资料和凭据保存在本地；如果接入 OpenAI 兼容服务、Ollama 等外部 Provider，相关请求会按照你的配置发送给对应服务。
@@ -21,12 +23,12 @@ Companion Space 是一款本地优先的二次元陪伴学习应用。你可以�
 
 源码采用 **Apache License 2.0**。角色模型、动作、语音权重和示例素材可能适用各自的许可要求，详见 [NOTICE](NOTICE) 和 [第三方素材说明](assets/THIRD_PARTY_NOTICES.md)。
 
-## 第三方：一步启动
+## 快速开始
 
 需要 Docker Desktop（或兼容的 Docker Engine）和 Docker Compose v2。先 **不要** 打开 `neural-tts` profile。
 
 ```bash
-git clone <your-fork-or-url> Companion-Space
+git clone https://github.com/Johnson-Durui/Companion-Space.git
 cd Companion-Space
 cp .env.example .env
 docker compose up --build
@@ -68,7 +70,7 @@ docker compose up --build
 
 本地开发（不用 Docker）见 [WINDOWS-README.md](WINDOWS-README.md)。本仓库是 **npm workspace**，用 `npm.cmd` / `npm`，不要用 pnpm。
 
-## 当前仓库布局
+## 项目结构
 
 ```text
 .
@@ -177,7 +179,3 @@ PYTHONPATH=services/api python3 -m pytest services/api/tests -q
 - [安全模型](docs/security-model.md)
 - [素材许可](docs/asset-licensing.md)
 - [贡献](CONTRIBUTING.md)
-
-## English
-
-Companion Space is a local-first, single-user anime study companion. Clone, copy `.env.example` to `.env`, and run `docker compose up --build`. Open `https://companion.localhost` and trust the **internal** Caddy CA. The four featured 3D bodies are project-owned original VRM companions; licensed sample VRM files remain optional. Credit Seed-san to VirtualCast, Inc. Mobile and GPU TTS are optional. Do not commit `.env`, `storage/`, or `infra/caddy/data`.
