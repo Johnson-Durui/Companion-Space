@@ -2749,8 +2749,26 @@ test.describe("realtime guardrails", () => {
         await page.getByRole("button", { name: "结束会话" }).click();
         await expect(page.getByText("ended", { exact: true })).toBeVisible({ timeout: 20_000 });
       } else {
-        await page.locator('a[href="/spaces"]').first().click({ noWaitAfter: true });
-        await expect(page).toHaveURL(/\/spaces$/, { timeout: 20_000 });
+        expect(await page.evaluate(() => {
+          const probe = (window as typeof window & {
+            __e2eBuiltInVoice?: {
+              cancelCount: number;
+              current: SpeechSynthesisUtterance | null;
+            };
+          }).__e2eBuiltInVoice;
+          return probe
+            ? { cancelCount: probe.cancelCount, current: probe.current !== null }
+            : null;
+        })).toEqual({ cancelCount: 0, current: true });
+        await page.goBack({ timeout: 20_000, waitUntil: "commit" });
+        await expect(page).toHaveURL(
+          new RegExp(`/spaces/${fixture.spaceId}$`),
+          { timeout: 20_000 },
+        );
+        await expect(page.getByRole("heading", {
+          name: fixture.spaceName,
+          exact: true,
+        })).toBeVisible({ timeout: 20_000 });
       }
       await expect.poll(() => page.evaluate(() => {
         const probe = (window as typeof window & {
