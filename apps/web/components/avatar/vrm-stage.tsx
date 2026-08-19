@@ -1605,7 +1605,7 @@ function Scene({
     const now = elapsedRef.current;
     const blink = blinkRef.current;
     if (now >= blink.nextAt && now >= blink.activeUntil) {
-      const duration = reducedMotion ? 0.08 : 0.12;
+      const duration = reducedMotion ? 0.14 : 0.12;
       blink.activeStart = now;
       blink.activeUntil = now + duration;
       blink.nextAt = now + (reducedMotion ? 5.2 : 3.2) + ((Math.sin(now * 2.7) + 1) * 0.35);

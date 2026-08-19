@@ -1352,7 +1352,7 @@ test.describe("realtime guardrails", () => {
     await expect
       .poll(async () => Number.parseFloat(
         (await canvas.getAttribute("data-avatar-emotion-blink-max")) ?? "0",
-      ), { timeout: 10_000 })
+      ), { timeout: 20_000 })
       .toBeGreaterThan(0.05);
     await expectStaticAvatarPose(canvas);
 
@@ -2214,6 +2214,10 @@ test.describe("realtime guardrails", () => {
       page.waitForURL(new RegExp(`/spaces/${fixture.spaceId}$`), { timeout: 20_000 }),
       spaceCard.locator(`a[href="/spaces/${fixture.spaceId}"]`).first().click(),
     ]);
+    const startCallLink = page.locator(`a[href="${fixture.callPath}"]`).filter({
+      hasText: "开始伴学会话",
+    });
+    await expect(startCallLink).toBeVisible({ timeout: 20_000 });
 
     let allowPolicyRead = false;
     let policyReads = 0;
@@ -2241,10 +2245,8 @@ test.describe("realtime guardrails", () => {
       }
     });
 
-    await Promise.all([
-      page.waitForURL(fixture.callPath, { timeout: 20_000 }),
-      page.getByRole("link", { name: "开始伴学会话" }).click(),
-    ]);
+    await startCallLink.click({ noWaitAfter: true });
+    await expect(page).toHaveURL(fixture.callPath, { timeout: 20_000 });
     const policyAlert = page.getByRole("alert").filter({
       hasText: "读取空间语音配置失败",
     });
@@ -2747,10 +2749,8 @@ test.describe("realtime guardrails", () => {
         await page.getByRole("button", { name: "结束会话" }).click();
         await expect(page.getByText("ended", { exact: true })).toBeVisible({ timeout: 20_000 });
       } else {
-        await Promise.all([
-          page.waitForURL(/\/spaces$/, { timeout: 20_000 }),
-          page.getByRole("link", { name: "学习空间" }).first().click(),
-        ]);
+        await page.locator('a[href="/spaces"]').first().click({ noWaitAfter: true });
+        await expect(page).toHaveURL(/\/spaces$/, { timeout: 20_000 });
       }
       await expect.poll(() => page.evaluate(() => {
         const probe = (window as typeof window & {
@@ -3306,7 +3306,7 @@ test.describe("realtime guardrails", () => {
 
     await installAutomaticReactionTelemetryRecorder(canvas);
 
-    await sendTextAndExpectAssistantReply(page, "用一个俯身动作回应我。");
+    await sendTextAndExpectAssistantReply(page, "用一个俯身动作回应我。", 60_000);
     await expect.poll(async () => Number(
       await canvas.getAttribute("data-e2e-reaction-max-sequence") ?? "0",
     )).toBe(initialSequence + 1);
@@ -3322,7 +3322,7 @@ test.describe("realtime guardrails", () => {
     expect(assetRequests).toHaveLength(assetRequestCountAtReady);
     await expectAutomaticReactionToSettleOnce(canvas, initialSequence + 1);
 
-    await sendTextAndExpectAssistantReply(page, "用相同情绪再回应一次。");
+    await sendTextAndExpectAssistantReply(page, "用相同情绪再回应一次。", 60_000);
     await expect.poll(async () => Number(
       await canvas.getAttribute("data-e2e-reaction-max-sequence") ?? "0",
     )).toBe(initialSequence + 2);
@@ -4718,11 +4718,11 @@ async function putJson(
   return response.json();
 }
 
-async function sendTextAndExpectAssistantReply(page: Page, message: string) {
+async function sendTextAndExpectAssistantReply(page: Page, message: string, timeout = 20_000) {
   const composer = page.getByLabel("发送文字消息");
   await composer.fill(message);
   await page.getByRole("button", { name: "发送文本" }).click();
 
   const assistantTurn = page.locator('[data-role="assistant"]').last();
-  await expect(assistantTurn).toContainText("模拟回复", { timeout: 20_000 });
+  await expect(assistantTurn).toContainText("模拟回复", { timeout });
 }

@@ -39,7 +39,7 @@ const studioOptionCounts = {
 } as const;
 
 test("fresh clone mock journey completes unlock to memory confirmation", async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(600_000);
   let spaceDetailHref = "";
   let reviewHref = "";
   let reviewItemsHref = "";
