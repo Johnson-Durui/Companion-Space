@@ -49,6 +49,231 @@
   line-height: 1.72;
 }
 
+.taskHub {
+  display: grid;
+  gap: 18px;
+}
+
+.taskHubHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.taskHubHeading > div {
+  display: grid;
+  gap: 7px;
+}
+
+.taskHubHeading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(24px, 4vw, 32px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.taskHubHeading p {
+  max-width: 39ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.chapterGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.chapterCard {
+  --chapter-glow: rgba(210, 113, 76, 0.36);
+  --chapter-line: rgba(242, 211, 153, 0.44);
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
+  min-height: 244px;
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  background-color: #153237;
+  color: #fffdf7;
+  isolation: isolate;
+  text-decoration: none;
+  box-shadow: inset 0 -80px 90px rgba(4, 23, 27, 0.74);
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.chapterCard::before,
+.chapterCard::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.chapterCard::before {
+  inset: 8px;
+  border: 1px solid var(--chapter-line);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  opacity: 0.7;
+}
+
+.chapterCard::after {
+  right: -36px;
+  bottom: -50px;
+  width: 150px;
+  height: 150px;
+  border: 1px solid var(--chapter-line);
+  transform: rotate(45deg);
+}
+
+.chapterCard:hover {
+  z-index: 1;
+  border-color: var(--chapter-line);
+  transform: translateY(-4px);
+  box-shadow: inset 0 -80px 90px rgba(4, 23, 27, 0.68), 0 18px 32px var(--chapter-glow);
+}
+
+.chapterCard:focus-visible {
+  z-index: 2;
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.trailChapter {
+  --chapter-glow: rgba(20, 71, 76, 0.34);
+  background-image:
+    linear-gradient(180deg, rgba(7, 31, 35, 0.08) 20%, rgba(7, 31, 35, 0.92) 88%),
+    url("/assets/characters/art/companion-study-district.webp");
+  background-position: 60% center;
+  background-size: cover;
+}
+
+.memoryChapter {
+  --chapter-glow: rgba(208, 97, 58, 0.32);
+  --chapter-line: rgba(247, 186, 131, 0.52);
+  background-image:
+    radial-gradient(circle at 72% 30%, rgba(190, 91, 54, 0.38), transparent 48%),
+    linear-gradient(145deg, #2c2426 12%, #522e2d 57%, #1c2428 100%);
+}
+
+.reviewChapter {
+  --chapter-glow: rgba(79, 174, 170, 0.3);
+  --chapter-line: rgba(169, 235, 219, 0.52);
+  background-image:
+    radial-gradient(circle at 76% 28%, rgba(112, 211, 193, 0.34), transparent 45%),
+    linear-gradient(145deg, #18373c 10%, #286268 55%, #172f37 100%);
+}
+
+.chapterNumber {
+  position: absolute;
+  z-index: 1;
+  top: 13px;
+  right: 16px;
+  color: rgba(255, 253, 247, 0.62);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.chapterArt {
+  position: absolute;
+  z-index: -1;
+  right: -4px;
+  bottom: 38px;
+  width: 72%;
+  height: 88%;
+  background-position: right bottom;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 14px 18px rgba(3, 22, 25, 0.46));
+  transition: transform 220ms ease;
+}
+
+.trailChapter .chapterArt {
+  width: 62%;
+  background-image: url("/assets/characters/art/roster/cael.png");
+}
+
+.memoryChapter .chapterArt {
+  background-image: url("/assets/characters/art/roster/lyra.png");
+}
+
+.reviewChapter .chapterArt {
+  background-image: url("/assets/characters/art/roster/mira.png");
+}
+
+.chapterCard:hover .chapterArt {
+  transform: translateX(-4px) scale(1.035);
+}
+
+.chapterCopy {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  display: grid;
+  gap: 7px;
+  max-width: 18ch;
+  padding-top: 92px;
+  text-shadow: 0 2px 12px rgba(2, 18, 20, 0.82);
+}
+
+.chapterCopy strong {
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.chapterCopy > span:last-child {
+  color: rgba(255, 253, 247, 0.78);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chapterState {
+  color: #f0d68f;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.reviewChapter .chapterState {
+  color: #b8f0df;
+}
+
+.chapterAction {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  margin: 12px -18px -18px;
+  padding: 0 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(5, 24, 27, 0.52);
+  color: #fffdf7;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+}
+
+.chapterAction span {
+  font-size: 17px;
+  transition: transform 180ms ease;
+}
+
+.chapterCard:hover .chapterAction span {
+  transform: translateX(3px);
+}
+
 .history {
   display: grid;
   gap: 18px;
@@ -332,6 +557,48 @@
     font-size: 42px;
   }
 
+  .taskHubHeading {
+    display: grid;
+    gap: 10px;
+  }
+
+  .chapterGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chapterCard {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 174px;
+    padding: 16px;
+  }
+
+  .chapterArt {
+    right: 6px;
+    bottom: 22px;
+    width: 48%;
+    height: 102%;
+  }
+
+  .trailChapter .chapterArt {
+    width: 43%;
+  }
+
+  .chapterCopy {
+    max-width: min(58%, 22ch);
+    padding-top: 26px;
+  }
+
+  .chapterCopy strong {
+    font-size: 25px;
+  }
+
+  .chapterAction {
+    width: calc(58% + 16px);
+    margin: 10px 0 -16px -16px;
+    padding: 0 16px;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
   .timeline::before {
     left: 20px;
     top: 472px;
@@ -421,6 +688,22 @@
 }
 
 @media (max-width: 390px) {
+  .chapterCard {
+    min-height: 166px;
+  }
+
+  .chapterCopy {
+    max-width: 61%;
+  }
+
+  .chapterCopy > span:last-child {
+    font-size: 11px;
+  }
+
+  .chapterAction {
+    width: calc(61% + 16px);
+  }
+
   .sessionRow:not(.latest) .actions > a {
     flex: 1 1 auto;
   }
@@ -431,6 +714,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .chapterCard,
+  .chapterArt,
+  .chapterAction span {
+    transition: none;
+  }
+
   .heroPet {
     transform: translateX(-50%) scale(1.05);
   }

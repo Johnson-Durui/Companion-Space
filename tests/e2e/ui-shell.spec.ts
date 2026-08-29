@@ -11,6 +11,63 @@ async function captureVisualEvidence(page: import("@playwright/test").Page, name
 
 test.use({ video: "off" });
 
+const reflectionSpace = {
+  id: "space-language",
+  name: "日语听说",
+  topic: "日常会话",
+  goal: "每天开口练习 20 分钟",
+  default_character_pack_id: null,
+  material_count: 2,
+  session_count: 1,
+  knowledge_status: "ready",
+  created_at: "2026-08-10T08:00:00Z",
+  updated_at: "2026-08-13T09:30:00Z",
+};
+
+const reflectionChapterCases = [
+  {
+    path: "/memory",
+    apiPath: "/api/v1/memory/space-language",
+    loadingText: "正在整理回忆碎片…",
+    contentText: "用户想把每日口语练习保持为稳定习惯。",
+    payload: {
+      items: [
+        {
+          id: "memory-language-habit",
+          space_id: "space-language",
+          content: "用户想把每日口语练习保持为稳定习惯。",
+          status: "candidate",
+          sensitive: false,
+          source_session_id: null,
+          created_at: "2026-08-12T19:00:00Z",
+          updated_at: "2026-08-12T19:00:00Z",
+        },
+      ],
+    },
+  },
+  {
+    path: "/review-items",
+    apiPath: "/api/v1/review-items/space-language",
+    loadingText: "正在准备今日试炼…",
+    contentText: "怎样用日语自然地介绍自己？",
+    payload: {
+      items: [
+        {
+          id: "review-language-introduction",
+          space_id: "space-language",
+          prompt: "怎样用日语自然地介绍自己？",
+          answer: "先问候和介绍姓名，再礼貌收尾。",
+          due_at: "2026-08-20T08:00:00Z",
+          status: "pending",
+          source_session_id: null,
+          created_at: "2026-08-12T19:00:00Z",
+          updated_at: "2026-08-12T19:00:00Z",
+        },
+      ],
+    },
+  },
+] as const;
+
 test.describe("responsive application shell", () => {
   test("turns a locked dashboard into a clear Vault recovery step", async ({ page }) => {
     await page.route("**/api/v1/**", async (route) => {
@@ -132,6 +189,150 @@ test.describe("responsive application shell", () => {
       await page.goto(path);
       await expect(navigation.locator(".mobile-tab-bar").getByRole("link", { name: "我的", exact: true })).toHaveAttribute("aria-current", "page");
     }
+  });
+
+  for (const chapter of reflectionChapterCases) {
+    test(`loads ${chapter.path} inside the mobile reflection task`, async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.route("**/api/v1/**", async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === "/api/v1/spaces") {
+          await route.fulfill({ json: [reflectionSpace] });
+          return;
+        }
+        if (path === chapter.apiPath) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await route.fulfill({ json: chapter.payload });
+          return;
+        }
+        await route.fulfill({ status: 418, json: { detail: `Unexpected request: ${path}` } });
+      });
+
+      await page.goto(chapter.path);
+
+      await expect(page.getByText(chapter.loadingText, { exact: true })).toBeVisible();
+      await expect(page.getByText(chapter.contentText, { exact: true }).first()).toBeVisible();
+      const navigation = page.getByRole("navigation", { name: "主要导航" });
+      await expect(navigation.getByRole("link")).toHaveCount(5);
+      await expect(navigation.locator(".mobile-tab[aria-current='page']")).toContainText("复盘");
+    });
+  }
+
+  test("moves a confirmed memory from calibration into the archive", async ({ page }) => {
+    let status = "candidate";
+    const confirmRequests: string[] = [];
+    await page.route("**/api/v1/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/v1/spaces") {
+        await route.fulfill({ json: [reflectionSpace] });
+        return;
+      }
+      if (path === "/api/v1/memory/space-language") {
+        await route.fulfill({
+          json: {
+            items: [{
+              id: "memory-language-habit",
+              space_id: "space-language",
+              content: "用户想把每日口语练习保持为稳定习惯。",
+              status,
+              sensitive: false,
+              source_session_id: null,
+              created_at: "2026-08-12T19:00:00Z",
+              updated_at: "2026-08-12T19:00:00Z",
+            }],
+          },
+        });
+        return;
+      }
+      if (path === "/api/v1/memory/space-language/memory-language-habit/confirm") {
+        confirmRequests.push(route.request().method());
+        status = "confirmed";
+        await route.fulfill({
+          json: {
+            id: "memory-language-habit",
+            space_id: "space-language",
+            content: "用户想把每日口语练习保持为稳定习惯。",
+            status,
+            sensitive: false,
+            source_session_id: null,
+            created_at: "2026-08-12T19:00:00Z",
+            updated_at: "2026-08-12T19:01:00Z",
+          },
+        });
+        return;
+      }
+      await route.fulfill({ status: 418, json: { detail: `Unexpected request: ${path}` } });
+    });
+
+    await page.goto("/memory");
+    await page.getByRole("button", { name: "留下这段记忆" }).click();
+
+    await expect(page.getByText("已确认记忆", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "留下这段记忆" })).toHaveCount(0);
+    expect(confirmRequests).toEqual(["POST"]);
+  });
+
+  test("keeps the review answer hidden until reveal and records completion", async ({ page }) => {
+    const answer = "先问候和介绍姓名，再礼貌收尾。";
+    let status = "pending";
+    const updatePayloads: Array<Record<string, unknown>> = [];
+    await page.route("**/api/v1/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/v1/spaces") {
+        await route.fulfill({ json: [reflectionSpace] });
+        return;
+      }
+      if (path === "/api/v1/review-items/space-language") {
+        await route.fulfill({
+          json: {
+            items: [{
+              id: "review-language-introduction",
+              space_id: "space-language",
+              prompt: "怎样用日语自然地介绍自己？",
+              answer,
+              due_at: "2026-08-20T08:00:00Z",
+              status,
+              source_session_id: null,
+              created_at: "2026-08-12T19:00:00Z",
+              updated_at: "2026-08-12T19:00:00Z",
+            }],
+          },
+        });
+        return;
+      }
+      if (path === "/api/v1/review-items/space-language/review-language-introduction") {
+        const payload = route.request().postDataJSON() as Record<string, unknown>;
+        updatePayloads.push(payload);
+        status = String(payload.status);
+        await route.fulfill({
+          json: {
+            id: "review-language-introduction",
+            space_id: "space-language",
+            prompt: payload.prompt,
+            answer: payload.answer,
+            due_at: payload.due_at,
+            status,
+            source_session_id: null,
+            created_at: "2026-08-12T19:00:00Z",
+            updated_at: "2026-08-12T19:01:00Z",
+          },
+        });
+        return;
+      }
+      await route.fulfill({ status: 418, json: { detail: `Unexpected request: ${path}` } });
+    });
+
+    await page.goto("/review-items");
+    const trial = page.locator('section[aria-labelledby="active-trial-heading"]');
+    await expect(page.getByLabel(/^复习列表答案-/)).not.toBeVisible();
+    await expect(trial.getByText(answer, { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "查看答案" }).click();
+    await expect(trial.getByText(answer, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "记住了" }).click();
+
+    await expect(page.getByText("今日试炼完成", { exact: true }).last()).toBeVisible();
+    expect(updatePayloads).toHaveLength(1);
+    expect(updatePayloads[0]?.status).toBe("completed");
   });
 
   test("keeps the character library first and progressively reveals creation tools", async ({ page }) => {

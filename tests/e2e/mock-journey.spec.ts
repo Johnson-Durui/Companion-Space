@@ -808,6 +808,7 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
     await expect(reviewItemsLink).toHaveAttribute("href", reviewItemsHref);
     await reviewItemsLink.click();
     await expect(page).toHaveURL(/\/review-items\?spaceId=/);
+    await page.getByText("编辑题目与排程", { exact: true }).first().click();
     const reviewPromptField = page.getByLabel(/^复习列表题干-/).first();
     const reviewAnswerField = page.getByLabel(/^复习列表答案-/).first();
     const reviewDueAtField = page.getByLabel(/^复习列表到期时间-/).first();
