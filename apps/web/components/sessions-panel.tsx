@@ -74,6 +74,51 @@ export function SessionsPanel() {
         <p>上一段对话仍停在这里。继续未完成的章节，或沿着时间轨迹回看文字、引用与复盘。</p>
       </header>
 
+      <section className={styles.taskHub} aria-labelledby="companion-task-heading">
+        <div className={styles.taskHubHeading}>
+          <div>
+            <span className={styles.kicker}>CHAPTER SELECT · 同行任务</span>
+            <h2 id="companion-task-heading">选择下一段旅程</h2>
+          </div>
+          <p>会话留下轨迹，记忆负责校准，复习把重要内容带回今天。</p>
+        </div>
+
+        <nav className={styles.chapterGrid} aria-label="同行任务章节">
+          <Link href="/sessions" className={`${styles.chapterCard} ${styles.trailChapter}`} aria-current="page">
+            <span className={styles.chapterNumber}>01</span>
+            <span className={styles.chapterArt} aria-hidden="true" />
+            <span className={styles.chapterCopy}>
+              <span className={styles.chapterState}>CURRENT · 当前章节</span>
+              <strong>会话轨迹</strong>
+              <span>回到最近对话，续写未完成的章节。</span>
+            </span>
+            <span className={styles.chapterAction}>进入轨迹 <span aria-hidden="true">→</span></span>
+          </Link>
+
+          <Link href="/memory" className={`${styles.chapterCard} ${styles.memoryChapter}`}>
+            <span className={styles.chapterNumber}>02</span>
+            <span className={styles.chapterArt} aria-hidden="true" />
+            <span className={styles.chapterCopy}>
+              <span className={styles.chapterState}>ARCHIVE · 记忆回廊</span>
+              <strong>记忆校准</strong>
+              <span>确认、修正或清除伙伴记住的片段。</span>
+            </span>
+            <span className={styles.chapterAction}>前往校准 <span aria-hidden="true">→</span></span>
+          </Link>
+
+          <Link href="/review-items" className={`${styles.chapterCard} ${styles.reviewChapter}`}>
+            <span className={styles.chapterNumber}>03</span>
+            <span className={styles.chapterArt} aria-hidden="true" />
+            <span className={styles.chapterCopy}>
+              <span className={styles.chapterState}>TRAINING · 今日训练</span>
+              <strong>复习试炼</strong>
+              <span>领取到期题目，把零散知识练成答案。</span>
+            </span>
+            <span className={styles.chapterAction}>开始试炼 <span aria-hidden="true">→</span></span>
+          </Link>
+        </nav>
+      </section>
+
       {error ? <ErrorCallout message={error} /> : null}
 
       <section className={styles.history} aria-labelledby="session-history-heading">

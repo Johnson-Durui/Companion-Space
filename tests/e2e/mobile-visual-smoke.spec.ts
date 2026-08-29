@@ -4,6 +4,8 @@ import { expect, test } from "@playwright/test";
 
 const visualEvidenceDir = "test-results/mobile-app-visual";
 
+test.use({ video: "off" });
+
 const spaces = [
   {
     id: "space-language",
@@ -73,6 +75,43 @@ const moriCharacter = {
   updated_at: "2026-08-13T09:30:00Z",
 };
 
+const memoryItems = [
+  {
+    id: "memory-language-goal",
+    space_id: "space-language",
+    content: "用户希望每天用日语完成一次真实场景的口语练习。",
+    status: "candidate",
+    sensitive: false,
+    source_session_id: "session-closed",
+    created_at: "2026-08-12T19:00:00Z",
+    updated_at: "2026-08-12T19:00:00Z",
+  },
+  {
+    id: "memory-language-preference",
+    space_id: "space-language",
+    content: "更喜欢先自己回答，再查看伙伴给出的提示。",
+    status: "confirmed",
+    sensitive: false,
+    source_session_id: "session-closed",
+    created_at: "2026-08-11T19:00:00Z",
+    updated_at: "2026-08-12T08:00:00Z",
+  },
+];
+
+const reviewItems = [
+  {
+    id: "review-language-greeting",
+    space_id: "space-language",
+    prompt: "第一次见面时，怎样用日语自然地介绍自己？",
+    answer: "先问候，再说姓名，最后用「よろしくお願いします」收尾。",
+    due_at: "2026-08-20T08:00:00Z",
+    status: "pending",
+    source_session_id: "session-closed",
+    created_at: "2026-08-12T19:00:00Z",
+    updated_at: "2026-08-12T19:00:00Z",
+  },
+];
+
 function session(id: string, spaceId: string, state: "speaking" | "closed", updatedAt: string) {
   return {
     id,
@@ -128,6 +167,14 @@ test("renders the redesigned primary mobile tabs without horizontal overflow", a
       await route.fulfill({ json: [session("session-active", "space-design", "speaking", "2026-08-14T10:10:00Z")] });
       return;
     }
+    if (path === "/api/v1/memory/space-language") {
+      await route.fulfill({ json: { items: memoryItems } });
+      return;
+    }
+    if (path === "/api/v1/review-items/space-language") {
+      await route.fulfill({ json: { items: reviewItems } });
+      return;
+    }
     if (path === "/api/v1/providers/connections") {
       await route.fulfill({ json: [] });
       return;
@@ -148,6 +195,8 @@ test("renders the redesigned primary mobile tabs without horizontal overflow", a
     ["/spaces", "spaces-375", "学习空间", "空间", "日语听说"],
     ["/study", "study-375", "今天想学什么？", "共学", "路线选择"],
     ["/sessions", "sessions-375", "最近会话", "复盘", "产品设计 · 会话复盘"],
+    ["/memory", "memory-375", "把值得留下的，交给她记住。", "复盘", "每天用日语完成一次真实场景的口语练习"],
+    ["/review-items", "review-items-375", "不是重读，是再答一次。", "复盘", "第一次见面时，怎样用日语自然地介绍自己？"],
     ["/me", "me-375", "我的", "我的", "CURRENT COMPANION"],
   ] as const) {
     await page.goto(path);
@@ -161,12 +210,45 @@ test("renders the redesigned primary mobile tabs without horizontal overflow", a
     }))).toEqual({ clientWidth: 375, scrollWidth: 375 });
     await page.screenshot({ path: `${visualEvidenceDir}/${name}.png` });
 
+    if (path === "/memory" || path === "/review-items") {
+      const taskMetrics = await page.locator("main").evaluate((main) => {
+        const viewportWidth = document.documentElement.clientWidth;
+        const controls = [...main.querySelectorAll<HTMLElement>("button, summary, select")]
+          .filter((element) => element.getClientRects().length > 0);
+        return {
+          smallestControl: Math.min(...controls.map((element) => element.getBoundingClientRect().height)),
+          controlOverflows: controls.some((element) => {
+            const bounds = element.getBoundingClientRect();
+            return bounds.left < -1 || bounds.right > viewportWidth + 1;
+          }),
+        };
+      });
+      expect(taskMetrics.smallestControl).toBeGreaterThanOrEqual(44);
+      expect(taskMetrics.controlOverflows).toBe(false);
+      await page.screenshot({ fullPage: true, path: `${visualEvidenceDir}/${name.replace("-375", "-375-full")}.png` });
+    }
+
     if (path === "/sessions") {
       await expect(page.getByRole("link", { name: "继续这一章" })).toHaveAttribute(
         "href",
         "/spaces/space-design/call?session=session-active",
       );
     }
+  }
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  for (const [path, name, heading, loadedText] of [
+    ["/memory", "memory-1440", "把值得留下的，交给她记住。", "每天用日语完成一次真实场景的口语练习"],
+    ["/review-items", "review-items-1440", "不是重读，是再答一次。", "第一次见面时，怎样用日语自然地介绍自己？"],
+  ] as const) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    await expect(page.getByText(loadedText, { exact: false }).first()).toBeVisible();
+    await expect.poll(async () => page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }))).toEqual({ clientWidth: 1440, scrollWidth: 1440 });
+    await page.screenshot({ fullPage: true, path: `${visualEvidenceDir}/${name}.png` });
   }
 
 });
