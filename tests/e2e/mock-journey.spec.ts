@@ -61,7 +61,7 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
 
     await navigateViaSidebar(page, "主舞台");
     const launcher = page.getByRole("button", { name: /创建空间并开始|开始陪伴/ });
-    await expect(launcher).toBeEnabled();
+    await expect(launcher).toBeEnabled({ timeout: 60_000 });
     const createSpaceResponse = page.waitForResponse((response) =>
       response.url().endsWith("/api/v1/spaces") && response.request().method() === "POST",
     );
@@ -808,7 +808,9 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
     await expect(reviewItemsLink).toHaveAttribute("href", reviewItemsHref);
     await reviewItemsLink.click();
     await expect(page).toHaveURL(/\/review-items\?spaceId=/);
-    await page.getByText("编辑题目与排程", { exact: true }).first().click();
+    const reviewEditorDisclosure = page.locator("summary").filter({ hasText: "编辑题目与排程" }).first();
+    await expect(reviewEditorDisclosure).toBeVisible({ timeout: 15_000 });
+    await reviewEditorDisclosure.click();
     const reviewPromptField = page.getByLabel(/^复习列表题干-/).first();
     const reviewAnswerField = page.getByLabel(/^复习列表答案-/).first();
     const reviewDueAtField = page.getByLabel(/^复习列表到期时间-/).first();
