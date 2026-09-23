@@ -457,6 +457,24 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
         modelLabel: /^弦灯 · LYRA · painted-blender/,
         artAlt: "原创学习伙伴弦灯，身穿炭紫与灯橙创作服，在暖灯工作室展开故事卡片",
       },
+      {
+        id: "observatory-signal",
+        name: "星澜",
+        model: "nova",
+        voice: "Dylan",
+        warmth: 58,
+        modelLabel: /^星澜 · NOVA · original-vrm/,
+        artAlt: "原创学习伙伴星澜，身穿缀有星图的墨紫观测外套，在天文书室托起一枚轨道光环",
+      },
+      {
+        id: "studio-echo",
+        name: "沐音",
+        model: "echo",
+        voice: "Vivian",
+        warmth: 88,
+        modelLabel: /^沐音 · ECHO · original-vrm/,
+        artAlt: "原创学习伙伴沐音，身穿陶土红与苔绿短外套，在阳光工作室用笔记和光带整理故事",
+      },
     ] as const;
 
     for (const companion of featuredCompanions) {

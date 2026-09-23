@@ -1,4 +1,4 @@
-"""Build the four original companion VRMs with Blender + VRM Add-on."""
+"""Build the original companion VRMs with Blender + VRM Add-on."""
 
 from __future__ import annotations
 
@@ -84,6 +84,44 @@ CHARACTERS = [
             "accent": "#e78745",
             "inner": "#f4d7c0",
             "secondary": "#2a1f28",
+        },
+    },
+    {
+        "id": "nova",
+        "file": "Nova.vrm",
+        "name": "星澜 NOVA",
+        "body": "tall",
+        "hair": "long",
+        "outfit": "coat",
+        "extra": "glasses",
+        "face": "sharp",
+        "palette": {
+            "skin": "#ead0c4",
+            "hair": "#2f2b49",
+            "eye": "#88cfe0",
+            "outfit": "#27263d",
+            "accent": "#88cfe0",
+            "inner": "#d7d7eb",
+            "secondary": "#17162a",
+        },
+    },
+    {
+        "id": "echo",
+        "file": "Echo.vrm",
+        "name": "沐音 ECHO",
+        "body": "mini",
+        "hair": "bob",
+        "outfit": "studio",
+        "extra": "sash",
+        "face": "serene",
+        "palette": {
+            "skin": "#f0d3c7",
+            "hair": "#7a493a",
+            "eye": "#e58a61",
+            "outfit": "#5b6546",
+            "accent": "#e58a61",
+            "inner": "#f2e6d6",
+            "secondary": "#8c543c",
         },
     },
 ]

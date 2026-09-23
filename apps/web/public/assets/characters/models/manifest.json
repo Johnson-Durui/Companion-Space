@@ -1,8 +1,7 @@
 {
   "schema_version": 1,
   "repository_notice": "assets/THIRD_PARTY_NOTICES.md",
-  "original_generator": "scripts/blender/build_original_companions.py",
-  "prototype_generator": "scripts/generate-original-vrm.mjs",
+  "original_generator": "scripts/generate-original-vrm.mjs",
   "models": [
     {
       "id": "mira",
@@ -167,6 +166,62 @@
       "attribution_required": false,
       "featured_preset": false,
       "sha256": "a36e91b81518c59f6da0e3f34a176b79090a8c68cc6bd5fe03c1560744b283f3"
+    },
+    {
+      "id": "nova",
+      "name": "星澜 NOVA",
+      "file": "Nova.vrm",
+      "format": "vrm1",
+      "author": "Companion Space project",
+      "license": "VRM Public License 1.0",
+      "redistribution_allowed": true,
+      "modification_allowed": true,
+      "attribution_required": false,
+      "avatar_permission": "everyone",
+      "commercial_usage": "personalProfit",
+      "credit_notation": "unnecessary",
+      "allow_excessively_violent_usage": false,
+      "allow_excessively_sexual_usage": false,
+      "allow_political_or_religious_usage": false,
+      "allow_antisocial_or_hate_usage": false,
+      "usage_restrictions": [
+        "corporate commercial use is not granted",
+        "no excessively violent or sexual usage",
+        "no political, religious, antisocial, or hate usage"
+      ],
+      "original_custom": true,
+      "featured_preset": true,
+      "quality": "original-vrm-prototype",
+      "sha256": "0c8674bb56c7a312a4691681e26db140078b8fe67eb212f75a4058b65e17a8ab",
+      "bytes": 303080
+    },
+    {
+      "id": "echo",
+      "name": "沐音 ECHO",
+      "file": "Echo.vrm",
+      "format": "vrm1",
+      "author": "Companion Space project",
+      "license": "VRM Public License 1.0",
+      "redistribution_allowed": true,
+      "modification_allowed": true,
+      "attribution_required": false,
+      "avatar_permission": "everyone",
+      "commercial_usage": "personalProfit",
+      "credit_notation": "unnecessary",
+      "allow_excessively_violent_usage": false,
+      "allow_excessively_sexual_usage": false,
+      "allow_political_or_religious_usage": false,
+      "allow_antisocial_or_hate_usage": false,
+      "usage_restrictions": [
+        "corporate commercial use is not granted",
+        "no excessively violent or sexual usage",
+        "no political, religious, antisocial, or hate usage"
+      ],
+      "original_custom": true,
+      "featured_preset": true,
+      "quality": "original-vrm-prototype",
+      "sha256": "18a8e89459f6aa8fb6aff64faa9d58151c7ab24a05603cca2751487e25cc7c36",
+      "bytes": 298776
     }
   ]
 }

@@ -30,6 +30,7 @@ import type {
   CharacterRecipe,
   CharacterWorkshopDocument,
   StudySpaceSummary,
+  CompanionEmotion,
 } from "@/lib/types";
 import styles from "@/components/character-workshop.module.css";
 
@@ -123,6 +124,15 @@ const MANAGED_MOTION_STATES: Array<{ state: CharacterPreviewState; label: string
   { state: "thinking", label: "Thinking" },
   { state: "speaking", label: "Speaking" },
 ];
+const PREVIEW_EMOTIONS: Array<{ value: CompanionEmotion; label: string }> = [
+  { value: "neutral", label: "平静" },
+  { value: "warm", label: "温柔" },
+  { value: "cheerful", label: "开心" },
+  { value: "curious", label: "好奇" },
+  { value: "focused", label: "专注" },
+  { value: "playful", label: "俏皮" },
+  { value: "concerned", label: "关切" },
+];
 const DEFAULT_VOICE_PREVIEW_TEXT = "今晚先从最难的那一页开始，我会把节奏陪你稳住。";
 const LOCAL_NEURAL_VOICE_MODEL = "qwen3-tts-0.6b-customvoice";
 const LOCAL_NEURAL_VOICES = [
@@ -166,6 +176,16 @@ const AVATAR_MODEL_OPTIONS: ChoiceOption[] = [
     label: "弦灯 · LYRA · painted-blender",
     blurb: "创意共学者的 painted-blender 人体：炭紫不对称发、灯橙饰带。不是 VRoid Hub 精模。",
   },
+  {
+    value: "nova",
+    label: "星澜 · NOVA · original-vrm",
+    blurb: "观测与系统思考型伙伴的原创 VRM：墨紫长发、星图风长外套与冰青光环。",
+  },
+  {
+    value: "echo",
+    label: "沐音 · ECHO · original-vrm",
+    blurb: "语言与写作型伙伴的原创 VRM：栗色短发、陶土红与苔绿工作室外套。",
+  },
   ...BUILTIN_PORTRAIT_DEFINITIONS.map((definition) => ({
     value: definition.modelId,
     label: definition.pickerLabel,
@@ -179,12 +199,12 @@ const AVATAR_MODEL_OPTIONS: ChoiceOption[] = [
   {
     value: "vrm1_constraint_twist_sample",
     label: "Constraint Sample",
-    blurb: "pixiv 许可样本，不是四主角。适合验证完整驱动链路。",
+    blurb: "pixiv 许可样本，独立于原创伙伴阵容，适合验证完整驱动链路。",
   },
   {
     value: "seed_san",
     label: "Seed-san Sample",
-    blurb: "VirtualCast 许可样本，不是四主角；导出时必须保留署名。",
+    blurb: "VirtualCast 许可样本，独立于原创伙伴阵容；导出时必须保留署名。",
   },
   {
     value: "sendagaya_shino",
@@ -589,6 +609,98 @@ const TEMPLATE_PRESETS: Array<{
           },
         },
         { voice_preview_text: "先把它讲得像一个故事，结构会在我们说出口时自己亮起来。" },
+      ),
+    }),
+  },
+  {
+    id: "observatory-signal",
+    title: "星澜 · NOVA",
+    rosterRole: "观测思考者",
+    blurb: "冷静、敏锐、耐心。把复杂系统拆成可观测的信号，再陪你找到下一步。",
+    art: {
+      src: "/assets/characters/art/roster/nova.png",
+      alt: "原创学习伙伴星澜，身穿缀有星图的墨紫观测外套，在天文书室托起一枚轨道光环",
+      position: "50% 34%",
+    },
+    draft: createCharacterWorkshopSeed({
+      name: "星澜",
+      description: "观测与系统思考型学习伙伴。擅长把复杂问题拆成可验证的信号，先建立坐标，再陪你沿着证据推进。",
+      recipe: characterRecipeToWorkshopDraft(
+        {
+          avatar_model: "nova",
+          avatar_framing: "full_body",
+          stage_background: "midnight",
+          base_model: "tall",
+          face_style: "sharp",
+          hairstyle: "long_wave",
+          outfit: "techwear",
+          accessories: ["glasses", "badge"],
+          personality: "cool",
+          relationship_role: "senior",
+          warmth: 58,
+          initiative: 72,
+          humor: 28,
+          challenge: 74,
+          motions: COMPANION_CC0_MOTION_URLS,
+          voice_provider: "local-neural",
+          voice_model: LOCAL_NEURAL_VOICE_MODEL,
+          voice_id: "Dylan",
+          speaking_rate: 0.96,
+          palette: {
+            skin_tone: "#ead0c4",
+            hair_color: "#2f2b49",
+            eye_color: "#88cfe0",
+            outfit_color: "#27263d",
+            accent_color: "#88cfe0",
+          },
+        },
+        { voice_preview_text: "先把现象写下来，我们一起找出其中最稳定的信号。" },
+      ),
+    }),
+  },
+  {
+    id: "studio-echo",
+    title: "沐音 · ECHO",
+    rosterRole: "语言教练",
+    blurb: "温暖、灵巧、会讲故事。把难懂的内容换一种说法，让表达重新流动起来。",
+    art: {
+      src: "/assets/characters/art/roster/echo.png",
+      alt: "原创学习伙伴沐音，身穿陶土红与苔绿短外套，在阳光工作室用笔记和光带整理故事",
+      position: "50% 34%",
+    },
+    draft: createCharacterWorkshopSeed({
+      name: "沐音",
+      description: "语言与写作型学习伙伴。会把抽象概念换成清楚的例子，陪你把零散的想法整理成自然、有力量的表达。",
+      recipe: characterRecipeToWorkshopDraft(
+        {
+          avatar_model: "echo",
+          avatar_framing: "full_body",
+          stage_background: "study",
+          base_model: "mini",
+          face_style: "serene",
+          hairstyle: "short_bob",
+          outfit: "studio",
+          accessories: ["ribbon", "badge"],
+          personality: "gentle",
+          relationship_role: "partner",
+          warmth: 88,
+          initiative: 64,
+          humor: 68,
+          challenge: 34,
+          motions: COMPANION_CC0_MOTION_URLS,
+          voice_provider: "local-neural",
+          voice_model: LOCAL_NEURAL_VOICE_MODEL,
+          voice_id: "Vivian",
+          speaking_rate: 1.02,
+          palette: {
+            skin_tone: "#f0d3c7",
+            hair_color: "#7a493a",
+            eye_color: "#e58a61",
+            outfit_color: "#5b6546",
+            accent_color: "#e58a61",
+          },
+        },
+        { voice_preview_text: "把这句话先说得像你自己，清楚以后，故事就会开始流动。" },
       ),
     }),
   },
@@ -1052,6 +1164,7 @@ export function CharacterWorkshop({
     string | null | undefined
   >(undefined);
   const [runtimeMode, setRuntimeMode] = useState<AvatarRuntimeMode>("loading");
+  const [previewEmotion, setPreviewEmotion] = useState<CompanionEmotion>("neutral");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const avatarFileInputRef = useRef<HTMLInputElement | null>(null);
   const motionFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1064,6 +1177,7 @@ export function CharacterWorkshop({
 
   useEffect(() => {
     setDraft(seed);
+    setPreviewEmotion("neutral");
     setLocalNotice(null);
   }, [seed, seedKey]);
 
@@ -1315,6 +1429,7 @@ export function CharacterWorkshop({
       return;
     }
     setDraft(preset.draft);
+    setPreviewEmotion("neutral");
     setLocalNotice(`已应用 ${preset.title} 模板。`);
   }
 
@@ -1413,9 +1528,9 @@ export function CharacterWorkshop({
         </div>
       </div>
 
-      {mergedNotice ? <div className={styles.notice}>{mergedNotice}</div> : null}
+      {mergedNotice ? <div className={styles.notice} role="status">{mergedNotice}</div> : null}
       {[error, assetError, adultRelationshipBlockedReason].filter(Boolean).map((message) => (
-        <div key={message} className={styles.error}>
+        <div key={message} className={styles.error} role="alert">
           {message}
         </div>
       ))}
@@ -1432,7 +1547,7 @@ export function CharacterWorkshop({
         <div className={styles.researchShowcaseCopy}>
           <p className={styles.eyebrow}>Original companion directions</p>
           <h2 id="companion-catalog-title">选形象，也选相处节奏</h2>
-          <p>四主角共学舞台使用本项目 painted-blender 原创 3D（绘制贴图，不是 VRoid Hub 精模）；卡面插画仍是原创。第三方 VRM 只作为许可样本，不是主角外观。</p>
+          <p>有人陪你整理思绪，有人帮你迈出第一步。六位原创伙伴，六种学习节奏，找到适合今天的那一位。</p>
         </div>
       </section>
 
@@ -1440,9 +1555,9 @@ export function CharacterWorkshop({
         <div className={styles.rosterHeader}>
           <div>
             <p className={styles.eyebrow}>Starpath study roster</p>
-            <h3 id="featured-companion-roster">四种学习状态，四名真实可选伙伴</h3>
+            <h3 id="featured-companion-roster">六种学习状态，六名真实可选伙伴</h3>
           </div>
-          <p>澄羽、曜柚、凛序、弦灯的共学 3D 是 painted-blender 原创人体，不是许可样本。2D 卡面与 Mori/Yuzu 仍是备用；许可样本可选手动加载，不再作为主预设。</p>
+          <p>先选一位，再调整声音、性格和相处方式。每位都提供动态 2D 卡面与 3D 形象，可在下方预览中切换。</p>
         </div>
         <div className={styles.templateRail}>
           {TEMPLATE_PRESETS.filter((preset) => preset.art).map((preset) => (
@@ -1466,7 +1581,7 @@ export function CharacterWorkshop({
                 </span>
               ) : null}
               <span className={styles.templateCopy}>
-                <small>{preset.rosterRole}</small>
+                <small>{preset.rosterRole} · 3D VRM</small>
                 <strong>{preset.title}</strong>
                 <span>{preset.blurb}</span>
               </span>
@@ -1809,6 +1924,7 @@ export function CharacterWorkshop({
                   onCapabilitiesChange={handleCapabilitiesChange}
                   onRuntimeModeChange={setRuntimeMode}
                   recipe={runtimeRecipe}
+                  emotion={previewEmotion}
                   speechController={speechController}
                   state={draft.recipe.preview_state}
                 />
@@ -1823,6 +1939,21 @@ export function CharacterWorkshop({
                   onClick={() => patchRecipe({ preview_state: state.value })}
                 >
                   {state.label}
+                </button>
+              ))}
+            </div>
+            <div className={styles.previewEmotionRow} role="group" aria-label="Preview Emotion">
+              {PREVIEW_EMOTIONS.map((emotion) => (
+                <button
+                  key={emotion.value}
+                  type="button"
+                  aria-label={`预览情绪：${emotion.label}`}
+                  aria-pressed={previewEmotion === emotion.value}
+                  data-active={previewEmotion === emotion.value}
+                  data-testid={`preview-emotion-${emotion.value}`}
+                  onClick={() => setPreviewEmotion(emotion.value)}
+                >
+                  {emotion.label}
                 </button>
               ))}
             </div>

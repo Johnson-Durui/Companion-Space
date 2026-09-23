@@ -501,6 +501,30 @@ export function AvatarRuntime({
   const isRuntimeInteractive = runtimeStatus.mode === "ready"
     || (!isPortraitRuntime && runtimeStatus.mode === "fallback");
 
+  // RMS samples update the 2D viewport directly; 3D and licensed runtimes own
+  // their speech subscriptions and must not re-render with each audio sample.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || !isPortraitRuntime) {
+      return;
+    }
+    const applyLevel = (level: number) => {
+      const safeLevel = Number.isFinite(level) ? Math.max(0, Math.min(1, level)) : 0;
+      viewport.style.setProperty("--portrait-speech-level", String(safeLevel));
+      viewport.dataset.avatarSpeechLevel = safeLevel.toFixed(3);
+    };
+    applyLevel(0);
+    const unsubscribe = mountPortrait && runtimeStatus.mode === "ready"
+      && state === "speaking" && !reducedMotion
+      ? speechController?.subscribe(applyLevel)
+      : undefined;
+    return () => {
+      unsubscribe?.();
+      viewport.style.removeProperty("--portrait-speech-level");
+      delete viewport.dataset.avatarSpeechLevel;
+    };
+  }, [isPortraitRuntime, mountPortrait, reducedMotion, runtimeStatus.mode, speechController, state]);
+
   useEffect(() => {
     if (!show3dRuntime) {
       onCapabilitiesChange?.(null);
@@ -629,7 +653,7 @@ export function AvatarRuntime({
               {licensedRuntimeAsset
                 ? `${licensedRuntimeAsset.format} Licensed Runtime`
                 : isPortraitRuntime
-                  ? `${portraitDisplayName} 2D Portrait Runtime`
+                  ? `${portraitDisplayName} 2D Reactive Portrait Runtime`
                 : isSpriteRuntime
                   ? `${spriteDisplayName} 2D Sprite Runtime`
                 : runtimeStatus.mode === "ready"
@@ -932,7 +956,7 @@ export function AvatarRuntime({
               本地 {licensedRuntimeAsset.format} 归档已导入；渲染仅通过同源的已许可桥接执行。
             </p>
           ) : isPortraitRuntime ? (
-            <p className={styles.runtimeHint}>2D portrait: {runtimeRecipe.portraitAssetUrl}</p>
+            <p className={styles.runtimeHint}>2D reactive portrait: pointer gaze and speech pulse are enabled · {runtimeRecipe.portraitAssetUrl}</p>
           ) : isSpriteRuntime ? (
             <p className={styles.runtimeHint}>2D sprite: {runtimeRecipe.spriteAssetUrl}</p>
           ) : runtimeRecipe.vrmAssetUrl ? (

@@ -17,8 +17,10 @@ Every bundled asset pack should ship a manifest with:
 
 ## VRM-Specific Notes
 
-- The four featured 3D bodies are project-owned original VRM files
-  (`mira`, `kite`, `cael`, `lyra`). They are not the bundled licensed samples.
+- The six featured 3D bodies are project-owned original VRM files
+  (`mira`, `kite`, `cael`, `lyra`, `nova`, `echo`). MIRA/KITE/CAEL/LYRA are
+  painted-blender bodies; NOVA/ECHO are procedural `original-vrm` prototypes.
+  They are not the bundled licensed samples.
 - Sendagaya Shino, Seed-san, Sakurada Fumiriya, and Constraint Twist remain
   optional samples. Credit Seed-san to VirtualCast, Inc. Do not strip
   embedded metadata.

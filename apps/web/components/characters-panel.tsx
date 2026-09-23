@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { ChangeEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,6 +24,10 @@ import {
   type CharacterWorkshopDraft,
 } from "@/components/character-workshop";
 import {
+  getBuiltinPortraitDefinition,
+  type BuiltinPortraitDefinition,
+} from "@/components/avatar/portrait-registry";
+import {
   EmptyState,
   ErrorCallout,
   LoadingState,
@@ -31,6 +36,44 @@ import {
 } from "@/components/ui";
 
 import styles from "./characters-panel.module.css";
+
+const ORIGINAL_3D_AVATAR_IDS = new Set(["mira", "kite", "cael", "lyra", "nova", "echo"]);
+
+interface CharacterAvatarPresentation {
+  formatLabel: "2D 立绘" | "3D VRM" | null;
+  portrait: BuiltinPortraitDefinition | null;
+}
+
+function resolveCharacterAvatar(
+  avatarModel?: string | null,
+  hasCustomAvatarAsset = false,
+): CharacterAvatarPresentation {
+  if (hasCustomAvatarAsset) {
+    return { formatLabel: null, portrait: null };
+  }
+
+  const normalizedModel = avatarModel?.trim().toLowerCase();
+  if (!normalizedModel) {
+    return { formatLabel: null, portrait: null };
+  }
+
+  if (normalizedModel.endsWith("_2d")) {
+    const portrait = getBuiltinPortraitDefinition(normalizedModel);
+    return {
+      formatLabel: portrait ? "2D 立绘" : null,
+      portrait,
+    };
+  }
+
+  if (ORIGINAL_3D_AVATAR_IDS.has(normalizedModel)) {
+    return {
+      formatLabel: "3D VRM",
+      portrait: getBuiltinPortraitDefinition(`${normalizedModel}_2d`),
+    };
+  }
+
+  return { formatLabel: null, portrait: null };
+}
 
 export function CharactersPanel() {
   const router = useRouter();
@@ -172,7 +215,7 @@ export function CharactersPanel() {
         <p>先从档案里选一位同行者。需要时再创建新角色，或导入外部角色包。</p>
       </header>
 
-      {error && !characters.length ? <ErrorCallout message={error} /> : null}
+      {error ? <ErrorCallout message={error} /> : null}
       {notice ? <div className="success-callout" role="status">{notice}</div> : null}
 
       <section className={styles.directory} aria-labelledby="saved-companions">
@@ -185,50 +228,73 @@ export function CharactersPanel() {
           <LoadingState label="正在读取角色..." />
         ) : characters.length ? (
           <div className={styles.roster}>
-            {characters.map((character, index) => (
-              <article
-                key={character.id}
-                className={`${styles.companionRow} ${index === 0 ? styles.featured : ""} info-card`}
-              >
-                {index === 0 ? (
-                  <div className={styles.dossierStage} aria-hidden="true">
-                    <span className={`app-pet-portrait ${styles.heroPet}`} />
-                    <span className={styles.stageCaption}>CURRENT COMPANION</span>
+            {characters.map((character, index) => {
+              const avatar = resolveCharacterAvatar(
+                character.avatar_model,
+                character.has_custom_avatar_asset,
+              );
+              const isFeatured = index === 0;
+
+              return (
+                <article
+                  key={character.id}
+                  className={`${styles.companionRow} ${isFeatured ? styles.featured : ""} info-card`}
+                >
+                  <div className={isFeatured ? styles.dossierStage : styles.thumbnailStage}>
+                    {avatar.portrait ? (
+                      <Image
+                        className={styles.portrait}
+                        src={avatar.portrait.assetUrl}
+                        alt={isFeatured ? avatar.portrait.alt : ""}
+                        fill
+                        sizes={isFeatured ? "(max-width: 760px) 100vw, 380px" : "76px"}
+                        priority={isFeatured}
+                      />
+                    ) : (
+                      <div
+                        className={styles.neutralPortrait}
+                        role={isFeatured ? "img" : undefined}
+                        aria-label={isFeatured ? "未提供可识别的原创角色预览" : undefined}
+                        aria-hidden={isFeatured ? undefined : "true"}
+                      >
+                        <span>档案</span>
+                      </div>
+                    )}
+                    {isFeatured ? <span className={styles.stageCaption}>形象预览</span> : null}
                   </div>
-                ) : null}
-                <div className={styles.companionMain}>
-                  {index === 0 ? <span className={styles.currentLabel}>当前档案</span> : null}
-                  <div className={styles.titleRow}>
-                    <Link href={`/characters/${character.id}`} className={styles.companionTitle}>
-                      <strong>{character.name}</strong>
+                  <div className={styles.companionMain}>
+                    {isFeatured ? <span className={styles.currentLabel}>角色档案</span> : null}
+                    <div className={styles.titleRow}>
+                      <Link href={`/characters/${character.id}`} className={styles.companionTitle}>
+                        <strong>{character.name}</strong>
+                      </Link>
+                      <StatusBadge label={character.visibility || "private"} tone="muted" />
+                      {avatar.formatLabel ? <span className={styles.formatBadge}>{avatar.formatLabel}</span> : null}
+                    </div>
+                    <p className={styles.blurb}>
+                      {joinCompact([character.style || null, character.archetype || null]) || "等待补全配方"}
+                    </p>
+                    <p className={styles.updated}>更新于 {formatDateTime(character.updated_at)}</p>
+                  </div>
+                  <div className={styles.actions}>
+                    <Link href={`/characters/${character.id}`} className={isFeatured ? "primary-button" : "ghost-button subtle-link"}>
+                      进入详情
                     </Link>
-                    <StatusBadge label={character.visibility || "private"} tone="muted" />
+                    <button type="button" className="ghost-button" disabled={busy} onClick={() => void handleDuplicate(character.id)}>
+                      复制
+                    </button>
+                    <button type="button" className="ghost-button" disabled={busy} onClick={() => void handleExport(character)}>
+                      导出
+                    </button>
+                    <button type="button" className="ghost-button danger-button" disabled={busy} onClick={() => void handleDelete(character.id)}>
+                      删除
+                    </button>
                   </div>
-                  <p className={styles.blurb}>
-                    {joinCompact([character.style || null, character.archetype || null]) || "等待补全配方"}
-                  </p>
-                  <p className={styles.updated}>更新于 {formatDateTime(character.updated_at)}</p>
-                </div>
-                <div className={styles.actions}>
-                  <Link href={`/characters/${character.id}`} className={index === 0 ? "primary-button" : "ghost-button subtle-link"}>
-                    进入详情
-                  </Link>
-                  <button type="button" className="ghost-button" disabled={busy} onClick={() => void handleDuplicate(character.id)}>
-                    复制
-                  </button>
-                  <button type="button" className="ghost-button" disabled={busy} onClick={() => void handleExport(character)}>
-                    导出
-                  </button>
-                  <button type="button" className="ghost-button danger-button" disabled={busy} onClick={() => void handleDelete(character.id)}>
-                    删除
-                  </button>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
-        ) : error ? (
-          <ErrorCallout message={error} />
-        ) : (
+        ) : error ? null : (
           <EmptyState title="角色库还是空的" description="展开下方的“创建新角色”，完成你的第一个学习伙伴。" />
         )}
       </section>

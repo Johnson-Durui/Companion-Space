@@ -77,11 +77,11 @@
 .companionRow:global(.info-card) {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  gap: 18px;
   align-items: center;
   min-width: 0;
-  padding: 20px 0;
+  padding: 18px 0;
   border: 0;
   border-bottom: 1px solid var(--line);
   border-radius: 0;
@@ -92,43 +92,79 @@
   grid-template-columns: minmax(220px, 0.78fr) minmax(260px, 1.22fr);
   grid-template-rows: auto auto;
   gap: 0 28px;
-  min-height: 320px;
+  min-height: 344px;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--warm) 28%, var(--line));
   border-left: 5px solid var(--warm);
   background: color-mix(in srgb, var(--warm-soft) 70%, var(--panel-strong));
+  box-shadow: 0 20px 52px rgba(29, 65, 66, 0.1);
+}
+
+.dossierStage,
+.thumbnailStage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--night);
 }
 
 .dossierStage {
-  position: relative;
   grid-row: 1 / 3;
-  min-height: 320px;
-  overflow: hidden;
+  min-height: 344px;
   border-right: 1px solid color-mix(in srgb, var(--warm) 22%, var(--line));
-  background-color: var(--night);
-  background-image:
-    linear-gradient(90deg, rgba(16, 47, 52, 0.12), rgba(16, 47, 52, 0.55)),
-    url("/assets/characters/art/companion-study-district.webp");
-  background-position: 42% center;
-  background-size: cover;
 }
 
-.heroPet {
+.dossierStage::after {
   position: absolute;
   z-index: 1;
-  right: -4px;
-  bottom: -8px;
-  transform: scale(0.82);
-  transform-origin: bottom center;
-  filter: drop-shadow(0 14px 18px rgba(6, 23, 26, 0.36));
+  inset: 0;
+  background: linear-gradient(180deg, transparent 56%, rgba(7, 31, 34, 0.72));
+  content: "";
+  pointer-events: none;
+}
+
+.thumbnailStage {
+  width: 76px;
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  border-radius: 14px;
+}
+
+.portrait {
+  object-fit: cover;
+  object-position: center top;
+  transition: transform 220ms ease;
+}
+
+.companionRow:hover .portrait {
+  transform: scale(1.025);
+}
+
+.neutralPortrait {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 50%),
+    repeating-linear-gradient(135deg, transparent 0 18px, rgba(221, 233, 234, 0.06) 18px 19px),
+    var(--night);
+}
+
+.neutralPortrait span {
+  color: rgba(255, 253, 247, 0.78);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
 .stageCaption {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   left: 20px;
   bottom: 18px;
   color: #fffdf7;
+  letter-spacing: 0.08em;
   text-shadow: 0 2px 10px rgba(6, 23, 26, 0.68);
 }
 
@@ -152,6 +188,21 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 9px;
+}
+
+.formatBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent-soft) 68%, transparent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
 }
 
 .companionTitle {
@@ -208,19 +259,29 @@
   }
 
   .companionRow:global(.info-card) {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
     gap: 12px;
+  }
+
+  .thumbnailStage {
+    width: 64px;
+  }
+
+  .companionRow:not(.featured) .actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-left: 76px;
   }
 
   .companionRow.featured:global(.info-card) {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 220px auto auto;
+    grid-template-rows: 240px auto auto;
     min-height: 0;
   }
 
   .dossierStage {
     grid-row: auto;
-    min-height: 220px;
+    min-height: 240px;
     border-right: 0;
     border-bottom: 1px solid color-mix(in srgb, var(--warm) 22%, var(--line));
   }
@@ -236,5 +297,25 @@
 
   .featured .actions > :first-child {
     flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .companionRow:not(.featured) .actions {
+    padding-left: 0;
+  }
+
+  .actions > * {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portrait {
+    transition: none;
+  }
+
+  .companionRow:hover .portrait {
+    transform: none;
   }
 }

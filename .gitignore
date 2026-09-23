@@ -39,6 +39,8 @@ storage/
 .playwright/
 playwright-report/
 test-results/
+.playwright-report-*/
+.test-results-*/
 infra/caddy/data/
 infra/caddy/config/
 .omx/

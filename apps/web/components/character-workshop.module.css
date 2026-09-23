@@ -435,6 +435,7 @@
 .choiceButton,
 .accessoryChip,
 .previewStateRow button,
+.previewEmotionRow button,
 .primaryButton,
 .secondaryButton,
 .dangerButton {
@@ -493,7 +494,8 @@
 
 .choiceButton,
 .accessoryChip,
-.previewStateRow button {
+.previewStateRow button,
+.previewEmotionRow button {
   padding: 14px;
   text-align: left;
 }
@@ -506,7 +508,8 @@
 
 .choiceButton[data-active="true"],
 .accessoryChip[data-active="true"],
-.previewStateRow button[data-active="true"] {
+.previewStateRow button[data-active="true"],
+.previewEmotionRow button[data-active="true"] {
   border-color: rgba(137, 216, 255, 0.42);
   background: rgba(137, 216, 255, 0.12);
 }
@@ -515,6 +518,7 @@
 .accessoryChip:hover,
 .templateButton:hover,
 .previewStateRow button:hover,
+.previewEmotionRow button:hover,
 .primaryButton:hover,
 .secondaryButton:hover,
 .dangerButton:hover {
@@ -629,6 +633,24 @@
 
 .previewStateRow {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.previewEmotionRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.previewEmotionRow button {
+  padding: 8px 6px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.previewEmotionRow button[data-active="true"] {
+  border-color: color-mix(in srgb, var(--workshop-accent) 70%, white);
+  background: var(--workshop-accent-soft);
 }
 
 .previewStateRow button {
@@ -833,7 +855,8 @@
   }
 
   .formGrid,
-  .previewStateRow {
+  .previewStateRow,
+  .previewEmotionRow {
     grid-template-columns: 1fr;
   }
 

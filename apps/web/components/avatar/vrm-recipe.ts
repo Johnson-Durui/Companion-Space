@@ -64,9 +64,11 @@ type LooseRecipe = CharacterRecipe & Record<string, unknown>;
 
 const BUILTIN_MODEL_URLS: Record<string, string> = {
   cael: "/assets/characters/models/Cael.vrm",
+  echo: "/assets/characters/models/Echo.vrm",
   kite: "/assets/characters/models/Kite.vrm",
   lyra: "/assets/characters/models/Lyra.vrm",
   mira: "/assets/characters/models/Mira.vrm",
+  nova: "/assets/characters/models/Nova.vrm",
   sakurada_fumiriya: "/assets/characters/models/Sakurada-Fumiriya.vrm",
   seed_san: "/assets/characters/models/Seed-san.vrm",
   sendagaya_shino: "/assets/characters/models/Sendagaya-Shino.vrm",
@@ -78,10 +80,12 @@ const BUILTIN_MODEL_ALIASES: Record<string, string> = {
   constraint: "vrm1_constraint_twist_sample",
   constraint_sample: "vrm1_constraint_twist_sample",
   default: "mira",
+  echo: "echo",
   fumiriya: "sakurada_fumiriya",
   kite: "kite",
   lyra: "lyra",
   mira: "mira",
+  nova: "nova",
   rei: "sakurada_fumiriya",
   seed: "seed_san",
   seed_san: "seed_san",
@@ -144,7 +148,7 @@ function normalizeStageBackground(recipe: LooseRecipe): AvatarStageBackground {
   return background === "study" || background === "midnight" ? background : "neutral";
 }
 
-const FEATURED_ORIGINAL_MODEL_IDS = new Set(["cael", "kite", "lyra", "mira"]);
+const FEATURED_ORIGINAL_MODEL_IDS = new Set(["cael", "echo", "kite", "lyra", "mira", "nova"]);
 
 function readBundledMotionUrls(
   recipe: LooseRecipe,

@@ -1,7 +1,7 @@
 # Original companion 3D contract
 
-Four featured study companions use project-owned VRM 1.0 bodies. 2D roster
-cards stay as portraits; Mori / Yuzu stay as sprite fallbacks.
+Six featured study companions use project-owned VRM 1.0 bodies. 2D roster
+cards stay as reactive portraits; Mori / Yuzu stay as sprite fallbacks.
 
 | Id | Name | Hair | Outfit | Presence |
 | --- | --- | --- | --- | --- |
@@ -9,6 +9,8 @@ cards stay as portraits; Mori / Yuzu stay as sprite fallbacks.
 | `kite` | 曜柚 KITE | Dark high ponytail | Yuzu-yellow sport jacket, teal inner | Round, athletic, kickoff rival |
 | `cael` | 凛序 CAEL | Ink-navy long wave | Long navy coat, gold trim, glasses | Tall, sharp, constraint senior |
 | `lyra` | 弦灯 LYRA | Charcoal-purple asymmetric bob | Charcoal studio wrap, lantern-orange sash | Serene, curious story partner |
+| `nova` | 星澜 NOVA | Midnight-indigo long hair | Constellation coat, ice-cyan orbit accent, glasses | Tall, observant, systems thinker |
+| `echo` | 沐音 ECHO | Chestnut short bob | Terracotta and moss studio jacket | Petite, warm, language and writing coach |
 
 Production builder: `scripts/blender/build_original_companions.py`
 (Blender 4.5 LTS + VRM Add-on). Pass local painted inputs with `--paint` and
@@ -17,7 +19,7 @@ Prototype fallback: `scripts/generate-original-vrm.mjs --prototype`.
 Runtime: existing `avatar-runtime` / `vrm-stage` / CC0 VRMA / 7-emotion face /
 1.30s exactly-once body reaction.
 
-Current quality (`painted-blender`, albedo pass 1.4):
+Current quality for MIRA, KITE, CAEL, and LYRA (`painted-blender`, albedo pass 1.4):
 
 - VRM 1.0 humanoid from Blender `icyp.make_basic_armature` (fingers, eyes, toes)
 - Voxel-remeshed body with nearest-bone weights + MToon outlines
@@ -29,7 +31,13 @@ Current quality (`painted-blender`, albedo pass 1.4):
 
 These are project-owned Blender bodies for the study stage. They are **not**
 VRoid Hub store sculpts. VRoid Studio is installed for further hand work.
-Licensed sample VRM files must not be presented as these four characters.
+Licensed sample VRM files must not be presented as any of these six characters.
+
+NOVA and ECHO use the same project-owned VRM 1.0 metadata, humanoid loading,
+expression, and CC0 motion contract in lighter procedural prototype bodies from
+`scripts/generate-original-vrm.mjs --prototype`. They are separate from the
+painted-blender quality tier and are labelled `original-vrm` in Character
+Workshop until their hand-painted Blender passes are available.
 
 The public repository ships the reviewed VRM binaries and their hashes, but it
 does not ship the exact painted albedo inputs or local `.blend` working files.

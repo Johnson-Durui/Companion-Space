@@ -242,7 +242,7 @@ WebSocket URL 必须包含 `:sessionId`，并且 host 必须与页面或 API hos
 
 当前“捏人”外观选项依赖内置模型的 mesh/material 命名映射。任意第三方 VRM 通常可以显示，但不保证发型、服装、配饰和调色全部生效。`CharacterRecipe.motions` 已接入真正的 VRMA 播放：项目内置四个由仓库脚本确定性生成、以 CC0 发布的 `idle/listening/thinking/speaking` 原地身体动作；每个 VRM 实例持有一个 `AnimationMixer`，状态切换使用短交叉淡化，缺失或加载失败的状态单独回到对应的程序化动作。系统“减少动态效果”开启时不加载 VRMA，并停用身体与视线运动，仅保留低频眨眼和语音口型。
 
-共享的 `AvatarRuntime` viewport 还把主指针和触控位置归一化到 `[-1, 1]`，通过稳定 ref 交给现有 VRM LookAt target，不因高频移动触发 React 重渲染、Canvas 重挂载、模型重载或 VRMA action 重启。运行时在 `vrm.update()` 后读取真实 `VRMLookAt.yaw/pitch`；表达式型与骨骼型 LookAt 都使用同一公开契约。2D fallback 只平移眼睛，pointer leave/cancel、窗口失焦和非鼠标 pointer up 会复位。系统“减少动态效果”开启时输入、target、实际输出和 2D 眼睛都保持中心静止。该交互参考 AIRI 舞台的可配置 gaze 体验，但未复制 AIRI 代码、模型、动作、纹理或其他资产。
+共享的 `AvatarRuntime` viewport 还把主指针和触控位置归一化到 `[-1, 1]`，通过稳定 ref 交给现有 VRM LookAt target，不因高频移动触发 React 重渲染、Canvas 重挂载、模型重载或 VRMA action 重启。运行时在 `vrm.update()` 后读取真实 `VRMLookAt.yaw/pitch`；表达式型与骨骼型 LookAt 都使用同一公开契约。2D portrait 会继承同一输入做轻微舞台平移，语音播放时通过 `AvatarSpeechController` 直接更新 CSS 音量变量，让 speaking cue 随 RMS 脉冲；高频音量更新不会进入 3D React 树。pointer leave/cancel、窗口失焦和非鼠标 pointer up 会复位。系统“减少动态效果”开启时输入、target、实际输出、2D 平移和语音脉冲都保持静止。该交互参考 AIRI 舞台的可配置 gaze 体验，但未复制 AIRI 代码、模型、动作、纹理或其他资产。
 
 `CompanionTurn.emotion` 同时驱动 3D 与 2D 角色的语义表情。前后端只接受 `neutral/warm/cheerful/curious/focused/playful/concerned`；新用户轮次、PTT/VAD、打断、换会话、错误和结束会话会先复位为 `neutral`，只有通过当前空间与会话校验的最终回复才能重新设置情绪。VRM 运行时通过 `VRMExpressionManager.getExpression()` 读取模型元数据，只叠加非二元且 `overrideBlink/overrideMouth` 均为 `none` 的表情；未知、二元或会削弱眨眼/口型的候选均安全跳过，身体 VRMA 继续独立播放。减少动态效果时表情保持为静态低权重，身体和视线仍然静止。Seed-san 的内置情绪组均为二元表情，因此当前按安全策略无语义表情叠加，但眨眼和口型照常工作。
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -8,6 +9,7 @@ import { ApiError, createSpace, getDashboardSnapshot } from "@/lib/api";
 import { formatDateTime, joinCompact } from "@/lib/format";
 import type { DashboardSnapshot } from "@/lib/types";
 import { EmptyState, ErrorCallout, LoadingState, QuickLink, SectionCard, StatusBadge } from "@/components/ui";
+import { getBuiltinPortraitDefinition } from "@/components/avatar/portrait-registry";
 
 function latestRecord<T extends { created_at?: string | null; updated_at?: string | null }>(records: T[]) {
   return records.reduce<T | undefined>((latest, record) => {
@@ -63,7 +65,15 @@ export function DashboardShell({ displayName }: { displayName: string }) {
     ? latestRecord(snapshot.sessions.filter((session) => session.state !== "closed"))
     : undefined;
   const recentSpace = snapshot ? latestRecord(snapshot.spaces) : undefined;
-  const companionName = activeSession?.character_name || snapshot?.characters[0]?.name || "伙伴";
+  const companionId = activeSession?.character_pack_id || recentSpace?.default_character_id;
+  const companion = companionId
+    ? snapshot?.characters.find((character) => character.id === companionId)
+    : snapshot?.characters[0];
+  const companionPortrait = companion && !companion.has_custom_avatar_asset
+    ? getBuiltinPortraitDefinition(companion.avatar_model ?? "")
+      ?? getBuiltinPortraitDefinition(`${companion.avatar_model}_2d`)
+    : null;
+  const companionName = activeSession?.character_name || companion?.name || "伙伴";
   const launcherLabel = vaultBlocked
     ? "打开本地保险箱"
     : !snapshot
@@ -101,6 +111,7 @@ export function DashboardShell({ displayName }: { displayName: string }) {
       : recentSpace
         ? `${recentSpace.material_count ?? 0} 份资料已就位`
         : "从空白地点出发";
+  const unavailableCount = vaultBlocked ? "待解锁" : error ? "暂不可用" : "读取中";
 
   async function handleLaunch() {
     if (!snapshot || launching) {
@@ -129,11 +140,15 @@ export function DashboardShell({ displayName }: { displayName: string }) {
 
   return (
     <section className="page-stack dashboard-home">
+      <header className="dashboard-masthead">
+        <p><span aria-hidden="true">✦</span> 星轨书房 <small>YOUR DAILY ORBIT</small></p>
+        <Link href="/characters">挑选学习伙伴 <span aria-hidden="true">↗</span></Link>
+      </header>
       <section className="dashboard-stage" aria-labelledby="dashboard-title">
         <div className="dashboard-stage-copy">
           <p className="dashboard-greeting">DAY ROUTE · {displayName}</p>
           <h1 id="dashboard-title">今天，和{companionName}去哪里？</h1>
-          <p>角色已经在场。继续上次的章节，或挑一个新的主题一起出发。</p>
+          <p className="dashboard-stage-description">继续上次的章节，或挑一个新的主题。把今天的想法，慢慢讲清楚。</p>
           <div className="dashboard-route" aria-label="当前同行路线">
             <span className="dashboard-route-mark" aria-hidden="true" />
             <span>
@@ -144,8 +159,18 @@ export function DashboardShell({ displayName }: { displayName: string }) {
           </div>
         </div>
         <div className="dashboard-stage-visual" aria-hidden="true">
+          {companionPortrait ? (
+            <Image
+              src={companionPortrait.assetUrl}
+              alt=""
+              fill
+              sizes="(max-width: 820px) 100vw, 60vw"
+              className="dashboard-character-portrait"
+              priority
+            />
+          ) : null}
           <span className="dashboard-compass" />
-          <span className="dashboard-presence"><i aria-hidden="true" />{companionName}在这里</span>
+          <span className="dashboard-presence"><i aria-hidden="true" />{companionPortrait ? `${companionName}在这里` : "一起开始今天"}</span>
         </div>
         <p className="dashboard-stage-bubble" aria-live="polite">{companionMessage}</p>
       </section>
@@ -194,6 +219,36 @@ export function DashboardShell({ displayName }: { displayName: string }) {
           {launchError ? <ErrorCallout message={launchError} /> : null}
         </div>
       </section>
+
+      <nav className="dashboard-signal-rail" aria-label="学习概览">
+        <Link href="/spaces" className="dashboard-signal-card">
+          <span className="dashboard-signal-index" aria-hidden="true">01</span>
+          <div>
+            <small>学习空间</small>
+            <strong>{snapshot ? snapshot.spaces.length : unavailableCount}</strong>
+            <p>{vaultBlocked ? "解锁后读取空间" : "独立保存主题与资料"}</p>
+          </div>
+          <span className="dashboard-signal-arrow" aria-hidden="true">↗</span>
+        </Link>
+        <Link href="/characters" className="dashboard-signal-card">
+          <span className="dashboard-signal-index" aria-hidden="true">02</span>
+          <div>
+            <small>学习伙伴</small>
+            <strong>{snapshot ? snapshot.characters.length : unavailableCount}</strong>
+            <p>{vaultBlocked ? "解锁后读取角色" : "随时可以更换同行者"}</p>
+          </div>
+          <span className="dashboard-signal-arrow" aria-hidden="true">↗</span>
+        </Link>
+        <Link href="/sessions" className="dashboard-signal-card">
+          <span className="dashboard-signal-index" aria-hidden="true">03</span>
+          <div>
+            <small>会话记录</small>
+            <strong>{snapshot ? snapshot.sessions.length : unavailableCount}</strong>
+            <p>{vaultBlocked ? "解锁后读取复盘" : "完成一次对话就会留下轨迹"}</p>
+          </div>
+          <span className="dashboard-signal-arrow" aria-hidden="true">↗</span>
+        </Link>
+      </nav>
 
       <details className="dashboard-more">
         <summary>首次设置与更多信息</summary>
@@ -262,9 +317,11 @@ export function DashboardShell({ displayName }: { displayName: string }) {
           )}
         </SectionCard>
       </div>
+        </div>
+      </details>
 
       <div className="content-grid two-up dashboard-secondary">
-        <SectionCard eyebrow="空间" title="学习空间" hint="每个空间有独立资料、模型绑定、会话与记忆边界。">
+        <SectionCard eyebrow="空间" title="学习空间" hint="每个主题，都有自己的资料与学习记录。" action={<Link href="/spaces" className="ghost-button subtle-link">查看全部</Link>}>
           {vaultBlocked ? (
             <EmptyState title="空间仍在本地等待" description="解锁 Vault 后再读取或创建学习空间。" />
           ) : !snapshot ? (
@@ -274,7 +331,7 @@ export function DashboardShell({ displayName }: { displayName: string }) {
               {snapshot.spaces.slice(0, 4).map((space) => (
                 <article key={space.id} className="info-card">
                   <div className="card-row">
-                    <strong>{space.title}</strong>
+                    <Link href={`/spaces/${space.id}`} className="dashboard-space-link">{space.title}</Link>
                     <StatusBadge label={space.knowledge_status || "blank"} tone="muted" />
                   </div>
                   <p>{space.goal || "还没有写目标。"}</p>
@@ -287,7 +344,7 @@ export function DashboardShell({ displayName }: { displayName: string }) {
           )}
         </SectionCard>
 
-        <SectionCard eyebrow="会话" title="会话与复盘" hint="实时音频组件会插在会话页；这里先展示摘要与复盘入口。">
+        <SectionCard eyebrow="会话" title="会话与复盘" hint="接着聊，或回看已经走过的章节。" action={<Link href="/sessions" className="ghost-button subtle-link">查看全部</Link>}>
           {vaultBlocked ? (
             <EmptyState title="复盘尚未读取" description="解锁 Vault 后，会话与复盘会从本地安全载入。" />
           ) : !snapshot ? (
@@ -323,8 +380,6 @@ export function DashboardShell({ displayName }: { displayName: string }) {
           )}
         </SectionCard>
       </div>
-        </div>
-      </details>
     </section>
   );
 }

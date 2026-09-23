@@ -536,6 +536,8 @@ export interface LegacyKnowledgeImportResult {
 export interface CharacterPackSummary {
   id: string;
   name: string;
+  avatar_model?: string | null;
+  has_custom_avatar_asset?: boolean;
   archetype?: string | null;
   style?: string | null;
   visibility?: CharacterVisibility;

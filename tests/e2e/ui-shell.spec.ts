@@ -6,7 +6,9 @@ const visualEvidenceDir = "test-results/ui-shell-visual";
 
 async function captureVisualEvidence(page: import("@playwright/test").Page, name: string) {
   await mkdir(visualEvidenceDir, { recursive: true });
-  await page.screenshot({ fullPage: true, path: `${visualEvidenceDir}/${name}.png` });
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await page.screenshot({ fullPage: true, animations: "disabled", path: `${visualEvidenceDir}/${name}.png` });
+  await page.screenshot({ animations: "disabled", path: `${visualEvidenceDir}/${name}-viewport.png` });
 }
 
 test.use({ video: "off" });
@@ -83,6 +85,9 @@ test.describe("responsive application shell", () => {
     await expect(page.getByText("Owner session required", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "初始化或解锁 Vault" })).toHaveAttribute("href", "/vault");
     await expect(page.getByRole("heading", { name: "先打开本地保险箱" })).toBeVisible();
+    const overview = page.getByRole("navigation", { name: "学习概览" });
+    await expect(overview.getByRole("link")).toHaveCount(3);
+    await expect(overview.locator("strong")).toHaveText(["待解锁", "待解锁", "待解锁"]);
     await expect(page.locator('[role="status"] .ant-spin')).toHaveCount(0);
   });
 
@@ -112,6 +117,10 @@ test.describe("responsive application shell", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
     await expect(page.getByRole("navigation", { name: "主要导航" }).getByRole("link")).toHaveCount(5);
     await expect(page.getByRole("link", { name: "主舞台", exact: true })).toHaveAttribute("aria-current", "page");
+    const overview = page.getByRole("navigation", { name: "学习概览" });
+    await expect(overview.getByRole("link", { name: /学习空间/ })).toHaveAttribute("href", "/spaces");
+    await expect(overview.getByRole("link", { name: /学习伙伴/ })).toHaveAttribute("href", "/characters");
+    await expect(overview.getByRole("link", { name: /会话记录/ })).toHaveAttribute("href", "/sessions");
     await expect(page.getByRole("button", { name: "开始陪伴" })).toBeEnabled();
     await captureVisualEvidence(page, "dashboard-1440");
 
@@ -126,6 +135,116 @@ test.describe("responsive application shell", () => {
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
     }))).toEqual({ clientWidth: 1440, scrollWidth: 1440 });
+  });
+
+  test("keeps populated dashboard routes and recent work reachable at 1440px, 768px and 375px", async ({ page }) => {
+    const spaces = [
+      reflectionSpace,
+      {
+        ...reflectionSpace,
+        id: "space-design",
+        name: "界面设计",
+        topic: "视觉系统",
+        goal: "完成一轮界面升级",
+        updated_at: "2026-08-14T09:30:00Z",
+      },
+      {
+        ...reflectionSpace,
+        id: "space-writing",
+        name: "写作练习",
+        topic: "短篇写作",
+        goal: "完成第三章草稿",
+        updated_at: "2026-08-15T09:30:00Z",
+      },
+    ];
+    const sessionFor = (spaceId: string, updatedAt: string) => ({
+      id: `session-${spaceId}`,
+      space_id: spaceId,
+      character_pack_id: null,
+      state: "closed",
+      created_at: "2026-08-15T08:00:00Z",
+      updated_at: updatedAt,
+    });
+
+    await page.route("**/api/v1/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/v1/vault/status") {
+        await route.fulfill({ json: { initialized: true, unlocked: true } });
+        return;
+      }
+      if (path === "/api/v1/spaces") {
+        await route.fulfill({ json: spaces });
+        return;
+      }
+      if (path === "/api/v1/providers/connections") {
+        await route.fulfill({ json: [] });
+        return;
+      }
+      if (path === "/api/v1/characters") {
+        await route.fulfill({
+          json: {
+            items: [{
+              id: "character-nova",
+              name: "Nova",
+              recipe: {
+                avatar_model: "nova",
+                relationship_role: "study_partner",
+                personality: "observant",
+              },
+              asset_manifest: {},
+              updated_at: "2026-08-15T09:30:00Z",
+            }],
+          },
+        });
+        return;
+      }
+      const sessionSpace = spaces.find((space) => path === `/api/v1/spaces/${space.id}/sessions`);
+      if (sessionSpace) {
+        await route.fulfill({ json: [sessionFor(sessionSpace.id, sessionSpace.updated_at)] });
+        return;
+      }
+      await route.fulfill({ status: 418, json: { detail: `Unexpected request: ${path}` } });
+    });
+
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 768, height: 900 },
+      { width: 375, height: 812 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/");
+
+      const overview = page.getByRole("navigation", { name: "学习概览" });
+      await expect(overview.getByRole("link", { name: /学习空间 3/ })).toBeVisible();
+      await expect(overview.getByRole("link", { name: /学习伙伴 1/ })).toBeVisible();
+      await expect(overview.getByRole("link", { name: /会话记录 3/ })).toBeVisible();
+      const heroPortrait = page.locator(".dashboard-character-portrait");
+      await expect(heroPortrait).toHaveAttribute("src", /nova\.png/);
+      await expect.poll(() => heroPortrait.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+
+      const spacesSection = page.getByRole("heading", { level: 2, name: "学习空间" }).locator("xpath=ancestor::section[1]");
+      const sessionsSection = page.getByRole("heading", { level: 2, name: "会话与复盘" }).locator("xpath=ancestor::section[1]");
+      await expect(spacesSection).toBeVisible();
+      await expect(sessionsSection).toBeVisible();
+      await expect(spacesSection.getByRole("link", { name: "查看全部" })).toHaveAttribute("href", "/spaces");
+      await expect(sessionsSection.getByRole("link", { name: "查看全部" })).toHaveAttribute("href", "/sessions");
+
+      if (viewport.width === 375) {
+        await expect(spacesSection.locator(".info-card").nth(0)).toBeVisible();
+        await expect(spacesSection.locator(".info-card").nth(1)).toBeVisible();
+        await expect(spacesSection.locator(".info-card").nth(2)).toBeHidden();
+        await expect(sessionsSection.locator(".list-row").nth(0)).toBeVisible();
+        await expect(sessionsSection.locator(".list-row").nth(1)).toBeVisible();
+        await expect(sessionsSection.locator(".list-row").nth(2)).toBeHidden();
+      }
+
+      const pageWidth = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(pageWidth.scrollWidth).toBe(pageWidth.clientWidth);
+      await captureVisualEvidence(page, `dashboard-populated-${viewport.width}`);
+    }
   });
 
   test("uses My as a mobile profile index even when local data is partial", async ({ page }) => {
@@ -368,6 +487,113 @@ test.describe("responsive application shell", () => {
     await page.goto("/characters#new-character");
     await expect(createDisclosure).toHaveJSProperty("open", true);
     await expect(page.getByRole("heading", { name: "新角色草稿" })).toBeVisible();
+  });
+
+  test("maps saved avatar model ids to their own portraits and format labels", async ({ page }) => {
+    const characterWire = (
+      id: string,
+      name: string,
+      avatarModel: string,
+      assetManifest: Record<string, unknown> = {
+        pack_kind: "recipe-only",
+        render_mode: "vrm-or-2d-fallback",
+      },
+    ) => ({
+      id,
+      name,
+      description: `${name} 的角色档案`,
+      recipe: {
+        avatar_model: avatarModel,
+        stage_background: "study",
+        relationship_role: "study_partner",
+        personality: "observant",
+      },
+      asset_manifest: assetManifest,
+      created_at: "2026-08-10T08:00:00Z",
+      updated_at: "2026-08-15T09:30:00Z",
+    });
+    await page.route("**/api/v1/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === "/api/v1/characters") {
+        await route.fulfill({
+          json: {
+            items: [
+              characterWire("character-nova", "星澜 Nova", "nova"),
+              characterWire("character-echo", "沐音 Echo", "echo"),
+              characterWire("character-echo-2d", "沐音 2D", "echo_2d"),
+              characterWire("character-external", "外部角色", "external-avatar"),
+              characterWire(
+                "character-custom-mira",
+                "自带模型 Mira",
+                "mira",
+                { model_path: "model.vrm" },
+              ),
+            ],
+          },
+        });
+        return;
+      }
+      if (path === "/api/v1/vault/preferences") {
+        await route.fulfill({
+          json: { adult_relationships_enabled: false, adult_age_confirmed_at: null },
+        });
+        return;
+      }
+      await route.fulfill({ status: 418, json: { detail: `Unexpected request: ${path}` } });
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/characters");
+
+    const librarySection = page.getByRole("heading", { level: 2, name: "已保存的伙伴" })
+      .locator("xpath=ancestor::section[1]");
+    const novaCharacter = librarySection.locator("article").filter({ hasText: "星澜 Nova" });
+    const echoCharacter = librarySection.locator("article").filter({ hasText: "沐音 Echo" });
+    const echo2dCharacter = librarySection.locator("article").filter({ hasText: "沐音 2D" });
+    await expect(novaCharacter.getByAltText(/原创学习伙伴星澜/)).toBeVisible();
+    await expect(librarySection.getByText("Mori", { exact: true })).toHaveCount(0);
+    await expect(librarySection.locator('img[src*="mori"]')).toHaveCount(0);
+    await expect(novaCharacter.getByText("3D VRM", { exact: true })).toBeVisible();
+    await expect(echoCharacter.getByText("3D VRM", { exact: true })).toBeVisible();
+    await expect(echoCharacter.locator("img")).toHaveAttribute("src", /echo\.png/);
+    await expect(echo2dCharacter.getByText("2D 立绘", { exact: true })).toBeVisible();
+    await expect(echo2dCharacter.locator("img")).toHaveAttribute("src", /echo\.png/);
+    const externalCharacter = librarySection.locator("article").filter({ hasText: "外部角色" });
+    await expect(externalCharacter.getByText("档案", { exact: true })).toBeVisible();
+    await expect(externalCharacter.getByText("2D 立绘", { exact: true })).toHaveCount(0);
+    await expect(externalCharacter.getByText("3D VRM", { exact: true })).toHaveCount(0);
+    const customMira = librarySection.locator("article").filter({ hasText: "自带模型 Mira" });
+    await expect(customMira.getByText("档案", { exact: true })).toBeVisible();
+    await expect(customMira.getByText("2D 立绘", { exact: true })).toHaveCount(0);
+    await expect(customMira.getByText("3D VRM", { exact: true })).toHaveCount(0);
+
+    const waitForLibraryPortraits = async () => {
+      const images = librarySection.locator("img");
+      for (let index = 0; index < await images.count(); index += 1) {
+        await images.nth(index).scrollIntoViewIfNeeded();
+      }
+      await expect.poll(() => images.evaluateAll((items) =>
+        items.every((item) => (item as HTMLImageElement).naturalWidth > 0)
+      )).toBe(true);
+    };
+    const expectNoPageOverflow = async () => {
+      await expect.poll(() => page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }))).toEqual({
+        clientWidth: page.viewportSize()?.width,
+        scrollWidth: page.viewportSize()?.width,
+      });
+    };
+
+    await waitForLibraryPortraits();
+    await expectNoPageOverflow();
+    await captureVisualEvidence(page, "characters-roster-1440");
+
+    await page.setViewportSize({ width: 375, height: 812 });
+    await waitForLibraryPortraits();
+    await expectNoPageOverflow();
+    await captureVisualEvidence(page, "characters-roster-375");
   });
 
   test("launches study from the selected space without prefetching call data", async ({ page }) => {

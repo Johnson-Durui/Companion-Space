@@ -135,16 +135,18 @@ cd apps\mobile\android
 
 | 产品角色 | 当前 3D | 许可摘要 |
 | --- | --- | --- |
-| 澄羽 MIRA | `Mira.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 曜柚 KITE | `Kite.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 凛序 CAEL | `Cael.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 弦灯 LYRA | `Lyra.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 澄羽 MIRA | `Mira.vrm` 原创 `painted-blender` 定制模型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 曜柚 KITE | `Kite.vrm` 原创 `painted-blender` 定制模型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 凛序 CAEL | `Cael.vrm` 原创 `painted-blender` 定制模型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 弦灯 LYRA | `Lyra.vrm` 原创 `painted-blender` 定制模型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 星澜 NOVA | `Nova.vrm` 原创 `original-vrm` 原型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 沐音 ECHO | `Echo.vrm` 原创 `original-vrm` 原型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
 
-卡面插画与四主角 3D 均为本项目原创。Sendagaya Shino / Seed-san / Sakurada Fumiriya / Constraint Twist 仍作为许可样本保留。Mori / Yuzu 的 2D atlas 是本项目资源。不要从 CyberVerse（GPL-3.0）拷代码进来。
+卡面插画与六位主角的 3D 模型均为本项目原创。MIRA、KITE、CAEL 和 LYRA 属于 `painted-blender` 成品组；NOVA 和 ECHO 是更轻量的 `original-vrm` 原型，与前四位的精细度不同。Sendagaya Shino / Seed-san / Sakurada Fumiriya / Constraint Twist 仍作为许可样本保留。Mori / Yuzu 的 2D atlas 是本项目资源。不要从 CyberVerse（GPL-3.0）拷代码进来。
 
-四个原创 VRM 允许再分发和修改且无需署名，但其内嵌权限不授权企业商业使用，并禁止过度暴力/性、政治/宗教、反社会或仇恨用途；不得剥离内嵌元数据。完整字段见模型 `manifest.json` 与 [第三方/素材声明](assets/THIRD_PARTY_NOTICES.md)。
+六个原创 VRM 使用同一组内嵌权限：允许再分发和修改且无需署名，但不授权企业商业使用，并禁止过度暴力/性、政治/宗教、反社会或仇恨用途；不得剥离内嵌元数据。完整字段见模型 `manifest.json` 与 [第三方/素材声明](assets/THIRD_PARTY_NOTICES.md)。
 
-仓库发布的是经过校验的四个 VRM 二进制与哈希；精确的 painted albedo 输入和本地 `.blend` 工作文件不在公开仓库。干净 clone 可以直接运行这些模型，但不承诺从公开源逐字节重建相同哈希。详见 [原创 3D 契约](docs/design/original-companions-3d.md)。
+仓库发布的是经过校验的六个 VRM 二进制与哈希。前四个 `painted-blender` 模型的精确 painted albedo 输入和本地 `.blend` 工作文件不在公开仓库；NOVA 和 ECHO 由仓库内原型生成器构建。干净 clone 可以直接运行这些模型，但不承诺从公开源逐字节重建 `painted-blender` 模型的相同哈希。详见 [原创 3D 契约](docs/design/original-companions-3d.md)。
 
 ## 验证命令
 

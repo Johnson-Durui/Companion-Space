@@ -50,6 +50,26 @@ export const BUILTIN_PORTRAIT_DEFINITIONS = [
     pickerBlurb: "2D 卡面备用；共学主舞台请用同名 painted-blender 3D。",
     pickerLabel: "弦灯 · LYRA · Original 2D",
   },
+  {
+    accentColor: "#88cfe0",
+    alt: "原创学习伙伴星澜，身穿缀有星图的墨紫观测外套，在天文书室托起一枚轨道光环",
+    assetUrl: "/assets/characters/art/roster/nova.png",
+    displayName: "星澜 · NOVA",
+    modelId: "nova_2d",
+    objectPosition: "50% 34%",
+    pickerBlurb: "2D 动态立绘；观测与系统思考型学习伙伴，适合拆解复杂问题。",
+    pickerLabel: "星澜 · NOVA · Original 2D",
+  },
+  {
+    accentColor: "#e58a61",
+    alt: "原创学习伙伴沐音，身穿陶土红与苔绿短外套，在阳光工作室用笔记和光带整理故事",
+    assetUrl: "/assets/characters/art/roster/echo.png",
+    displayName: "沐音 · ECHO",
+    modelId: "echo_2d",
+    objectPosition: "50% 34%",
+    pickerBlurb: "2D 动态立绘；语言与写作型学习伙伴，擅长把难懂内容讲成清楚的故事。",
+    pickerLabel: "沐音 · ECHO · Original 2D",
+  },
 ] as const satisfies readonly BuiltinPortraitDefinition[];
 
 const BUILTIN_PORTRAITS_BY_MODEL_ID = new Map<string, BuiltinPortraitDefinition>(

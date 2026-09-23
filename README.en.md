@@ -135,16 +135,18 @@ The current `infra/caddy/Caddyfile` uses `tls internal` for **every** `APP_HOST`
 
 | Product character | Current 3D model | License summary |
 | --- | --- | --- |
-| 澄羽 MIRA | Original custom `Mira.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
-| 曜柚 KITE | Original custom `Kite.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
-| 凛序 CAEL | Original custom `Cael.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
-| 弦灯 LYRA | Original custom `Lyra.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
+| 澄羽 MIRA | Original custom `painted-blender` `Mira.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
+| 曜柚 KITE | Original custom `painted-blender` `Kite.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
+| 凛序 CAEL | Original custom `painted-blender` `Cael.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
+| 弦灯 LYRA | Original custom `painted-blender` `Lyra.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
+| 星澜 NOVA | Original `original-vrm` prototype `Nova.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
+| 沐音 ECHO | Original `original-vrm` prototype `Echo.vrm` | Embedded VRM permission: personal commercial use allowed; corporate commercial use not licensed |
 
-The card illustrations and all four featured 3D characters are original works created for this project. Sendagaya Shino, Seed-san, Sakurada Fumiriya, and Constraint Twist remain as licensed samples. The Mori and Yuzu 2D atlases are project assets. Do not copy code from CyberVerse (GPL-3.0) into this repository.
+The card illustrations and all six featured 3D characters are original works created for this project. MIRA, KITE, CAEL, and LYRA form the finished `painted-blender` set. NOVA and ECHO are lighter `original-vrm` prototypes and do not have the same level of detail as the first four. Sendagaya Shino, Seed-san, Sakurada Fumiriya, and Constraint Twist remain as licensed samples. The Mori and Yuzu 2D atlases are project assets. Do not copy code from CyberVerse (GPL-3.0) into this repository.
 
-The four original VRM models may be redistributed and modified without attribution, but their embedded permissions do not authorize corporate commercial use. They also prohibit excessive violence or sexual content, political or religious use, antisocial or hateful use, and removal of embedded metadata. See each model's `manifest.json` and the [third-party and asset notices](assets/THIRD_PARTY_NOTICES.md) for the complete fields.
+All six original VRM models use the same embedded permissions: they may be redistributed and modified without attribution, but corporate commercial use is not authorized. They also prohibit excessive violence or sexual content, political or religious use, antisocial or hateful use, and removal of embedded metadata. See each model's `manifest.json` and the [third-party and asset notices](assets/THIRD_PARTY_NOTICES.md) for the complete fields.
 
-The repository publishes the four validated VRM binaries and their hashes. The exact painted albedo inputs and local `.blend` working files are not included in the public repository. A clean clone can run these models directly, but the project does not promise byte-for-byte reproduction of the same hashes from public sources. See the [original 3D companion contract](docs/design/original-companions-3d.md).
+The repository publishes all six validated VRM binaries and their hashes. The exact painted albedo inputs and local `.blend` working files for the first four `painted-blender` models are not included in the public repository; NOVA and ECHO are built by the repository's prototype generator. A clean clone can run all six models directly, but the project does not promise byte-for-byte reproduction of the `painted-blender` hashes from public sources. See the [original 3D companion contract](docs/design/original-companions-3d.md).
 
 ## Verification Commands
 

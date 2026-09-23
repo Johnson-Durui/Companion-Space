@@ -491,12 +491,14 @@ test.describe("realtime guardrails", () => {
     await expect(page.getByText("Yuzu runtime ready", { exact: true })).toBeVisible();
   });
 
-  test("renders all four original companions through the shared portrait runtime", async ({ page }) => {
+  test("renders all original portrait companions through the shared runtime", async ({ page }) => {
     const companions = [
       { modelId: "mira_2d", asset: "/assets/characters/art/roster/mira.png" },
       { modelId: "kite_2d", asset: "/assets/characters/art/roster/kite.png" },
       { modelId: "cael_2d", asset: "/assets/characters/art/roster/cael.png" },
       { modelId: "lyra_2d", asset: "/assets/characters/art/roster/lyra.png" },
+      { modelId: "nova_2d", asset: "/assets/characters/art/roster/nova.png" },
+      { modelId: "echo_2d", asset: "/assets/characters/art/roster/echo.png" },
     ] as const;
 
     await page.addInitScript(disableWebGL);
@@ -567,7 +569,7 @@ test.describe("realtime guardrails", () => {
     }
   });
 
-  test("persists all four primary companions as full-body VRMs", async ({ page }) => {
+  test("persists all six primary companions as full-body VRMs", async ({ page }) => {
     const fixture = await createRealtimeFixture(page.request, ownerToken, {
       recipe: { ...defaultRecipe, avatar_model: "mori_2d" },
     });
@@ -616,6 +618,20 @@ test.describe("realtime guardrails", () => {
         modelButton: /弦灯 · LYRA · painted-blender/,
         modelId: "lyra",
         name: "弦灯",
+      },
+      {
+        asset: "/assets/characters/models/Nova.vrm",
+        id: "observatory-signal",
+        modelButton: /星澜 · NOVA · original-vrm/,
+        modelId: "nova",
+        name: "星澜",
+      },
+      {
+        asset: "/assets/characters/models/Echo.vrm",
+        id: "studio-echo",
+        modelButton: /沐音 · ECHO · original-vrm/,
+        modelId: "echo",
+        name: "沐音",
       },
     ] as const;
     for (const preset of presets) {

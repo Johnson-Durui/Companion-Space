@@ -19,6 +19,8 @@ const originals = [
   ["kite", "Kite.vrm"],
   ["cael", "Cael.vrm"],
   ["lyra", "Lyra.vrm"],
+  ["nova", "Nova.vrm"],
+  ["echo", "Echo.vrm"],
 ];
 const expressions = ["happy", "relaxed", "surprised", "sad", "aa", "ih", "ou", "ee", "oh"];
 
@@ -81,7 +83,7 @@ async function main() {
     assert(mats.some((name) => /face/i.test(name)), `${filename} has no Face material.`);
     console.log(`${id}\tload=ok\texpressions=${expressions.join(",")}\tmaterials=${mats.length}`);
   }
-  console.log("original VRM three-vrm smoke passed: 4 models x happy/relaxed/surprised/sad.");
+  console.log("original VRM three-vrm smoke passed: 6 models x happy/relaxed/surprised/sad.");
 }
 
 await main();

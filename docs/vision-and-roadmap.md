@@ -216,7 +216,7 @@ WebRTC、MuseTalk/LivePortrait、服务端 talking-head 视频渲染、OBS/RTMP 
 - **口型升级**：RMS → wLipSync（MFCC 五元音），口型从"张嘴"进化到"说话"。
 - **动作库扩展**：v0.1 已提前交付四态 CC0 VRMA 基础集、角色包动作导入，以及 `idle/listening/thinking/speaking` 四槽本地上传、替换和移除；v0.2 再增加打招呼、点头、庆祝等语义动作和更完整的创作者预览工具。
 - **情绪演出升级**：v0.1 已提前交付 `CompanionTurn.emotion` → 安全 VRM/2D 表情联动，并保持 VRMA、眨眼和口型；v0.2 再补二元表情模型的可控策略、表情预览与更细的人格映射。
-- **舞台交互（指针/触控凝视已提前交付）**：v0.1 已让 3D VRM 的真实 `VRMLookAt` 与 2D fallback 眼睛跟随主指针/触控，离开、取消、失焦和触控结束会回中；减少动态效果时保持静止。v0.2 再评估用户可控相机旋转、缩放和持久化舞台位置。
+- **舞台交互（指针/触控凝视已提前交付）**：v0.1 已让 3D VRM 的真实 `VRMLookAt` 与 2D portrait 舞台跟随主指针/触控；2D speaking cue 还会随播放 RMS 脉冲，离开、取消、失焦和触控结束会回中；减少动态效果时保持静止。v0.2 再评估用户可控相机旋转、缩放和持久化舞台位置。
 - **导入格式扩展**：DOCX、EPUB、网页剪藏；OCR 视工作量。
 - **SillyTavern 角色卡兼容（已提前交付）**：Character Card V2/V3 独立 JSON 可导入为 CharacterPack 人格层；卡内提示词覆盖和远程资产不执行，保留本地安全边界的同时接入角色创作生态。
 - **AIRI 角色卡 ZIP 兼容（VRM/Live2D/Spine + 会话级激活已提前交付）**：按 AIRI v0.11.3 固定源码契约读取 `manifest.json + card.json`；card-only 使用内置 VRM，VRM 经既有解析和元数据许可边界保存，Live2D/Spine 内层 ZIP 则经独立归档与引用校验后作为本地不可导出资产保存。后二者只通过部署者提供的同源、已许可 bridge 渲染；仓库不捆绑 Cubism Core、Spine Runtime 或上游角色资产，未配置时明确阻止形象而不影响文字会话。导入不会改写空间默认角色；用户可为下一次新会话显式选择角色，创建后由会话快照锁定。

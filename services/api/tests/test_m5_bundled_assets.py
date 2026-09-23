@@ -32,6 +32,18 @@ EXPECTED_MODELS = {
         "redistribution_allowed": "yes",
         "attribution_required": "no",
     },
+    "Nova.vrm": {
+        "sha256": "0c8674bb56c7a312a4691681e26db140078b8fe67eb212f75a4058b65e17a8ab",
+        "spec_version": "1.0",
+        "redistribution_allowed": "yes",
+        "attribution_required": "no",
+    },
+    "Echo.vrm": {
+        "sha256": "18a8e89459f6aa8fb6aff64faa9d58151c7ab24a05603cca2751487e25cc7c36",
+        "spec_version": "1.0",
+        "redistribution_allowed": "yes",
+        "attribution_required": "no",
+    },
     "VRM1_Constraint_Twist_Sample.vrm": {
         "sha256": "12c2b97e95e700783a6a550dc0eee2d7880aeedccef9ae67bc4c5a2f0f2631a2",
         "spec_version": "1.0",

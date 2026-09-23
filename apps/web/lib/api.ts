@@ -976,6 +976,10 @@ function toCharacterSummary(character: CharacterPackWire): CharacterPackSummary 
   return {
     id: character.id,
     name: character.name,
+    avatar_model: recipe.avatar_model,
+    has_custom_avatar_asset:
+      typeof character.asset_manifest?.model_path === "string"
+      && character.asset_manifest.model_path.trim().length > 0,
     archetype: recipe.relationship_role,
     style: recipe.personality,
     updated_at: character.updated_at,
