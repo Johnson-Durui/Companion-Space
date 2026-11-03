@@ -35,6 +35,28 @@ The interrupt regression was first demonstrated failing with a blocked persisten
 
 ## Publication gate and limits
 
+Final rendered review exposed an older face-card export defect that the
+initial loader checks had missed: MIRA/KITE/CAEL/LYRA had one-metre face
+planes. The Blender source axis and all four bundled exports were repaired;
+face positions, curvature, normals and expression regions now use their
+intended dimensions. Face depth, elliptical edges and a front hair-cap
+opening also prevent the opaque head and hair from hiding facial features.
+Textures, UVs, body geometry, hair vertices, skeleton and license metadata
+were preserved. Semantic recoloring now leaves authored emissive and rim
+effects unchanged instead of adding a bright wash. The verifier evaluates
+all ten deformations, rejects invalid face/body dimensions and global
+facial deformation, and checks five visible facial landmarks per painted
+model. Visibility checks failed at 0/5 before repair and pass at 5/5 after.
+The four painted models were rendered again through all four motion states and
+seven emotion controls; 46 browser capture artifacts were inspected, with
+neutral previews retained in `docs/images/`. The full backend remained at
+553 passed / 3 skipped, and the authored-material regression passed.
+The procedural NOVA/ECHO generators also had inverted facial UVs and front
+hair-cap occlusion. Their texture orientation and face openings were fixed,
+only those two prototypes regenerated, and the eye/mouth visibility checks
+changed from 0/3 to 3/3. Their neutral browser renders were reviewed too.
+See [model production and repair](../design/original-companions-3d.md).
+
 The exact published revision must pass the repository's GitHub Actions jobs: backend, Windows smoke, frontend, TTS sidecar, both Android API levels, iOS, dependency audit, E2E and Docker smoke. Current runs are visible in [GitHub Actions](https://github.com/Johnson-Durui/Companion-Space/actions/workflows/ci.yml); local evidence above does not stand in for a failed or pending remote check.
 
 Mock needs no external credentials. Real model endpoints, microphones, physical mobile devices, GPU speech performance and app-store signing depend on the operator's setup and are not implied by these checks. Remaining lower-severity npm findings are retained rather than applying npm's suggested breaking framework changes or unrelated tool downgrades.

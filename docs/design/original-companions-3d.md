@@ -16,6 +16,26 @@ Production builder: `scripts/blender/build_original_companions.py`
 (Blender 4.5 LTS + VRM Add-on). Pass local painted inputs with `--paint` and
 choose the ignored Blender working-output directory with `--blend`.
 Prototype fallback: `scripts/generate-original-vrm.mjs --prototype`.
+
+The four painted exports received a face-card repair on 2026-11-04. The
+Blender grid's populated vertical axis was previously left at one metre.
+The builder now applies the intended 0.150–0.166 m height. The bundled
+exports were repaired with `scripts/repair-painted-vrm-face.mjs`, preserving
+their embedded albedo images, UVs, body geometry, skeleton and license
+metadata while rebuilding face positions, normals and expression regions.
+The face sits outside the head surface with an elliptical outline, and the
+central front of the spherical hair cap is open so that brows, eyes and
+mouth remain visible. Separate bangs and hair vertices are preserved.
+Use `node scripts/repair-painted-vrm-face.mjs --check` to verify that repair;
+the default mode is a dry run and `--write` is an explicit maintenance action.
+
+`npm run test:original-vrm` checks face/body proportions, head placement and
+actual evaluated vertices for all nine expressions plus blink. Frontal
+visibility rays additionally check five authored facial landmarks per
+painted model and both eyes plus mouth in each procedural prototype against
+the head and hair geometry. Texture V must run from top to bottom in all six
+models. Registering
+an expression name alone is insufficient evidence of a valid avatar.
 Runtime: existing `avatar-runtime` / `vrm-stage` / CC0 VRMA / 7-emotion face /
 1.30s exactly-once body reaction.
 
@@ -38,6 +58,12 @@ expression, and CC0 motion contract in lighter procedural prototype bodies from
 `scripts/generate-original-vrm.mjs --prototype`. They are separate from the
 painted-blender quality tier and are labelled `original-vrm` in Character
 Workshop until their hand-painted Blender passes are available.
+
+Their generator now maps top-down PNG rows to top-down glTF UVs and opens the
+front of the bob/long hair caps around the face. This keeps facial texture
+features aligned with their lid and mouth deformation regions. Only
+NOVA/ECHO were regenerated for that correction; the painted models retain
+their separate production path.
 
 The public repository ships the reviewed VRM binaries and their hashes, but it
 does not ship the exact painted albedo inputs or local `.blend` working files.

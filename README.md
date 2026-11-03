@@ -35,6 +35,19 @@ Companion Space 是一款本地优先的二次元陪伴学习应用。你可以�
 
 当前模块边界、角色接入流程和数据流见 [架构说明](docs/architecture.md)。
 
+<details>
+<summary>查看当前 3D 实际效果</summary>
+
+下图来自角色工作室的真实浏览器渲染。当前网格仍较简化；窄预览采用会话构图，方便看清面部。眼睛、嘴部可见性及表情变形已有自动检查。
+
+| MIRA | KITE | CAEL |
+| --- | --- | --- |
+| <img src="docs/images/mira-3d-preview.png" width="150" alt="MIRA 3D 实际预览"> | <img src="docs/images/kite-3d-preview.png" width="150" alt="KITE 3D 实际预览"> | <img src="docs/images/cael-3d-preview.png" width="150" alt="CAEL 3D 实际预览"> |
+| LYRA | NOVA | ECHO |
+| <img src="docs/images/lyra-3d-preview.png" width="150" alt="LYRA 3D 实际预览"> | <img src="docs/images/nova-3d-preview.png" width="150" alt="NOVA 3D 实际预览"> | <img src="docs/images/echo-3d-preview.png" width="150" alt="ECHO 3D 实际预览"> |
+
+</details>
+
 ## 快速开始
 
 需要 Docker Desktop（或兼容的 Docker Engine）和 Docker Compose v2。先 **不要** 打开 `neural-tts` profile。
