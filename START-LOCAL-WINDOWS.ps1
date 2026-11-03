@@ -2,47 +2,70 @@
 param(
     [string]$ApiHost = "127.0.0.1",
     [int]$ApiPort = 8000,
-    [int]$WebPort = 3000
+    [int]$WebPort = 3000,
+    [string]$PythonPath,
+    [string]$NpmPath
 )
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-function Find-ProjectPython {
+function Test-Executable([string]$Candidate, [string[]]$Arguments) {
+    if (-not (Test-Path -LiteralPath $Candidate -PathType Leaf)) {
+        return $false
+    }
+    & $Candidate @Arguments *> $null
+    return $LASTEXITCODE -eq 0
+}
+
+function Find-ProjectPython([string]$RequestedPath) {
+    if ($RequestedPath) {
+        $resolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RequestedPath)
+        if (-not (Test-Executable $resolved @("--version"))) {
+            throw "PythonPath is not an executable Python interpreter: $resolved"
+        }
+        return $resolved
+    }
     $candidates = @(
-        (Join-Path $PSScriptRoot ".venv\Scripts\python.exe"),
-        "D:\Codex\venvs\companion-space-api\Scripts\python.exe"
+        (Join-Path $PSScriptRoot ".venv\Scripts\python.exe")
     )
     foreach ($candidate in $candidates) {
-        if (Test-Path -LiteralPath $candidate) {
+        if (Test-Executable $candidate @("--version")) {
             return $candidate
         }
     }
-    $fromPath = Get-Command python.exe -ErrorAction SilentlyContinue
-    if ($fromPath) {
-        return $fromPath.Source
+    foreach ($commandName in @("python.exe", "python3.exe")) {
+        $fromPath = Get-Command $commandName -ErrorAction SilentlyContinue
+        if ($fromPath -and (Test-Executable $fromPath.Source @("--version"))) {
+            return $fromPath.Source
+        }
     }
-    throw "No project Python found. Create .venv and install services/api/requirements.txt first."
+    throw "No usable Python found. Create .venv, install services/api/requirements.txt, or pass -PythonPath."
 }
 
-function Find-NpmCmd {
-    $fromPath = Get-Command npm.cmd -ErrorAction SilentlyContinue
-    if ($fromPath) {
-        return $fromPath.Source
+function Find-NpmCmd([string]$RequestedPath) {
+    if ($RequestedPath) {
+        $resolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($RequestedPath)
+        if (-not (Test-Executable $resolved @("--version"))) {
+            throw "NpmPath is not an executable npm command: $resolved"
+        }
+        return $resolved
     }
-    $portable = "D:\Codex\node-v24.14.0\npm.cmd"
-    if (Test-Path -LiteralPath $portable) {
-        return $portable
+    foreach ($commandName in @("npm.cmd", "npm")) {
+        $fromPath = Get-Command $commandName -ErrorAction SilentlyContinue
+        if ($fromPath -and (Test-Executable $fromPath.Source @("--version"))) {
+            return $fromPath.Source
+        }
     }
-    throw "npm.cmd was not found. Install Node 24 or add it to PATH. Do not use pnpm."
+    throw "npm was not found. Install Node 24, add npm to PATH, or pass -NpmPath. Do not use pnpm."
 }
 
 if (-not (Test-Path "node_modules")) {
     throw "node_modules is missing. From the repo root run: npm.cmd ci"
 }
 
-$python = Find-ProjectPython
-$npm = Find-NpmCmd
+$python = Find-ProjectPython $PythonPath
+$npm = Find-NpmCmd $NpmPath
 $apiUrl = "http://${ApiHost}:${ApiPort}"
 $webUrl = "http://127.0.0.1:${WebPort}"
 
@@ -67,7 +90,7 @@ function Test-PortListening([int]$Port) {
 Write-Host "Starting Companion Space without Docker." -ForegroundColor Green
 Write-Host "API  $apiUrl" -ForegroundColor DarkGray
 Write-Host "Web  $webUrl" -ForegroundColor DarkGray
-Write-Host "Open the Web URL after Next.js prints Ready. Four leads are painted-blender originals, not licensed samples." -ForegroundColor DarkGray
+Write-Host "Open the Web URL after Next.js prints Ready. All six leads are original project assets; four use painted-blender models." -ForegroundColor DarkGray
 Write-Host "Healthy API/TTS on 8000/8001 are reused. This script never stops TTS." -ForegroundColor DarkGray
 
 $webHealthy = Test-HttpOk $webUrl
@@ -83,11 +106,31 @@ if ($apiHealthy) {
 } elseif (Test-PortListening $ApiPort) {
     throw "Port $ApiPort is listening but $apiUrl/healthz failed. Not starting a second API. Do not kill TTS on 8001."
 } else {
+    $localLogRoot = Join-Path $PSScriptRoot ".playwright"
+    New-Item -ItemType Directory -Path $localLogRoot -Force | Out-Null
     $api = Start-Process -FilePath $python -ArgumentList @(
         "-m", "uvicorn", "app.main:app",
         "--host", $ApiHost,
         "--port", "$ApiPort"
-    ) -WorkingDirectory $PSScriptRoot -PassThru -NoNewWindow
+    ) -WorkingDirectory $PSScriptRoot -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $localLogRoot "local-api.stdout.log") `
+        -RedirectStandardError (Join-Path $localLogRoot "local-api.stderr.log")
+
+    $apiReady = $false
+    for ($attempt = 0; $attempt -lt 60; $attempt += 1) {
+        if ($api.HasExited) {
+            throw "API exited before becoming healthy. See .playwright/local-api.stderr.log."
+        }
+        if (Test-HttpOk "$apiUrl/healthz") {
+            $apiReady = $true
+            break
+        }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $apiReady) {
+        Stop-Process -Id $api.Id -Force -ErrorAction SilentlyContinue
+        throw "API did not become healthy within 60 seconds. See .playwright/local-api.stderr.log."
+    }
 }
 
 if ($webHealthy) {

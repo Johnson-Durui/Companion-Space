@@ -34,13 +34,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `bash tests/e2e/start-api-soak.sh ${API_PORT} ${WEB_PORT} ${storageRoot}`,
+      command: `node tests/e2e/start-api.mjs ${API_PORT} ${WEB_PORT} ${storageRoot} soak`,
       port: API_PORT,
       timeout: 120_000,
       reuseExistingServer: false,
     },
     {
-      command: `bash tests/e2e/start-web-soak.sh ${WEB_PORT}`,
+      command: `node tests/e2e/start-web.mjs start ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
       port: WEB_PORT,
       timeout: 120_000,
       reuseExistingServer: false,

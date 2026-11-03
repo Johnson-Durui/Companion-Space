@@ -22,15 +22,15 @@
     "cap:add:android": "cap add android && node scripts/normalize-native.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "8.5.0",
+    "@capacitor/android": "8.6.0",
     "@capacitor/app": "8.1.1",
-    "@capacitor/core": "8.5.0",
+    "@capacitor/core": "8.6.0",
     "@capacitor/filesystem": "8.1.2",
-    "@capacitor/ios": "8.5.0",
+    "@capacitor/ios": "8.6.0",
     "@capacitor/preferences": "8.0.1"
   },
   "devDependencies": {
-    "@capacitor/cli": "8.5.0",
+    "@capacitor/cli": "8.6.0",
     "typescript": "5.8.3"
   }
 }

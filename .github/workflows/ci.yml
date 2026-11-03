@@ -29,6 +29,18 @@ jobs:
         shell: powershell
         run: .\scripts\windows-smoke.ps1
 
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Validate portable test launchers on Windows
+        run: |
+          npm install --global npm@11.21.1
+          npm ci
+          npm run test:e2e-launchers
+
       - name: Install backend dependencies
         run: python -m pip install -r services/api/requirements-dev.txt
 
@@ -103,7 +115,12 @@ jobs:
           cache: npm
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: |
+          npm install --global npm@11.21.1
+          npm ci
+
+      - name: Validate portable test launchers
+        run: npm run test:e2e-launchers
 
       - name: Validate bundled pet assets
         run: npm run test:pet-assets
@@ -155,6 +172,8 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools
 
       - name: Install Android SDK packages
         run: >-
@@ -165,7 +184,9 @@ jobs:
           "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm install --global npm@11.21.1
+          npm ci
 
       - name: Validate mobile shell
         run: |
@@ -267,7 +288,9 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm install --global npm@11.21.1
+          npm ci
 
       - name: Validate mobile shell
         run: |
@@ -406,7 +429,9 @@ jobs:
           cache: npm
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: |
+          npm install --global npm@11.21.1
+          npm ci
 
       - name: Install Python dependency auditor
         run: python -m pip install pip-audit
@@ -438,7 +463,9 @@ jobs:
         run: python -m pip install -r services/api/requirements.txt
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: |
+          npm install --global npm@11.21.1
+          npm ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -468,7 +495,9 @@ jobs:
           cache: npm
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: |
+          npm install --global npm@11.21.1
+          npm ci
 
       - name: Docker Compose smoke
         run: ./scripts/docker-smoke.sh

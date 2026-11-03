@@ -18,18 +18,18 @@ assert.ok(releaseMetadata.buildNumber > releaseMetadata.lastPublishedBuildNumber
 assert.equal(packageJson.version, releaseMetadata.marketingVersion, "package and store versions must match");
 assert.equal(rootPackageLock.packages["apps/mobile"]?.version, releaseMetadata.marketingVersion, "lockfile and store versions must match");
 const expectedVersions = {
-  android: "8.5.0",
+  android: "8.6.0",
   app: "8.1.1",
-  core: "8.5.0",
+  core: "8.6.0",
   filesystem: "8.1.2",
-  ios: "8.5.0",
+  ios: "8.6.0",
   preferences: "8.0.1",
 };
 
 for (const [name, version] of Object.entries(expectedVersions)) {
   assert.equal(packageJson.dependencies[`@capacitor/${name}`], version, `@capacitor/${name} must be pinned`);
 }
-assert.equal(packageJson.devDependencies["@capacitor/cli"], "8.5.0", "@capacitor/cli must be pinned");
+assert.equal(packageJson.devDependencies["@capacitor/cli"], "8.6.0", "@capacitor/cli must be pinned");
 
 const source = await readFile(resolve(root, "src/index.ts"), "utf8");
 assert.match(source, /credentials: "omit"/);
