@@ -776,10 +776,6 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                         )
                     )
                     continue
-                transition_state(
-                    SessionState.interrupted,
-                    code="turn_interrupted",
-                )
                 track_turn_cleanup(pending_task)
                 await send_json_event(
                     _realtime_event(
@@ -788,6 +784,13 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                         state=SessionState.interrupted,
                         payload={"active": True},
                     )
+                )
+                # Acknowledge cancellation before a slow SQLite commit. Await
+                # persistence off-loop before accepting the next client event.
+                await asyncio.to_thread(
+                    transition_state,
+                    SessionState.interrupted,
+                    code="turn_interrupted",
                 )
                 continue
             if event_type != "user.commit":
