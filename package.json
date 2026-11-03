@@ -26,6 +26,7 @@
     "typecheck:web": "npm run typecheck --workspace web",
     "typecheck:mobile": "npm run typecheck --workspace @companion-space/mobile",
     "test:original-vrm": "node scripts/generate-original-vrm.mjs --check && node scripts/verify-original-vrm-runtime.mjs",
+    "test:vrm-appearance": "node --test scripts/vrm-appearance.test.mjs",
     "test:vrm-viseme": "node --experimental-strip-types --test scripts/vrm-viseme.test.mjs",
     "test:runtime-config": "node --experimental-strip-types scripts/check-runtime-config.mjs",
     "test:pet-assets": "node --test --test-isolation=none scripts/check-pet-assets.test.mjs && node scripts/check-pet-assets.mjs",

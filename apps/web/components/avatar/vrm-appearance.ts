@@ -115,14 +115,11 @@ function applySemanticColor(three: Record<string, unknown>, material: Record<str
   const shade = shadeColor(three, hexColor, semantic === "skin" ? 0.84 : 0.72);
 
   writeColorLike(material.color, color);
-  writeColorLike(material.emissive, semantic === "accent" ? color : shade);
 
   const uniforms = material.uniforms as Record<string, { value?: unknown }> | undefined;
   if (uniforms) {
     writeColorLike(uniforms.litFactor?.value, color);
     writeColorLike(uniforms.shadeColorFactor?.value, shade);
-    writeColorLike(uniforms.parametricRimColorFactor?.value, semantic === "accent" ? color : shade);
-    writeColorLike(uniforms.rimColorFactor?.value, semantic === "accent" ? color : shade);
   }
 
   if (typeof material.needsUpdate === "boolean") {

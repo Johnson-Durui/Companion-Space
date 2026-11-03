@@ -131,6 +131,9 @@ jobs:
       - name: Validate VRM viseme synthesis
         run: npm run test:vrm-viseme
 
+      - name: Preserve authored avatar material effects
+        run: npm run test:vrm-appearance
+
       - name: Validate runtime configuration boundaries
         run: npm run test:runtime-config
 
