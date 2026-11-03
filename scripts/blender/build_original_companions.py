@@ -6,6 +6,7 @@ import math
 import sys
 from pathlib import Path
 
+import bmesh
 import bpy
 from mathutils import Vector
 
@@ -250,6 +251,46 @@ def bounds_uv(obj: bpy.types.Object, axes: str = "xz") -> None:
             (vertex.co[axis_u] - min_u) / span_u,
             (vertex.co[axis_v] - min_v) / span_v,
         )
+
+
+def remove_ellipse_exterior_faces(obj: bpy.types.Object, center: Vector, radius_x: float, radius_z: float) -> None:
+    mesh = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    outside = []
+    for face in bm.faces:
+        world = obj.matrix_world @ face.calc_center_median()
+        distance = ((world.x - center.x) / radius_x) ** 2 + ((world.z - center.z) / radius_z) ** 2
+        if distance > 1.0:
+            outside.append(face)
+    if outside:
+        bmesh.ops.delete(bm, geom=outside, context="FACES_ONLY")
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.update()
+
+
+def open_front_hair_cap(cap: bpy.types.Object, face_center: Vector, size_x: float, size_z: float) -> None:
+    mesh = cap.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    opening = []
+    cap_center_y = cap.matrix_world.translation.y
+    for face in bm.faces:
+        world = cap.matrix_world @ face.calc_center_median()
+        in_front = world.y < cap_center_y
+        in_aperture = (
+            ((world.x - face_center.x) / (size_x * 0.56)) ** 2
+            + ((world.z - face_center.z) / (size_z * 0.56)) ** 2
+            < 1.0
+        )
+        if in_front and in_aperture:
+            opening.append(face)
+    if opening:
+        bmesh.ops.delete(bm, geom=opening, context="FACES_ONLY")
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.update()
 
 
 def smart_uv(obj: bpy.types.Object) -> None:
@@ -508,14 +549,19 @@ def add_face_card(armature: bpy.types.Object, spec: dict, material: bpy.types.Ma
     center = (head + tail) * 0.5
     size_x = 0.172 if spec["body"] == "mini" else 0.154
     size_z = 0.166 if spec["body"] == "mini" else 0.15
-    bpy.ops.mesh.primitive_grid_add(x_subdivisions=22, y_subdivisions=18, size=1.0, location=(center.x, center.y - 0.07, center.z + 0.012))
+    front = 0.108 if spec["body"] == "mini" else 0.116
+    bpy.ops.mesh.primitive_grid_add(x_subdivisions=22, y_subdivisions=18, size=1.0, location=(center.x, center.y - front, center.z + 0.012))
     face = bpy.context.active_object
     face.name = "FaceFront"
     face.rotation_euler = (math.radians(90.0), 0.0, 0.0)
-    face.scale = (size_x, 1.0, size_z)
+    # The grid is created in local XY and rotated so local Y becomes the
+    # character's vertical Z axis. Scale that populated axis by size_z; local
+    # Z is the plane normal and has no span before the curvature pass below.
+    face.scale = (size_x, size_z, 1.0)
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
     for vertex in face.data.vertices:
         vertex.co.y -= abs(vertex.co.x) * 0.12 + abs(vertex.co.z) * 0.04
+    remove_ellipse_exterior_faces(face, face.location, size_x * 0.5, size_z * 0.5)
     bounds_uv(face, "xz")
     assign_material(face, material)
     face.shape_key_add(name="Basis")
@@ -593,6 +639,9 @@ def add_hair(armature: bpy.types.Object, spec: dict, material: bpy.types.Materia
     center = (head + tail) * 0.5
     meshes: list[bpy.types.Object] = []
     style = spec["hair"]
+    size_x = 0.172 if spec["body"] == "mini" else 0.154
+    size_z = 0.166 if spec["body"] == "mini" else 0.15
+    cap = None
     bangs = [
         add_curve_hair([
             center + Vector((side * 0.028, -0.062, 0.068)),
@@ -628,7 +677,8 @@ def add_hair(armature: bpy.types.Object, spec: dict, material: bpy.types.Materia
             center + Vector((0.0, 0.09, -0.1)),
         ], 0.038, "bob_back"))
     elif style == "ponytail":
-        meshes.append(add_sphere(center + Vector((0.0, 0.02, 0.045)), 0.128))
+        cap = add_sphere(center + Vector((0.0, 0.02, 0.045)), 0.128)
+        meshes.append(cap)
         for side in (-1.0, 1.0):
             meshes.append(add_curve_hair([
                 center + Vector((side * 0.05, -0.045, 0.055)),
@@ -661,7 +711,8 @@ def add_hair(armature: bpy.types.Object, spec: dict, material: bpy.types.Materia
             center + Vector((0.01, 0.05, -0.46)),
         ], 0.012, "tail_fly2"))
     elif style == "long":
-        meshes.append(add_sphere(center + Vector((0.0, 0.022, 0.05)), 0.132))
+        cap = add_sphere(center + Vector((0.0, 0.022, 0.05)), 0.132)
+        meshes.append(cap)
         for side in (-1.0, 1.0):
             meshes.append(add_curve_hair([
                 center + Vector((side * 0.052, 0.02, 0.078)),
@@ -688,7 +739,8 @@ def add_hair(armature: bpy.types.Object, spec: dict, material: bpy.types.Materia
                 center + Vector((side * 0.05, 0.02, -0.5)),
             ], 0.015, f"long_cape_{side}"))
     else:
-        meshes.append(add_sphere(center + Vector((-0.018, 0.022, 0.032)), 0.124))
+        cap = add_sphere(center + Vector((-0.018, 0.022, 0.032)), 0.124)
+        meshes.append(cap)
         meshes.append(add_curve_hair([
             center + Vector((0.05, -0.032, 0.055)),
             center + Vector((0.13, -0.008, -0.016)),
@@ -717,6 +769,8 @@ def add_hair(armature: bpy.types.Object, spec: dict, material: bpy.types.Materia
         ], 0.021, "asym_inner")
         assign_material(inner, inner_material)
         meshes.append(inner)
+    if cap is not None:
+        open_front_hair_cap(cap, center + Vector((0.0, 0.0, 0.012)), size_x, size_z)
     hair_meshes = [mesh for mesh in meshes if mesh.name != "asym_inner"]
     joined = join_objects(hair_meshes, "Hair")
     assign_material(joined, material)

@@ -66,17 +66,17 @@ credit to **VirtualCast, Inc.**
 
 - Bundled files:
   - `apps/web/public/assets/characters/models/Mira.vrm`
-    (`e82bed2eef81d81118df47c01ab502bd8432d06c97bf316a50af392211c52c79`)
+    (`02749d7dc58352b466c46ff83bd64931ef6b325f7750639f838cfd6f0e9b350e`)
   - `apps/web/public/assets/characters/models/Kite.vrm`
-    (`a9bd96ee9002ba46dc46025d1d2f3ff0919b6251f570abf973a040964198bdda`)
+    (`e155fd4d755238a66f164f2c8e35be3fe880e90876201e3a7f153341c2b41a79`)
   - `apps/web/public/assets/characters/models/Cael.vrm`
-    (`a6d92d890bf2fa5000329ba57ba32c3c7d04986caf64a2dcf3d4b26559b254ca`)
+    (`33f0f3c2ed2f1d84c2ec4ad48c1f21f33ec711714a01550082ff2e617e00135c`)
   - `apps/web/public/assets/characters/models/Lyra.vrm`
-    (`e873fa0072d08a9fc78a5f71bdd4ded9db1ab295d27b9bca077591ce1b3b7bbf`)
+    (`4813dc0f7c0256a85376c8a380501a55d9511d75f4db895a224972f74041617c`)
   - `apps/web/public/assets/characters/models/Nova.vrm`
-    (`0c8674bb56c7a312a4691681e26db140078b8fe67eb212f75a4058b65e17a8ab`)
+    (`3b06b5b69e7e55324635100f9094719f5f0cb969ffe3a482311ff645980dc2bd`)
   - `apps/web/public/assets/characters/models/Echo.vrm`
-    (`18a8e89459f6aa8fb6aff64faa9d58151c7ab24a05603cca2751487e25cc7c36`)
+    (`bb55a2dd2f22d9101fea25f5b72b8154e66eac11dcb529bf879c1318b48eb88a`)
 - Author: Companion Space project.
 - Provenance: MIRA, KITE, CAEL, and LYRA are original custom humanoids built in
   Blender 4.5 LTS with the VRM Add-on via `scripts/blender/build_original_companions.py`.

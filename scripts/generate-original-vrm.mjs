@@ -617,11 +617,19 @@ class MeshPart {
         } else if (vv <= 0.42 && ((uu > 0.18 && uu < 0.4) || (uu > 0.6 && uu < 0.82))) {
           tag = "lid";
         }
-        verts.push(this.vertex(x, y, z, 0, 0, 1, bone, tag, [uu, 1 - vv]));
+        // encodePng() writes rows from top to bottom, matching glTF's texture
+        // coordinate convention. Keep V aligned with the geometry regions so
+        // brows/lids stay above the mouth morph vertices.
+        verts.push(this.vertex(x, y, z, 0, 0, 1, bone, tag, [uu, vv]));
       }
     }
     for (let v = 0; v < rows; v += 1) {
       for (let u = 0; u < cols; u += 1) {
+        const centerU = (u + 0.5) / cols;
+        const centerV = (v + 0.5) / rows;
+        if (((centerU - 0.5) / 0.5) ** 2 + ((centerV - 0.5) / 0.5) ** 2 > 1) {
+          continue;
+        }
         const a = verts[v * (cols + 1) + u];
         const b = verts[v * (cols + 1) + u + 1];
         const c = verts[(v + 1) * (cols + 1) + u + 1];
@@ -649,6 +657,16 @@ function buildCharacter(spec) {
   const accent = new MeshPart("AccentTrim", "Accent");
   const secondary = new MeshPart("SecondaryCloth", "Secondary");
   const face = new MeshPart("FaceFront", "Face");
+  const faceCenterY = headPos[1] - headR * 0.0568;
+  const keepOutsideFaceOpening = (x, y, z) => {
+    const inFront = z > headPos[2];
+    const inOpening = (
+      ((x - headPos[0]) / (headR * 0.8)) ** 2
+      + ((y - faceCenterY) / (headR * 0.75)) ** 2
+      < 1
+    );
+    return !inFront || !inOpening;
+  };
 
   skin.addEllipsoid(headPos, [headR * 0.94, headR, headR * 0.9], 18, 14, bones.byName.head, (_x, _y, z) => z < headPos[2] + headR * 0.35);
   face.addFaceCard(headPos, headR, bones.byName.head);
@@ -706,7 +724,14 @@ function buildCharacter(spec) {
   }
 
   if (spec.hair === "bob") {
-    hair.addEllipsoid([headPos[0], headPos[1] + 0.03, headPos[2] - 0.02], [headR * 1.18, headR * 1.12, headR * 1.2], 16, 12, bones.byName.head, (_x, y) => y > headPos[1] - 0.08);
+    hair.addEllipsoid(
+      [headPos[0], headPos[1] + 0.03, headPos[2] - 0.02],
+      [headR * 1.18, headR * 1.12, headR * 1.2],
+      16,
+      12,
+      bones.byName.head,
+      (x, y, z) => y > headPos[1] - 0.08 && keepOutsideFaceOpening(x, y, z),
+    );
     hair.addEllipsoid([headPos[0] + 0.1, headPos[1] - 0.01, headPos[2] + 0.02], [0.055, 0.09, 0.07], 10, 8, bones.byName.head);
     hair.addEllipsoid([headPos[0] - 0.1, headPos[1] - 0.01, headPos[2] + 0.02], [0.055, 0.09, 0.07], 10, 8, bones.byName.head);
     hair.addEllipsoid([0.02, headPos[1] + 0.05, 0.09], [0.08, 0.04, 0.035], 8, 6, bones.byName.head);
@@ -718,7 +743,14 @@ function buildCharacter(spec) {
     }
     accent.addBox([0.02, headPos[1] + 0.1, -0.02], [0.05, 0.03, 0.03], bones.byName.head);
   } else if (spec.hair === "long") {
-    hair.addEllipsoid([headPos[0], headPos[1] + 0.05, headPos[2] - 0.01], [headR * 1.12, headR * 1.0, headR * 1.16], 16, 11, bones.byName.head, (_x, y) => y > headPos[1] - 0.04);
+    hair.addEllipsoid(
+      [headPos[0], headPos[1] + 0.05, headPos[2] - 0.01],
+      [headR * 1.12, headR * 1.0, headR * 1.16],
+      16,
+      11,
+      bones.byName.head,
+      (x, y, z) => y > headPos[1] - 0.04 && keepOutsideFaceOpening(x, y, z),
+    );
     for (let index = 0; index < 8; index += 1) {
       hair.addEllipsoid(
         [0.02 * ((index % 2) * 2 - 1), headPos[1] - 0.02 - index * 0.09, -0.08 - index * 0.012],
