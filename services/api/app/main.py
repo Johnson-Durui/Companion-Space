@@ -31,6 +31,21 @@ def _json_error(status_code: int, detail: str, code: str) -> JSONResponse:
     return JSONResponse(status_code=status_code, content={"detail": detail, "code": code})
 
 
+def _canonical_route_template(request: Request) -> str:
+    fastapi_scope = request.scope.get("fastapi")
+    if isinstance(fastapi_scope, dict):
+        effective_context = fastapi_scope.get("effective_route_context")
+        effective_path = getattr(effective_context, "path", None)
+        if isinstance(effective_path, str) and effective_path:
+            return effective_path
+
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", None)
+    if isinstance(route_path, str) and route_path:
+        return route_path
+    return "/api/v1/{unmatched}"
+
+
 def _provider_timeout_capability(
     request: Request,
     exc: ProviderTimeoutError,
@@ -51,8 +66,7 @@ def _provider_timeout_capability(
         except ValueError:
             pass
 
-    route = request.scope.get("route")
-    route_path = getattr(route, "path", request.url.path)
+    route_path = _canonical_route_template(request)
     capability_by_route = {
         "/api/v1/providers/connections/{connection_id}/models": ProviderCapability.chat_llm,
         "/api/v1/characters/{character_id}/voice-preview": ProviderCapability.tts,
@@ -91,8 +105,7 @@ async def local_metrics_middleware(request: Request, call_next):
         return response
     finally:
         if request.url.path.startswith("/api/v1/"):
-            route = request.scope.get("route")
-            route_path = getattr(route, "path", request.url.path)
+            route_path = _canonical_route_template(request)
             status_code = response.status_code if response is not None else 500
             duration_ms = round((perf_counter() - started_at) * 1000, 3)
             metrics = get_container().metrics

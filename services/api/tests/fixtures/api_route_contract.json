@@ -1,0 +1,1323 @@
+{
+  "operations": [
+    {
+      "method": "GET",
+      "path": "/api/v1/characters",
+      "handler": "list_characters",
+      "operation_id": "list_characters_api_v1_characters_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/CharacterListResponse",
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/characters",
+      "handler": "create_character",
+      "operation_id": "create_character_api_v1_characters_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/CharacterCreateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/characters/import",
+      "handler": "import_character",
+      "operation_id": "import_character_api_v1_characters_import_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/characters/{character_id}",
+      "handler": "delete_character",
+      "operation_id": "delete_character_api_v1_characters__character_id__delete",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/characters/{character_id}",
+      "handler": "get_character",
+      "operation_id": "get_character_api_v1_characters__character_id__get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/characters/{character_id}",
+      "handler": "update_character",
+      "operation_id": "update_character_api_v1_characters__character_id__put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/CharacterUpdateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/characters/{character_id}/assets/{asset_path}",
+      "handler": "get_character_asset",
+      "operation_id": "get_character_asset_api_v1_characters__character_id__assets__asset_path__get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/characters/{character_id}/avatar",
+      "handler": "remove_character_avatar",
+      "operation_id": "remove_character_avatar_api_v1_characters__character_id__avatar_delete",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/characters/{character_id}/avatar",
+      "handler": "replace_character_avatar",
+      "operation_id": "replace_character_avatar_api_v1_characters__character_id__avatar_put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/characters/{character_id}/duplicate",
+      "handler": "duplicate_character",
+      "operation_id": "duplicate_character_api_v1_characters__character_id__duplicate_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/CharacterDuplicateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/characters/{character_id}/export",
+      "handler": "export_character",
+      "operation_id": "export_character_api_v1_characters__character_id__export_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/characters/{character_id}/motions/{state}",
+      "handler": "delete_character_motion",
+      "operation_id": "delete_character_motion_api_v1_characters__character_id__motions__state__delete",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/characters/{character_id}/motions/{state}",
+      "handler": "put_character_motion",
+      "operation_id": "put_character_motion_api_v1_characters__character_id__motions__state__put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/characters/{character_id}/voice-preview",
+      "handler": "preview_character_voice",
+      "operation_id": "preview_character_voice_api_v1_characters__character_id__voice_preview_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/CharacterVoicePreviewRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/legacy-knowledge-base",
+      "handler": "list_legacy_knowledge",
+      "operation_id": "list_legacy_knowledge_api_v1_legacy_knowledge_base_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/memory/{space_id}",
+      "handler": "list_memory",
+      "operation_id": "list_memory_api_v1_memory__space_id__get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MemoryListResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/memory/{space_id}/{memory_id}",
+      "handler": "delete_memory",
+      "operation_id": "delete_memory_api_v1_memory__space_id___memory_id__delete",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/memory/{space_id}/{memory_id}",
+      "handler": "update_memory",
+      "operation_id": "update_memory_api_v1_memory__space_id___memory_id__put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/MemoryUpdateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MemoryItem"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/memory/{space_id}/{memory_id}/confirm",
+      "handler": "confirm_memory",
+      "operation_id": "confirm_memory_api_v1_memory__space_id___memory_id__confirm_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MemoryItem"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/metrics/local/events",
+      "handler": "get_local_metric_events",
+      "operation_id": "get_local_metric_events_api_v1_metrics_local_events_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/metrics/local/signals",
+      "handler": "record_local_metric_signal",
+      "operation_id": "record_local_metric_signal_api_v1_metrics_local_signals_post",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/LocalMetricSignalRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/metrics/local/summary",
+      "handler": "get_local_metrics_summary",
+      "operation_id": "get_local_metrics_summary_api_v1_metrics_local_summary_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/mobile/auth/refresh",
+      "handler": "refresh_mobile_access",
+      "operation_id": "refresh_mobile_access_api_v1_mobile_auth_refresh_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/DeviceRefreshRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MobileAuthResponse"
+      ],
+      "auth_dependencies": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/mobile/devices",
+      "handler": "list_mobile_devices",
+      "operation_id": "list_mobile_devices_api_v1_mobile_devices_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MobileDeviceResponse"
+      ],
+      "auth_dependencies": [
+        "require_local_owner",
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/mobile/devices/{device_id}",
+      "handler": "revoke_mobile_device",
+      "operation_id": "revoke_mobile_device_api_v1_mobile_devices__device_id__delete",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_local_owner",
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/mobile/pairing-challenges",
+      "handler": "create_mobile_pairing_challenge",
+      "operation_id": "create_mobile_pairing_challenge_api_v1_mobile_pairing_challenges_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/PairingChallengeResponse"
+      ],
+      "auth_dependencies": [
+        "require_local_owner",
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/mobile/pairing/exchange",
+      "handler": "exchange_mobile_pairing_challenge",
+      "operation_id": "exchange_mobile_pairing_challenge_api_v1_mobile_pairing_exchange_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/PairDeviceRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MobileAuthResponse"
+      ],
+      "auth_dependencies": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/providers/connections",
+      "handler": "provider_connections",
+      "operation_id": "provider_connections_api_v1_providers_connections_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/providers/connections",
+      "handler": "create_provider_connection",
+      "operation_id": "create_provider_connection_api_v1_providers_connections_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/ProviderConnectionCreateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/providers/connections/{connection_id}",
+      "handler": "delete_provider_connection",
+      "operation_id": "delete_provider_connection_api_v1_providers_connections__connection_id__delete",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/providers/connections/{connection_id}",
+      "handler": "get_provider_connection",
+      "operation_id": "get_provider_connection_api_v1_providers_connections__connection_id__get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/providers/connections/{connection_id}",
+      "handler": "update_provider_connection",
+      "operation_id": "update_provider_connection_api_v1_providers_connections__connection_id__patch",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/ProviderConnectionUpdateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/providers/connections/{connection_id}/models",
+      "handler": "discover_provider_models",
+      "operation_id": "discover_provider_models_api_v1_providers_connections__connection_id__models_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/providers/connections/{connection_id}/test",
+      "handler": "test_provider_connection",
+      "operation_id": "test_provider_connection_api_v1_providers_connections__connection_id__test_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/providers/registry",
+      "handler": "provider_registry",
+      "operation_id": "provider_registry_api_v1_providers_registry_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/review-items/{space_id}",
+      "handler": "list_review",
+      "operation_id": "list_review_api_v1_review_items__space_id__get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/ReviewListResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/review-items/{space_id}/{review_id}",
+      "handler": "delete_review",
+      "operation_id": "delete_review_api_v1_review_items__space_id___review_id__delete",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/review-items/{space_id}/{review_id}",
+      "handler": "update_review",
+      "operation_id": "update_review_api_v1_review_items__space_id___review_id__put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/ReviewUpdateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/ReviewItem"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions",
+      "handler": "create_session",
+      "operation_id": "create_session_api_v1_sessions_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/SessionCreateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/{session_id}",
+      "handler": "get_session_transcript",
+      "operation_id": "get_session_transcript_api_v1_sessions__session_id__get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/SessionTranscriptResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/demos",
+      "handler": "create_demo",
+      "operation_id": "create_demo_api_v1_sessions__session_id__demos_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/SessionDemoRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/SessionDemoResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/end",
+      "handler": "end_session",
+      "operation_id": "end_session_api_v1_sessions__session_id__end_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/SessionSummaryRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/realtime-ticket",
+      "handler": "issue_realtime_ticket",
+      "operation_id": "issue_realtime_ticket_api_v1_sessions__session_id__realtime_ticket_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/RealtimeTicketResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/sessions/{session_id}/recap",
+      "handler": "update_session_recap",
+      "operation_id": "update_session_recap_api_v1_sessions__session_id__recap_put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/SessionRecapUpdateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/SessionTranscriptResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/recap/undo",
+      "handler": "undo_session_recap",
+      "operation_id": "undo_session_recap_api_v1_sessions__session_id__recap_undo_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/SessionTranscriptResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/turns",
+      "handler": "create_turn",
+      "operation_id": "create_turn_api_v1_sessions__session_id__turns_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/SessionTurnRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/turns/stream",
+      "handler": "stream_turn",
+      "operation_id": "stream_turn_api_v1_sessions__session_id__turns_stream_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/SessionTurnRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/spaces",
+      "handler": "list_spaces",
+      "operation_id": "list_spaces_api_v1_spaces_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/spaces",
+      "handler": "create_space",
+      "operation_id": "create_space_api_v1_spaces_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/StudySpaceCreateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/spaces/{space_id}",
+      "handler": "delete_space",
+      "operation_id": "delete_space_api_v1_spaces__space_id__delete",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/spaces/{space_id}",
+      "handler": "get_space_detail",
+      "operation_id": "get_space_detail_api_v1_spaces__space_id__get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/SpaceDetailResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/spaces/{space_id}",
+      "handler": "update_space",
+      "operation_id": "update_space_api_v1_spaces__space_id__put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/StudySpaceUpdateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/spaces/{space_id}/assignments",
+      "handler": "list_assignments",
+      "operation_id": "list_assignments_api_v1_spaces__space_id__assignments_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/spaces/{space_id}/assignments",
+      "handler": "save_assignment",
+      "operation_id": "save_assignment_api_v1_spaces__space_id__assignments_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/ModelAssignmentRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/ModelAssignment"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/spaces/{space_id}/assignments/{capability}",
+      "handler": "delete_assignment",
+      "operation_id": "delete_assignment_api_v1_spaces__space_id__assignments__capability__delete",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/spaces/{space_id}/default-character",
+      "handler": "update_space_default_character",
+      "operation_id": "update_space_default_character_api_v1_spaces__space_id__default_character_put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/StudySpaceDefaultCharacterRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/StudySpace"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/spaces/{space_id}/ingestion-jobs",
+      "handler": "list_ingestion_jobs",
+      "operation_id": "list_ingestion_jobs_api_v1_spaces__space_id__ingestion_jobs_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/spaces/{space_id}/legacy-knowledge-base/import",
+      "handler": "import_legacy_knowledge",
+      "operation_id": "import_legacy_knowledge_api_v1_spaces__space_id__legacy_knowledge_base_import_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/LegacyKnowledgeImportRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/spaces/{space_id}/materials",
+      "handler": "list_materials",
+      "operation_id": "list_materials_api_v1_spaces__space_id__materials_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MaterialResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/spaces/{space_id}/materials/note",
+      "handler": "create_note_material",
+      "operation_id": "create_note_material_api_v1_spaces__space_id__materials_note_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/MaterialNoteRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MaterialIngestionResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/spaces/{space_id}/materials/upload",
+      "handler": "upload_material",
+      "operation_id": "upload_material_api_v1_spaces__space_id__materials_upload_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MaterialIngestionResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/spaces/{space_id}/materials/{material_id}",
+      "handler": "delete_material",
+      "operation_id": "delete_material_api_v1_spaces__space_id__materials__material_id__delete",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/spaces/{space_id}/materials/{material_id}/retry",
+      "handler": "retry_material_ingestion",
+      "operation_id": "retry_material_ingestion_api_v1_spaces__space_id__materials__material_id__retry_post",
+      "status_codes": [
+        "201",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/MaterialIngestionResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/spaces/{space_id}/sessions",
+      "handler": "list_sessions",
+      "operation_id": "list_sessions_api_v1_spaces__space_id__sessions_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/tts/sidecar",
+      "handler": "tts_sidecar_status",
+      "operation_id": "tts_sidecar_status_api_v1_tts_sidecar_get",
+      "status_codes": [
+        "200"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/NeuralTtsSidecarStatusResponse"
+      ],
+      "auth_dependencies": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/vault/init",
+      "handler": "vault_init",
+      "operation_id": "vault_init_api_v1_vault_init_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/VaultPasswordPayload"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/VaultUnlockResponse"
+      ],
+      "auth_dependencies": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/vault/lock",
+      "handler": "vault_lock",
+      "operation_id": "vault_lock_api_v1_vault_lock_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/VaultStatusResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/vault/password",
+      "handler": "rotate_vault_password",
+      "operation_id": "rotate_vault_password_api_v1_vault_password_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/VaultPasswordRotationRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/VaultUnlockResponse"
+      ],
+      "auth_dependencies": [
+        "require_local_owner",
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/vault/preferences",
+      "handler": "get_vault_preferences",
+      "operation_id": "get_vault_preferences_api_v1_vault_preferences_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/OwnerPreferencesResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/vault/preferences",
+      "handler": "update_vault_preferences",
+      "operation_id": "update_vault_preferences_api_v1_vault_preferences_put",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/OwnerPreferencesUpdateRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/OwnerPreferencesResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/vault/reset",
+      "handler": "vault_reset",
+      "operation_id": "vault_reset_api_v1_vault_reset_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/VaultPasswordPayload"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/VaultStatusResponse"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/vault/status",
+      "handler": "vault_status",
+      "operation_id": "vault_status_api_v1_vault_status_get",
+      "status_codes": [
+        "200"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/VaultStatusResponse"
+      ],
+      "auth_dependencies": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/vault/unlock",
+      "handler": "vault_unlock",
+      "operation_id": "vault_unlock_api_v1_vault_unlock_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/VaultPasswordPayload"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/VaultUnlockResponse"
+      ],
+      "auth_dependencies": []
+    }
+  ],
+  "websocket_paths": [
+    "/api/v1/sessions/{session_id}/realtime"
+  ]
+}

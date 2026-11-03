@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from app.api.deps import get_container
-from app.api.v1 import _derive_demo_topic
+from app.api.routes.realtime import _derive_demo_topic
 from app.providers.base import LLMProvider, ProviderStreamChunk
 from app.providers.errors import ProviderProtocolError
 from app.services.demos import GeneratedLessonScript
