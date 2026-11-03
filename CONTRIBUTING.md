@@ -9,6 +9,7 @@ Companion Space is a local-first, single-user study companion project. Contribut
 ### Prerequisites
 
 - Node.js 24+
+- npm 11.18+ (verified installer: 11.21.1)
 - Python 3.13+
 - Docker Desktop or compatible Docker Engine for Compose validation
 
@@ -16,7 +17,8 @@ Companion Space is a local-first, single-user study companion project. Contribut
 
 ```bash
 cp .env.example .env
-npm install
+npm install --global npm@11.21.1
+npm ci
 python3 -m pip install -r services/api/requirements-dev.txt
 ```
 

@@ -13,7 +13,11 @@ The default display name is neutral: `Companion Space`. Override `APP_DISPLAY_NA
 
 ### Frontend
 
+Use Node 24 and npm 11.18 or newer. The verified installer is npm 11.21.1;
+older npm versions can ignore root security overrides for workspace dependencies.
+
 ```bash
+npm install --global npm@11.21.1
 npm ci
 npm run dev --workspace web
 ```

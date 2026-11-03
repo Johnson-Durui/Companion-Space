@@ -23,6 +23,18 @@ Companion Space 是一款本地优先的二次元陪伴学习应用。你可以�
 
 源码采用 **Apache License 2.0**。角色模型、动作、语音权重和示例素材可能适用各自的许可要求，详见 [NOTICE](NOTICE) 和 [第三方素材说明](assets/THIRD_PARTY_NOTICES.md)。
 
+## 内置伙伴
+
+六位伙伴随源码一起提供，无需下载外部模型。角色工作室可选择形象、保存配方，再进入共学舞台。MIRA / KITE / CAEL / LYRA 是 painted-blender 模型，NOVA / ECHO 目前是较轻的程序化 3D 原型；下图是各自的 2D 卡面。
+
+| 澄羽 · MIRA | 曜柚 · KITE | 凛序 · CAEL |
+| --- | --- | --- |
+| <img src="apps/web/public/assets/characters/art/roster/mira.png" width="180" alt="澄羽卡面"> | <img src="apps/web/public/assets/characters/art/roster/kite.png" width="180" alt="曜柚卡面"> | <img src="apps/web/public/assets/characters/art/roster/cael.png" width="180" alt="凛序卡面"> |
+| 弦灯 · LYRA | 星澜 · NOVA | 沐音 · ECHO |
+| <img src="apps/web/public/assets/characters/art/roster/lyra.png" width="180" alt="弦灯卡面"> | <img src="apps/web/public/assets/characters/art/roster/nova.png" width="180" alt="星澜卡面"> | <img src="apps/web/public/assets/characters/art/roster/echo.png" width="180" alt="沐音卡面"> |
+
+当前模块边界、角色接入流程和数据流见 [架构说明](docs/architecture.md)。
+
 ## 快速开始
 
 需要 Docker Desktop（或兼容的 Docker Engine）和 Docker Compose v2。先 **不要** 打开 `neural-tts` profile。
@@ -68,7 +80,7 @@ docker compose up --build
 
 不要在 API 运行时直接复制 `companion.db`、WAL/SHM 或整个 `storage/`。更换 API 镜像前先跑备份。
 
-本地开发（不用 Docker）见 [WINDOWS-README.md](WINDOWS-README.md)。本仓库是 **npm workspace**，用 `npm.cmd` / `npm`，不要用 pnpm。
+本地开发（不用 Docker）见 [WINDOWS-README.md](WINDOWS-README.md)。本仓库是 **npm workspace**，需要 Node 24 与 npm 11.18 以上（固定验证版本为 11.21.1）。旧 npm 有 workspace 覆盖依赖失效的问题，安装前先执行 `npm install --global npm@11.21.1`，再执行 `npm ci`。用 `npm.cmd` / `npm`，不要用 pnpm。
 
 ## 项目结构
 

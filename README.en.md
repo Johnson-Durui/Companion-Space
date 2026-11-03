@@ -23,6 +23,12 @@ The most complete workflow currently uses a desktop browser with local Docker an
 
 The source code is licensed under the **Apache License 2.0**. Character models, motions, voice weights, and sample assets may be subject to separate license terms. See [NOTICE](NOTICE) and the [third-party asset notices](assets/THIRD_PARTY_NOTICES.md).
 
+## Bundled companions
+
+MIRA, KITE, CAEL, LYRA, NOVA and ECHO ship with the source; no external model download is required. Choose a companion in Character Workshop, save the recipe and open a study session. MIRA/KITE/CAEL/LYRA use painted Blender models; NOVA/ECHO currently use lighter procedural 3D prototypes. Matching 2D cards and Mori/Yuzu sprite characters are also included. See the [character gallery](README.md#内置伙伴), [current architecture and avatar flow](docs/architecture.md), and [model production notes](docs/design/original-companions-3d.md).
+
+For development without Docker, use Node 24 and npm 11.18 or newer (tested pin: 11.21.1). Run `npm install --global npm@11.21.1` before `npm ci`: older npm versions can silently ignore security overrides across workspace boundaries. Docker and CI pin the installer too. See [local setup](WINDOWS-README.md).
+
 ## Quick Start
 
 You need Docker Desktop, or a compatible Docker Engine, and Docker Compose v2. Do **not** enable the `neural-tts` profile yet.

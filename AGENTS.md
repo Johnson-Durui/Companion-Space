@@ -1,6 +1,6 @@
 # AGENTS.md — Companion Space 仓库约定
 
-> 本文件面向在此仓库工作的 AI 代理（Codex 等）。开发主线与里程碑见 `docs/plan/v0.1-execution-plan.md`；产品验收基线见 `docs/v0.1-acceptance.md`。
+> 本文件面向在此仓库工作的 AI 代理（Codex 等）。当前架构见 `docs/architecture.md`；`docs/plan/v0.1-execution-plan.md` 保留为历史开发计划，其中的开工前问题不代表当前状态。产品验收基线见 `docs/v0.1-acceptance.md`。
 
 ## 项目概览
 

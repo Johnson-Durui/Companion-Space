@@ -11,7 +11,7 @@ npm run release:sync:check --workspace @companion-space/mobile
 
 The command is idempotent and fails without writing when the expected iOS or lockfile structure is missing or duplicated. Do not edit those generated version fields separately.
 
-Capacitor 8 移动壳：本地 launcher 验证受信 Companion Server，使用一次性挑战完成设备配对，然后进入服务器托管的现有 Web UI。核心与平台包锁定 8.5.0；官方插件分别锁定其当前可安装的 8.x 版本。它不会在 URL 中携带 token，也不会关闭 TLS 校验。
+Capacitor 8 移动壳：本地 launcher 验证受信 Companion Server，使用一次性挑战完成设备配对，然后进入服务器托管的现有 Web UI。核心与平台包锁定 8.6.0；官方插件分别锁定其当前可安装的 8.x 版本。它不会在 URL 中携带 token，也不会关闭 TLS 校验。
 
 ## 当前安全边界
 
@@ -100,7 +100,10 @@ TestFlight。需要一台能运行 Xcode 26 的 Mac、一个 Apple Account，以
 
 在 Mac 的仓库根目录运行：
 
+需要 Node 24 和 npm 11.18 以上；以下固定安装器版本与 CI 一致。
+
 ```bash
+npm install --global npm@11.21.1
 npm ci
 export COMPANION_MOBILE_TRUSTED_ORIGINS='https://companion.your-real-domain.cn'
 npm run ios:device

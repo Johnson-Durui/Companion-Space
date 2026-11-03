@@ -48,14 +48,31 @@ certutil -addstore -f Root ".\infra\caddy\data\caddy\pki\authorities\local\root.
 
 ## 不用 Docker 的本机路径
 
-Docker Desktop 没开、或不想重建容器时，在仓库根目录运行：
+使用 Node 24 与 npm 11.18 以上；先执行 `npm.cmd install --global npm@11.21.1`。固定安装器可避免旧版 npm 漏掉 workspace 的安全依赖覆盖。
+
+Docker Desktop 没开、或不想重建容器时，需要 Node.js 24、npm 和 Python 3.12 或 3.13
+（推荐项目根目录 `.venv`）。首次运行先安装依赖：
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r services\api\requirements.txt
+npm.cmd ci
+```
+
+然后在仓库根目录运行：
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
 .\START-LOCAL-WINDOWS.ps1
 ```
 
-然后打开 `http://127.0.0.1:3000`。脚本会把前端指到本机 API（`127.0.0.1:8000`），而不是 Docker 用的同源 `/`。**已经健康的 API / TTS 会直接复用，不会停 8001。** 若 3000 在监听但页面超时，只停挂死的 Next.js 再重跑，不要杀 API/TTS。四主角是 painted-blender 原创，不是许可样本。先走 Mock：Vault → 空间 → 资料 → 澄羽/曜柚/凛序/弦灯 → 文字共学。localhost 上的麦克风实时语音可用；局域网 IP 需要 HTTPS。
+如果工具不在 PATH，可显式传入路径：
+
+```powershell
+.\START-LOCAL-WINDOWS.ps1 -PythonPath C:\Python312\python.exe -NpmPath 'C:\Program Files\nodejs\npm.cmd'
+```
+
+然后打开 `http://127.0.0.1:3000`。脚本会把前端指到本机 API（`127.0.0.1:8000`），而不是 Docker 用的同源 `/`。**已经健康的 API / TTS 会直接复用，不会停 8001。** 若 3000 在监听但页面超时，只停挂死的 Next.js 再重跑，不要杀 API/TTS。六位主角都是项目原创；MIRA、KITE、CAEL、LYRA 使用 painted-blender 模型，NOVA、ECHO 使用轻量 original-vrm 原型。先走 Mock：Vault → 空间 → 资料 → 角色 → 文字共学。localhost 上的麦克风实时语音可用；局域网 IP 需要 HTTPS。
 
 本仓库是 npm workspace，用 `npm.cmd`，不要用 pnpm。
 
@@ -115,7 +132,7 @@ CI 会额外生成明确标记为 unsigned 的 Android AAB，并在 macOS runner
 sidecar 在 `http://127.0.0.1:8001/healthz` 返回 `ready` 后：
 
 1. 新空间会自动把 TTS 能力位绑到 `builtin-neural-tts` / `qwen3-tts-0.6b-customvoice`。
-2. 四主角配方默认已是「本地神经语音」。
+2. 六位主角配方默认已是「本地神经语音」。
 3. **旧 Mock 空间不会被改写。** 解锁后打开该空间 → **默认模型分配** → TTS 选 **Built-in Neural TTS**，模型填 `qwen3-tts-0.6b-customvoice`。
 4. 不解锁 Vault 也可以看状态：设置页「本地神经语音」，或 `GET /api/v1/tts/sidecar`。
 
