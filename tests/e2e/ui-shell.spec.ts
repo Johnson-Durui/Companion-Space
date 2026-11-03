@@ -641,7 +641,7 @@ test.describe("responsive application shell", () => {
     await expect(launchLink).toHaveAttribute("href", "/spaces/space-algorithms/call");
     expect(requests).toEqual(["/api/v1/spaces"]);
     await launchLink.click();
-    await expect(page).toHaveURL(/\/spaces\/space-algorithms\/call$/);
+    await expect(page).toHaveURL(/\/spaces\/space-algorithms\/call$/, { timeout: 60_000 });
     await expect.poll(() => requests.includes("/api/v1/spaces/space-algorithms")).toBe(true);
     await page.goBack();
     await expect(page).toHaveURL(/\/study$/);

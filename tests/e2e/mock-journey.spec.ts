@@ -479,7 +479,7 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
 
     for (const companion of featuredCompanions) {
       const preset = page.getByTestId(`companion-preset-${companion.id}`);
-      const artwork = page.getByAltText(companion.artAlt);
+      const artwork = preset.getByAltText(companion.artAlt);
       await preset.scrollIntoViewIfNeeded();
       await expect(preset).toBeVisible();
       await expect(artwork).toBeVisible();
