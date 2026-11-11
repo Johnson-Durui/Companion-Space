@@ -1633,7 +1633,6 @@ function Scene({
       envelope: speakingEnvelopeRef.current,
       emotion,
     });
-    const mouth = mouthShapes.aa;
     const motionScale = reducedMotion ? 0 : 1;
 
     const stateProfiles: Record<CharacterPreviewState, { chestX: number; chestY: number; headX: number; headY: number; lean: number; lookX: number; lookY: number }> = {
@@ -1775,11 +1774,16 @@ function Scene({
     canvas.dataset.avatarExpressionOverrideMouth = selectedExpressionMetadata?.overrideMouth === "none"
       ? "none"
       : "unsafe";
-    canvas.dataset.avatarMouthWeight = getExpressionOutputWeight(runtime, "aa", mouth).toFixed(3);
+    let mouthWeight = 0;
+    const renderedVisemes: string[] = [];
+    for (const name of VISEME_NAMES) {
+      const weight = getExpressionOutputWeight(runtime, name, 0);
+      mouthWeight = Math.max(mouthWeight, weight);
+      renderedVisemes.push(`${name}:${weight.toFixed(3)}`);
+    }
+    canvas.dataset.avatarMouthWeight = mouthWeight.toFixed(3);
     canvas.dataset.avatarViseme = dominantViseme(mouthShapes);
-    canvas.dataset.avatarVisemeWeights = VISEME_NAMES
-      .map((name) => `${name}:${getExpressionOutputWeight(runtime, name, mouthShapes[name]).toFixed(3)}`)
-      .join(",");
+    canvas.dataset.avatarVisemeWeights = renderedVisemes.join(",");
     canvas.dataset.avatarBlinkWeight = getExpressionOutputWeight(runtime, "blink", blinkProgress).toFixed(3);
   });
 

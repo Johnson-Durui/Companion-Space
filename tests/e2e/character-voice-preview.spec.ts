@@ -106,9 +106,14 @@ test("stops VRM playback immediately and returns to the selected state", async (
   await page.getByRole("button", { name: "试听声音" }).click();
   await expect(runtime).toHaveAttribute("data-avatar-state", "speaking");
   await expect.poll(() => page.evaluate(() => window.__voicePreviewProbe?.starts ?? 0)).toBe(1);
-  await expect.poll(async () => Number.parseFloat(
-    (await canvas.getAttribute("data-avatar-mouth-weight")) ?? "0",
-  )).toBeGreaterThan(0.01);
+  await expect.poll(() => canvas.evaluate((element) => {
+    const weights = (element.getAttribute("data-avatar-viseme-weights") ?? "")
+      .split(",")
+      .map((entry) => Number(entry.split(":")[1]));
+    const peak = Math.max(...weights);
+    const mouthWeight = Number(element.getAttribute("data-avatar-mouth-weight"));
+    return peak > 0.05 && peak > weights[0] + 0.01 && mouthWeight === peak;
+  }), { timeout: 10_000 }).toBe(true);
   await scrollRuntimeIntoEvidenceView(runtime);
   await page.screenshot({
     animations: "disabled",
