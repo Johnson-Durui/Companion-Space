@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-11",
+  "api": {
+    "passed": 548,
+    "skipped": 3,
+    "pypdf": "6.21.4"
+  },
+  "webE2E": {
+    "unique": 51,
+    "passed": 51,
+    "unresolved": [],
+    "runs": 68
+  },
+  "finalLayout": {
+    "passed": 6
+  },
+  "packager": {
+    "passed": 9
+  },
+  "startup": {
+    "passed": 4
+  },
+  "processBootstrap": {
+    "passed": 7
+  },
+  "androidUnit": {
+    "passed": 6
+  },
+  "npmProductionAudit": {
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 2
+  },
+  "npmFullAudit": {
+    "critical": 0,
+    "high": 0,
+    "moderate": 8,
+    "low": 2
+  },
+  "pythonAudit": {
+    "vulnerabilities": 0
+  },
+  "unverified": [
+    "real providers",
+    "physical microphone",
+    "30 minute soak",
+    "Docker runtime",
+    "Android/iOS devices",
+    "Xcode",
+    "signing and stores"
+  ]
+}

@@ -4,6 +4,13 @@ Companion Space source code is licensed under Apache License 2.0. The code and
 character models listed below retain their upstream notices and remain governed
 by their respective license terms. Keep this notice with redistributed copies.
 
+## Original observatory room background
+
+- Desktop file: `apps/web/public/assets/room/observatory.webp`, created for Companion Space on 2026-11-11 using OpenAI image generation.
+- Mobile file: `apps/web/public/assets/room/observatory-mobile.webp`, created on 2026-11-12 using OpenAI image generation from a text prompt. SHA-256: `7a8448596b2637c0617be20a710be56ded926603d3f6601cec1130ed9367dc74`.
+- No Eciyuan images or character assets were supplied as generation inputs. Eciyuan reports were used only to study interaction patterns.
+- Both original environment images are distributed under Apache-2.0. Character-model terms below remain separate.
+
 ## Qwen3-TTS
 
 - Optional runtime model: `Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice`
@@ -66,13 +73,13 @@ credit to **VirtualCast, Inc.**
 
 - Bundled files:
   - `apps/web/public/assets/characters/models/Mira.vrm`
-    (`02749d7dc58352b466c46ff83bd64931ef6b325f7750639f838cfd6f0e9b350e`)
+    (`cae7f5ce66269c9a25c98963b9e8675cf25e83c38114a67a720e105c1c904186`)
   - `apps/web/public/assets/characters/models/Kite.vrm`
-    (`e155fd4d755238a66f164f2c8e35be3fe880e90876201e3a7f153341c2b41a79`)
+    (`5b1b4c9d72c2bb4ab841caf3e3e1688c2c90e417d473c31f16fb674a8dd789c1`)
   - `apps/web/public/assets/characters/models/Cael.vrm`
-    (`33f0f3c2ed2f1d84c2ec4ad48c1f21f33ec711714a01550082ff2e617e00135c`)
+    (`db5e5dd769c8d1e8d6eb5451632b63e1af5335589d69d967323ec03283b21dce`)
   - `apps/web/public/assets/characters/models/Lyra.vrm`
-    (`4813dc0f7c0256a85376c8a380501a55d9511d75f4db895a224972f74041617c`)
+    (`3eb96b3c0836c0d688a10c8e2194c43af7b62899d3490aeef644870baca2d7db`)
   - `apps/web/public/assets/characters/models/Nova.vrm`
     (`3b06b5b69e7e55324635100f9094719f5f0cb969ffe3a482311ff645980dc2bd`)
   - `apps/web/public/assets/characters/models/Echo.vrm`

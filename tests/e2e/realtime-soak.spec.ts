@@ -138,7 +138,7 @@ test.describe("production realtime soak", () => {
       turnCount += 1;
     }
 
-    const baseline = await readMemory(cdp, browserCdp);
+    const baseline = await readStableMemoryBaseline(cdp, browserCdp);
     const startedAt = Date.now();
     samples.push(toMemorySample(baseline, baseline, 0));
     await postMetric(page.request, ownerToken, {
@@ -475,9 +475,9 @@ async function readMemory(
   const processInfo = await browserCdp.send("SystemInfo.getProcessInfo") as {
     processInfo: Array<{ id: number; type: string }>;
   };
-  const browserProcessRss = [...new Set(processInfo.processInfo.map((item) => item.id))]
-    .map((processId) => tryReadRssMb(String(processId)))
-    .filter((value): value is number => value !== null);
+  const browserProcessRss = readRssValuesMb(
+    [...new Set(processInfo.processInfo.map((item) => String(item.id)))],
+  );
   if (browserProcessRss.length === 0) {
     throw new Error("Could not read RSS for any Chromium process.");
   }
@@ -486,6 +486,30 @@ async function readMemory(
     browserHeapMb: heap.usedSize / (1_024 * 1_024),
     browserProcessRssMb: browserProcessRss.reduce((total, value) => total + value, 0),
   };
+}
+
+async function readStableMemoryBaseline(
+  cdp: CDPSession,
+  browserCdp: CDPSession,
+): Promise<RawMemoryReading> {
+  let previous = await readMemory(cdp, browserCdp);
+  let stableReadings = 0;
+  const deadline = Date.now() + 20_000;
+
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    const current = await readMemory(cdp, browserCdp);
+    const processRssChange = Math.abs(
+      current.browserProcessRssMb - previous.browserProcessRssMb,
+    );
+    stableReadings = processRssChange <= 32 ? stableReadings + 1 : 0;
+    previous = current;
+    if (stableReadings >= 2) {
+      break;
+    }
+  }
+
+  return previous;
 }
 
 function readRssMb(pid: string, label: string): number {
@@ -497,12 +521,48 @@ function readRssMb(pid: string, label: string): number {
 }
 
 function tryReadRssMb(pid: string): number | null {
+  if (process.platform === "win32") {
+    return readWindowsRssValuesMb([pid])[0] ?? null;
+  }
   const result = spawnSync("ps", ["-o", "rss=", "-p", pid], { encoding: "utf8" });
   if (result.status !== 0) {
     return null;
   }
   const rssKb = Number.parseInt(result.stdout.trim(), 10);
   return Number.isFinite(rssKb) && rssKb > 0 ? rssKb / 1_024 : null;
+}
+
+function readRssValuesMb(pids: string[]): number[] {
+  if (process.platform === "win32") {
+    return readWindowsRssValuesMb(pids);
+  }
+  return pids
+    .map((pid) => tryReadRssMb(pid))
+    .filter((value): value is number => value !== null);
+}
+
+function readWindowsRssValuesMb(pids: string[]): number[] {
+  const numericPids = pids.filter((pid) => /^\d+$/.test(pid));
+  if (numericPids.length === 0) {
+    return [];
+  }
+  const command = [
+    `$ids = @(${numericPids.join(",")})`,
+    "Get-Process -Id $ids -ErrorAction SilentlyContinue | ForEach-Object { $_.WorkingSet64 }",
+  ].join("; ");
+  const result = spawnSync(
+    "powershell.exe",
+    ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+    { encoding: "utf8" },
+  );
+  if (result.status !== 0 && !result.stdout.trim()) {
+    return [];
+  }
+  return result.stdout
+    .split(/\r?\n/)
+    .map((value) => Number.parseInt(value.trim(), 10))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .map((bytes) => bytes / (1_024 * 1_024));
 }
 
 function toMemorySample(
@@ -710,11 +770,8 @@ async function createRealtimeFixture(request: APIRequestContext, ownerToken: str
     description: "Release soak character",
     recipe: defaultRecipe,
   });
-  await putJson(request, `/api/v1/spaces/${space.id}`, ownerToken, {
-    name: space.name,
-    topic: space.topic,
-    goal: space.goal,
-    default_character_pack_id: character.id,
+  await putJson(request, `/api/v1/spaces/${space.id}/default-character`, ownerToken, {
+    character_pack_id: character.id,
   });
   await postJson(request, `/api/v1/spaces/${space.id}/assignments`, ownerToken, {
     capability: "stt",
@@ -742,7 +799,7 @@ async function openCallPage(page: Page, fixture: RealtimeFixture): Promise<void>
   await expect(spaceCard).toBeVisible({ timeout: 20_000 });
   await Promise.all([
     page.waitForURL(new RegExp(`/spaces/${fixture.spaceId}$`), { timeout: 20_000 }),
-    spaceCard.getByRole("link", { name: "进入空间" }).click(),
+    spaceCard.getByRole("link", { name: /^(查看主题档案|进入主题)$/ }).click(),
   ]);
   await Promise.all([
     page.waitForURL(fixture.callPath, { timeout: 20_000 }),

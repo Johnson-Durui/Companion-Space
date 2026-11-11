@@ -3,6 +3,8 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { LOCAL_NEURAL_VOICE_MODEL, LOCAL_NEURAL_VOICES } from "@/lib/voice-presets";
 
 import {
   AvatarRuntime,
@@ -72,6 +74,8 @@ export interface CharacterWorkshopDraft {
   recipe: CharacterWorkshopRecipeDraft;
 }
 
+export type CharacterVoicePreviewState = "idle" | "loading" | "playing";
+
 interface CharacterWorkshopProps {
   mode: "create" | "edit";
   seed: CharacterWorkshopDraft;
@@ -106,6 +110,9 @@ interface CharacterWorkshopProps {
   onReplaceMotion?: (state: CharacterPreviewState, file: File) => Promise<void> | void;
   onRemoveMotion?: (state: CharacterPreviewState) => Promise<void> | void;
   onVoicePreview?: (draft: CharacterWorkshopDraft) => Promise<void> | void;
+  voicePreviewState?: CharacterVoicePreviewState;
+  voicePreviewMessage?: string | null;
+  onStopVoicePreview?: () => void;
   onSetDefaultSpace?: () => Promise<void> | void;
 }
 
@@ -134,14 +141,6 @@ const PREVIEW_EMOTIONS: Array<{ value: CompanionEmotion; label: string }> = [
   { value: "concerned", label: "关切" },
 ];
 const DEFAULT_VOICE_PREVIEW_TEXT = "今晚先从最难的那一页开始，我会把节奏陪你稳住。";
-const LOCAL_NEURAL_VOICE_MODEL = "qwen3-tts-0.6b-customvoice";
-const LOCAL_NEURAL_VOICES = [
-  { value: "Serena", label: "Serena · 温柔女声" },
-  { value: "Vivian", label: "Vivian · 明亮女声" },
-  { value: "Dylan", label: "Dylan · 北京青年男声" },
-  { value: "Eric", label: "Eric · 成都活力男声" },
-  { value: "Uncle_Fu", label: "Uncle Fu · 成熟男声" },
-] as const;
 const ADULT_RELATIONSHIP_PATTERN =
   /\b(?:lover|romantic(?:\s+partner)?|girlfriend|boyfriend|spouse|husband|wife)\b/i;
 const ADULT_RELATIONSHIP_TERMS = [
@@ -1155,6 +1154,9 @@ export function CharacterWorkshop({
   onReplaceMotion,
   onRemoveMotion,
   onVoicePreview,
+  voicePreviewState = "idle",
+  voicePreviewMessage,
+  onStopVoicePreview,
   onSetDefaultSpace,
 }: CharacterWorkshopProps) {
   const [draft, setDraft] = useState<CharacterWorkshopDraft>(() => seed);
@@ -1170,6 +1172,12 @@ export function CharacterWorkshop({
   const motionFileInputRef = useRef<HTMLInputElement | null>(null);
   const pendingMotionStateRef = useRef<CharacterPreviewState>("idle");
   const hasAttachedModel = Boolean(attachedModelLabel);
+  const voicePreviewActive = voicePreviewState !== "idle";
+  const effectivePreviewState = voicePreviewState === "loading"
+    ? "thinking"
+    : voicePreviewState === "playing"
+      ? "speaking"
+      : draft.recipe.preview_state;
   const configuredMotionCount = PREVIEW_STATES.filter(
     ({ value }) => typeof draft.recipe.motions[value] === "string"
       && draft.recipe.motions[value].toLowerCase().endsWith(".vrma"),
@@ -1180,14 +1188,6 @@ export function CharacterWorkshop({
     setPreviewEmotion("neutral");
     setLocalNotice(null);
   }, [seed, seedKey]);
-
-  useEffect(() => {
-    if (assetLoading || assetPreviewStale) {
-      setRuntimeCapabilities(null);
-      setRuntimeCapabilitiesAssetUrl(undefined);
-      setRuntimeMode("loading");
-    }
-  }, [assetLoading, assetPreviewStale]);
 
   const handleCapabilitiesChange = useCallback(
     (capabilities: AvatarRuntimeCapabilities | null) => {
@@ -1246,10 +1246,23 @@ export function CharacterWorkshop({
   const runtimeRecipeView = useMemo(() => getRuntimeRecipeView(runtimeRecipe), [runtimeRecipe]);
   const spriteRuntimeDefinition = runtimeRecipeView.spriteDefinition;
   const portraitRuntimeDefinition = runtimeRecipeView.portraitDefinition;
-  const builtIn2dRuntimeReady = (
+  const usesBuiltIn2dRuntime = (
     runtimeRecipeView.runtimeKind === "sprite_2d"
     || runtimeRecipeView.runtimeKind === "portrait_2d"
-  ) && runtimeMode === "ready";
+  );
+  const builtIn2dRuntimeReady = usesBuiltIn2dRuntime && runtimeMode === "ready";
+
+  useEffect(() => {
+    // Loading a character's optional local assets does not change the public 2D
+    // sprite/portrait. Resetting this state after that runtime was already ready
+    // loses the ready notification because AvatarRuntime has no new mode change
+    // to publish.
+    if (!usesBuiltIn2dRuntime && (assetLoading || assetPreviewStale)) {
+      setRuntimeCapabilities(null);
+      setRuntimeCapabilitiesAssetUrl(undefined);
+      setRuntimeMode("loading");
+    }
+  }, [assetLoading, assetPreviewStale, usesBuiltIn2dRuntime]);
   const attachedModelPath = manifestText(assetManifest, "model_path");
   const displayedModelFilename = manifestText(assetManifest, "source_filename")
     ?? assetFilename(attachedModelPath)
@@ -1316,6 +1329,7 @@ export function CharacterWorkshop({
     && (assetPreviewStale || previewBlocked || runtimeFailed);
 
   function patchRecipe(patch: Partial<CharacterWorkshopRecipeDraft>) {
+    onStopVoicePreview?.();
     setDraft((current) => ({
       ...current,
       recipe: {
@@ -1428,6 +1442,7 @@ export function CharacterWorkshop({
     if (!preset) {
       return;
     }
+    onStopVoicePreview?.();
     setDraft(preset.draft);
     setPreviewEmotion("neutral");
     setLocalNotice(`已应用 ${preset.title} 模板。`);
@@ -1463,7 +1478,9 @@ export function CharacterWorkshop({
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        setDraft(parseImportedDraft(parsed));
+        const importedDraft = parseImportedDraft(parsed);
+        onStopVoicePreview?.();
+        setDraft(importedDraft);
         setLocalNotice(`已导入 ${file.name}。`);
       } catch (importError) {
         setLocalNotice(importError instanceof Error ? importError.message : "导入失败。");
@@ -1904,7 +1921,7 @@ export function CharacterWorkshop({
                 <p className={styles.eyebrow}>Realtime Preview</p>
                 <h3>{draft.name}</h3>
               </div>
-              <span className={styles.previewStatus}>{previewLabel(draft.recipe.preview_state)}</span>
+              <span className={styles.previewStatus}>{previewLabel(effectivePreviewState)}</span>
             </div>
             <div className={styles.runtimePreview}>
               {assetLoading && hasAttachedModel && !assetUrl && !licensedRuntimeAsset ? (
@@ -1926,7 +1943,7 @@ export function CharacterWorkshop({
                   recipe={runtimeRecipe}
                   emotion={previewEmotion}
                   speechController={speechController}
-                  state={draft.recipe.preview_state}
+                  state={effectivePreviewState}
                 />
               )}
             </div>
@@ -1935,7 +1952,8 @@ export function CharacterWorkshop({
                 <button
                   key={state.value}
                   type="button"
-                  data-active={draft.recipe.preview_state === state.value}
+                  data-active={effectivePreviewState === state.value}
+                  disabled={voicePreviewActive}
                   onClick={() => patchRecipe({ preview_state: state.value })}
                 >
                   {state.label}
@@ -1960,7 +1978,15 @@ export function CharacterWorkshop({
             <div className={styles.previewSpeech}>
               <div className={styles.previewSpeechTopline}>
                 <strong>Voice Preview</strong>
-                {onVoicePreview ? (
+                {voicePreviewActive && onStopVoicePreview ? (
+                  <button
+                    type="button"
+                    className={styles.previewVoiceButton}
+                    onClick={onStopVoicePreview}
+                  >
+                    停止试听
+                  </button>
+                ) : onVoicePreview ? (
                   <button
                     type="button"
                     className={styles.previewVoiceButton}
@@ -1972,6 +1998,7 @@ export function CharacterWorkshop({
                 ) : null}
               </div>
               <p>{draft.recipe.voice_preview_text}</p>
+              {voicePreviewMessage ? <p role="status">{voicePreviewMessage}</p> : null}
             </div>
             {onVoicePreview ? (
               <div className={styles.previewSpacePanel}>
@@ -1987,16 +2014,17 @@ export function CharacterWorkshop({
                       const ttsAssignment = space.model_assignments?.find(
                         (assignment) => assignment.capability === "tts",
                       );
-                      const status = ttsAssignment?.status ?? "missing";
                       return (
                         <option key={space.id} value={space.id}>
-                          {space.title} · TTS {status}
+                          {space.title}{ttsAssignment?.status ? ` · TTS ${ttsAssignment.status}` : ""}
                         </option>
                       );
                     })}
                   </select>
                   <small className={styles.fieldHint}>
-                    试听始终使用这里选中的学习空间能力位；仅当前角色的默认空间会自动预选。
+                    试听使用所选空间的语音服务，仅角色的默认空间会自动预选。
+                    Mock 会播放测试音；要试听真实声线，请在空间设置中绑定可用的语音服务。
+                    <Link href="/providers#voice-service"> 配置语音接口</Link>
                   </small>
                 </label>
                 {onSetDefaultSpace ? (

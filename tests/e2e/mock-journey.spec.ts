@@ -727,7 +727,7 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
     const latestUserTurn = page.locator('[data-role="user"]').last();
     await expect(latestUserTurn).toContainText(followupQuestion, { timeout: 20_000 });
     await expect(assistantTurns).toHaveCount(assistantTurnCount + 1, { timeout: 20_000 });
-    await expect(assistantTurns.last()).toContainText("模拟回复");
+    await expect(assistantTurns.last()).toContainText("此回复为预设内容");
 
     const demoRoute = "**/api/v1/sessions/*/demos";
     await page.route(demoRoute, async (route) => {
@@ -1640,12 +1640,12 @@ async function navigateViaSidebar(page: Page, label: string) {
   const navigation = page.getByRole("navigation");
   const target = navigation.getByRole("link", { name: new RegExp(label) });
   const visibleTarget = target.filter({ visible: true }).first();
-  if (await visibleTarget.count()) {
-    await visibleTarget.click();
-    return;
+  if (!(await visibleTarget.count())) {
+    await navigation.getByText("本地与服务设置", { exact: true }).click();
   }
-  await navigation.getByText("本地与服务设置", { exact: true }).click();
-  await target.filter({ visible: true }).first().click();
+  const destination = await visibleTarget.evaluate((link: HTMLAnchorElement) => link.href);
+  await visibleTarget.click();
+  await expect(page).toHaveURL(destination, { timeout: 60_000 });
 }
 
 async function openSessionReview(page: Page, href: string) {

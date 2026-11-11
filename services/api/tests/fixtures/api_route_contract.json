@@ -590,6 +590,25 @@
     },
     {
       "method": "POST",
+      "path": "/api/v1/providers/connections/{connection_id}/speech-preview",
+      "handler": "preview_provider_speech",
+      "operation_id": "preview_provider_speech_api_v1_providers_connections__connection_id__speech_preview_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/ProviderSpeechPreviewRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/v1/providers/connections/{connection_id}/test",
       "handler": "test_provider_connection",
       "operation_id": "test_provider_connection_api_v1_providers_connections__connection_id__test_post",

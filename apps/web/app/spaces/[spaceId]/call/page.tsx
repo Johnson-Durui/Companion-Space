@@ -1,9 +1,8 @@
 import { RealtimeCallShell } from "@/components/realtime/realtime-call-shell";
-import { ErrorCallout } from "@/components/ui";
 
 interface SpaceCallPageProps {
   params: Promise<{ spaceId: string }>;
-  searchParams: Promise<{ session?: string | string[] }>;
+  searchParams: Promise<{ session?: string | string[]; view?: string | string[] }>;
 }
 
 export default async function SpaceCallPage({ params, searchParams }: SpaceCallPageProps) {
@@ -12,8 +11,12 @@ export default async function SpaceCallPage({ params, searchParams }: SpaceCallP
   const initialSessionId = rawSessionId?.trim() || null;
 
   if (!spaceId) {
-    return <ErrorCallout message="路由中缺少 spaceId，无法创建有空间边界的会话。" />;
+    return (
+      <div className="error-callout" role="alert">
+        路由中缺少 spaceId，无法创建有空间边界的会话。
+      </div>
+    );
   }
 
-  return <RealtimeCallShell initialSessionId={initialSessionId} spaceId={spaceId} />;
+  return <RealtimeCallShell initialSessionId={initialSessionId} spaceId={spaceId} initialImmersive={query.view === "immersive"} />;
 }

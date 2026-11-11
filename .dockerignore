@@ -19,11 +19,19 @@ __pycache__/
 node_modules/
 node_modules */
 apps/web/.next/
+**/.next-*/
+apps/web/.next-e2e/
+apps/web/.next-delivery/
+apps/web/.next-delivery-preview/
+apps/web/.next-local-production/
+apps/web/.next-soak/
+outputs/
 apps/web/.next-pre-https/
 apps/web/.next-absolute-https/
 .next-pre-https/
 .next-absolute-https/
 .playwright/
+.pw-*/
 playwright-report/
 test-results/
 dist/

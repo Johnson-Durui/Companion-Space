@@ -7,6 +7,114 @@
   box-shadow: none;
 }
 
+.presentationActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.roomLink {
+  min-height: 44px;
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.composerHint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.companionBubble {
+  position: absolute;
+  z-index: 2;
+  top: 24px;
+  right: 24px;
+  width: min(40%, 310px);
+  padding: 16px 20px;
+  color: var(--ink);
+  background: rgba(255, 253, 247, .95);
+  border-radius: 18px 18px 18px 3px;
+  box-shadow: var(--shadow-soft);
+  pointer-events: none;
+}
+
+.companionBubble small { color: var(--muted); }
+.companionBubble p {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 7px 0 0;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+:global(.app-shell):has(.immersive) { grid-template-columns: minmax(0, 1fr); }
+:global(.app-shell):has(.immersive) > :global(.nav-panel) { display: none; }
+:global(.app-shell):has(.immersive) > :global(.app-main) { max-width: 1600px; width: 100%; margin-inline: auto; padding: 24px 32px; }
+
+.immersive .hero { align-items: center; flex-wrap: wrap; }
+.immersive .hero h1 { font-size: clamp(20px, 2.2vw, 30px); }
+.immersive .heroMetaDisclosure { display: none; }
+.immersive .layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, .75fr); gap: 20px; }
+.immersive .stageColumn { display: grid; gap: 12px; }
+.immersive .sideColumn { display: grid; }
+.immersive .stage { border-radius: 22px; border: 1px solid var(--line); }
+.immersive .stageVisual { background: #153e40; }
+.immersive .stageVisual :global([data-avatar-stage-background]) { min-height: clamp(400px, 49vh, 650px); }
+.immersive .stagePresence { background: var(--panel); }
+.immersive .composer { position: static; order: 1; padding: 16px 18px; border-radius: 18px; box-shadow: none; }
+.immersive .form { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.immersive .form textarea { min-height: 68px; max-height: 180px; resize: vertical; }
+.immersive .quickRow { display: none; }
+.immersive .boardDisclosure { order: 2; }
+.immersive .demoDisclosure { order: 3; }
+.immersive .stageControls { background: var(--panel); padding: 12px 16px; }
+.immersive .stageSettings { background: var(--panel); }
+.immersive .mobileDisclosure,
+.immersive .stageSettings { border-top: 1px solid var(--line); }
+.immersive .mobileDisclosure > summary,
+.immersive .stageSettings > summary,
+.immersive .callActions > summary {
+  display: list-item;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.immersive .mobileDisclosure:not([open]) > :not(summary),
+.immersive .stageSettings:not([open]) > .stageSettingsBody,
+.immersive .callActions:not([open]) > div { display: none; }
+.immersive .callActions { position: relative; }
+.immersive .callActions[open] > div { padding: 12px 0; }
+.immersive .transcriptDisclosure > summary { display: none; }
+.immersive .transcriptList { max-height: min(55vh, 640px); }
+.immersive .captionPanel { padding: 18px; background: var(--accent-soft); border-color: transparent; }
+.immersive .captionText { min-height: 0; font-size: 15px; }
+.immersive .turn { overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  :global(.app-shell):has(.immersive) > :global(.app-main) { padding: 16px; }
+  .immersive .layout { grid-template-columns: minmax(0, 1fr); }
+  .immersive .sideColumn { grid-template-columns: minmax(0, 1fr); }
+  .immersive .stageVisual :global([data-avatar-stage-background]) { min-height: 420px; }
+  .immersive .companionBubble { position: static; width: auto; max-width: none; margin: 0 12px 12px; padding: 12px 14px; }
+}
+
+@media (max-width: 480px) {
+  .immersive .presentationActions { margin-left: 0; width: 100%; justify-content: space-between; }
+  .immersive .stageVisual :global([data-avatar-stage-background]) { min-height: 380px; }
+  .immersive .companionBubble p { -webkit-line-clamp: 3; font-size: 13px; }
+  .immersive .composer { padding: 12px; }
+  .immersive .form textarea { height: 68px; min-height: 68px; max-height: 160px; }
+}
+
 .hero {
   display: flex;
   justify-content: space-between;
@@ -402,7 +510,6 @@
   .shell {
     padding: 8px 0 0;
     gap: 14px;
-    padding-bottom: calc(156px + env(safe-area-inset-bottom));
   }
 
   .hero {
@@ -570,11 +677,8 @@
   }
 
   .composer {
-    position: fixed;
-    z-index: 20;
-    right: 10px;
-    bottom: calc(68px + env(safe-area-inset-bottom));
-    left: 10px;
+    position: static;
+    order: 2;
     margin: 0;
     padding: 8px;
     border: 1px solid var(--line);

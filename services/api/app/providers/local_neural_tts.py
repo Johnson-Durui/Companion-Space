@@ -15,6 +15,7 @@ from app.providers.errors import (
     ProviderTimeoutError,
     ProviderUnavailableError,
 )
+from app.providers.pinned_http import build_pinned_http_transport
 
 
 LOCAL_NEURAL_TTS_MODEL = "qwen3-tts-0.6b-customvoice"
@@ -162,7 +163,7 @@ class LocalNeuralTTSProvider(ProviderAdapter):
         async with httpx.AsyncClient(
             base_url=f"{self._base_url}/",
             timeout=5.0,
-            transport=self._transport,
+            transport=self._request_transport(),
             trust_env=False,
             follow_redirects=False,
         ) as client:
@@ -174,9 +175,15 @@ class LocalNeuralTTSProvider(ProviderAdapter):
         return httpx.AsyncClient(
             base_url=f"{self._base_url}/",
             timeout=self._timeout,
-            transport=self._transport,
+            transport=self._request_transport(),
             trust_env=False,
             follow_redirects=False,
+        )
+
+    def _request_transport(self) -> httpx.AsyncBaseTransport:
+        return self._transport or build_pinned_http_transport(
+            self._base_url,
+            provider=self.name,
         )
 
     def _raise_for_status(self, response: httpx.Response) -> None:

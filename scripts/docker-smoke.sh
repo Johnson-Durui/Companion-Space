@@ -22,7 +22,7 @@ trap cleanup EXIT
 cleanup
 
 compose_build_output=""
-if ! compose_build_output="$("${compose[@]}" build 2>&1)"; then
+if ! compose_build_output="$("${compose[@]}" build api web 2>&1)"; then
   printf '%s\n' "${compose_build_output}" >&2
   if [[
     "${compose_build_output}" != *"x-docker-expose-session-sharedkey"* &&
@@ -48,7 +48,7 @@ fi
 
 COMPANION_HTTP_PORT="${http_port}" \
 COMPANION_HTTPS_PORT="${https_port}" \
-  "${compose[@]}" up --detach --no-build
+  "${compose[@]}" up --detach --no-build api web caddy
 
 health_url="https://companion.localhost:${https_port}/healthz"
 app_url="https://companion.localhost:${https_port}/"

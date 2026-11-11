@@ -36,6 +36,7 @@ import {
   characterStatusLabel,
   createCharacterWorkshopSeed,
   workshopRecipeToCharacterRecipe,
+  type CharacterVoicePreviewState,
   type CharacterWorkshopDraft,
 } from "@/components/character-workshop";
 import { EmptyState, ErrorCallout, LoadingState } from "@/components/ui";
@@ -45,7 +46,8 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
   const [character, setCharacter] = useState<CharacterPackDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [previewingVoice, setPreviewingVoice] = useState(false);
+  const [voicePreviewState, setVoicePreviewState] = useState<CharacterVoicePreviewState>("idle");
+  const [voicePreviewMessage, setVoicePreviewMessage] = useState<string | null>(null);
   const [bindingDefaultSpace, setBindingDefaultSpace] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [assetError, setAssetError] = useState<string | null>(null);
@@ -63,12 +65,30 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
   const [previewSpaceId, setPreviewSpaceId] = useState<string>("");
   const [adultRelationshipsEnabled, setAdultRelationshipsEnabled] = useState(false);
   const voiceQueueRef = useRef<Pcm16PlaybackQueue | null>(null);
+  const voiceRequestRef = useRef<AbortController | null>(null);
   const activeAssetsRef = useRef<CharacterRuntimeAssetUrls | null>(null);
   const assetRequestIdRef = useRef(0);
   const previewSpeechController = useMemo(
     () => createAvatarSpeechController(),
     [],
   );
+
+  const invalidateVoicePreview = useCallback(() => {
+    const request = voiceRequestRef.current;
+    voiceRequestRef.current = null;
+    request?.abort();
+    voiceQueueRef.current?.clear();
+    previewSpeechController.reset();
+  }, [previewSpeechController]);
+
+  const stopVoicePreview = useCallback(() => {
+    if (!voiceRequestRef.current) {
+      return;
+    }
+    invalidateVoicePreview();
+    setVoicePreviewState("idle");
+    setVoicePreviewMessage("试听已停止。");
+  }, [invalidateVoicePreview]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -165,8 +185,11 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
     [],
   );
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    setVoicePreviewState("idle");
+    setVoicePreviewMessage(null);
+    return () => {
+      invalidateVoicePreview();
       const queue = voiceQueueRef.current;
       voiceQueueRef.current = null;
       if (queue) {
@@ -174,10 +197,8 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
           console.error("关闭角色试听音频失败", closeError);
         });
       }
-      previewSpeechController.reset();
-    },
-    [previewSpeechController],
-  );
+    };
+  }, [characterId, invalidateVoicePreview]);
 
   async function handleSave(draft: CharacterWorkshopDraft) {
     setBusy(true);
@@ -301,7 +322,14 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
   }
 
   async function handleVoicePreview(draft: CharacterWorkshopDraft) {
-    setPreviewingVoice(true);
+    invalidateVoicePreview();
+    const request = new AbortController();
+    voiceRequestRef.current = request;
+    const isCurrent = () => voiceRequestRef.current === request && !request.signal.aborted;
+    setVoicePreviewState("loading");
+    setVoicePreviewMessage("正在准备声音…");
+    setNotice(null);
+    setError(null);
     try {
       const space = previewSpaces.find((candidate) => candidate.id === previewSpaceId);
       if (!space) {
@@ -312,32 +340,53 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
       if (!queue) {
         queue = new Pcm16PlaybackQueue(
           OUTPUT_PCM16_SAMPLE_RATE,
-          undefined,
+          () => {
+            if (!voiceRequestRef.current) {
+              return;
+            }
+            voiceRequestRef.current = null;
+            previewSpeechController.reset();
+            setVoicePreviewState("idle");
+            setVoicePreviewMessage("试听已结束。");
+          },
           previewSpeechController.publishLevel,
         );
         voiceQueueRef.current = queue;
       }
-      queue.clear();
       await queue.prepare();
+      if (!isCurrent()) {
+        return;
+      }
       const preview = await previewCharacterVoice({
         characterId,
         spaceId: space.id,
         text: draft.recipe.voice_preview_text.trim(),
         voiceId: draft.recipe.voice_id,
         speakingRate: draft.recipe.voice_rate,
+        signal: request.signal,
       });
+      if (!isCurrent()) {
+        return;
+      }
       if (preview.sampleRate !== OUTPUT_PCM16_SAMPLE_RATE) {
         throw new Error(
           `服务端返回 ${preview.sampleRate} Hz，当前试听仅接受 ${OUTPUT_PCM16_SAMPLE_RATE} Hz PCM16。`,
         );
       }
+      if (!preview.pcm16.byteLength) {
+        throw new Error("声音试听没有返回可播放的音频，请重试或检查该空间的 TTS 配置。");
+      }
       queue.enqueue(preview.pcm16);
-      setNotice(`正在使用「${space.title}」的 TTS 能力试听。`);
-      setError(null);
+      setVoicePreviewState("playing");
+      setVoicePreviewMessage("正在试听，角色随声音同步。");
     } catch (previewError) {
+      if (!isCurrent()) {
+        return;
+      }
+      invalidateVoicePreview();
+      setVoicePreviewState("idle");
+      setVoicePreviewMessage(null);
       setError(previewError instanceof Error ? previewError.message : "声音试听失败");
-    } finally {
-      setPreviewingVoice(false);
     }
   }
 
@@ -438,7 +487,7 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
         seed={workshopSeed}
         seedKey={`${character.id}:${character.updated_at ?? ""}`}
         adultRelationshipsEnabled={adultRelationshipsEnabled}
-        busy={busy || previewingVoice || bindingDefaultSpace}
+        busy={busy || voicePreviewState !== "idle" || bindingDefaultSpace}
         notice={notice}
         error={error}
         assetError={assetError}
@@ -450,7 +499,10 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
         motionAssetUrls={motionAssetUrls}
         previewSpaces={previewSpaces}
         previewSpaceId={previewSpaceId}
-        onPreviewSpaceChange={setPreviewSpaceId}
+        onPreviewSpaceChange={(spaceId) => {
+          stopVoicePreview();
+          setPreviewSpaceId(spaceId);
+        }}
         defaultCharacterSpaceIds={previewSpaces
           .filter((space) => space.default_character_id === character.id)
           .map((space) => space.id)}
@@ -470,6 +522,9 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
         onReplaceMotion={handleReplaceMotion}
         onRemoveMotion={handleRemoveMotion}
         onVoicePreview={handleVoicePreview}
+        voicePreviewState={voicePreviewState}
+        voicePreviewMessage={voicePreviewMessage}
+        onStopVoicePreview={stopVoicePreview}
       />
     </section>
   );

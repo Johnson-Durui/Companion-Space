@@ -30,6 +30,13 @@ def _stored_file(settings, storage_path: str) -> Path:
     return settings.storage_root.joinpath(*PurePosixPath(storage_path).parts)
 
 
+def _delete_staging_paths(parent: Path) -> list[Path]:
+    return [
+        *parent.glob(".deleting-*"),
+        *parent.glob(".d-*"),
+    ]
+
+
 def test_new_material_storage_path_is_portable_and_resolves_inside_storage_root(
     isolated_settings,
 ) -> None:
@@ -453,11 +460,92 @@ def test_material_delete_restores_staged_file_when_repository_delete_fails(
 
     assert stored_file.read_text(encoding="utf-8").startswith("Restore this file")
     assert repository.get_material(material.id) is not None
-    assert list(stored_file.parent.glob(".deleting-*")) == []
+    assert _delete_staging_paths(stored_file.parent) == []
 
     monkeypatch.setattr(repository, "delete_material", original_delete)
     assert service.delete_material(space_id=space.id, material_id=material.id)
     assert not stored_file.exists()
     assert repository.get_material(material.id) is None
-    assert list(stored_file.parent.glob(".deleting-*")) == []
+    assert _delete_staging_paths(stored_file.parent) == []
+    service.close()
+
+
+def test_material_delete_staging_path_does_not_exceed_existing_windows_path_budget(
+    isolated_settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _local_settings(isolated_settings)
+    repository = SQLiteRepository(settings)
+    service = StudySpaceService(settings, repository)
+    space = service.create_space(name="Windows path budget")
+    material, job = service.ingest_note(
+        space_id=space.id,
+        title="Path budget note",
+        content="Deletion must not require a longer path than this existing file.",
+    )
+    service.wait_for_ingestion(job.id, timeout_seconds=2.0)
+    stored = repository.get_material(material.id)
+    assert stored is not None
+    stored_file = _stored_file(settings, stored.storage_path)
+    original_rename = Path.rename
+    rename_targets: list[tuple[Path, Path]] = []
+
+    def reject_target_beyond_existing_path_budget(source: Path, target: Path) -> Path:
+        resolved_target = Path(target)
+        rename_targets.append((source, resolved_target))
+        if len(str(resolved_target)) > len(str(source)):
+            raise FileNotFoundError("synthetic Windows path budget exceeded")
+        return original_rename(source, resolved_target)
+
+    monkeypatch.setattr(Path, "rename", reject_target_beyond_existing_path_budget)
+
+    assert service.delete_material(space_id=space.id, material_id=material.id)
+    assert rename_targets
+    staged_source, staged_target = rename_targets[0]
+    assert staged_source == stored_file.resolve()
+    assert staged_target.parent == stored_file.parent.resolve()
+    assert len(str(staged_target)) <= len(str(staged_source))
+    assert not stored_file.exists()
+    assert repository.get_material(material.id) is None
+    assert _delete_staging_paths(stored_file.parent) == []
+    service.close()
+
+
+def test_space_delete_staging_path_does_not_exceed_existing_windows_path_budget(
+    isolated_settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _local_settings(isolated_settings)
+    repository = SQLiteRepository(settings)
+    service = StudySpaceService(settings, repository)
+    space = service.create_space(name="Windows directory path budget")
+    material, job = service.ingest_note(
+        space_id=space.id,
+        title="Nested path budget note",
+        content="Deleting this space must clean its nested material.",
+    )
+    service.wait_for_ingestion(job.id, timeout_seconds=2.0)
+    space_dir = (settings.spaces_root / space.id).resolve()
+    original_rename = Path.rename
+    rename_targets: list[tuple[Path, Path]] = []
+
+    def reject_target_beyond_existing_path_budget(source: Path, target: Path) -> Path:
+        resolved_target = Path(target)
+        rename_targets.append((source, resolved_target))
+        if len(str(resolved_target)) > len(str(source)):
+            raise FileNotFoundError("synthetic Windows directory path budget exceeded")
+        return original_rename(source, resolved_target)
+
+    monkeypatch.setattr(Path, "rename", reject_target_beyond_existing_path_budget)
+
+    assert service.delete_space(space.id)
+    assert rename_targets
+    staged_source, staged_target = rename_targets[0]
+    assert staged_source == space_dir
+    assert staged_target.parent == settings.spaces_root.resolve()
+    assert len(str(staged_target)) <= len(str(staged_source))
+    assert not space_dir.exists()
+    assert repository.get_space(space.id) is None
+    assert repository.get_material(material.id) is None
+    assert _delete_staging_paths(settings.spaces_root) == []
     service.close()

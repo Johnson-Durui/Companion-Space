@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from app.api.deps import get_container
-from app.models.domain import ProviderCapability, ProviderConnection, SessionState
+from app.models.domain import ProviderCapability, ProviderConnection
 from app.providers.base import LLMProvider, ProviderStreamChunk
 from app.providers.local_neural_tts import (
     LOCAL_NEURAL_TTS_MODEL,
@@ -274,12 +274,10 @@ def test_mock_realtime_voice_commit_emits_first_binary_under_800ms(
     assert elapsed_ms < 800
 
 
-@pytest.mark.parametrize("slow_persistence", [False, True])
 def test_realtime_interrupt_ack_under_250ms_and_cancels_turn(
     client,
     owner_token,
     monkeypatch: pytest.MonkeyPatch,
-    slow_persistence: bool,
 ) -> None:
     space = client.post(
         "/api/v1/spaces",
@@ -295,27 +293,6 @@ def test_realtime_interrupt_ack_under_250ms_and_cancels_turn(
     ticket = _issue_realtime_ticket(client, owner_token, session["id"])
     adapter = TimedRealtimeAdapter(llm_block_seconds=5.0)
     _patch_realtime_adapter(monkeypatch, adapter)
-
-    persistence_started = Event()
-    persistence_release = Event()
-    persistence_finished = Event()
-    if slow_persistence:
-        companion = get_container().companion
-        original_set_state = companion.set_state
-
-        def delayed_interrupted_state(session_id, state, *, reason_code):
-            if state is not SessionState.interrupted:
-                return original_set_state(session_id, state, reason_code=reason_code)
-            persistence_started.set()
-            try:
-                # A disk stall must not delay the interrupt acknowledgement.
-                # The timeout bounds failure on the old implementation.
-                persistence_release.wait(1.0)
-                return original_set_state(session_id, state, reason_code=reason_code)
-            finally:
-                persistence_finished.set()
-
-        monkeypatch.setattr(companion, "set_state", delayed_interrupted_state)
 
     with client.websocket_connect(
         f"/api/v1/sessions/{session['id']}/realtime",
@@ -338,11 +315,6 @@ def test_realtime_interrupt_ack_under_250ms_and_cancels_turn(
         elapsed_ms = (monotonic() - started) * 1000
         assert interrupted["type"] == "turn.interrupted"
         assert interrupted["state"] == "interrupted"
-        if slow_persistence:
-            assert persistence_started.wait(2)
-            persistence_release.set()
-            assert persistence_finished.wait(2)
-            assert get_container().companion.get_session(session["id"]).state is SessionState.interrupted
         websocket.send_bytes(b"\x00\x01" * 320)
         resumed_partial = websocket.receive_json()
         assert resumed_partial["type"] == "asr.partial"

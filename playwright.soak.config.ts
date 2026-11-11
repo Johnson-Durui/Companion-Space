@@ -6,6 +6,7 @@ const baseURL = `http://127.0.0.1:${WEB_PORT}`;
 const apiBaseURL = `http://127.0.0.1:${API_PORT}`;
 const wsBaseURL = `ws://127.0.0.1:${API_PORT}/api/v1/sessions/:sessionId/realtime`;
 const storageRoot = ".playwright/soak-storage";
+const gracefulShutdown = { signal: "SIGTERM", timeout: 5_000 } as const;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -29,25 +30,27 @@ export default defineConfig({
   projects: [
     {
       name: "chromium-soak",
-      use: { ...devices["Desktop Chrome"], headless: true },
+      use: {
+        ...devices["Desktop Chrome"],
+        headless: true,
+        ...(process.env.E2E_BROWSER_CHANNEL ? { channel: process.env.E2E_BROWSER_CHANNEL } : {}),
+      },
     },
   ],
   webServer: [
     {
-      command: `node tests/e2e/start-api.mjs ${API_PORT} ${WEB_PORT} ${storageRoot} soak`,
+      command: `node tests/e2e/start-api.mjs ${API_PORT} ${WEB_PORT} ${storageRoot}`,
       port: API_PORT,
       timeout: 120_000,
+      gracefulShutdown,
       reuseExistingServer: false,
     },
     {
-      command: `node tests/e2e/start-web.mjs start ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
+      command: `node tests/e2e/start-web.mjs production ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
       port: WEB_PORT,
       timeout: 120_000,
+      gracefulShutdown,
       reuseExistingServer: false,
-      env: {
-        NEXT_PUBLIC_API_BASE_URL: apiBaseURL,
-        NEXT_PUBLIC_REALTIME_WS_URL: wsBaseURL,
-      },
     },
   ],
 });

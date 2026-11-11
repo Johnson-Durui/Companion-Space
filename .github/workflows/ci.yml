@@ -29,20 +29,26 @@ jobs:
         shell: powershell
         run: .\scripts\windows-smoke.ps1
 
-      - name: Setup Node
+      - name: Install backend dependencies
+        run: python -m pip install -r services/api/requirements-dev.txt
+
+      - name: Setup Node for Windows startup checks
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
           cache: npm
 
-      - name: Validate portable test launchers on Windows
-        run: |
-          npm install --global npm@11.21.1
-          npm ci
-          npm run test:e2e-launchers
+      - name: Install frontend dependencies
+        run: npx --yes npm@11.21.2 ci
 
-      - name: Install backend dependencies
-        run: python -m pip install -r services/api/requirements-dev.txt
+      - name: Validate portable test bootstrap
+        run: npm run test:bootstrap
+
+      - name: Validate Windows startup and process cleanup
+        run: npm run test:windows-startup
+
+      - name: Validate delivery packaging
+        run: python -m unittest scripts.package_delivery_test -v
 
       - name: Ruff
         run: python -m ruff check services/api
@@ -50,7 +56,7 @@ jobs:
       - name: Pytest
         env:
           PYTHONPATH: services/api
-        run: python -m pytest services/api/tests -q
+        run: python -m pytest services/api/tests -q --basetemp "${{ runner.temp }}/cs-api"
 
   backend:
     runs-on: ubuntu-latest
@@ -115,12 +121,7 @@ jobs:
           cache: npm
 
       - name: Install frontend dependencies
-        run: |
-          npm install --global npm@11.21.1
-          npm ci
-
-      - name: Validate portable test launchers
-        run: npm run test:e2e-launchers
+        run: npx --yes npm@11.21.2 ci
 
       - name: Validate bundled pet assets
         run: npm run test:pet-assets
@@ -136,6 +137,9 @@ jobs:
 
       - name: Validate runtime configuration boundaries
         run: npm run test:runtime-config
+
+      - name: Validate portable test bootstrap
+        run: npm run test:bootstrap
 
       - name: Typecheck
         run: npm run typecheck:web
@@ -187,9 +191,7 @@ jobs:
           "system-images;android-${{ matrix.api-level }};google_apis;x86_64"
 
       - name: Install dependencies
-        run: |
-          npm install --global npm@11.21.1
-          npm ci
+        run: npx --yes npm@11.21.2 ci
 
       - name: Validate mobile shell
         run: |
@@ -291,9 +293,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: |
-          npm install --global npm@11.21.1
-          npm ci
+        run: npx --yes npm@11.21.2 ci
 
       - name: Validate mobile shell
         run: |
@@ -432,15 +432,13 @@ jobs:
           cache: npm
 
       - name: Install frontend dependencies
-        run: |
-          npm install --global npm@11.21.1
-          npm ci
+        run: npx --yes npm@11.21.2 ci
 
       - name: Install Python dependency auditor
         run: python -m pip install pip-audit
 
       - name: Audit frontend dependencies
-        run: npm audit --audit-level=high
+        run: npx --yes npm@11.21.2 audit --audit-level=high
 
       - name: Audit backend dependencies
         run: python -m pip_audit -r services/api/requirements.txt
@@ -466,14 +464,22 @@ jobs:
         run: python -m pip install -r services/api/requirements.txt
 
       - name: Install frontend dependencies
-        run: |
-          npm install --global npm@11.21.1
-          npm ci
+        run: npx --yes npm@11.21.2 ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Build the browser test bundle
+        env:
+          NEXT_DIST_DIR: .next-e2e
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8100
+          NEXT_PUBLIC_REALTIME_WS_URL: ws://127.0.0.1:8100/api/v1/sessions/:sessionId/realtime
+          NEXT_PUBLIC_E2E_AUDIO_HOOK: "1"
+        run: npm run build:web
+
       - name: Playwright E2E
+        env:
+          E2E_WEB_MODE: production
         run: npm run test:e2e
 
       - name: Upload Playwright report
@@ -498,9 +504,7 @@ jobs:
           cache: npm
 
       - name: Install frontend dependencies
-        run: |
-          npm install --global npm@11.21.1
-          npm ci
+        run: npx --yes npm@11.21.2 ci
 
       - name: Docker Compose smoke
         run: ./scripts/docker-smoke.sh

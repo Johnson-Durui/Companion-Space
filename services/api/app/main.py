@@ -38,7 +38,6 @@ def _canonical_route_template(request: Request) -> str:
         effective_path = getattr(effective_context, "path", None)
         if isinstance(effective_path, str) and effective_path:
             return effective_path
-
     route = request.scope.get("route")
     route_path = getattr(route, "path", None)
     if isinstance(route_path, str) and route_path:
@@ -131,6 +130,7 @@ app.add_middleware(
     allow_origins=_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Audio-Sample-Rate", "X-Audio-Channels"],
     allow_credentials=True,
 )
 

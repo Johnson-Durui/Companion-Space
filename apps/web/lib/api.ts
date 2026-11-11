@@ -1562,6 +1562,40 @@ export async function deleteProvider(providerId: string) {
   });
 }
 
+export async function previewProviderSpeech(input: {
+  connectionId: string;
+  model: string;
+  text: string;
+  voiceId: string;
+  speakingRate: number;
+  signal?: AbortSignal;
+}) {
+  const response = await requestBinary(
+    `/api/v1/providers/connections/${encodeURIComponent(input.connectionId)}/speech-preview`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: input.model,
+        text: input.text,
+        voice_id: input.voiceId,
+        speaking_rate: input.speakingRate,
+      }),
+      signal: input.signal,
+    },
+    "语音合成测试失败",
+  );
+  const sampleRate = Number(response.headers.get("x-audio-sample-rate"));
+  if (sampleRate !== 24000 || response.headers.get("x-audio-channels") !== "1") {
+    throw new Error("语音接口未返回受支持的 24000 Hz 单声道音频。");
+  }
+  const pcm16 = await response.arrayBuffer();
+  if (!pcm16.byteLength || pcm16.byteLength % 2 !== 0) {
+    throw new Error("语音接口未返回有效的 PCM16 音频。");
+  }
+  return { pcm16, sampleRate };
+}
+
 export async function saveSpaceAssignment(
   spaceId: string,
   input: {

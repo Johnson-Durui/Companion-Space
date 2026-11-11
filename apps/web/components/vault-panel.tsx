@@ -28,7 +28,7 @@ function vaultErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Vault 操作失败";
 }
 
-export function VaultPanel() {
+export function VaultPanel({ returnHref }: { returnHref?: string }) {
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [sidecar, setSidecar] = useState<NeuralTtsSidecarStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -245,6 +245,7 @@ export function VaultPanel() {
               <>
                 <div className="success-callout" role="status">Vault 已就绪，可以进入 Companion Space。</div>
                 <div className="inline-actions">
+                  {returnHref ? <Link className="primary-button" href={returnHref}>继续上次共学</Link> : null}
                   <Link className="primary-button" href="/">进入 Companion Space</Link>
                 </div>
                 <details className="info-card">

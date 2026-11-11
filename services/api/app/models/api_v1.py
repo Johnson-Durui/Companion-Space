@@ -93,6 +93,24 @@ class ProviderConnectionUpdateRequest(BaseModel):
     base_url: str | None = None
 
 
+class ProviderSpeechPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    model: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    ]
+    text: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=240),
+    ]
+    voice_id: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=120),
+    ]
+    speaking_rate: float = Field(default=1.0, ge=0.5, le=2.0)
+
+
 class StudySpaceCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     topic: str = ""

@@ -245,19 +245,36 @@ test.describe("realtime guardrails", () => {
       .locator('.mobile-tab[aria-current="page"]');
     await expect(activeStudyTab).toContainText("共学");
     await expect(activeStudyTab).toHaveAttribute("href", fixture.callPath);
-    await expect(page.getByRole("textbox", { name: "发送文字消息" })).toBeVisible();
+    const composer = page.getByTestId("realtime-composer");
+    const composerInput = page.getByRole("textbox", { name: "发送文字消息" });
+    await expect(composerInput).toBeVisible();
+    await composer.scrollIntoViewIfNeeded();
+    await expect.poll(() => page.evaluate(() => {
+      const composer = document.querySelector<HTMLElement>('[data-testid="realtime-composer"]');
+      const tabBar = document.querySelector<HTMLElement>(".mobile-tab-bar");
+      return Boolean(composer && tabBar
+        && composer.getBoundingClientRect().bottom <= tabBar.getBoundingClientRect().top + 1);
+    })).toBe(true);
 
     const layout = await page.evaluate(() => {
       const composer = document.querySelector<HTMLElement>('[data-testid="realtime-composer"]');
+      const composerInput = document.querySelector<HTMLElement>('textarea[aria-label="发送文字消息"]');
       const tabBar = document.querySelector<HTMLElement>(".mobile-tab-bar");
-      if (!composer || !tabBar) {
+      if (!composer || !composerInput || !tabBar) {
         return null;
       }
       const composerBounds = composer.getBoundingClientRect();
+      const inputBounds = composerInput.getBoundingClientRect();
       const tabBounds = tabBar.getBoundingClientRect();
+      const inputHitTarget = document.elementFromPoint(
+        inputBounds.left + inputBounds.width / 2,
+        inputBounds.top + inputBounds.height / 2,
+      );
       return {
         composerBottom: composerBounds.bottom,
         composerTop: composerBounds.top,
+        inputHitTarget: inputHitTarget === composerInput || composerInput.contains(inputHitTarget),
+        position: getComputedStyle(composer).position,
         tabTop: tabBounds.top,
         viewportHeight: window.innerHeight,
       };
@@ -265,6 +282,8 @@ test.describe("realtime guardrails", () => {
     expect(layout).not.toBeNull();
     expect(layout!.composerBottom).toBeLessThanOrEqual(layout!.tabTop + 1);
     expect(layout!.composerTop).toBeGreaterThanOrEqual(0);
+    expect(layout!.inputHitTarget).toBe(true);
+    expect(layout!.position).toBe("static");
     expect(layout!.tabTop).toBeLessThan(layout!.viewportHeight);
   });
 
@@ -569,7 +588,7 @@ test.describe("realtime guardrails", () => {
     }
   });
 
-  test("persists all six primary companions as full-body VRMs", async ({ page }) => {
+  test("persists all six primary companions as full-body VRMs", async ({ page }, testInfo) => {
     const fixture = await createRealtimeFixture(page.request, ownerToken, {
       recipe: { ...defaultRecipe, avatar_model: "mori_2d" },
     });
@@ -655,6 +674,7 @@ test.describe("realtime guardrails", () => {
       await expect(canvas).toHaveAttribute("data-avatar-runtime-instance", /.+/);
       await expect.poll(() => requestedVrmPaths.has(preset.asset)).toBe(true);
       await expect(page.getByTestId("companion-portrait")).toHaveCount(0);
+      await runtime.screenshot({ path: testInfo.outputPath(`companion-${preset.modelId}.png`) });
     }
 
     const miraChoice = page.getByTestId("companion-preset-memory-navigator");
@@ -2134,7 +2154,7 @@ test.describe("realtime guardrails", () => {
     const assistantCount = await assistantTurns.count();
     await holdToTalkBelowVad(page, 120);
     await expect(assistantTurns).toHaveCount(assistantCount + 1, { timeout: 20_000 });
-    await expect(assistantTurns.last()).toContainText("模拟回复");
+    await expect(assistantTurns.last()).toContainText("此回复为预设内容");
     await expect(page.getByText(/Realtime session already has an active turn/)).toHaveCount(0);
   });
 
@@ -2356,7 +2376,7 @@ test.describe("realtime guardrails", () => {
         lang: "zh-CN",
         pitch: expect.closeTo(1.26, 6),
         rate: expect.closeTo(0.96, 6),
-        text: expect.stringContaining("模拟回复"),
+        text: expect.stringContaining("这是一条预设回复"),
         voiceURI: "e2e-soft",
       }],
     });
@@ -3283,7 +3303,7 @@ test.describe("realtime guardrails", () => {
     await expect(avatar).toHaveAttribute("data-avatar-emotion", "focused");
     await expect(canvas).toHaveAttribute("data-avatar-emotion", "focused");
     releaseTextTurn();
-    await expect(page.locator('[data-role="assistant"]').last()).toContainText("模拟回复", {
+    await expect(page.locator('[data-role="assistant"]').last()).toContainText("此回复为预设内容", {
       timeout: 20_000,
     });
     await page.unroute("**/api/v1/sessions/*/turns/stream");
@@ -4299,7 +4319,7 @@ async function expectRealtimeReply(page: Page, userText: string) {
     timeout: 20_000,
   });
   const assistantTurn = page.locator('[data-role="assistant"]').last();
-  await expect(assistantTurn).toContainText("模拟回复", { timeout: 20_000 });
+  await expect(assistantTurn).toContainText("此回复为预设内容", { timeout: 20_000 });
 }
 
 async function waitForPlayback(page: Page) {
@@ -4758,5 +4778,5 @@ async function sendTextAndExpectAssistantReply(page: Page, message: string, time
   await page.getByRole("button", { name: "发送文本" }).click();
 
   const assistantTurn = page.locator('[data-role="assistant"]').last();
-  await expect(assistantTurn).toContainText("模拟回复", { timeout });
+  await expect(assistantTurn).toContainText("此回复为预设内容", { timeout });
 }

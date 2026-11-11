@@ -1,0 +1,55 @@
+.panel {
+  scroll-margin-top: 24px;
+  min-width: 0;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.column {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.column h3 {
+  margin: 0;
+}
+
+.column input,
+.column select,
+.column textarea {
+  width: 100%;
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.status {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.example {
+  margin-top: 24px;
+}
+
+.example pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 800px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

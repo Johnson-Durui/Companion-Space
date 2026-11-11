@@ -360,7 +360,7 @@ class StudySpaceService:
         if space_dir.exists():
             staged_dir = self._contained_child(
                 self.settings.spaces_root,
-                f".deleting-{space_id}-{uuid4()}",
+                f".d-{uuid4().hex}",
             )
             space_dir.rename(staged_dir)
 
@@ -411,7 +411,7 @@ class StudySpaceService:
                 raise ValueError("Material storage path is not a file")
             staged_path = self._contained_child(
                 material_root,
-                f".deleting-{material_id}-{uuid4()}{storage_path.suffix}",
+                f".d-{uuid4().hex}{storage_path.suffix}",
             )
             storage_path.rename(staged_path)
 

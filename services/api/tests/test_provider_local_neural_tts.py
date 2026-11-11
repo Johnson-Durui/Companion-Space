@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from app.api.deps import get_container
+from app.main import app
 from app.core.config import Settings
 from app.models.domain import (
     CompanionEmotion,
@@ -23,13 +24,22 @@ from app.providers.errors import (
     ProviderProtocolError,
     ProviderTimeoutError,
 )
+from app.providers.base import ProviderAdapter
+from app.providers.errors import ProviderUnavailableError
 from app.providers.factory import build_provider_adapter
-from app.providers.local_neural_tts import LOCAL_NEURAL_TTS_MODEL, LocalNeuralTTSProvider
+from app.providers.local_neural_tts import (
+    LOCAL_NEURAL_TTS_DEFAULT_BASE_URL,
+    LOCAL_NEURAL_TTS_MODEL,
+    LocalNeuralTTSProvider,
+)
+from app.providers.pinned_http import resolve_provider_base_url
+from app.services import provider_registry as provider_registry_module
 from app.services.provider_registry import (
     BUILTIN_MOCK_CONNECTION_ID,
     BUILTIN_MOCK_TTS_MODEL,
     BUILTIN_NEURAL_TTS_CONNECTION_ID,
     ProviderRegistryService,
+    PROVIDER_SPEECH_PREVIEW_MAX_BYTES,
     _is_retryable_sqlite_error,
     ensure_builtin_mock_connection,
 )
@@ -424,8 +434,9 @@ def test_enabled_builtin_neural_connection_preserves_existing_assignments_after_
         registry.update_connection(BUILTIN_NEURAL_TTS_CONNECTION_ID, label="Changed")
     with pytest.raises(ValueError, match="cannot be deleted"):
         registry.delete_connection(BUILTIN_NEURAL_TTS_CONNECTION_ID)
-    with pytest.raises(ValueError, match="only through the built-in connection"):
-        registry.save_connection(provider="local-neural", label="Duplicate")
+    custom = registry.save_connection(provider="local-neural", label="Custom")
+    assert custom["id"] != BUILTIN_NEURAL_TTS_CONNECTION_ID
+    assert custom["base_url"] == LOCAL_NEURAL_TTS_DEFAULT_BASE_URL
 
 
 def test_enabled_new_space_assigns_only_tts_to_ready_builtin_neural(
@@ -574,3 +585,420 @@ def test_sidecar_status_catches_provider_failures_but_surfaces_programming_error
     )
     with pytest.raises(sqlite3.OperationalError, match="no such table"):
         client.get("/api/v1/tts/sidecar")
+
+
+def test_custom_local_neural_connections_default_update_and_store_no_secret(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    settings = Settings(
+        object_storage_path=str(tmp_path / "storage"),
+        builtin_neural_tts_enabled=False,
+    )
+    repository = SQLiteRepository(settings)
+    vault = VaultService(settings, repository)
+    registry = ProviderRegistryService(repository, vault)
+    stored_secrets: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        vault,
+        "put_provider_secret",
+        lambda connection_id, secret: stored_secrets.append((connection_id, secret)),
+    )
+
+    descriptor = next(
+        item for item in registry.list_registry() if item["provider"] == "local-neural"
+    )
+    assert descriptor["supports_custom_base_url"] is True
+    assert descriptor["requires_api_key"] is False
+
+    created = registry.save_connection(provider="local-neural", label="My Qwen voice")
+    assert created["base_url"] == LOCAL_NEURAL_TTS_DEFAULT_BASE_URL
+    assert created["capabilities"] == ["tts"]
+    assert stored_secrets == []
+
+    updated = registry.update_connection(
+        created["id"],
+        label="Private Qwen voice",
+        base_url="http://192.168.50.20:9001",
+    )
+    assert updated["label"] == "Private Qwen voice"
+    assert updated["base_url"] == "http://192.168.50.20:9001"
+    assert stored_secrets == []
+
+    with pytest.raises(ValueError, match="does not accept an API Key"):
+        registry.update_connection(created["id"], api_key="must-not-be-stored")
+    for unsafe_url in (
+        "http://user:secret@127.0.0.1:8001",
+        "http://127.0.0.1:8001?token=secret",
+        "http://127.0.0.1:8001/#fragment",
+        "http://metadata.google.internal/computeMetadata/v1",
+    ):
+        with pytest.raises(ValueError):
+            registry.save_connection(
+                provider="local-neural",
+                label="Unsafe",
+                base_url=unsafe_url,
+            )
+
+
+def test_local_neural_requests_and_cancel_use_the_same_pinned_transport_policy(
+    monkeypatch,
+) -> None:
+    calls: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "DELETE":
+            return httpx.Response(204, request=request)
+        return httpx.Response(
+            200,
+            request=request,
+            headers={
+                "content-type": "application/octet-stream",
+                "x-audio-format": "pcm_s16le",
+                "x-audio-channels": "1",
+                "x-audio-sample-rate": "24000",
+            },
+            content=b"\x01\x00",
+        )
+
+    def build_transport(base_url: str, *, provider: str) -> httpx.AsyncBaseTransport:
+        calls.append((base_url, provider))
+        return httpx.MockTransport(handler)
+
+    monkeypatch.setattr(
+        "app.providers.local_neural_tts.build_pinned_http_transport",
+        build_transport,
+    )
+    provider = LocalNeuralTTSProvider(base_url="http://voice.lan:8001")
+
+    assert asyncio.run(_collect(provider, "hello")) == [b"\x01\x00"]
+    asyncio.run(provider._cancel_inference("finished"))
+    assert calls == [
+        ("http://voice.lan:8001", "local-neural"),
+        ("http://voice.lan:8001", "local-neural"),
+    ]
+
+
+def test_local_neural_base_urls_allow_private_hosts_without_weakening_remote_policy() -> None:
+    private = resolve_provider_base_url(
+        "http://192.168.10.15:8001",
+        provider="local-neural",
+    )
+    assert private.addresses == ("192.168.10.15",)
+    assert resolve_provider_base_url(
+        "http://127.0.0.1:8001",
+        provider="local-neural",
+    ).addresses == ("127.0.0.1",)
+    assert resolve_provider_base_url(
+        "http://[::1]:8001",
+        provider="local-neural",
+    ).addresses == ("::1",)
+    assert resolve_provider_base_url(
+        "http://[fd12:3456:789a::1]:8001",
+        provider="local-neural",
+    ).addresses == ("fd12:3456:789a::1",)
+
+    with pytest.raises(ValueError, match="blocked network address"):
+        resolve_provider_base_url(
+            "http://192.168.10.15:8001",
+            provider="openai-compatible",
+        )
+    with pytest.raises(ValueError, match="metadata service"):
+        resolve_provider_base_url(
+            "http://metadata.google.internal/computeMetadata/v1",
+            provider="local-neural",
+            resolver=lambda _host: ["169.254.169.254"],
+        )
+    for special_address in ("100.64.0.1", "100.100.100.200"):
+        with pytest.raises(ValueError, match="blocked network address"):
+            resolve_provider_base_url(
+                f"http://{special_address}:8001",
+                provider="local-neural",
+            )
+
+
+class _SpeechPreviewAdapter(ProviderAdapter):
+    name = "local-neural"
+
+    def __init__(self, chunks: list[bytes] | None = None, error: Exception | None = None) -> None:
+        self.chunks = chunks if chunks is not None else [b"\x01\x00", b"\x02\x00"]
+        self.error = error
+        self.calls: list[dict[str, object]] = []
+
+    async def synthesize_speech_stream(
+        self,
+        model: str,
+        text: str,
+        voice_id: str,
+        speed: float = 1.0,
+        sample_rate_hz: int = 24000,
+    ):
+        self.calls.append(
+            {
+                "model": model,
+                "text": text,
+                "voice_id": voice_id,
+                "speed": speed,
+                "sample_rate_hz": sample_rate_hz,
+            }
+        )
+        if self.error is not None:
+            raise self.error
+        for chunk in self.chunks:
+            yield chunk
+
+
+def _create_custom_local_neural(client, owner_token: str) -> dict[str, object]:
+    response = client.post(
+        "/api/v1/providers/connections",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={
+            "provider": "local-neural",
+            "label": "Preview voice",
+            "base_url": "http://127.0.0.1:8001",
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_provider_speech_preview_is_owner_only_and_forwards_real_synthesis_parameters(
+    client,
+    owner_token,
+    monkeypatch,
+) -> None:
+    connection = _create_custom_local_neural(client, owner_token)
+    adapter = _SpeechPreviewAdapter()
+    monkeypatch.setattr(
+        provider_registry_module,
+        "build_provider_adapter",
+        lambda _connection, api_key: adapter if api_key is None else None,
+    )
+    path = f"/api/v1/providers/connections/{connection['id']}/speech-preview"
+    payload = {
+        "model": LOCAL_NEURAL_TTS_MODEL,
+        "text": "真实试听",
+        "voice_id": "vivian",
+        "speaking_rate": 1.25,
+    }
+
+    assert client.post(path, json=payload).status_code == 401
+    response = client.post(
+        path,
+        headers={
+            "Authorization": f"Bearer {owner_token}",
+            "Origin": "http://127.0.0.1:3000",
+        },
+        json=payload,
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.content == b"\x01\x00\x02\x00"
+    assert response.headers["content-type"] == "audio/pcm;rate=24000"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-audio-channels"] == "1"
+    assert response.headers["x-audio-sample-rate"] == "24000"
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:3000"
+    exposed_headers = {
+        item.strip().lower()
+        for item in response.headers["access-control-expose-headers"].split(",")
+    }
+    assert exposed_headers == {"x-audio-sample-rate", "x-audio-channels"}
+    assert adapter.calls == [
+        {
+            "model": LOCAL_NEURAL_TTS_MODEL,
+            "text": "真实试听",
+            "voice_id": "vivian",
+            "speed": 1.25,
+            "sample_rate_hz": 24000,
+        }
+    ]
+    assert "api_key" not in response.text.lower()
+
+
+@pytest.mark.parametrize(
+    ("chunks", "expected_status", "expected_detail"),
+    [
+        ([], 502, "empty"),
+        ([b"\x00"], 502, "invalid audio"),
+        ([b"\x00\x00" * (PROVIDER_SPEECH_PREVIEW_MAX_BYTES // 2 + 1)], 400, "size limit"),
+    ],
+)
+def test_provider_speech_preview_rejects_invalid_pcm(
+    client,
+    owner_token,
+    monkeypatch,
+    chunks,
+    expected_status,
+    expected_detail,
+) -> None:
+    connection = _create_custom_local_neural(client, owner_token)
+    monkeypatch.setattr(
+        provider_registry_module,
+        "build_provider_adapter",
+        lambda _connection, api_key: _SpeechPreviewAdapter(chunks=chunks),
+    )
+    response = client.post(
+        f"/api/v1/providers/connections/{connection['id']}/speech-preview",
+        headers={"Authorization": f"Bearer {owner_token}"},
+        json={"model": "model", "text": "test", "voice_id": "voice"},
+    )
+    assert response.status_code == expected_status, response.text
+    assert expected_detail in response.text.lower()
+
+
+def test_provider_speech_preview_rejects_unknown_non_tts_invalid_and_upstream_errors(
+    client,
+    owner_token,
+    monkeypatch,
+) -> None:
+    headers = {"Authorization": f"Bearer {owner_token}"}
+    unknown = client.post(
+        "/api/v1/providers/connections/missing/speech-preview",
+        headers=headers,
+        json={"model": "model", "text": "test", "voice_id": "voice"},
+    )
+    assert unknown.status_code == 404
+
+    non_tts = client.post(
+        "/api/v1/providers/connections",
+        headers=headers,
+        json={"provider": "anthropic", "label": "Chat only", "api_key": "test-key"},
+    )
+    assert non_tts.status_code == 201
+    rejected = client.post(
+        f"/api/v1/providers/connections/{non_tts.json()['id']}/speech-preview",
+        headers=headers,
+        json={"model": "model", "text": "test", "voice_id": "voice"},
+    )
+    assert rejected.status_code == 424
+    assert "does not provide tts" in rejected.text.lower()
+
+    invalid = client.post(
+        f"/api/v1/providers/connections/{non_tts.json()['id']}/speech-preview",
+        headers=headers,
+        json={"model": " ", "text": "", "voice_id": "voice", "speaking_rate": 2.1},
+    )
+    assert invalid.status_code == 422
+
+    connection = _create_custom_local_neural(client, owner_token)
+    monkeypatch.setattr(
+        provider_registry_module,
+        "build_provider_adapter",
+        lambda _connection, api_key: _SpeechPreviewAdapter(
+            error=ProviderUnavailableError(
+                provider="local-neural",
+                public_detail="Local neural TTS is unavailable.",
+            )
+        ),
+    )
+    upstream = client.post(
+        f"/api/v1/providers/connections/{connection['id']}/speech-preview",
+        headers=headers,
+        json={"model": "model", "text": "test", "voice_id": "voice"},
+    )
+    assert upstream.status_code == 503
+    assert upstream.json()["code"] == "provider_unavailable"
+
+
+def test_provider_speech_preview_http_disconnect_cancels_sidecar_inference(
+    client,
+    owner_token,
+    monkeypatch,
+) -> None:
+    connection = _create_custom_local_neural(client, owner_token)
+
+    async def scenario() -> None:
+        entered = asyncio.Event()
+        deleted = asyncio.Event()
+        post_inference_id: str | None = None
+        deleted_inference_id: str | None = None
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal post_inference_id, deleted_inference_id
+            if request.method == "POST":
+                post_inference_id = request.headers["x-inference-id"]
+                return httpx.Response(
+                    200,
+                    request=request,
+                    headers={
+                        "content-type": "application/octet-stream",
+                        "x-audio-format": "pcm_s16le",
+                        "x-audio-channels": "1",
+                        "x-audio-sample-rate": "24000",
+                    },
+                    stream=_BlockingAsyncByteStream(entered),
+                )
+            deleted_inference_id = request.url.path.rsplit("/", 1)[-1]
+            deleted.set()
+            return httpx.Response(204, request=request)
+
+        monkeypatch.setattr(
+            provider_registry_module,
+            "build_provider_adapter",
+            lambda _connection, api_key: LocalNeuralTTSProvider(
+                transport=httpx.MockTransport(handler)
+            ),
+        )
+        payload = json.dumps(
+            {
+                "model": LOCAL_NEURAL_TTS_MODEL,
+                "text": "cancel this preview",
+                "voice_id": "vivian",
+            }
+        ).encode()
+        receive_count = 0
+
+        async def receive() -> dict[str, object]:
+            nonlocal receive_count
+            receive_count += 1
+            if receive_count == 1:
+                return {"type": "http.request", "body": payload, "more_body": False}
+            await entered.wait()
+            return {"type": "http.disconnect"}
+
+        sent: list[dict[str, object]] = []
+
+        async def send(message: dict[str, object]) -> None:
+            sent.append(message)
+
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.3"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": f"/api/v1/providers/connections/{connection['id']}/speech-preview",
+            "raw_path": (
+                f"/api/v1/providers/connections/{connection['id']}/speech-preview"
+            ).encode(),
+            "query_string": b"",
+            "root_path": "",
+            "headers": [
+                (b"host", b"127.0.0.1:8000"),
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(payload)).encode()),
+                (b"authorization", f"Bearer {owner_token}".encode()),
+            ],
+            "client": ("127.0.0.1", 50000),
+            "server": ("127.0.0.1", 8000),
+            "state": {},
+        }
+        request_task = asyncio.create_task(app(scope, receive, send))
+        await entered.wait()
+        await asyncio.sleep(0.1)
+        completed_after_disconnect = request_task.done()
+        if not completed_after_disconnect:
+            request_task.cancel()
+        try:
+            await request_task
+        except asyncio.CancelledError:
+            pass
+
+        assert completed_after_disconnect, "HTTP disconnect did not stop speech synthesis"
+        assert deleted.is_set(), "Sidecar inference cancellation was not requested"
+        assert post_inference_id is not None
+        assert deleted_inference_id == post_inference_id
+        assert any(message.get("status") == 499 for message in sent)
+
+    asyncio.run(scenario())

@@ -53,7 +53,7 @@ function NavIcon({ name }: { name: NavIconName }) {
 }
 
 const desktopItems = [
-  { href: "/", label: "今日", ariaLabel: "主舞台", icon: "home" as const, paths: ["/"] },
+  { href: "/", label: "今日", ariaLabel: "主舞台", icon: "home" as const, paths: ["/", "/room"] },
   { href: "/spaces", label: "空间", ariaLabel: "学习空间", icon: "spaces" as const, paths: ["/spaces"] },
   { href: "/study", label: "共学", ariaLabel: "开始共学", icon: "study" as const, paths: ["/study"] },
   { href: "/sessions", label: "复盘", ariaLabel: "会话复盘", icon: "review" as const, paths: ["/sessions", "/memory", "/review-items"] },
@@ -68,7 +68,7 @@ const utilityItems = [
 ];
 
 const mobileItems = [
-  { href: "/", label: "今日", icon: "home" as const, paths: ["/"] },
+  { href: "/", label: "今日", icon: "home" as const, paths: ["/", "/room"] },
   { href: "/spaces", label: "空间", icon: "spaces" as const, paths: ["/spaces"] },
   { href: "/study", label: "共学", icon: "study" as const, paths: ["/study"] },
   { href: "/sessions", label: "复盘", icon: "review" as const, paths: ["/sessions", "/memory", "/review-items"] },

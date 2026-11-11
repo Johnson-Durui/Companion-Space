@@ -4,10 +4,56 @@
 
 [`docs/architecture-and-windows-handoff.zh-CN.md`](docs/architecture-and-windows-handoff.zh-CN.md)
 
-## 推荐方式
+## 本机交付版：先用 Mock 体验
+
+需要 Windows 10/11、Node.js 24、Python 3.12 或 3.13，以及支持 WebGL 的浏览器。把交付包解压到可写目录，例如 `E:\Codex\Companion-Space`，在项目根目录打开 PowerShell。
+
+首次安装依赖需要联网：
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r services/api/requirements.txt
+npx.cmd --yes npm@11.21.2 ci
+```
+
+如果安装的是 Python 3.13，使用 `py -3.13`；也可用已安装 Python 的完整路径。启动脚本优先读取项目 `.venv`，支持用 `COMPANION_PYTHON` 指向另一个已装依赖的 Python，无需修改脚本。
+
+请保留上面固定的 npm 版本：npm 11.18 之前存在 workspace 安全补丁覆盖缺陷。`npx` 只运行 npm 11.21.2，不替换系统的全局 npm；日常 `npm.cmd run` 命令不受影响。
+
+日常启动：
+
+```powershell
+.\START-LOCAL-WINDOWS.ps1 -Production
+```
+
+脚本构建生产前端，准备好后访问 `http://127.0.0.1:3000`。保留该窗口，Ctrl+C 停止本次启动的服务。省略 `-Production` 可进入开发模式。若系统阻止本地脚本执行，可仅对当前终端运行 `Set-ExecutionPolicy -Scope Process Bypass` 后重试。
+
+首次体验约五分钟：
+
+1. 打开「本地保险箱」，设置主密码。刷新浏览器后需重新解锁，请自行保管密码。
+2. 进入「今日 → 进入我的书房」，创建或选择学习空间。默认 Mock 无需 API Key。
+3. 从资料书架导入 `sample_data` 中的示例，或添加自己的笔记。
+4. 选择伙伴，进入沉浸共学。输入文字并发送；语音只在主动启用后请求麦克风。`Ctrl+Enter` 发送，`Esc` 退出沉浸。
+5. 回到书房可恢复所选空间的上次会话；从「复盘」整理摘要、确认记忆和复习项。
+
+Mock 使用预设内容验证流程；需要自由回答时，在「声音与模型」中配置自己的模型，再到空间设置中分配。书房的专注倒计时离页后重置。
+
+接语音服务可直接打开「声音与模型 → 语音接口配置」：填写地址、保存连接、测试并试听，再绑定学习空间。本地 Qwen 默认地址为 `http://127.0.0.1:8001`，模型为 `qwen3-tts-0.6b-customvoice`，声线可先用 `Serena`；保存自定义连接无需修改 `.env`，但模型服务必须先启动。在线服务还需填写其 API Key。具体步骤与可调用的语音 API 见 [语音服务接入](docs/voice-service.md)。
+
+### 常见情况
+
+- 提示找不到 Python：先完成 `.venv` 创建与依赖安装，避免使用 Windows Store 的占位 `python.exe`。
+- 提示端口占用：先检查原服务；脚本不强行停止占用进程。可加 `-ApiPort 8400 -WebPort 3400` 使用另一组端口。
+- 角色加载慢：等待资源加载；也可在形象设置中选择 2D。首次资源下载和编译时间不代表后续响应速度。
+- 刷新后提示解锁：访问令牌只保存在当前页面内存，这是正常行为；重新解锁后回书房恢复会话。
+- 停止窗口后页面不可用：本机服务已停止，重新运行启动命令。
+
+交付内容和本轮实测范围见 [交付记录](docs/release/delivery-20261111.md)。源码包不包含 Node/Python、依赖目录、用户数据库或 API Key。
+
+## Docker 方式
 
 1. 安装 Windows 11 + Docker Desktop，并启用 WSL2 后端。
-2. 把项目完整解压到短、ASCII、非 OneDrive 路径，例如 `C:\Companion-Space`。
+2. 把项目完整解压到可写、非 OneDrive 路径，例如 `E:\Codex\Companion-Space`。
 3. 启动 Docker Desktop，等待引擎状态为 Running。
 4. 在项目根目录打开 PowerShell：
 
@@ -48,31 +94,14 @@ certutil -addstore -f Root ".\infra\caddy\data\caddy\pki\authorities\local\root.
 
 ## 不用 Docker 的本机路径
 
-使用 Node 24 与 npm 11.18 以上；先执行 `npm.cmd install --global npm@11.21.1`。固定安装器可避免旧版 npm 漏掉 workspace 的安全依赖覆盖。
-
-Docker Desktop 没开、或不想重建容器时，需要 Node.js 24、npm 和 Python 3.12 或 3.13
-（推荐项目根目录 `.venv`）。首次运行先安装依赖：
-
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r services\api\requirements.txt
-npm.cmd ci
-```
-
-然后在仓库根目录运行：
+Docker Desktop 没开、或不想重建容器时，在仓库根目录运行：
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
 .\START-LOCAL-WINDOWS.ps1
 ```
 
-如果工具不在 PATH，可显式传入路径：
-
-```powershell
-.\START-LOCAL-WINDOWS.ps1 -PythonPath C:\Python312\python.exe -NpmPath 'C:\Program Files\nodejs\npm.cmd'
-```
-
-然后打开 `http://127.0.0.1:3000`。脚本会把前端指到本机 API（`127.0.0.1:8000`），而不是 Docker 用的同源 `/`。**已经健康的 API / TTS 会直接复用，不会停 8001。** 若 3000 在监听但页面超时，只停挂死的 Next.js 再重跑，不要杀 API/TTS。六位主角都是项目原创；MIRA、KITE、CAEL、LYRA 使用 painted-blender 模型，NOVA、ECHO 使用轻量 original-vrm 原型。先走 Mock：Vault → 空间 → 资料 → 角色 → 文字共学。localhost 上的麦克风实时语音可用；局域网 IP 需要 HTTPS。
+然后打开 `http://127.0.0.1:3000`。脚本会把前端指到本机 API（`127.0.0.1:8000`），而不是 Docker 用的同源 `/`。**已经健康的 API / TTS 会直接复用，不会停 8001。** 若 3000 在监听但页面超时，只停挂死的 Next.js 再重跑，不要杀 API/TTS。四主角是 painted-blender 原创，不是许可样本。先走 Mock：Vault → 空间 → 资料 → 澄羽/曜柚/凛序/弦灯 → 文字共学。localhost 上的麦克风实时语音可用；局域网 IP 需要 HTTPS。
 
 本仓库是 npm workspace，用 `npm.cmd`，不要用 pnpm。
 
@@ -129,10 +158,12 @@ CI 会额外生成明确标记为 unsigned 的 Android AAB，并在 macOS runner
 
 ## 本地神经语音怎么切
 
-sidecar 在 `http://127.0.0.1:8001/healthz` 返回 `ready` 后：
+推荐通过「语音接口配置」新建并绑定自己的本地连接，见 [语音服务接入](docs/voice-service.md)。下面是使用 `.env` 中 `BUILTIN_NEURAL_TTS_ENABLED=true` 注册的内置连接时的行为。
+
+sidecar 在 `http://127.0.0.1:8001/healthz` 返回 `status=ready` 后：
 
 1. 新空间会自动把 TTS 能力位绑到 `builtin-neural-tts` / `qwen3-tts-0.6b-customvoice`。
-2. 六位主角配方默认已是「本地神经语音」。
+2. 四主角配方默认已是「本地神经语音」。
 3. **旧 Mock 空间不会被改写。** 解锁后打开该空间 → **默认模型分配** → TTS 选 **Built-in Neural TTS**，模型填 `qwen3-tts-0.6b-customvoice`。
 4. 不解锁 Vault 也可以看状态：设置页「本地神经语音」，或 `GET /api/v1/tts/sidecar`。
 

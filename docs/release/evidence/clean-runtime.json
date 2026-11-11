@@ -1,0 +1,58 @@
+{
+  "targetRoot": "E:\\Codex\\Verification\\Companion-Space-20261111-final\\Companion-Space",
+  "web": "http://127.0.0.1:3411",
+  "api": "http://127.0.0.1:8411",
+  "python": "E:\\Codex\\Verification\\Companion-Space-20261111-final\\Companion-Space\\.venv\\Scripts\\python.exe",
+  "browser": "Microsoft Edge",
+  "screenshots": [
+    "room-desktop.png",
+    "room-mobile.png",
+    "companion-2d-desktop.png",
+    "companion-2d-mobile.png",
+    "companion-vrm-desktop.png"
+  ],
+  "pageErrors": [],
+  "startupMs": 27551,
+  "apiHealth": {
+    "ok": true
+  },
+  "optimizedImage": {
+    "status": 200,
+    "type": "image/png",
+    "bytes": 265809
+  },
+  "roomTitle": [
+    {
+      "width": 1440,
+      "lines": 1.9996843434343434,
+      "words": [
+        {
+          "word": "星轨书房",
+          "rectangles": 1
+        },
+        {
+          "word": "二分查找",
+          "rectangles": 1
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "lines": 1.9994986631016043,
+      "words": [
+        {
+          "word": "星轨书房",
+          "rectangles": 1
+        },
+        {
+          "word": "二分查找",
+          "rectangles": 1
+        }
+      ]
+    }
+  ],
+  "mobilePortraitUnobscured": true,
+  "microphoneRequests": 0,
+  "status": "passed",
+  "ownedServicesStopped": true
+}

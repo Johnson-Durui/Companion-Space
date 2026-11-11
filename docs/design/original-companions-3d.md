@@ -26,16 +26,16 @@ metadata while rebuilding face positions, normals and expression regions.
 The face sits outside the head surface with an elliptical outline, and the
 central front of the spherical hair cap is open so that brows, eyes and
 mouth remain visible. Separate bangs and hair vertices are preserved.
-Use `node scripts/repair-painted-vrm-face.mjs --check` to verify that repair;
-the default mode is a dry run and `--write` is an explicit maintenance action.
+Use `npm run test:original-vrm-face` to verify the current exports, manifest
+hashes and repair idempotence. `npm run repair:original-vrm-face` updates the
+four painted files and manifest during maintenance.
 
 `npm run test:original-vrm` checks face/body proportions, head placement and
 actual evaluated vertices for all nine expressions plus blink. Frontal
 visibility rays additionally check five authored facial landmarks per
 painted model and both eyes plus mouth in each procedural prototype against
 the head and hair geometry. Texture V must run from top to bottom in all six
-models. Registering
-an expression name alone is insufficient evidence of a valid avatar.
+models. The verifier also checks the evaluated geometry for each expression.
 Runtime: existing `avatar-runtime` / `vrm-stage` / CC0 VRMA / 7-emotion face /
 1.30s exactly-once body reaction.
 
