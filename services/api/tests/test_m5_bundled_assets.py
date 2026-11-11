@@ -33,13 +33,13 @@ EXPECTED_MODELS = {
         "attribution_required": "no",
     },
     "Nova.vrm": {
-        "sha256": "0c8674bb56c7a312a4691681e26db140078b8fe67eb212f75a4058b65e17a8ab",
+        "sha256": "3b06b5b69e7e55324635100f9094719f5f0cb969ffe3a482311ff645980dc2bd",
         "spec_version": "1.0",
         "redistribution_allowed": "yes",
         "attribution_required": "no",
     },
     "Echo.vrm": {
-        "sha256": "18a8e89459f6aa8fb6aff64faa9d58151c7ab24a05603cca2751487e25cc7c36",
+        "sha256": "bb55a2dd2f22d9101fea25f5b72b8154e66eac11dcb529bf879c1318b48eb88a",
         "spec_version": "1.0",
         "redistribution_allowed": "yes",
         "attribution_required": "no",
