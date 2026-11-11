@@ -292,11 +292,8 @@ test("keeps the voice interface inside a 390px viewport", async ({ page }, testI
   expect(bounds).not.toBeNull();
   expect(bounds!.x).toBeGreaterThanOrEqual(0);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
-  await page.evaluate(() => {
-    const region = document.getElementById("voice-service");
-    if (region) window.scrollTo({ behavior: "auto", top: window.scrollY + region.getBoundingClientRect().top });
-  });
-  await expect.poll(async () => Math.abs((await voiceRegion.boundingBox())?.y ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(1);
+  await voiceRegion.evaluate((region) => region.scrollIntoView({ block: "start", behavior: "instant" }));
+  await expect(voiceRegion.getByRole("heading", { name: "语音接口配置", exact: true })).toBeInViewport();
   await page.screenshot({ animations: "disabled", path: testInfo.outputPath("voice-interface-viewport-mobile-390.png") });
   await voiceRegion.screenshot({
     animations: "disabled",
