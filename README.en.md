@@ -14,7 +14,7 @@ The supported acceptance path is a Windows desktop browser with the local Mock p
 - Optional Capacitor Android/iOS shells with trusted HTTPS and eight-digit pairing.
 - Optional neural speech sidecar for compatible NVIDIA hosts.
 
-Real providers, physical microphones, Docker runtime, mobile signing and real-device pairing, iOS/Xcode, store release, and long-duration hardware performance require target-environment validation. See the [2026-11-11 delivery record](docs/release/delivery-20261111.md) and [voice interface release record](docs/release/voice-interface-20261112.md).
+The release includes Windows production startup and Docker HTTPS smoke checks. Real providers, physical microphones, mobile signing, and real-device pairing require target-environment validation. See the [room and runtime update](docs/release/room-and-runtime-20261112.md) and [voice interface release record](docs/release/voice-interface-20261112.md).
 
 ## Quick start
 

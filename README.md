@@ -25,6 +25,8 @@
 
 [开源更新记录](docs/release/room-and-runtime-20261112.md) 包含新版书房截图、素材来源及运行验证。
 
+![互动书房桌面界面](docs/release/screenshots/room-refresh-desktop.png)
+
 移动壳的商店签名与真机验收、真实模型服务和实体麦克风仍需在目标环境验证。六个 VRM 的许可独立于源码许可证，企业商业使用尚未授权，见下方许可表。
 
 ### Windows 本机启动

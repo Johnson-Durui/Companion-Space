@@ -1189,14 +1189,6 @@ export function CharacterWorkshop({
     setLocalNotice(null);
   }, [seed, seedKey]);
 
-  useEffect(() => {
-    if (assetLoading || assetPreviewStale) {
-      setRuntimeCapabilities(null);
-      setRuntimeCapabilitiesAssetUrl(undefined);
-      setRuntimeMode("loading");
-    }
-  }, [assetLoading, assetPreviewStale]);
-
   const handleCapabilitiesChange = useCallback(
     (capabilities: AvatarRuntimeCapabilities | null) => {
       setRuntimeCapabilities(capabilities);
@@ -1254,10 +1246,23 @@ export function CharacterWorkshop({
   const runtimeRecipeView = useMemo(() => getRuntimeRecipeView(runtimeRecipe), [runtimeRecipe]);
   const spriteRuntimeDefinition = runtimeRecipeView.spriteDefinition;
   const portraitRuntimeDefinition = runtimeRecipeView.portraitDefinition;
-  const builtIn2dRuntimeReady = (
+  const usesBuiltIn2dRuntime = (
     runtimeRecipeView.runtimeKind === "sprite_2d"
     || runtimeRecipeView.runtimeKind === "portrait_2d"
-  ) && runtimeMode === "ready";
+  );
+  const builtIn2dRuntimeReady = usesBuiltIn2dRuntime && runtimeMode === "ready";
+
+  useEffect(() => {
+    // Loading a character's optional local assets does not change the public 2D
+    // sprite/portrait. Resetting this state after that runtime was already ready
+    // loses the ready notification because AvatarRuntime has no new mode change
+    // to publish.
+    if (!usesBuiltIn2dRuntime && (assetLoading || assetPreviewStale)) {
+      setRuntimeCapabilities(null);
+      setRuntimeCapabilitiesAssetUrl(undefined);
+      setRuntimeMode("loading");
+    }
+  }, [assetLoading, assetPreviewStale, usesBuiltIn2dRuntime]);
   const attachedModelPath = manifestText(assetManifest, "model_path");
   const displayedModelFilename = manifestText(assetManifest, "source_filename")
     ?? assetFilename(attachedModelPath)

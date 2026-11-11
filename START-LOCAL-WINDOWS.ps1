@@ -129,7 +129,7 @@ if ($apiHealthy) {
     if (-not (Test-ApiBrowserOrigin $apiUrl $webUrl)) {
         throw "The Companion API at $apiUrl does not allow browser origin $webUrl. Choose matching ports or restart that API with ALLOWED_ORIGINS=$webUrl."
     }
-    Write-Host "API already healthy — reusing $apiUrl, not starting another process." -ForegroundColor Green
+    Write-Host "API already healthy. Reusing $apiUrl." -ForegroundColor Green
 } elseif (Test-PortListening $ApiPort) {
     throw "Port $ApiPort is listening but is not a compatible Companion API ($apiUrl/healthz must return 2xx with {`"ok`":true}). Not starting a second API."
 } else {
@@ -145,7 +145,7 @@ if ($apiHealthy) {
 }
 
 if ($webHealthy) {
-    Write-Host "Web already healthy — open $webUrl" -ForegroundColor Green
+    Write-Host "Web already healthy. Open $webUrl" -ForegroundColor Green
     if (-not $api) {
         exit 0
     }
