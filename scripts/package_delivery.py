@@ -42,6 +42,7 @@ ROOT_FILE_PATTERNS = (
     "package.json",
     "playwright*.ts",
     "README.md",
+    "README.en.md",
     "SET-DOCKER-MEMORY-WINDOWS.ps1",
     "START-*.ps1",
     "WINDOWS-README.md",

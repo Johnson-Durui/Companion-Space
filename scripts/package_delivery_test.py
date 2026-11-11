@@ -48,6 +48,7 @@ class DeliveryPackageTests(unittest.TestCase):
 
     def test_packages_untracked_original_sources_but_excludes_secrets_and_output(self):
         self._write("apps/web/components/new-original.tsx", "export const original = true;\n")
+        self._write("README.en.md", "English guide\n")
         self._write_bytes("apps/web/public/assets/characters/art/painted/Nova_face.png", b"source-texture")
         self._write_bytes("apps/web/public/assets/characters/art/roster/nova.png", b"roster-card")
         self._write(".env", "SECRET=do-not-ship\n")
@@ -67,6 +68,7 @@ class DeliveryPackageTests(unittest.TestCase):
         self.assertIn("Companion-Space/apps/web/public/assets/characters/art/roster/nova.png", names)
         self.assertNotIn("Companion-Space/apps/web/public/assets/characters/art/painted/Nova_face.png", names)
         self.assertIn("Companion-Space/DELIVERY-MANIFEST.json", names)
+        self.assertIn("Companion-Space/README.en.md", names)
         self.assertIn("Companion-Space/docs/design/eciyuan-adaptation.md", names)
         self.assertFalse(any(".env" in name or "storage/" in name for name in names))
         forbidden_eciyuan = [
