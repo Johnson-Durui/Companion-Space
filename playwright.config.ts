@@ -10,6 +10,8 @@ const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === "1";
 const useHeadlessBrowser = process.env.E2E_HEADED !== "1";
 const browserChannel = process.env.E2E_BROWSER_CHANNEL;
 const captureVideo = Boolean(process.env.CI) || process.env.E2E_VIDEO === "1";
+// The launchers forward SIGTERM to their independently managed child processes.
+const gracefulShutdown = { signal: "SIGTERM", timeout: 5_000 } as const;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -40,12 +42,14 @@ export default defineConfig({
       command: `node tests/e2e/start-api.mjs ${API_PORT} ${WEB_PORT} ${storageRoot}`,
       port: API_PORT,
       timeout: 120_000,
+      gracefulShutdown,
       reuseExistingServer,
     },
     {
       command: `node tests/e2e/start-web.mjs dev ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
       port: WEB_PORT,
       timeout: 120_000,
+      gracefulShutdown,
       reuseExistingServer,
     },
   ],
