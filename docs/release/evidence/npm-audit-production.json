@@ -1,0 +1,76 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "katex": {
+      "name": "katex",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1241206,
+          "name": "katex",
+          "dependency": "katex",
+          "title": "KaTeX: Existing prototype pollution can bypass trust restrictions",
+          "url": "https://github.com/advisories/GHSA-238p-pmpm-9mq7",
+          "severity": "low",
+          "cwe": [
+            "CWE-807"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=0.11.0 <0.18.2"
+        }
+      ],
+      "effects": [
+        "mermaid"
+      ],
+      "range": "0.11.0 - 0.18.1",
+      "nodes": [
+        "node_modules/katex"
+      ],
+      "fixAvailable": {
+        "name": "mermaid",
+        "version": "12.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "mermaid": {
+      "name": "mermaid",
+      "severity": "low",
+      "isDirect": true,
+      "via": [
+        "katex"
+      ],
+      "effects": [],
+      "range": "10.9.0-rc.1 - 12.1.0",
+      "nodes": [
+        "node_modules/mermaid"
+      ],
+      "fixAvailable": {
+        "name": "mermaid",
+        "version": "12.3.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 2,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 2
+    },
+    "dependencies": {
+      "prod": 235,
+      "dev": 393,
+      "optional": 67,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 667
+    }
+  }
+}

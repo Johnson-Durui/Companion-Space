@@ -14,7 +14,7 @@ ENV NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL=${NEXT_PUBLIC_SPINE_RUNTIME_BRIDGE_URL}
 COPY package.json /app/package.json
 COPY package-lock.json /app/package-lock.json
 COPY apps/web/package.json /app/apps/web/package.json
-RUN npm install --global npm@11.21.1 && npm ci
+RUN npx --yes npm@11.21.2 ci
 
 COPY . /app
 

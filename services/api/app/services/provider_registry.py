@@ -14,9 +14,17 @@ from uuid import uuid4
 
 from app.models.domain import ModelAssignment, ProviderCapability, ProviderConnection
 from app.providers.base import ProviderAdapter
-from app.providers.errors import ProviderConfigurationError, ProviderError
+from app.providers.errors import (
+    ProviderConfigurationError,
+    ProviderError,
+    ProviderProtocolError,
+)
 from app.providers.factory import build_provider_adapter
-from app.providers.local_neural_tts import LOCAL_NEURAL_TTS_MODEL, LocalNeuralTTSProvider
+from app.providers.local_neural_tts import (
+    LOCAL_NEURAL_TTS_DEFAULT_BASE_URL,
+    LOCAL_NEURAL_TTS_MODEL,
+    LocalNeuralTTSProvider,
+)
 from app.providers.pinned_http import (
     ProviderHostResolutionError,
     default_host_resolver as _default_host_resolver,
@@ -72,6 +80,7 @@ BUILTIN_MOCK_ANALYSIS_MODEL = "mock-analysis-v1"
 BUILTIN_MOCK_STT_MODEL = "mock-stt-v1"
 BUILTIN_MOCK_TTS_MODEL = "mock-voice-v1"
 BUILTIN_NEURAL_TTS_CONNECTION_ID = "builtin-neural-tts"
+PROVIDER_SPEECH_PREVIEW_MAX_BYTES = 10 * 1024 * 1024
 
 
 PROVIDER_REGISTRY: dict[str, ProviderDescriptor] = {
@@ -90,6 +99,7 @@ PROVIDER_REGISTRY: dict[str, ProviderDescriptor] = {
     "local-neural": ProviderDescriptor(
         slug="local-neural",
         capabilities=(ProviderCapability.tts,),
+        supports_custom_base_url=True,
         requires_api_key=False,
         default_models=(LOCAL_NEURAL_TTS_MODEL,),
     ),
@@ -312,14 +322,14 @@ class ProviderRegistryService:
         descriptor = PROVIDER_REGISTRY.get(provider)
         if descriptor is None:
             raise ValueError(f"Unsupported provider: {provider}")
-        if provider == "local-neural":
-            raise ValueError(
-                "Local neural TTS is available only through the built-in connection"
-            )
         if not label.strip():
             raise ValueError("Provider label cannot be empty")
         if descriptor.requires_api_key and not api_key:
             raise ValueError("Provider API key cannot be empty")
+        if provider == "local-neural" and api_key:
+            raise ValueError("Local neural TTS does not accept an API Key")
+        if provider == "local-neural" and base_url is None:
+            base_url = LOCAL_NEURAL_TTS_DEFAULT_BASE_URL
         normalized_base_url = _normalize_base_url(
             base_url,
             provider=provider,
@@ -368,6 +378,8 @@ class ProviderRegistryService:
             raise ValueError("Provider label cannot be empty")
         if api_key is not None and not api_key:
             raise ValueError("Provider API key cannot be empty")
+        if existing.provider == "local-neural" and api_key is not None:
+            raise ValueError("Local neural TTS does not accept an API Key")
         if existing.provider == "mock":
             api_key = None
         normalized_base_url = (
@@ -549,6 +561,45 @@ class ProviderRegistryService:
             "latency_ms": round((monotonic() - started_at) * 1000),
             "message": "连接验证成功",
         }
+
+    async def preview_speech(
+        self,
+        connection_id: str,
+        *,
+        model: str,
+        text: str,
+        voice_id: str,
+        speaking_rate: float,
+    ) -> bytes:
+        connection = self._require_connection(connection_id)
+        if ProviderCapability.tts not in connection.capabilities:
+            raise ProviderConfigurationError(
+                provider=connection.provider,
+                public_detail=f"{connection.label} does not provide tts.",
+            )
+        adapter = self._build_adapter(connection)
+        audio = bytearray()
+        async for chunk in adapter.synthesize_speech_stream(
+            model=model,
+            text=text,
+            voice_id=voice_id,
+            speed=speaking_rate,
+            sample_rate_hz=24000,
+        ):
+            if len(audio) + len(chunk) > PROVIDER_SPEECH_PREVIEW_MAX_BYTES:
+                raise ValueError("Speech preview exceeds the configured size limit")
+            audio.extend(chunk)
+        if not audio:
+            raise ProviderProtocolError(
+                provider=connection.provider,
+                public_detail="The TTS provider returned an empty speech preview.",
+            )
+        if len(audio) % 2:
+            raise ProviderProtocolError(
+                provider=connection.provider,
+                public_detail="The TTS provider returned invalid audio PCM16 data.",
+            )
+        return bytes(audio)
 
     def resolve(
         self,

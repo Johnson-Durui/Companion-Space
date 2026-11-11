@@ -21,6 +21,7 @@ import {
   type TtsPlaybackPolicy,
 } from "@/components/realtime/use-realtime-session";
 import {
+  ApiError,
   createDefaultCharacterRecipe,
   getCharacter,
   getSpace,
@@ -207,21 +208,37 @@ function connectionStatusLabel(
 }
 
 export function RealtimeCallShell({
+  initialImmersive = false,
   initialSessionId,
   spaceId,
 }: {
+  initialImmersive?: boolean;
   initialSessionId?: string | null;
   spaceId: string;
 }) {
   const requestedSessionId = initialSessionId?.trim() ?? "";
   const requestedSessionResume = Boolean(requestedSessionId);
+  const [immersive, setImmersive] = useState(initialImmersive);
+  const presentationButtonRef = useRef<HTMLButtonElement>(null);
   const isMobileLayout = useMobileLayout();
-  const disclosureOpen = isMobileLayout ? undefined : true;
+  const disclosureOpen = isMobileLayout || immersive ? undefined : true;
+  useEffect(() => {
+    if (!immersive) return;
+    const exitOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented && !event.isComposing) {
+        setImmersive(false);
+        presentationButtonRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", exitOnEscape);
+    return () => window.removeEventListener("keydown", exitOnEscape);
+  }, [immersive]);
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [builtInVoiceId, setBuiltInVoiceId] = useState<BuiltInVoiceProfile["id"]>("genki");
   const [ttsPlaybackPolicy, setTtsPlaybackPolicy] = useState<TtsPlaybackPolicy | null>(null);
   const [voicePolicyStatus, setVoicePolicyStatus] = useState<"loading" | "ready" | "error">("loading");
   const [voicePolicyError, setVoicePolicyError] = useState<string | null>(null);
+  const [requiresUnlock, setRequiresUnlock] = useState(false);
   const [voicePolicyRequest, setVoicePolicyRequest] = useState(0);
   const voicePolicyReady = voicePolicyStatus === "ready";
   const builtInVoiceProfile =
@@ -233,6 +250,19 @@ export function RealtimeCallShell({
     selectedCharacterId,
     builtInVoiceProfile,
   );
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.pathname !== `/spaces/${spaceId}/call`) return;
+    if (session.sessionId) url.searchParams.set("session", session.sessionId);
+    if (immersive) url.searchParams.set("view", "immersive");
+    else url.searchParams.delete("view");
+    if (url.href !== window.location.href) {
+      // Preserve the mounted conversation; a router navigation would hydrate it again.
+      window.history.replaceState(window.history.state, "", url.href);
+    }
+  }, [immersive, session.sessionId, spaceId]);
+  const resumeId = session.sessionId || requestedSessionId;
+  const returnHref = `/spaces/${spaceId}/call${resumeId ? `?session=${encodeURIComponent(resumeId)}${immersive ? "&view=immersive" : ""}` : immersive ? "?view=immersive" : ""}`;
   const activeTtsPlaybackPolicy = session.ttsPlaybackPolicy ?? ttsPlaybackPolicy;
   const [draft, setDraft] = useState("");
   const [characters, setCharacters] = useState<CharacterPackSummary[]>([]);
@@ -268,6 +298,7 @@ export function RealtimeCallShell({
     setTtsPlaybackPolicy(null);
     setVoicePolicyStatus("loading");
     setVoicePolicyError(null);
+    setRequiresUnlock(false);
     setAvatarReactionKey(null);
     seenAssistantFinalTurnIdsRef.current.clear();
     reactionBaselineReadyRef.current = !requestedSessionResume;
@@ -298,12 +329,14 @@ export function RealtimeCallShell({
               : "server",
         );
         setVoicePolicyStatus("ready");
+        setRequiresUnlock(false);
       })
       .catch((error) => {
         if (!active) {
           return;
         }
         const message = error instanceof Error ? error.message : "读取空间失败";
+        setRequiresUnlock(error instanceof ApiError && error.status === 401);
         setVoicePolicyError(`读取空间语音配置失败：${message}`);
         setVoicePolicyStatus("error");
       });
@@ -566,12 +599,22 @@ export function RealtimeCallShell({
   const friendlyConnectionStatus = connectionStatusLabel(session.connectionStatus);
 
   return (
-    <section className={`panel ${styles.shell}`}>
+    <section className={`panel ${styles.shell} ${immersive ? styles.immersive : ""}`} data-presentation={immersive ? "immersive" : "study"}>
       <div className={styles.hero}>
         <div className={styles.heroCopy}>
           <p className="eyebrow">和 {displayedAvatarName} 一起</p>
           <h1>{spaceName}</h1>
           <p className={styles.heroLead}>{friendlyConnectionStatus}</p>
+        </div>
+        <div className={styles.presentationActions}>
+          <Link href="/room" className={styles.roomLink}>返回书房 <span aria-hidden="true">↗</span></Link>
+          <button
+            ref={presentationButtonRef}
+            type="button"
+            className={styles.secondaryButton}
+            aria-pressed={immersive}
+            onClick={() => setImmersive((current) => !current)}
+          >{immersive ? "退出沉浸" : "沉浸陪伴"}</button>
         </div>
         <details className={styles.heroMetaDisclosure} open={disclosureOpen}>
           <summary>连接详情</summary>
@@ -591,6 +634,13 @@ export function RealtimeCallShell({
           </div>
         </details>
       </div>
+
+      {requiresUnlock ? (
+        <div className="error-callout" role="alert">
+          <p>请重新解锁本地保险箱，继续当前会话。</p>
+          <Link href={`/vault?returnTo=${encodeURIComponent(returnHref)}`}>前往解锁</Link>
+        </div>
+      ) : null}
 
       <div className={styles.layout}>
         <div className={styles.stageColumn}>
@@ -624,6 +674,12 @@ export function RealtimeCallShell({
                   <span>{companionStateLabel}</span>
                 </div>
               </div>
+              {immersive ? (
+                <div className={styles.companionBubble} aria-hidden="true">
+                  <small>{session.transcript.some((turn) => turn.role === "assistant") ? `${displayedAvatarName} · 最近回复` : "与你共学"}</small>
+                  <p>{session.partialCaption || [...session.transcript].reverse().find((turn) => turn.role === "assistant")?.text || "把想弄懂的问题告诉我，我们一起从这里开始。"}</p>
+                </div>
+              ) : null}
             </div>
             <div className={styles.stageControls}>
               <div className={styles.controlBar}>
@@ -951,6 +1007,12 @@ export function RealtimeCallShell({
                 value={draft}
                 disabled={!voicePolicyReady || session.isSessionHydrating}
                 onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
                 placeholder="输入消息…"
               />
               <button
@@ -975,6 +1037,7 @@ export function RealtimeCallShell({
                       : "发送"}
               </button>
             </form>
+            <p className={styles.composerHint}>Ctrl / ⌘ + Enter 发送 · 语音需要主动开启{immersive ? " · Esc 退出沉浸" : ""}</p>
           </div>
         </div>
 
@@ -984,11 +1047,13 @@ export function RealtimeCallShell({
             <h3>实时字幕</h3>
             <p className={styles.captionText}>{session.partialCaption || "文字模式已就绪；连上实时通话后，这里会显示边听边说的字幕。"}</p>
             {session.error ? <p className={styles.errorText}>{session.error}</p> : null}
+            {immersive && voicePolicyError ? <p className={styles.errorText} role="alert">{voicePolicyError} 请展开「角色与语音设置」重试。</p> : null}
           </div>
 
           <details
             className={`${styles.mobileDisclosure} ${styles.transcriptDisclosure}`}
-            open={disclosureOpen}
+            aria-label="会话记录"
+            open={immersive || disclosureOpen}
           >
             <summary>会话记录 · {session.transcript.length} 条</summary>
             <div className={`panel ${styles.transcriptPanel}`}>
@@ -1006,7 +1071,7 @@ export function RealtimeCallShell({
                   <article key={turn.id} className={styles.turn} data-role={turn.role}>
                     <div className={styles.turnTopline}>
                       <strong>{turn.role === "user" ? "你" : turn.role === "assistant" ? displayedAvatarName : "提示"}</strong>
-                      {turn.status ? <span>{turn.status}</span> : null}
+                      {turn.status === "interrupted" ? <span>已中断</span> : null}
                     </div>
                     <p>{turn.text}</p>
                     {turn.citations?.length ? (

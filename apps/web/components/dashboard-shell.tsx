@@ -142,7 +142,7 @@ export function DashboardShell({ displayName }: { displayName: string }) {
     <section className="page-stack dashboard-home">
       <header className="dashboard-masthead">
         <p><span aria-hidden="true">✦</span> 星轨书房 <small>YOUR DAILY ORBIT</small></p>
-        <Link href="/characters">挑选学习伙伴 <span aria-hidden="true">↗</span></Link>
+        <Link href="/room">进入我的书房 <span aria-hidden="true">↗</span></Link>
       </header>
       <section className="dashboard-stage" aria-labelledby="dashboard-title">
         <div className="dashboard-stage-copy">
@@ -257,13 +257,13 @@ export function DashboardShell({ displayName }: { displayName: string }) {
         <SectionCard
           eyebrow="推荐顺序"
           title="第一次启动"
-          hint="按这个顺序走，可以最快从空仓库进入可测试状态。"
+          hint="先打开保险箱，即可用内置演示模型体验完整流程；接入自己的模型后开始正式共学。"
         >
           <div className="quick-link-grid">
             <QuickLink href="/vault" title="1. 初始化 Vault" description="设置主密码，确认浏览器不保存明文 Key。" />
-            <QuickLink href="/providers" title="2. 接入模型" description="把 OpenAI-compatible、Anthropic、Gemini 或 ElevenLabs 接进来。" />
+            <QuickLink href="/room" title="2. 进入书房" description="无需 API Key，先选主题和伙伴，再开始第一段对话。" />
             <QuickLink href="/spaces" title="3. 新建学习空间" description="先空白，再导入资料、绑定角色和默认模型。" />
-            <QuickLink href="/characters" title="4. 选择角色" description="可爱、酷、元气或温柔，基础配方先从文本参数开始。" />
+            <QuickLink href="/providers" title="4. 接入自己的模型" description="演示模型使用预设回复；配置服务后可进行开放式对话。" />
           </div>
         </SectionCard>
 

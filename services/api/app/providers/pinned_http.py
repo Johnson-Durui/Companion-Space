@@ -4,7 +4,7 @@ from collections.abc import AsyncIterable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import partial
-from ipaddress import ip_address
+from ipaddress import ip_address, ip_network
 import socket
 from time import monotonic
 from typing import Any, AsyncIterator, Callable, Iterator
@@ -22,6 +22,12 @@ from app.providers.errors import (
 
 HostResolver = Callable[[str], Iterable[str]]
 _HAPPY_EYEBALLS_DELAY_SECONDS = 0.25
+_LOCAL_NEURAL_PRIVATE_NETWORKS = (
+    ip_network("10.0.0.0/8"),
+    ip_network("172.16.0.0/12"),
+    ip_network("192.168.0.0/16"),
+    ip_network("fc00::/7"),
+)
 
 
 @dataclass(frozen=True)
@@ -115,7 +121,9 @@ def _validate_resolved_addresses(
     *,
     provider: str,
 ) -> tuple[str, ...]:
-    allow_private_networks = provider.lower() == "ollama"
+    normalized_provider = provider.lower()
+    allow_private_networks = normalized_provider == "ollama"
+    allow_local_neural_networks = normalized_provider == "local-neural"
     normalized: list[str] = []
     for raw_address in addresses:
         try:
@@ -127,6 +135,7 @@ def _validate_resolved_addresses(
         if _is_blocked_network_address(
             address,
             allow_private_networks=allow_private_networks,
+            allow_local_neural_networks=allow_local_neural_networks,
         ):
             raise ValueError("Provider Base URL targets a blocked network address")
         normalized.append(address.compressed)
@@ -480,7 +489,12 @@ def default_host_resolver(hostname: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(resolved))
 
 
-def _is_blocked_network_address(address: Any, *, allow_private_networks: bool) -> bool:
+def _is_blocked_network_address(
+    address: Any,
+    *,
+    allow_private_networks: bool,
+    allow_local_neural_networks: bool,
+) -> bool:
     if (
         address.is_link_local
         or address.is_multicast
@@ -488,8 +502,16 @@ def _is_blocked_network_address(address: Any, *, allow_private_networks: bool) -
         or getattr(address, "is_site_local", False)
     ):
         return True
+    if allow_local_neural_networks and address.is_loopback:
+        return False
     if address.is_reserved:
         return True
+    if allow_local_neural_networks:
+        return not (
+            address.is_global
+            or address.is_loopback
+            or any(address in network for network in _LOCAL_NEURAL_PRIVATE_NETWORKS)
+        )
     if not allow_private_networks and not address.is_global:
         return True
     return False

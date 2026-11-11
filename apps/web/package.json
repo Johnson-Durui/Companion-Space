@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@capacitor/core": "8.6.0",
@@ -17,9 +17,9 @@
     "@react-three/fiber": "^9.6.1",
     "antd": "^6.5.2",
     "mermaid": "^11.16.1",
-    "next": "^15.5.28",
-    "react": "19.1.5",
-    "react-dom": "19.1.5",
+    "next": "15.5.29",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "three": "^0.180.0"
   },
   "devDependencies": {
@@ -28,7 +28,7 @@
     "@types/react-dom": "19.1.6",
     "@types/three": "^0.180.0",
     "eslint": "9.30.0",
-    "eslint-config-next": "^15.5.28",
+    "eslint-config-next": "15.5.29",
     "typescript": "5.8.3"
   }
 }

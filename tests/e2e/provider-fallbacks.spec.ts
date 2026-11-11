@@ -253,7 +253,7 @@ for (const scenario of scenarios) {
     await expect(page.locator('[data-role="user"]')).toHaveCount(beforeUserTurns + 2);
     expect(getChatCompletionCalls()).toBe(2);
 
-    await expect(page.getByText("模拟回复")).toHaveCount(0);
+    await expect(page.getByText("此回复为预设内容")).toHaveCount(0);
   });
 }
 

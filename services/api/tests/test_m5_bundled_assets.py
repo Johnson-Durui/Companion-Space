@@ -9,37 +9,37 @@ from app.services.repository import SQLiteRepository
 
 EXPECTED_MODELS = {
     "Mira.vrm": {
-        "sha256": "02749d7dc58352b466c46ff83bd64931ef6b325f7750639f838cfd6f0e9b350e",
+        "sha256": "cae7f5ce66269c9a25c98963b9e8675cf25e83c38114a67a720e105c1c904186",
         "spec_version": "1.0",
         "redistribution_allowed": "yes",
         "attribution_required": "no",
     },
     "Kite.vrm": {
-        "sha256": "e155fd4d755238a66f164f2c8e35be3fe880e90876201e3a7f153341c2b41a79",
+        "sha256": "5b1b4c9d72c2bb4ab841caf3e3e1688c2c90e417d473c31f16fb674a8dd789c1",
         "spec_version": "1.0",
         "redistribution_allowed": "yes",
         "attribution_required": "no",
     },
     "Cael.vrm": {
-        "sha256": "33f0f3c2ed2f1d84c2ec4ad48c1f21f33ec711714a01550082ff2e617e00135c",
+        "sha256": "db5e5dd769c8d1e8d6eb5451632b63e1af5335589d69d967323ec03283b21dce",
         "spec_version": "1.0",
         "redistribution_allowed": "yes",
         "attribution_required": "no",
     },
     "Lyra.vrm": {
-        "sha256": "4813dc0f7c0256a85376c8a380501a55d9511d75f4db895a224972f74041617c",
+        "sha256": "3eb96b3c0836c0d688a10c8e2194c43af7b62899d3490aeef644870baca2d7db",
         "spec_version": "1.0",
         "redistribution_allowed": "yes",
         "attribution_required": "no",
     },
     "Nova.vrm": {
-        "sha256": "3b06b5b69e7e55324635100f9094719f5f0cb969ffe3a482311ff645980dc2bd",
+        "sha256": "0c8674bb56c7a312a4691681e26db140078b8fe67eb212f75a4058b65e17a8ab",
         "spec_version": "1.0",
         "redistribution_allowed": "yes",
         "attribution_required": "no",
     },
     "Echo.vrm": {
-        "sha256": "bb55a2dd2f22d9101fea25f5b72b8154e66eac11dcb529bf879c1318b48eb88a",
+        "sha256": "18a8e89459f6aa8fb6aff64faa9d58151c7ab24a05603cca2751487e25cc7c36",
         "spec_version": "1.0",
         "redistribution_allowed": "yes",
         "attribution_required": "no",

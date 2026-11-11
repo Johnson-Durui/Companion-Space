@@ -1,59 +1,53 @@
 # Companion Space
 
-**简体中文** | [English](README.en.md)
+[English](README.en.md)
 
-Companion Space 是一款本地优先的二次元陪伴学习应用。你可以为不同主题创建独立空间，导入自己的资料，与虚拟角色进行文字或实时语音交流，并在会话后整理复盘、记忆和复习内容。
+本地优先、单用户的二次元学习搭子。从自己的书房进入学习空间，导入资料、选择伙伴，用文字或语音共学，再把对话整理成复盘与记忆。支持 Windows 本机运行和 Docker 部署；记录保存在本机，接入外部模型时会向你选择的服务发送相应请求。
 
-项目默认运行在你自己的电脑上。资料和凭据保存在本地；如果接入 OpenAI 兼容服务、Ollama 等外部 Provider，相关请求会按照你的配置发送给对应服务。
+源码许可证：**Apache License 2.0**。角色模型、动作、语音权重各自还有独立许可，见 [NOTICE](NOTICE) 和 [assets/THIRD_PARTY_NOTICES.md](assets/THIRD_PARTY_NOTICES.md)。
 
-## 核心能力
+## 它现在能做什么
 
-- **独立学习空间**：按课程、项目或兴趣组织资料、角色和对话记录。
-- **资料问答与引用**：导入资料后进行检索增强对话，并保留答案引用。
-- **文字与实时语音**：支持连续对话、语音播放和插话打断。
-- **虚拟角色演出**：支持浏览器本地 VRM 3D 角色，以及 2D 备用形象、口型、情绪、目光和动作反馈。
-- **可替换的 AI 服务**：内置 Mock 便于直接体验，也可接入 OpenAI 兼容接口、Ollama 等 Provider；长期记忆需要用户确认后才会写入。
+- 本地 Vault 解锁后，用内置 Mock 或自备 Provider（OpenAI 兼容 / Ollama 等）学习。
+- 互动书房支持切换空间、恢复上次会话、资料与伙伴热点、暖灯/暮色和专注计时。
+- 沉浸陪伴把角色与对话放在主要位置；Ctrl/⌘+Enter 发送，Esc 返回完整共学布局，语音需主动开启。
+- 空间、资料导入、引用式 RAG、会话复盘、确认式记忆和复习项。
+- 桌面浏览器是主路径。可选 Capacitor Android / iOS 壳：同一套 Web UI，需受信 HTTPS 和 8 位配对码。
+- 共学舞台支持六个原创 VRM 形象的面部情绪、口型、目光和一次性肢体反应；Mori / Yuzu 与六张 2D 卡面仍是完整备用形象。
 
-<details>
-<summary>当前版本范围</summary>
+主流程：`解锁 Vault → Mock 或接入 Provider → 建空间 → 导入资料 → 选/创建角色 → 文字或实时共学 → 板书/演示 → 复盘 → 确认记忆/复习`
 
-当前最完整的使用路径是桌面浏览器配合本机 Docker 和 Mock 或自备 Provider。Android 与 iOS 客户端目前是连接同一服务的测试壳，需要受信任的 HTTPS 和设备配对，尚未作为商店成品发布。本项目暂不包含 WebRTC、MuseTalk、LivePortrait 或真人 talking-head 视频能力。
+## 本轮交付
 
-</details>
+提供可重新生成的源码交付包、六个原创 VRM、2D 备用形象、启动脚本、使用说明和校验清单。主要验收路径为 Windows 桌面浏览器与本地 Mock；Mock 无需 API Key，使用预设回答，用来体验和验证流程。自由对话需要配置自己的模型服务。
 
-源码采用 **Apache License 2.0**。角色模型、动作、语音权重和示例素材可能适用各自的许可要求，详见 [NOTICE](NOTICE) 和 [第三方素材说明](assets/THIRD_PARTY_NOTICES.md)。
+从 [Windows 使用说明](WINDOWS-README.md) 开始，完整验收证据与适用范围见 [2026-11-11 交付记录](docs/release/delivery-20261111.md)。语音界面与续接说明见 [语音服务](docs/voice-service.md) 和 [2026-11-12 语音界面记录](docs/release/voice-interface-20261112.md)。本轮研究 Eciyuan 的房间与聊天交互，采用原创素材实现，设计对应见 [迁移说明](docs/design/eciyuan-adaptation.md)。
 
-## 内置伙伴
+[开源更新记录](docs/release/room-and-runtime-20261112.md) 包含新版书房截图、素材来源及运行验证。
 
-六位伙伴随源码一起提供，无需下载外部模型。角色工作室可选择形象、保存配方，再进入共学舞台。MIRA / KITE / CAEL / LYRA 是 painted-blender 模型，NOVA / ECHO 目前是较轻的程序化 3D 原型；下图是各自的 2D 卡面。
+移动壳的商店签名与真机验收、真实模型服务和实体麦克风仍需在目标环境验证。六个 VRM 的许可独立于源码许可证，企业商业使用尚未授权，见下方许可表。
 
-| 澄羽 · MIRA | 曜柚 · KITE | 凛序 · CAEL |
-| --- | --- | --- |
-| <img src="apps/web/public/assets/characters/art/roster/mira.png" width="180" alt="澄羽卡面"> | <img src="apps/web/public/assets/characters/art/roster/kite.png" width="180" alt="曜柚卡面"> | <img src="apps/web/public/assets/characters/art/roster/cael.png" width="180" alt="凛序卡面"> |
-| 弦灯 · LYRA | 星澜 · NOVA | 沐音 · ECHO |
-| <img src="apps/web/public/assets/characters/art/roster/lyra.png" width="180" alt="弦灯卡面"> | <img src="apps/web/public/assets/characters/art/roster/nova.png" width="180" alt="星澜卡面"> | <img src="apps/web/public/assets/characters/art/roster/echo.png" width="180" alt="沐音卡面"> |
+### Windows 本机启动
 
-当前模块边界、角色接入流程和数据流见 [架构说明](docs/architecture.md)。
+安装 Node.js 24 和 Python 3.12 或 3.13，在解压后的项目根目录运行一次：
 
-<details>
-<summary>查看当前 3D 实际效果</summary>
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r services/api/requirements.txt
+npx.cmd --yes npm@11.21.2 ci
+.\START-LOCAL-WINDOWS.ps1 -Production
+```
 
-下图来自角色工作室的真实浏览器渲染。当前网格仍较简化；窄预览采用会话构图，方便看清面部。眼睛、嘴部可见性及表情变形已有自动检查。
+使用 Python 3.13 时将第一行改为 `py -3.13`。之后运行最后一行，浏览器访问 `http://127.0.0.1:3000`；保持终端开启，Ctrl+C 停止本次启动的服务。开发时省略 `-Production`。无需安装 Bash。
 
-| MIRA | KITE | CAEL |
-| --- | --- | --- |
-| <img src="docs/images/mira-3d-preview.png" width="150" alt="MIRA 3D 实际预览"> | <img src="docs/images/kite-3d-preview.png" width="150" alt="KITE 3D 实际预览"> | <img src="docs/images/cael-3d-preview.png" width="150" alt="CAEL 3D 实际预览"> |
-| LYRA | NOVA | ECHO |
-| <img src="docs/images/lyra-3d-preview.png" width="150" alt="LYRA 3D 实际预览"> | <img src="docs/images/nova-3d-preview.png" width="150" alt="NOVA 3D 实际预览"> | <img src="docs/images/echo-3d-preview.png" width="150" alt="ECHO 3D 实际预览"> |
+安装使用固定的 npm 11.21.2，避免旧 npm 对 workspace 安全补丁覆盖处理不完整。该命令不会替换系统的全局 npm，首次执行需要联网。
 
-</details>
-
-## 快速开始
+## 第三方：一步启动
 
 需要 Docker Desktop（或兼容的 Docker Engine）和 Docker Compose v2。先 **不要** 打开 `neural-tts` profile。
 
 ```bash
-git clone https://github.com/Johnson-Durui/Companion-Space.git
+git clone https://github.com/Johnson-Durui/Companion-Space.git Companion-Space
 cd Companion-Space
 cp .env.example .env
 docker compose up --build
@@ -93,9 +87,9 @@ docker compose up --build
 
 不要在 API 运行时直接复制 `companion.db`、WAL/SHM 或整个 `storage/`。更换 API 镜像前先跑备份。
 
-本地开发（不用 Docker）见 [WINDOWS-README.md](WINDOWS-README.md)。本仓库是 **npm workspace**，需要 Node 24 与 npm 11.18 以上（固定验证版本为 11.21.1）。旧 npm 有 workspace 覆盖依赖失效的问题，安装前先执行 `npm install --global npm@11.21.1`，再执行 `npm ci`。用 `npm.cmd` / `npm`，不要用 pnpm。
+本地开发（不用 Docker）见 [WINDOWS-README.md](WINDOWS-README.md)。本仓库是 **npm workspace**，用 `npm.cmd` / `npm`，不要用 pnpm。
 
-## 项目结构
+## 当前仓库布局
 
 ```text
 .
@@ -160,18 +154,18 @@ cd apps\mobile\android
 
 | 产品角色 | 当前 3D | 许可摘要 |
 | --- | --- | --- |
-| 澄羽 MIRA | `Mira.vrm` 原创 `painted-blender` 定制模型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 曜柚 KITE | `Kite.vrm` 原创 `painted-blender` 定制模型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 凛序 CAEL | `Cael.vrm` 原创 `painted-blender` 定制模型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 弦灯 LYRA | `Lyra.vrm` 原创 `painted-blender` 定制模型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 星澜 NOVA | `Nova.vrm` 原创 `original-vrm` 原型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 沐音 ECHO | `Echo.vrm` 原创 `original-vrm` 原型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 澄羽 MIRA | `Mira.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 曜柚 KITE | `Kite.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 凛序 CAEL | `Cael.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 弦灯 LYRA | `Lyra.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 星澜 NOVA | `Nova.vrm` original-vrm 原型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
+| 沐音 ECHO | `Echo.vrm` original-vrm 原型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
 
-卡面插画与六位主角的 3D 模型均为本项目原创。MIRA、KITE、CAEL 和 LYRA 属于 `painted-blender` 成品组；NOVA 和 ECHO 是更轻量的 `original-vrm` 原型，与前四位的精细度不同。Sendagaya Shino / Seed-san / Sakurada Fumiriya / Constraint Twist 仍作为许可样本保留。Mori / Yuzu 的 2D atlas 是本项目资源。不要从 CyberVerse（GPL-3.0）拷代码进来。
+卡面插画与六个原创 3D 形象均为本项目原创。Sendagaya Shino / Seed-san / Sakurada Fumiriya / Constraint Twist 仍作为许可样本保留。Mori / Yuzu 的 2D atlas 是本项目资源。不要从 CyberVerse（GPL-3.0）拷代码进来。
 
-六个原创 VRM 使用同一组内嵌权限：允许再分发和修改且无需署名，但不授权企业商业使用，并禁止过度暴力/性、政治/宗教、反社会或仇恨用途；不得剥离内嵌元数据。完整字段见模型 `manifest.json` 与 [第三方/素材声明](assets/THIRD_PARTY_NOTICES.md)。
+六个原创 VRM 允许再分发和修改且无需署名，但其内嵌权限不授权企业商业使用，并禁止过度暴力/性、政治/宗教、反社会或仇恨用途；不得剥离内嵌元数据。完整字段见模型 `manifest.json` 与 [第三方/素材声明](assets/THIRD_PARTY_NOTICES.md)。其中 MIRA/KITE/CAEL/LYRA 是 painted-blender 级模型，NOVA/ECHO 是同一运行时契约下的 original-vrm 原型模型。
 
-仓库发布的是经过校验的六个 VRM 二进制与哈希。前四个 `painted-blender` 模型的精确 painted albedo 输入和本地 `.blend` 工作文件不在公开仓库；NOVA 和 ECHO 由仓库内原型生成器构建。干净 clone 可以直接运行这些模型，但不承诺从公开源逐字节重建 `painted-blender` 模型的相同哈希。详见 [原创 3D 契约](docs/design/original-companions-3d.md)。
+仓库发布的是经过校验的六个 VRM 二进制与哈希；精确的 painted albedo 输入和本地 `.blend` 工作文件不在公开仓库。干净 clone 可以直接运行这些模型，但不承诺从公开源逐字节重建相同哈希。详见 [原创 3D 契约](docs/design/original-companions-3d.md)。
 
 ## 验证命令
 
@@ -206,3 +200,7 @@ PYTHONPATH=services/api python3 -m pytest services/api/tests -q
 - [安全模型](docs/security-model.md)
 - [素材许可](docs/asset-licensing.md)
 - [贡献](CONTRIBUTING.md)
+
+## English
+
+Companion Space is a local-first, single-user anime study companion. Clone, copy `.env.example` to `.env`, and run `docker compose up --build`. Open `https://companion.localhost` and trust the **internal** Caddy CA. The six featured 3D bodies are project-owned original VRM companions; licensed sample VRM files remain optional. Credit Seed-san to VirtualCast, Inc. Mobile and GPU TTS are optional. Do not commit `.env`, `storage/`, or `infra/caddy/data`.

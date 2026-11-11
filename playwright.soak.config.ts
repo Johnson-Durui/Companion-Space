@@ -29,25 +29,25 @@ export default defineConfig({
   projects: [
     {
       name: "chromium-soak",
-      use: { ...devices["Desktop Chrome"], headless: true },
+      use: {
+        ...devices["Desktop Chrome"],
+        headless: true,
+        ...(process.env.E2E_BROWSER_CHANNEL ? { channel: process.env.E2E_BROWSER_CHANNEL } : {}),
+      },
     },
   ],
   webServer: [
     {
-      command: `node tests/e2e/start-api.mjs ${API_PORT} ${WEB_PORT} ${storageRoot} soak`,
+      command: `node tests/e2e/start-api.mjs ${API_PORT} ${WEB_PORT} ${storageRoot}`,
       port: API_PORT,
       timeout: 120_000,
       reuseExistingServer: false,
     },
     {
-      command: `node tests/e2e/start-web.mjs start ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
+      command: `node tests/e2e/start-web.mjs production ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
       port: WEB_PORT,
       timeout: 120_000,
       reuseExistingServer: false,
-      env: {
-        NEXT_PUBLIC_API_BASE_URL: apiBaseURL,
-        NEXT_PUBLIC_REALTIME_WS_URL: wsBaseURL,
-      },
     },
   ],
 });

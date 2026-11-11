@@ -19,6 +19,8 @@ Companion Space is a single-owner, local-first application. The supported first-
 
 The transport modules use the existing services; they do not construct their own databases or provider registries. Authentication remains explicit on each operation, because vault initialization, unlock and device exchange have different access requirements. The route-contract regression test locks public operations, authorization dependencies, response contracts and operation IDs during extraction.
 
+The study room reads the space and character lists in parallel. It then loads sessions for the selected space, ignoring stale results after a space switch. Voice preview uses the providers router and the same adapter as realtime speech. The preview cancels inference when the browser closes its request.
+
 ## A learning turn
 
 1. Initialize or unlock the vault. The browser keeps its owner token in memory and the API client attaches it to protected requests.

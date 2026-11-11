@@ -1,0 +1,182 @@
+{
+  "verified_at_utc": "2026-11-11T16:26:48.307051+00:00",
+  "scope": "Configurable voice provider connections, authenticated speech preview, cancellation, and space TTS binding",
+  "baseline_archive": "Companion-Space-20261111-voice-preview.zip",
+  "delivery_archive": "Companion-Space-20261112-voice-interface.zip",
+  "api_full_suite": {
+    "passed": 558,
+    "skipped": 3,
+    "failures": 0,
+    "errors": 0,
+    "duration_seconds": 66.179,
+    "report": ".playwright/voice-interface/review-full-short-junit.xml",
+    "scope_note": "Before the final IPv6 loopback correction; that correction has its own subsequent targeted result."
+  },
+  "ipv6_followup": {
+    "passed": 1,
+    "red_then_green": true,
+    "ruff": "passed"
+  },
+  "browser": {
+    "voice_interface": {
+      "stats": {
+        "startTime": "2026-11-11T16:20:55.855Z",
+        "duration": 29635.643,
+        "expected": 6,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "report": ".playwright/voice-interface/e2e/voice-interface-report.json"
+    },
+    "character_voice_preview": {
+      "stats": {
+        "startTime": "2026-11-11T16:17:39.720Z",
+        "duration": 46059.661,
+        "expected": 5,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "report": ".playwright/voice-interface/e2e/character-voice-preview-report.json"
+    },
+    "mock_journey": {
+      "stats": {
+        "startTime": "2026-11-11T16:18:37.931Z",
+        "duration": 115198.721,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "report": ".playwright/voice-interface/e2e/mock-journey-report.json"
+    },
+    "mobile_ready_followup": {
+      "stats": {
+        "startTime": "2026-11-11T16:24:57.522Z",
+        "duration": 9937.556999999999,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "report": ".playwright/voice-interface/e2e/mobile-ready-report.json"
+    }
+  },
+  "typecheck": "passed",
+  "lint": "passed",
+  "production_build": "passed, including type and lint checks after final button styling",
+  "ruff": "passed",
+  "diff_check": "passed with CRLF-aware whitespace settings",
+  "code_review": "Frontend synchronization and backend disconnect/address findings fixed and reviewed; final IPv6 correction checked by main agent and targeted test",
+  "red_regressions": [
+    "Missing speech-preview contract and missing UI",
+    "Audio response headers inaccessible across origins",
+    "Generic provider edit left stale voice form metadata",
+    "HTTP disconnect did not cancel local inference",
+    "Local neural accepted special shared network targets",
+    "IPv6 loopback was incorrectly rejected"
+  ],
+  "behavioral_checks": [
+    "Connection create, update, reload, built-in read-only state",
+    "Bidirectional synchronization and deleted connection reset",
+    "Controlled PCM playback, cancellation, late response rejection, retry and unmount",
+    "Actual built-in Mock speech HTTP response played through browser AudioContext",
+    "Only the selected learning space TTS assignment changes",
+    "ASGI http.disconnect reaches matching local inference DELETE",
+    "Local URL policy and pinned transport",
+    "390px loaded UI has no horizontal overflow; real viewport screenshot reviewed"
+  ],
+  "local_e2e_ports_released": [
+    3100,
+    8100
+  ],
+  "source_sha256": [
+    {
+      "path": "apps/web/components/voice-interface-panel.tsx",
+      "sha256": "2d1f59d71bc05cd3bfa5ece1658de7728b02d9948593eff167c996557f76cca3"
+    },
+    {
+      "path": "apps/web/components/voice-interface-panel.module.css",
+      "sha256": "6b3fca823e9fae5339e7924f97a59f5b0f2ca7e8e6d33cb5c7758f92c6e50b71"
+    },
+    {
+      "path": "apps/web/components/providers-panel.tsx",
+      "sha256": "02d07dcba575b8058ae600e0aaaffd19e30547035a063ad77b9db8d03ada83f9"
+    },
+    {
+      "path": "apps/web/components/character-workshop.tsx",
+      "sha256": "ffab0934c18d94f68565ddb6e023a03dc36a4ab19376e96250f4c3408a11f079"
+    },
+    {
+      "path": "apps/web/lib/api.ts",
+      "sha256": "7c8454d1c0f19d9165420a7f5f5ec8b948604c56d0f7889b18bc6288c1e3cc7c"
+    },
+    {
+      "path": "apps/web/lib/voice-presets.ts",
+      "sha256": "952a520d65f1aa21dcb744c3650b173dff9322f17d90cc30d1f826756adf629b"
+    },
+    {
+      "path": "services/api/app/api/v1.py",
+      "sha256": "e87fd5fc1c934723ceed058855d2746e4d111ba7d43a08ce5afb74090123b1dd"
+    },
+    {
+      "path": "services/api/app/main.py",
+      "sha256": "1688f6d637587bbcae086e8840786d1f0a4454510cb6b03a7b2d42e171cff49b"
+    },
+    {
+      "path": "services/api/app/models/api_v1.py",
+      "sha256": "6d17b6dd2b2713c93d159e0a6473e2e534535cf8a6695e6df40accdea72133e6"
+    },
+    {
+      "path": "services/api/app/providers/local_neural_tts.py",
+      "sha256": "5fbdbbd4db9e9751a8e2e88d602e538c50c194d7319804a6f910e0388fa5d4ab"
+    },
+    {
+      "path": "services/api/app/providers/pinned_http.py",
+      "sha256": "ae9461c2a43829421430279a1aa34e46d5d0b485c3aa3fcd70bb0f6423c554bb"
+    },
+    {
+      "path": "services/api/app/services/provider_registry.py",
+      "sha256": "e5a717e6c3cabdfa9180244bd1841a33a4797e48649f87ef03eed50b893b0cd2"
+    },
+    {
+      "path": "services/api/tests/test_provider_local_neural_tts.py",
+      "sha256": "3ecabdd736e7a7008e31743cb7656d51c3a5f2a1e1e2a2428f88002979a3f5cb"
+    },
+    {
+      "path": "services/api/tests/test_provider_pinning_wiring.py",
+      "sha256": "04038560b4a2755155654fd91d737eecabd69c3a93d69e100160aac5a8ba7d89"
+    },
+    {
+      "path": "tests/e2e/voice-interface.spec.ts",
+      "sha256": "632ca8ccc0fa55791c5ff009badf2eb10e48fdd87fddd7d1f85440ec4eba71ee"
+    },
+    {
+      "path": "WINDOWS-README.md",
+      "sha256": "e4ab9083186293615c0119610af3f9cc6a35a811b084fe3029f730be8cea1b9a"
+    },
+    {
+      "path": "docs/voice-service.md",
+      "sha256": "b4507bd6ef6e80477fd4ef11cda7ab3d9a65db6710126b79b6b8f65476f035d3"
+    },
+    {
+      "path": "docs/release/voice-interface-20261112.md",
+      "sha256": "b55b5f32e18bbaba7e1929c35a862a3a79594215c3e690ef2157c41bb7d8192b"
+    },
+    {
+      "path": "docs/release/screenshots/voice-interface-desktop.png",
+      "sha256": "66227394b04ecaa56afbae82c4857b9121eca27f0cb1933e9895d8bc660644c8"
+    },
+    {
+      "path": "docs/release/screenshots/voice-interface-mobile.png",
+      "sha256": "97748d3e55dab948b0a1d3c286a1149a02c4e3461585e8288bca4d28015c29a1"
+    }
+  ],
+  "unverified_this_increment": [
+    "Real Qwen model download, GPU performance and listening quality",
+    "Real online service credentials and account-specific model support",
+    "Physical speakers and microphone",
+    "Fresh dependency installation from this increment archive"
+  ]
+}

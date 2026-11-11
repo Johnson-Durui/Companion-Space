@@ -727,7 +727,7 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
     const latestUserTurn = page.locator('[data-role="user"]').last();
     await expect(latestUserTurn).toContainText(followupQuestion, { timeout: 20_000 });
     await expect(assistantTurns).toHaveCount(assistantTurnCount + 1, { timeout: 20_000 });
-    await expect(assistantTurns.last()).toContainText("模拟回复");
+    await expect(assistantTurns.last()).toContainText("此回复为预设内容");
 
     const demoRoute = "**/api/v1/sessions/*/demos";
     await page.route(demoRoute, async (route) => {

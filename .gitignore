@@ -1,9 +1,15 @@
 node_modules
 node_modules *
 .next/
+.next-*/
 .next-pre-https/
 .next-absolute-https/
 apps/web/.next/
+apps/web/.next-e2e/
+apps/web/.next-delivery/
+apps/web/.next-delivery-preview/
+apps/web/.next-local-production/
+apps/web/.next-soak/
 apps/web/.next-pre-https/
 apps/web/.next-absolute-https/
 apps/web/public/licensed-runtime/
@@ -36,7 +42,9 @@ GoogleService-Info.plist
 apps/mobile/ios-release-output/
 storage/
 /backups/
+/outputs/
 .playwright/
+.pw-*/
 playwright-report/
 test-results/
 .playwright-report-*/

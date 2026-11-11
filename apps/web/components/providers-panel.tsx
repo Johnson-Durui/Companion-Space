@@ -12,6 +12,7 @@ import {
   updateProvider,
 } from "@/lib/api";
 import { formatDateTime, joinCompact } from "@/lib/format";
+import { VoiceInterfacePanel } from "@/components/voice-interface-panel";
 import type {
   ProviderConnection,
   ProviderRegistryEntry,
@@ -77,6 +78,19 @@ export function ProvidersPanel() {
     () => providers.find((item) => item.id === editingId) ?? null,
     [providers, editingId],
   );
+  const defaultProvider = registry[0]?.provider ?? "openai-compatible";
+
+  useEffect(() => {
+    if (!editingId) return;
+    setLabel(editingProvider?.label ?? "");
+    setProvider(editingProvider?.provider ?? defaultProvider);
+    setBaseUrl(editingProvider?.base_url ?? "");
+    setApiKey("");
+    if (!editingProvider?.id) setEditingId(null);
+  }, [
+    editingId, editingProvider?.id, editingProvider?.label, editingProvider?.provider,
+    editingProvider?.base_url, editingProvider?.updated_at, defaultProvider,
+  ]);
 
   const selectedDescriptor = useMemo(
     () => registry.find((item) => item.provider === provider) ?? null,
@@ -232,6 +246,16 @@ export function ProvidersPanel() {
       </header>
 
       {error ? <ErrorCallout message={error} /> : null}
+
+      <VoiceInterfacePanel
+        providers={providers}
+        registry={registry}
+        onConnectionSaved={(connection) => {
+          setProviders((current) => current.some((item) => item.id === connection.id)
+            ? current.map((item) => item.id === connection.id ? connection : item)
+            : [...current, connection]);
+        }}
+      />
 
       <div className="content-grid two-up">
         <SectionCard

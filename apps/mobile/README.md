@@ -100,11 +100,10 @@ TestFlight。需要一台能运行 Xcode 26 的 Mac、一个 Apple Account，以
 
 在 Mac 的仓库根目录运行：
 
-需要 Node 24 和 npm 11.18 以上；以下固定安装器版本与 CI 一致。
+需要 Node 24。安装依赖使用与 CI 一致的 npm 11.21.2。
 
 ```bash
-npm install --global npm@11.21.1
-npm ci
+npx --yes npm@11.21.2 ci
 export COMPANION_MOBILE_TRUSTED_ORIGINS='https://companion.your-real-domain.cn'
 npm run ios:device
 ```

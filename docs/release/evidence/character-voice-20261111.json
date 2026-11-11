@@ -1,0 +1,55 @@
+{
+  "verified_at_utc": "2026-11-11T14:43:08.5715277Z",
+  "scope": "Character editor voice preview lifecycle and avatar synchronization",
+  "baseline_archive": "Companion-Space-20261111.zip",
+  "voice_preview": {
+    "startTime": "2026-11-11T14:38:34Z",
+    "duration": 40994.885,
+    "expected": 5,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "mock_journey": {
+    "startTime": "2026-11-11T14:39:29.54Z",
+    "duration": 109723.68000000001,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "typecheck": "passed",
+  "lint": "passed",
+  "production_build": "passed",
+  "code_review": "no blocking findings",
+  "behavioral_checks": [
+    "2D playback level and natural drain",
+    "VRM ready, mouth weight positive while playing, zero after stop",
+    "manual preview state restored",
+    "text, voice_id and rate invalidate pending previews",
+    "late response cannot replace a newer preview",
+    "space change stops playback",
+    "SPA navigation rejects late audio",
+    "visible error and successful retry"
+  ],
+  "source_sha256": [
+    {
+      "sha256": "80cfd7b8e34c93386480ade022972aa7a15dca3044f810af0a4e0d3c6f77c9a9",
+      "path": "apps/web/components/character-editor.tsx"
+    },
+    {
+      "sha256": "d5f5dea2341f16045d48c448518869b7500496d56572abe0caebb93f7048a96b",
+      "path": "apps/web/components/character-workshop.tsx"
+    },
+    {
+      "sha256": "03c7546ab88046b0891ab59e18668372a03bbf8a3efd5f57da6c847d523c9cf7",
+      "path": "tests/e2e/character-voice-preview.spec.ts"
+    }
+  ],
+  "unverified_this_increment": [
+    "Real neural voice listening quality",
+    "Physical speakers and microphone",
+    "GPU inference performance",
+    "Fresh dependency installation from this increment archive"
+  ]
+}

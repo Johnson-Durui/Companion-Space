@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import (
     APIRouter,
     Depends,
+    Request,
     Response,
     status,
 )
@@ -16,6 +17,7 @@ from app.api.deps import (
 from app.models.api_v1 import (
     ProviderConnectionCreateRequest,
     ProviderConnectionUpdateRequest,
+    ProviderSpeechPreviewRequest,
     NeuralTtsSidecarStatusResponse,
 )
 from app.models.domain import (
@@ -29,8 +31,60 @@ from app.services.provider_registry import (
     BUILTIN_NEURAL_TTS_CONNECTION_ID,
     UNSET,
 )
+from app.services.realtime import TTS_CONTENT_TYPE, TTS_SAMPLE_RATE_HZ
+import asyncio
 
 router = APIRouter()
+
+
+@router.post("/providers/connections/{connection_id}/speech-preview")
+async def preview_provider_speech(
+    connection_id: str,
+    payload: ProviderSpeechPreviewRequest,
+    request: Request,
+    _: str = Depends(require_owner),
+    container: ServiceContainer = Depends(get_container),
+) -> Response:
+    synthesis_task = asyncio.create_task(container.providers.preview_speech(
+        connection_id,
+        model=payload.model,
+        text=payload.text,
+        voice_id=payload.voice_id,
+        speaking_rate=payload.speaking_rate,
+    ))
+    disconnect_task = asyncio.create_task(_wait_for_http_disconnect(request))
+    try:
+        completed, _ = await asyncio.wait(
+            {synthesis_task, disconnect_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        if synthesis_task in completed:
+            audio = await synthesis_task
+        else:
+            synthesis_task.cancel()
+            await asyncio.gather(synthesis_task, return_exceptions=True)
+            return Response(status_code=499)
+    finally:
+        for task in (synthesis_task, disconnect_task):
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(synthesis_task, disconnect_task, return_exceptions=True)
+    return Response(
+        content=audio,
+        media_type=TTS_CONTENT_TYPE,
+        headers={
+            "Cache-Control": "no-store",
+            "X-Audio-Channels": "1",
+            "X-Audio-Sample-Rate": str(TTS_SAMPLE_RATE_HZ),
+        },
+    )
+
+
+async def _wait_for_http_disconnect(request: Request) -> None:
+    while True:
+        message = await request.receive()
+        if message["type"] == "http.disconnect":
+            return
 
 
 @router.get("/tts/sidecar", response_model=NeuralTtsSidecarStatusResponse)
