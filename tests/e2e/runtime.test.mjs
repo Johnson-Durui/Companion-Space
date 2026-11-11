@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -174,7 +174,7 @@ test("clears one named child under a real .playwright directory", async (t) => {
 
   const result = await prepareIsolatedStorage(repoRoot, ".playwright/mock-storage");
 
-  assert.equal(result, path.join(repoRoot, ".playwright", "mock-storage"));
+  assert.equal(result, path.join(await realpath(repoRoot), ".playwright", "mock-storage"));
 });
 
 test("rejects traversal, nested targets, the root, and linked storage", async (t) => {

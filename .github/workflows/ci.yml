@@ -41,10 +41,11 @@ jobs:
       - name: Install frontend dependencies
         run: npx --yes npm@11.21.2 ci
 
+      - name: Validate portable test bootstrap
+        run: npm run test:bootstrap
+
       - name: Validate Windows startup and process cleanup
-        run: |
-          npm run test:bootstrap
-          npm run test:windows-startup
+        run: npm run test:windows-startup
 
       - name: Validate delivery packaging
         run: python -m unittest scripts.package_delivery_test -v

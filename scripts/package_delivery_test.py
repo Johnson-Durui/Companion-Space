@@ -12,7 +12,7 @@ from scripts import package_delivery
 class DeliveryPackageTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="companion-package-")
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve(strict=True)
         self._write("README.md", "demo\n")
         self._write("LICENSE", "license\n")
         self._write("NOTICE", "notice\n")
