@@ -84,8 +84,11 @@ test("stops VRM playback immediately and returns to the selected state", async (
   const fixture = await createFixture(page.request, ownerToken, "vrm1_constraint_twist_sample");
   await installAudioProbe(page);
   await page.route(`**/api/v1/characters/${fixture.characterId}/voice-preview`, async (route) => {
+    // This test clicks Stop after waiting for VRM mouth telemetry and capturing
+    // evidence. Keep playback active so it exercises manual cancellation rather
+    // than racing its natural drained callback on slower CI workers.
     await route.fulfill({
-      body: makeSinePcm16(4),
+      body: makeSinePcm16(35),
       contentType: "audio/pcm;rate=24000",
       headers: { "x-audio-sample-rate": "24000" },
     });

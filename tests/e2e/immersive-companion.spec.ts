@@ -91,7 +91,8 @@ test("immersive companion restores the same conversation after unlock and keeps 
   expect(await page.evaluate(() => (window as unknown as { __microphoneRequests: number }).__microphoneRequests)).toBe(0);
 
   await page.getByRole("link", { name: "返回书房" }).click();
-  await expect(page.getByLabel("选择学习空间")).toBeVisible();
+  await expect(page).toHaveURL(/\/room$/, { timeout: 30_000 });
+  await expect(page.getByLabel("选择学习空间")).toBeVisible({ timeout: 20_000 });
   await page.getByLabel("选择学习空间").selectOption(space.id);
   const resume = page.getByRole("link", { name: `继续${name}的共学`, exact: true });
   await expect(resume).toHaveAttribute("href", `/spaces/${space.id}/call?session=${sessions[0].id}&view=immersive`);

@@ -1640,12 +1640,12 @@ async function navigateViaSidebar(page: Page, label: string) {
   const navigation = page.getByRole("navigation");
   const target = navigation.getByRole("link", { name: new RegExp(label) });
   const visibleTarget = target.filter({ visible: true }).first();
-  if (await visibleTarget.count()) {
-    await visibleTarget.click();
-    return;
+  if (!(await visibleTarget.count())) {
+    await navigation.getByText("本地与服务设置", { exact: true }).click();
   }
-  await navigation.getByText("本地与服务设置", { exact: true }).click();
-  await target.filter({ visible: true }).first().click();
+  const destination = await visibleTarget.evaluate((link: HTMLAnchorElement) => link.href);
+  await visibleTarget.click();
+  await expect(page).toHaveURL(destination, { timeout: 60_000 });
 }
 
 async function openSessionReview(page: Page, href: string) {

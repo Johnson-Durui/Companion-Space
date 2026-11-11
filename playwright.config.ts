@@ -9,6 +9,7 @@ const storageRoot = ".playwright/mock-storage";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === "1";
 const useHeadlessBrowser = process.env.E2E_HEADED !== "1";
 const browserChannel = process.env.E2E_BROWSER_CHANNEL;
+const webMode = process.env.E2E_WEB_MODE === "production" ? "production" : "dev";
 const captureVideo = Boolean(process.env.CI) || process.env.E2E_VIDEO === "1";
 // The launchers forward SIGTERM to their independently managed child processes.
 const gracefulShutdown = { signal: "SIGTERM", timeout: 5_000 } as const;
@@ -46,7 +47,8 @@ export default defineConfig({
       reuseExistingServer,
     },
     {
-      command: `node tests/e2e/start-web.mjs dev ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
+      command: `node tests/e2e/start-web.mjs ${webMode} ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
+      env: { NEXT_DIST_DIR: process.env.NEXT_DIST_DIR ?? ".next-e2e" },
       port: WEB_PORT,
       timeout: 120_000,
       gracefulShutdown,

@@ -469,7 +469,17 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Build the browser test bundle
+        env:
+          NEXT_DIST_DIR: .next-e2e
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8100
+          NEXT_PUBLIC_REALTIME_WS_URL: ws://127.0.0.1:8100/api/v1/sessions/:sessionId/realtime
+          NEXT_PUBLIC_E2E_AUDIO_HOOK: "1"
+        run: npm run build:web
+
       - name: Playwright E2E
+        env:
+          E2E_WEB_MODE: production
         run: npm run test:e2e
 
       - name: Upload Playwright report

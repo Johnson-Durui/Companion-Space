@@ -126,6 +126,7 @@ function session(id: string, spaceId: string, state: "speaking" | "closed", upda
 }
 
 test("renders the redesigned primary mobile tabs without horizontal overflow", async ({ page }) => {
+  test.setTimeout(90_000);
   await mkdir(visualEvidenceDir, { recursive: true });
   await page.setViewportSize({ width: 375, height: 812 });
   await page.route("**/api/v1/**", async (route) => {
@@ -199,7 +200,7 @@ test("renders the redesigned primary mobile tabs without horizontal overflow", a
     ["/review-items", "review-items-375", "不是重读，是再答一次。", "复盘", "第一次见面时，怎样用日语自然地介绍自己？"],
     ["/me", "me-375", "我的", "我的", "CURRENT COMPANION"],
   ] as const) {
-    await page.goto(path);
+    await page.goto(path, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
     await expect(page.getByText(loadedText, { exact: false }).first()).toBeVisible();
     await expect(page.locator(".mobile-tab[aria-current='page']")).toContainText(activeTab);
@@ -223,7 +224,8 @@ test("renders the redesigned primary mobile tabs without horizontal overflow", a
           }),
         };
       });
-      expect(taskMetrics.smallestControl).toBeGreaterThanOrEqual(44);
+      // Client rectangles may round a whole CSS pixel by a small fraction.
+      expect(taskMetrics.smallestControl).toBeGreaterThanOrEqual(44 - 0.01);
       expect(taskMetrics.controlOverflows).toBe(false);
       await page.screenshot({ fullPage: true, path: `${visualEvidenceDir}/${name.replace("-375", "-375-full")}.png` });
     }
@@ -241,7 +243,7 @@ test("renders the redesigned primary mobile tabs without horizontal overflow", a
     ["/memory", "memory-1440", "把值得留下的，交给她记住。", "每天用日语完成一次真实场景的口语练习"],
     ["/review-items", "review-items-1440", "不是重读，是再答一次。", "第一次见面时，怎样用日语自然地介绍自己？"],
   ] as const) {
-    await page.goto(path);
+    await page.goto(path, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
     await expect(page.getByText(loadedText, { exact: false }).first()).toBeVisible();
     await expect.poll(async () => page.evaluate(() => ({
