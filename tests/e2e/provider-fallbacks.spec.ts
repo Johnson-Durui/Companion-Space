@@ -212,20 +212,19 @@ for (const scenario of scenarios) {
     await openCallPage(page, fixture);
 
     const draftInput = page.getByLabel("发送文字消息");
+    const sendButton = page.getByRole("button", { name: "发送文本" });
     await draftInput.fill(testQuestion);
 
     const beforeUserTurns = await page.locator('[data-role="user"]').count();
     const beforeAssistantTurns = await page.locator('[data-role="assistant"]').count();
 
-    const send = async () => {
-      const sendResponse = page.waitForResponse((response) => {
-        return response.url().includes("/api/v1/sessions/") && response.url().endsWith("/turns/stream") && response.request().method() === "POST";
-      });
-      await page.getByRole("button", { name: "发送文本" }).click();
-      return sendResponse;
-    };
+    const waitForSendResponse = () => page.waitForResponse((response) =>
+      response.url().includes("/api/v1/sessions/")
+      && response.url().endsWith("/turns/stream")
+      && response.request().method() === "POST",
+    );
 
-    const response = await send();
+    const [response] = await Promise.all([waitForSendResponse(), sendButton.click()]);
     expect(response.status()).toBe(scenario.expectedStatus);
     if (!("streamStarted" in scenario)) {
       const payload = await response.json();
@@ -236,12 +235,16 @@ for (const scenario of scenarios) {
     await expect(page.getByText(scenario.expectedError, { exact: false })).toBeVisible();
     await expect(page.getByText(`（${scenario.expectedCode}）`, { exact: false })).toBeVisible();
     await expect(draftInput).toHaveValue(testQuestion);
-    await expect(page.getByRole("button", { name: "发送文本" })).toBeEnabled();
+    await expect(sendButton).toBeEnabled();
     await expect(page.locator('[data-role="user"]')).toHaveCount(beforeUserTurns + 1);
     await expect(page.locator('[data-role="assistant"]')).toHaveCount(beforeAssistantTurns);
     await expect(page.locator('[data-role="user"]').last()).toContainText(testQuestion);
 
-    const response2 = await send();
+    // Exercise the composer's retry shortcut while the error moves the form.
+    const [response2] = await Promise.all([
+      waitForSendResponse(),
+      draftInput.press("ControlOrMeta+Enter"),
+    ]);
     expect(response2.status()).toBe(scenario.expectedStatus);
     if (!("streamStarted" in scenario)) {
       const payload2 = await response2.json();

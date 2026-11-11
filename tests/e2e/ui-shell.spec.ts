@@ -3,6 +3,8 @@ import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 const visualEvidenceDir = "test-results/ui-shell-visual";
+// Client rectangles can report a whole CSS pixel as a slightly smaller float.
+const minimumTouchTarget = 44 - 0.01;
 
 async function captureVisualEvidence(page: import("@playwright/test").Page, name: string) {
   await mkdir(visualEvidenceDir, { recursive: true });
@@ -302,7 +304,7 @@ test.describe("responsive application shell", () => {
       ),
     }));
     expect(metrics.scrollWidth).toBe(metrics.clientWidth);
-    expect(metrics.smallestTarget).toBeGreaterThanOrEqual(44);
+    expect(metrics.smallestTarget).toBeGreaterThanOrEqual(minimumTouchTarget);
 
     for (const path of ["/characters", "/providers", "/vault", "/settings"]) {
       await page.goto(path);
@@ -722,8 +724,8 @@ test.describe("responsive application shell", () => {
 
       expect(metrics.scrollWidth).toBe(metrics.clientWidth);
       expect(metrics.contentOverflows).toBe(false);
-      expect(metrics.smallestNavTarget).toBeGreaterThanOrEqual(44);
-      expect(metrics.smallestVisibleTarget).toBeGreaterThanOrEqual(44);
+      expect(metrics.smallestNavTarget).toBeGreaterThanOrEqual(minimumTouchTarget);
+      expect(metrics.smallestVisibleTarget).toBeGreaterThanOrEqual(minimumTouchTarget);
       expect(metrics.navScrollsInline).toBe(false);
       if (width === 375) {
         expect(metrics.formControlFontSizes.length).toBeGreaterThan(0);
