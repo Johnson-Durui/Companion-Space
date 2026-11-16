@@ -75,9 +75,8 @@ M0 新建 `scripts/gate.ps1`：按顺序执行下列命令，任何一步失败�
 
 **任务（按此顺序）**
 
-1. **环境确认**：当前目录应为 `E:\Codex\Projects\虚拟形象\Companion-Space-v2`，分支 `refactor/teaching-v2`，HEAD `4177484`，约 213 条未提交改动——其中 106 条是 `apps/mobile/` 的删除（预期内）、约 38 条未跟踪（含整个目录，如 `packages/`、`services/api/app/repositories/`、`docs/rebuild/`）。运行 `git rev-parse --git-common-dir` 与 `git update-index --refresh` 确认 git 可写。新建 `docs/rebuild/PROGRESS.md`，记录条目数、Python 与 Node 版本。
-   - 若标签 `pre-rebuild-20261116` 已存在且工作区干净（快照已由所有者事先完成），跳过第 2 步的提交，只需切换到 `rebuild/tutor`。
-2. **快照提交（最重要的一步）**：`git add -A` → 用 `git diff --cached --name-only` 与 `--stat` 核对：没有 `.env`、`storage/`、密钥、数据库、`node_modules`、`.next*` 进入暂存区；`apps/mobile` 全部显示为删除属正常。提交 `snapshot: v2 classroom refactor work-in-progress (pre-rebuild baseline)`；打本地标签 `pre-rebuild-20261116`；从该提交创建并切换到分支 `rebuild/tutor`。
+1. **环境确认**：当前目录应为 `E:\Codex\Projects\虚拟形象\Companion-Space-v2`，分支 `rebuild/tutor`，工作区干净。运行 `git rev-parse --git-common-dir`、`git status`、`git tag -l "pre-rebuild*"` 与 `git update-index --refresh` 确认（git 可写、标签存在）。**若实际情况不是这样（不在该分支、工作区不干净、标签不存在），停下汇报，不要自行处理。** 新建 `docs/rebuild/PROGRESS.md`，记录 HEAD、Python 与 Node 版本。
+2. **快照提交——已于 2026-11-17 完成，无需再做**：提交 `c72370f`（分支 `refactor/teaching-v2`，标签 `pre-rebuild-20261116`）原样保存了重塑前全部未提交的 v2 改动（287 个文件：新增 112、修改 69、删除 106——删除的是 `apps/mobile/`）；`rebuild/tutor` 自它切出，其上的第一个提交加入了本方案。需要查看重塑前的任何文件时，用 `git show pre-rebuild-20261116:<路径>`。
 3. **行尾与忽略规则**（单独提交 `chore: normalize line endings`）：`.gitattributes` 改为 `* text=auto eol=lf`，加 `*.bat text eol=crlf`、`*.cmd text eol=crlf`，以及二进制规则（`*.vrm *.vrma *.glb *.png *.jpg *.jpeg *.gif *.webp *.ico *.woff2 *.ttf *.otf *.onnx *.wasm *.pdf *.pptx *.docx *.mp3 *.wav *.ogg *.zip *.db binary`）；执行 `git add --renormalize .`。`.gitignore` 增加 `evals/out/`、`docs/rebuild/review/`；确认 `.env.eval` 已被忽略（`git check-ignore -v .env.eval`）。
 4. **基线**：运行 ruff 与 pytest，如实记录通过与失败数（不要引用旧文档里的数字）。基线失败项只记录，不修。新建 `scripts/gate.ps1` 与 npm 脚本 `generate:api:check`。
 5. **替换约定**：旧 `AGENTS.md` 移到 `docs/archive/AGENTS.v0.1.md`；把 `docs/rebuild/AGENTS.new.md` 复制为根目录 `AGENTS.md`。新建 `docs/rebuild/DECISIONS.md`，把 `KICKOFF.md` §2 的"已定决策"与"定位"抄入作为起始内容。

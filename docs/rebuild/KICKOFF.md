@@ -12,8 +12,9 @@
    docs/rebuild/spec/architecture-and-data.md。
 2. 注意：仓库根目录现有的 AGENTS.md 是旧约定，已经作废；与 docs/rebuild/ 冲突时一律以 docs/rebuild/ 为准。
    M0 的任务之一就是用 docs/rebuild/AGENTS.new.md 替换它。
-3. 这个工作区有大量未提交、未跟踪的改动，M0 第 2 步"快照提交"之前，禁止运行任何会丢弃改动的 git 命令
-   （git clean / stash / reset --hard / checkout -- / restore），也不要切换分支。
+3. 重塑前的状态已经存成快照（提交 c72370f，标签 pre-rebuild-20261116），你现在应当在分支 rebuild/tutor 上、
+   工作区是干净的；如果不是这样，停下告诉我。任何时候都禁止运行会丢弃改动的 git 命令
+   （git clean / stash / reset --hard / checkout -- / restore），也不要切换到别的分支。
    注意它是 git 的链接工作树：版本库数据在 E:\Codex\Projects\虚拟形象\Companion-Space\.git，在本目录执行
    git add/commit/tag/branch 会写到那里，这是允许的。先运行 git rev-parse --git-common-dir 和 git status
    确认 git 可用；如果报权限或锁错误，停下告诉我，不要 git init，也不要把文件复制到别处。
