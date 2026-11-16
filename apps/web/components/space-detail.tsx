@@ -9,9 +9,7 @@ import {
   deleteSpaceAssignment,
   discoverProviderModels,
   getSpace,
-  importLegacyKnowledge,
   listProviders,
-  listLegacyKnowledgeCandidates,
   retryMaterialIngestion,
   saveSpaceAssignment,
   updateSpace,
@@ -20,7 +18,6 @@ import {
 import { formatDateTime, joinCompact } from "@/lib/format";
 import type {
   IngestionJob,
-  LegacyKnowledgeCandidate,
   MaterialKind,
   ModelAssignment,
   ProviderCapability,
@@ -153,23 +150,10 @@ function materialStatusMeta(job: IngestionJob | null, kind: MaterialKind) {
   }
 }
 
-function legacyIssueLabel(issue: string | null): string {
-  switch (issue) {
-    case "source_missing":
-      return "旧资料源文件缺失，不能导入。";
-    case "source_outside_legacy_root":
-      return "旧资料源文件位置不安全，不能导入。";
-    default:
-      return issue ? `旧资料不可导入：${issue}` : "旧资料当前可导入。";
-  }
-}
-
 export function SpaceDetail({ spaceId }: { spaceId: string }) {
   const [space, setSpace] = useState<StudySpaceDetailView | null>(null);
   const [providerConnections, setProviderConnections] = useState<ProviderConnection[]>([]);
   const [providerError, setProviderError] = useState<string | null>(null);
-  const [legacyCandidates, setLegacyCandidates] = useState<LegacyKnowledgeCandidate[]>([]);
-  const [legacyError, setLegacyError] = useState<string | null>(null);
   const [bindingDrafts, setBindingDrafts] = useState<Record<ProviderCapability, BindingDraft>>(
     createEmptyBindingDrafts(),
   );
@@ -179,7 +163,6 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
   const [discoveringCapability, setDiscoveringCapability] = useState<ProviderCapability | null>(null);
   const [unbindingCapability, setUnbindingCapability] = useState<ProviderCapability | null>(null);
   const [retryingMaterialId, setRetryingMaterialId] = useState<string | null>(null);
-  const [importingLegacyDocumentId, setImportingLegacyDocumentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -189,7 +172,6 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
   const [noteContent, setNoteContent] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const refreshRequestRef = useRef(0);
-  const legacyImportInFlightRef = useRef(false);
   const spaceIdRef = useRef(spaceId);
   const providerConnectionsRef = useRef(providerConnections);
   spaceIdRef.current = spaceId;
@@ -210,12 +192,11 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
         setLoading(true);
       }
       try {
-        const [spaceResult, providersResult, legacyResult] = await Promise.allSettled([
+        const [spaceResult, providersResult] = await Promise.allSettled([
           getSpace(spaceId),
           options.includeProviders === false
             ? Promise.resolve(providerConnectionsRef.current)
             : listProviders(),
-          listLegacyKnowledgeCandidates(),
         ]);
         if (requestId !== refreshRequestRef.current || spaceIdRef.current !== spaceId) {
           return;
@@ -257,17 +238,6 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
           );
         }
 
-        if (legacyResult.status === "fulfilled") {
-          setLegacyCandidates(legacyResult.value);
-          setLegacyError(null);
-        } else {
-          setLegacyCandidates([]);
-          setLegacyError(
-            legacyResult.reason instanceof Error
-              ? legacyResult.reason.message
-              : "旧知识库候选加载失败",
-          );
-        }
       } finally {
         if (requestId === refreshRequestRef.current && spaceIdRef.current === spaceId && !options.quiet) {
           setLoading(false);
@@ -281,8 +251,6 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
     setSpace(null);
     setProviderConnections([]);
     setProviderError(null);
-    setLegacyCandidates([]);
-    setLegacyError(null);
     setBindingDrafts(createEmptyBindingDrafts());
     setTitle("");
     setTheme("");
@@ -295,7 +263,6 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
     setDiscoveringCapability(null);
     setUnbindingCapability(null);
     setRetryingMaterialId(null);
-    setImportingLegacyDocumentId(null);
     setError(null);
     void refresh();
     return () => {
@@ -438,38 +405,6 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
     } finally {
       if (spaceIdRef.current === actionSpaceId) {
         setRetryingMaterialId(null);
-      }
-    }
-  }
-
-  async function handleImportLegacy(documentId: string) {
-    if (legacyImportInFlightRef.current) {
-      return;
-    }
-    legacyImportInFlightRef.current = true;
-    const actionSpaceId = spaceId;
-    setImportingLegacyDocumentId(documentId);
-    setLegacyError(null);
-    setError(null);
-    try {
-      await importLegacyKnowledge(spaceId, documentId);
-      if (spaceIdRef.current === actionSpaceId) {
-        await refresh({
-          preserveBindingDrafts: true,
-          preserveEditableFields: true,
-          includeProviders: false,
-        });
-      }
-    } catch (actionError) {
-      if (spaceIdRef.current === actionSpaceId) {
-        setLegacyError(
-          actionError instanceof Error ? actionError.message : "旧知识库导入失败",
-        );
-      }
-    } finally {
-      legacyImportInFlightRef.current = false;
-      if (spaceIdRef.current === actionSpaceId) {
-        setImportingLegacyDocumentId(null);
       }
     }
   }
@@ -838,64 +773,6 @@ export function SpaceDetail({ spaceId }: { spaceId: string }) {
         </SectionCard>
       </div>
 
-      <SectionCard
-        eyebrow="旧版迁移"
-        title="导入旧知识库资料"
-        hint="这里只显示旧全局知识库的元数据，不展示正文；导入只复制到当前空间，不删除原文件。"
-      >
-        {legacyError ? <ErrorCallout message={legacyError} /> : null}
-        {legacyCandidates.length ? (
-          <div className="card-grid">
-            {legacyCandidates.map((candidate) => (
-              <article key={candidate.document_id} className="info-card">
-                <div className="card-row">
-                  <strong>{candidate.title}</strong>
-                  <StatusBadge
-                    label={candidate.importable ? "可导入" : "不可导入"}
-                    tone={candidate.importable ? "good" : "warn"}
-                  />
-                </div>
-                <p>
-                  {joinCompact([
-                    candidate.filename,
-                    candidate.source_type,
-                    `${candidate.chunk_count} chunks`,
-                  ])}
-                </p>
-                <p className="muted">
-                  {candidate.importable
-                    ? "导入时会保留旧文件，只把资料复制到当前空间。"
-                    : legacyIssueLabel(candidate.issue)}
-                </p>
-                {!candidate.importable && candidate.issue ? (
-                  <ErrorCallout message={legacyIssueLabel(candidate.issue)} />
-                ) : null}
-                <div className="inline-actions">
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    disabled={
-                      busy ||
-                      !candidate.importable ||
-                      importingLegacyDocumentId !== null
-                    }
-                    onClick={() => void handleImportLegacy(candidate.document_id)}
-                  >
-                    {importingLegacyDocumentId === candidate.document_id
-                      ? "导入中..."
-                      : "导入到当前空间"}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title="未发现可导入旧资料"
-            description="如果旧版全局知识库里有 PDF、TXT 或 Markdown 候选，它们会在这里列出元数据。当前不会读取正文，也不会自动删除原文件。"
-          />
-        )}
-      </SectionCard>
 
       <SectionCard
         eyebrow="空间资料"

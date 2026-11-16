@@ -395,9 +395,6 @@ async function authorizeBrowser(page: Page) {
   expect(response.ok()).toBeTruthy();
   const ownerToken = (await response.json() as { owner_token?: string }).owner_token;
   expect(ownerToken).toBeTruthy();
-  await page.route("**/api/v1/**", async (route) => {
-    await route.continue({ headers: { ...route.request().headers(), Authorization: `Bearer ${ownerToken}` } });
-  });
   return ownerToken as string;
 }
 

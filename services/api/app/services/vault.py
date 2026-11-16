@@ -208,6 +208,43 @@ class VaultService:
         )
         return token
 
+    def protect_browser_token(self, token: str) -> str:
+        if self._session_key is None or AESGCM is None:
+            raise VaultLockedError("Vault is locked")
+        nonce = secrets.token_bytes(12)
+        key = hmac.new(
+            self._session_key,
+            b"companion-browser-session-v1",
+            hashlib.sha256,
+        ).digest()
+        encrypted = AESGCM(key).encrypt(
+            nonce,
+            token.encode("utf-8"),
+            b"companion-owner-session",
+        )
+        return self._b64url(nonce + encrypted)
+
+    def unprotect_browser_token(self, protected_token: str) -> str | None:
+        if self._session_key is None or AESGCM is None:
+            return None
+        try:
+            payload = self._b64url_decode(protected_token)
+            nonce, encrypted = payload[:12], payload[12:]
+            if len(nonce) != 12 or not encrypted:
+                return None
+            key = hmac.new(
+                self._session_key,
+                b"companion-browser-session-v1",
+                hashlib.sha256,
+            ).digest()
+            return AESGCM(key).decrypt(
+                nonce,
+                encrypted,
+                b"companion-owner-session",
+            ).decode("utf-8")
+        except (InvalidTag, ValueError, binascii.Error, UnicodeDecodeError):
+            return None
+
     def create_pairing_challenge(self) -> tuple[str, PairingChallenge]:
         if self._session_key is None:
             raise VaultLockedError("Vault is locked")
@@ -477,6 +514,11 @@ class VaultService:
     @staticmethod
     def _b64url(value: bytes) -> str:
         return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+    @staticmethod
+    def _b64url_decode(value: str) -> bytes:
+        padding = "=" * (-len(value) % 4)
+        return base64.urlsafe_b64decode(f"{value}{padding}".encode("ascii"))
 
     @staticmethod
     def _is_b64url(value: str) -> bool:

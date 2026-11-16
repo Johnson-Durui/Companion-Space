@@ -1,0 +1,191 @@
+.dashboard-compass::after {
+  inset: 23%;
+  border-style: solid;
+  transform: rotate(45deg);
+}
+
+.dashboard-presence {
+  position: absolute;
+  z-index: 2;
+  top: 28px;
+  right: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  border: 1px solid rgba(235, 203, 114, 0.5);
+  border-radius: 0;
+  background: rgba(16, 47, 52, 0.82);
+  color: #fffdf7;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-presence i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #36a878;
+}
+
+.dashboard-stage-bubble {
+  position: absolute;
+  z-index: 2;
+  right: 28px;
+  bottom: 28px;
+  max-width: min(410px, calc(62% - 44px));
+  margin: 0;
+  border: 0;
+  border-left: 3px solid var(--warm);
+  border-radius: 0;
+  background: rgba(255, 253, 247, 0.94);
+  color: var(--night);
+  padding: 14px 18px;
+  box-shadow: 0 12px 30px rgba(16, 47, 52, 0.18);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
+  backdrop-filter: blur(10px);
+}
+
+.dashboard-home > .dashboard-companion {
+  z-index: 3;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-left: 4px solid var(--warm);
+  border-radius: 0;
+  background: rgba(255, 253, 247, 0.84);
+  padding: 26px 28px;
+  box-shadow: none;
+}
+
+.dashboard-home .companion-bookmark-copy h2 {
+  font-family: inherit;
+  font-size: clamp(21px, 2.2vw, 28px);
+  font-weight: 760;
+  letter-spacing: -0.025em;
+}
+
+.dashboard-home .companion-bookmark-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 15px;
+}
+
+.dashboard-home .companion-bookmark-facts > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  border-left: 0;
+  padding-left: 0;
+}
+
+.dashboard-home .companion-bookmark-facts dt::after {
+  content: "·";
+  margin-left: 6px;
+}
+
+.dashboard-home .companion-bookmark-action {
+  min-width: min(260px, 26vw);
+}
+
+.dashboard-home .companion-bookmark-action .primary-button {
+  min-height: 52px;
+  justify-content: space-between;
+  gap: 22px;
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  padding-inline: 19px;
+  font-size: 15px;
+}
+
+.dashboard-home .dashboard-more {
+  margin-top: 4px;
+}
+
+.dashboard-signal-rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--line-strong);
+}
+
+.dashboard-signal-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px;
+  transition: background 160ms ease;
+}
+
+.dashboard-signal-card + .dashboard-signal-card {
+  border-left: 1px solid var(--line);
+}
+
+.dashboard-signal-card:hover,
+.dashboard-signal-card:focus-visible {
+  background: var(--accent-soft);
+}
+
+.dashboard-signal-index {
+  color: var(--warm-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.6;
+}
+
+.dashboard-signal-card > div {
+  display: grid;
+  gap: 6px;
+}
+
+.dashboard-signal-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.dashboard-signal-card strong {
+  color: var(--ink);
+  font-size: clamp(22px, 3vw, 30px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1.2;
+}
+
+.dashboard-signal-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dashboard-signal-arrow {
+  color: var(--accent);
+}
+
+.dashboard-space-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-weight: 750;
+  text-underline-offset: 4px;
+}
+
+.dashboard-space-link:hover {
+  text-decoration: underline;
+}
+
+.dashboard-secondary .empty-state {
+  display: block;
+  min-height: 0;
+  padding: 24px;
+}

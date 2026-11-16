@@ -268,8 +268,6 @@ async function initializeAndUnlockVault(page: Page) {
   const statusResponse = await page.request.get(`${apiBaseUrl}/api/v1/vault/status`);
   expect(statusResponse.ok()).toBeTruthy();
   const vaultStatus = await statusResponse.json() as { initialized?: unknown };
-  let ownerToken: string | null;
-
   if (vaultStatus.initialized !== true) {
     await page.getByLabel("初始化主密码").fill(vaultPassword);
     const initResponse = page.waitForResponse((response) =>
@@ -278,7 +276,6 @@ async function initializeAndUnlockVault(page: Page) {
     await page.getByRole("button", { name: "初始化 Vault" }).click();
     const response = await initResponse;
     expect(response.ok()).toBeTruthy();
-    ownerToken = ((await response.json()) as { owner_token?: string | null }).owner_token ?? null;
   } else {
     await page.getByLabel("解锁主密码").fill(vaultPassword);
     const unlockResponse = page.waitForResponse((response) =>
@@ -287,10 +284,14 @@ async function initializeAndUnlockVault(page: Page) {
     await page.getByRole("button", { name: "解锁" }).click();
     const response = await unlockResponse;
     expect(response.ok()).toBeTruthy();
-    ownerToken = ((await response.json()) as { owner_token?: string | null }).owner_token ?? null;
   }
 
   await expect(statusLabels.filter({ hasText: "Yes" })).toHaveCount(2, { timeout: 10_000 });
+  const bearerResponse = await page.request.post(`${apiBaseUrl}/api/v1/vault/unlock`, {
+    data: { password: vaultPassword },
+  });
+  expect(bearerResponse.ok()).toBeTruthy();
+  const ownerToken = (await bearerResponse.json() as { owner_token?: string | null }).owner_token ?? null;
   expect(ownerToken).toBeTruthy();
   return ownerToken as string;
 }
@@ -375,7 +376,7 @@ async function createFallbackFixture(
 }
 
 async function openCallPage(page: Page, fixture: RealtimeFixture) {
-  const spacesLink = page.getByRole("link", { name: "学习空间" }).first();
+  const spacesLink = page.locator('nav a[href="/spaces"]').first();
   await Promise.all([
     page.waitForURL(/\/spaces$/, { timeout: 20_000 }),
     spacesLink.click(),

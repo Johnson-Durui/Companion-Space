@@ -1,4 +1,4 @@
-# Companion Space
+# Companion Space v2
 
 [简体中文](README.md) | **English**
 
@@ -6,15 +6,11 @@ Companion Space is a local-first anime-style study companion. Create learning sp
 
 The supported acceptance path is a Windows desktop browser with the local Mock provider. Docker is also supported. External providers receive requests only when configured and selected. The source is Apache License 2.0. Character models, motions, voice weights, and sample assets have separate terms in [NOTICE](NOTICE) and [assets/THIRD_PARTY_NOTICES.md](assets/THIRD_PARTY_NOTICES.md).
 
-## Current release
+## Classroom workflow
 
-- Interactive study room with spaces, session recovery, material and companion shortcuts, lighting, and a focus timer.
-- Immersive companion room with shared text history, keyboard shortcuts, 2D fallbacks, and six bundled VRM characters.
-- Material import, citation-aware retrieval, session review, user-confirmed memories, and review items.
-- Optional Capacitor Android/iOS shells with trusted HTTPS and eight-digit pairing.
-- Optional neural speech sidecar for compatible NVIDIA hosts.
+Open a study space, add source material, and pick a tutor. The classroom includes a persistent interactive board with formulas, step tracing, and a checkpoint quiz. Review cited excerpts and confirm flashcards for FSRS scheduling. The built-in Mock provider supports the full workflow without API keys.
 
-The release includes Windows production startup and Docker HTTPS smoke checks. Real providers, physical microphones, mobile signing, and real-device pairing require target-environment validation. See the [room and runtime update](docs/release/room-and-runtime-20261112.md) and [voice interface release record](docs/release/voice-interface-20261112.md).
+The responsive Web app supports Windows local startup and optional Docker hosting.
 
 ## Quick start
 

@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 
 from app.core.config import Settings, get_settings
 from app.services.characters import CharacterService
+from app.services.browser_session import OWNER_COOKIE_NAME, require_cookie_csrf
 from app.services.companion import CompanionService
 from app.services.demos import DemoService
 from app.services.legacy_import import LegacyKnowledgeImporter
@@ -82,16 +83,28 @@ def get_container() -> ServiceContainer:
 
 
 def require_owner(
+    request: Request,
     authorization: str | None = Header(default=None),
     container: ServiceContainer = Depends(get_container),
 ) -> str:
-    if not authorization or not authorization.lower().startswith("bearer "):
+    bearer_token = None
+    if authorization and authorization.lower().startswith("bearer "):
+        bearer_token = authorization.split(" ", 1)[1].strip()
+
+    token = bearer_token
+    if token is None:
+        protected_token = request.cookies.get(OWNER_COOKIE_NAME)
+        if protected_token:
+            token = container.vault.unprotect_browser_token(protected_token)
+            if token is not None:
+                require_cookie_csrf(request, container.settings)
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=OWNER_SESSION_REQUIRED,
             headers={"WWW-Authenticate": "Bearer"},
         )
-    token = authorization.split(" ", 1)[1].strip()
     owner_state = container.vault.owner_token_state(token)
     if owner_state is OwnerTokenState.vault_locked:
         raise HTTPException(
@@ -105,6 +118,24 @@ def require_owner(
             detail=OWNER_SESSION_INVALID,
             headers={"WWW-Authenticate": "Bearer"},
         )
+    return token
+
+
+def optional_owner(
+    request: Request,
+    authorization: str | None = Header(default=None),
+    container: ServiceContainer = Depends(get_container),
+) -> str | None:
+    bearer_token = None
+    if authorization and authorization.lower().startswith("bearer "):
+        bearer_token = authorization.split(" ", 1)[1].strip()
+    token = bearer_token
+    if token is None:
+        protected_token = request.cookies.get(OWNER_COOKIE_NAME)
+        if protected_token:
+            token = container.vault.unprotect_browser_token(protected_token)
+    if not token or container.vault.owner_token_state(token) is not OwnerTokenState.valid:
+        return None
     return token
 
 

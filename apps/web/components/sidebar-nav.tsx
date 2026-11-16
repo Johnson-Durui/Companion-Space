@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-type NavIconName = "home" | "spaces" | "study" | "review" | "me";
+type NavIconName = "spaces" | "study" | "review";
 
 function NavIcon({ name }: { name: NavIconName }) {
   const common = {
@@ -17,12 +17,6 @@ function NavIcon({ name }: { name: NavIconName }) {
 
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
-      {name === "home" ? (
-        <>
-          <path {...common} d="M3.5 10.7 12 3.8l8.5 6.9" />
-          <path {...common} d="M5.7 9.3v10.1h12.6V9.3M9.5 19.4v-5.7h5v5.7" />
-        </>
-      ) : null}
       {name === "spaces" ? (
         <>
           <path {...common} d="M4 6.2h6.2l1.6 2H20v9.9a1.9 1.9 0 0 1-1.9 1.9H5.9A1.9 1.9 0 0 1 4 18.1Z" />
@@ -42,38 +36,24 @@ function NavIcon({ name }: { name: NavIconName }) {
           <path {...common} d="m14.8 16.2 1.2 1.2 2.3-2.4" />
         </>
       ) : null}
-      {name === "me" ? (
-        <>
-          <circle {...common} cx="12" cy="8" r="3.3" />
-          <path {...common} d="M5.5 20c.5-4 2.7-6 6.5-6s6 2 6.5 6" />
-        </>
-      ) : null}
     </svg>
   );
 }
 
 const desktopItems = [
-  { href: "/", label: "今日", ariaLabel: "主舞台", icon: "home" as const, paths: ["/", "/room"] },
-  { href: "/spaces", label: "空间", ariaLabel: "学习空间", icon: "spaces" as const, paths: ["/spaces"] },
-  { href: "/study", label: "共学", ariaLabel: "开始共学", icon: "study" as const, paths: ["/study"] },
-  { href: "/sessions", label: "复盘", ariaLabel: "会话复盘", icon: "review" as const, paths: ["/sessions", "/memory", "/review-items"] },
-  { href: "/characters", label: "伙伴", ariaLabel: "角色工作室", icon: "me" as const, paths: ["/characters"] },
+  { href: "/spaces", label: "星轨书房", ariaLabel: "星轨书房", icon: "spaces" as const, paths: ["/", "/spaces", "/room", "/me", "/characters", "/providers", "/vault", "/settings", "/library"] },
+  { href: "/study", label: "互动课堂", ariaLabel: "互动课堂", icon: "study" as const, paths: ["/study"] },
+  { href: "/review-items", label: "记忆复盘", ariaLabel: "记忆复盘", icon: "review" as const, paths: ["/sessions", "/memory", "/review-items"] },
 ];
 
 const utilityItems = [
-  { href: "/me", label: "我的首页", ariaLabel: "我的首页" },
+  { href: "/characters", label: "导师工作室", ariaLabel: "角色工作室" },
   { href: "/providers", label: "声音与模型", ariaLabel: "模型中心" },
   { href: "/vault", label: "本地保险箱", ariaLabel: "安全内核" },
   { href: "/settings", label: "偏好与设置", ariaLabel: "设置" },
 ];
 
-const mobileItems = [
-  { href: "/", label: "今日", icon: "home" as const, paths: ["/", "/room"] },
-  { href: "/spaces", label: "空间", icon: "spaces" as const, paths: ["/spaces"] },
-  { href: "/study", label: "共学", icon: "study" as const, paths: ["/study"] },
-  { href: "/sessions", label: "复盘", icon: "review" as const, paths: ["/sessions", "/memory", "/review-items"] },
-  { href: "/me", label: "我的", icon: "me" as const, paths: ["/me", "/characters", "/providers", "/vault", "/settings"] },
-];
+const mobileItems = desktopItems;
 
 export function SidebarNav({ displayName }: { displayName: string }) {
   const rawPathname = usePathname();
@@ -90,23 +70,8 @@ export function SidebarNav({ displayName }: { displayName: string }) {
     return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   }
 
-  function isMobileActive(item: (typeof mobileItems)[number]) {
-    if (item.label === "共学") {
-      return pathname === "/study" || (pathname.startsWith("/spaces/") && pathname.endsWith("/call"));
-    }
-    if (item.label === "空间") {
-      return pathname === "/spaces" || (pathname.startsWith("/spaces/") && !pathname.endsWith("/call"));
-    }
-    return item.paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-  }
-
   function isDesktopActive(item: (typeof desktopItems)[number]) {
-    if (item.href === "/study") {
-      return pathname === "/study" || (pathname.startsWith("/spaces/") && pathname.endsWith("/call"));
-    }
-    if (item.href === "/spaces") {
-      return pathname === "/spaces" || (pathname.startsWith("/spaces/") && !pathname.endsWith("/call"));
-    }
+    if (pathname.startsWith("/spaces/") && pathname.endsWith("/call")) return item.href === "/study";
     return item.paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
   }
 
@@ -174,8 +139,8 @@ export function SidebarNav({ displayName }: { displayName: string }) {
 
       <div className="mobile-tab-bar" aria-label="移动端主导航">
         {mobileItems.map((item) => {
-          const active = isMobileActive(item);
-          const href = item.label === "共学" && active && pathname.endsWith("/call")
+          const active = isDesktopActive(item);
+          const href = item.href === "/study" && active && pathname.endsWith("/call")
             ? pathname
             : item.href;
           return (
@@ -183,7 +148,7 @@ export function SidebarNav({ displayName }: { displayName: string }) {
               key={`${item.label}-${item.href}`}
               href={href}
               className={active ? "mobile-tab active" : "mobile-tab"}
-              data-primary={item.label === "共学" || undefined}
+              data-primary={item.href === "/study" || undefined}
               aria-current={active ? "page" : undefined}
             >
               <span className="mobile-tab-icon"><NavIcon name={item.icon} /></span>

@@ -737,23 +737,26 @@ async function initializeAndUnlockVault(page: Page): Promise<string> {
   const statusResponse = await page.request.get(`${apiBaseUrl}/api/v1/vault/status`);
   expect(statusResponse.status()).toBe(200);
   const vaultStatus = await statusResponse.json() as { initialized?: unknown };
-  let ownerToken: string | null = null;
-
   if (vaultStatus.initialized !== true) {
     await page.getByLabel("初始化主密码").fill(vaultPassword);
     const initResponse = page.waitForResponse((response) =>
       response.url().endsWith("/api/v1/vault/init") && response.request().method() === "POST");
     await page.getByRole("button", { name: "初始化 Vault" }).click();
-    ownerToken = ((await (await initResponse).json()) as { owner_token?: string | null }).owner_token ?? null;
+    expect((await initResponse).ok()).toBeTruthy();
   } else {
     await page.getByLabel("解锁主密码").fill(vaultPassword);
     const unlockResponse = page.waitForResponse((response) =>
       response.url().endsWith("/api/v1/vault/unlock") && response.request().method() === "POST");
     await page.getByRole("button", { name: "解锁" }).click();
-    ownerToken = ((await (await unlockResponse).json()) as { owner_token?: string | null }).owner_token ?? null;
+    expect((await unlockResponse).ok()).toBeTruthy();
   }
 
   await expect(statusLabels.filter({ hasText: "Yes" })).toHaveCount(2);
+  const bearerResponse = await page.request.post(`${apiBaseUrl}/api/v1/vault/unlock`, {
+    data: { password: vaultPassword },
+  });
+  expect(bearerResponse.ok()).toBeTruthy();
+  const ownerToken = (await bearerResponse.json() as { owner_token?: string | null }).owner_token ?? null;
   expect(ownerToken).toBeTruthy();
   return ownerToken as string;
 }
@@ -793,7 +796,7 @@ async function createRealtimeFixture(request: APIRequestContext, ownerToken: str
 async function openCallPage(page: Page, fixture: RealtimeFixture): Promise<void> {
   await Promise.all([
     page.waitForURL(/\/spaces$/, { timeout: 20_000 }),
-    page.getByRole("link", { name: "学习空间" }).first().click(),
+    page.locator('nav a[href="/spaces"]').first().click(),
   ]);
   const spaceCard = page.locator("article.info-card").filter({ hasText: fixture.spaceName });
   await expect(spaceCard).toBeVisible({ timeout: 20_000 });

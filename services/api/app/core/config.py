@@ -135,6 +135,14 @@ class Settings(BaseSettings):
                 origins.add(f"{parsed.scheme}://{parsed.netloc}".lower())
         return {origin.lower() for origin in origins}
 
+    @property
+    def browser_allowed_origins(self) -> set[str]:
+        return {
+            origin.lower()
+            for origin in self.websocket_allowed_origins
+            if urlsplit(origin).scheme in {"http", "https"}
+        }
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

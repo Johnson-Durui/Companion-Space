@@ -11,7 +11,6 @@ import {
   deleteCharacter,
   downloadCharacterPack,
   duplicateCharacter,
-  getOwnerPreferences,
   importCharacter,
   listCharacters,
 } from "@/lib/api";
@@ -83,7 +82,6 @@ export function CharactersPanel() {
   const [error, setError] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [adultRelationshipsEnabled, setAdultRelationshipsEnabled] = useState(false);
   const [composerVersion, setComposerVersion] = useState(0);
   const packInputRef = useRef<HTMLInputElement | null>(null);
   const newCharacterRef = useRef<HTMLDetailsElement | null>(null);
@@ -91,12 +89,8 @@ export function CharactersPanel() {
   async function refresh() {
     setLoading(true);
     try {
-      const [next, preferences] = await Promise.all([
-        listCharacters(),
-        getOwnerPreferences(),
-      ]);
+      const next = await listCharacters();
       setCharacters(next);
-      setAdultRelationshipsEnabled(preferences.adult_relationships_enabled);
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "角色列表加载失败");
@@ -312,7 +306,6 @@ export function CharactersPanel() {
             mode="create"
             seed={composerSeed}
             seedKey={composerVersion}
-            adultRelationshipsEnabled={adultRelationshipsEnabled}
             busy={busy}
             notice={notice}
             error={error}

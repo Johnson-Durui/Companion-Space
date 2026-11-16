@@ -1102,11 +1102,6 @@ async function authorizeFocusedBrowser(page: Page) {
   expect(unlockResponse.status()).toBe(200);
   const ownerToken = (await unlockResponse.json() as { owner_token?: string }).owner_token;
   expect(ownerToken).toBeTruthy();
-  await page.route("**/api/v1/**", async (route) => {
-    await route.continue({
-      headers: { ...route.request().headers(), Authorization: `Bearer ${ownerToken}` },
-    });
-  });
   return ownerToken as string;
 }
 

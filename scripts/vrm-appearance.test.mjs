@@ -12,7 +12,7 @@ import ts from "typescript";
 const repositoryRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
 async function loadAppearanceModule(runtimeRecipe) {
-  const sourcePath = join(repositoryRoot, "apps/web/components/avatar/vrm-appearance.ts");
+  const sourcePath = join(repositoryRoot, "packages/avatar-engine/src/vrm-appearance.ts");
   const source = await readFile(sourcePath, "utf8");
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
@@ -26,7 +26,7 @@ async function loadAppearanceModule(runtimeRecipe) {
     exports: module.exports,
     module,
     require(specifier) {
-      if (specifier === "@/components/avatar/vrm-recipe") {
+      if (specifier === "./vrm-recipe") {
         return { getRuntimeRecipeView: () => runtimeRecipe };
       }
       throw new Error(`Unexpected vrm-appearance dependency: ${specifier}`);

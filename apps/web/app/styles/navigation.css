@@ -1,0 +1,247 @@
+.nav-panel {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 100dvh;
+  align-content: start;
+  gap: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, rgba(235, 203, 114, 0.06), transparent 28%),
+    #102f34;
+  color: #f8f3e9;
+  padding: 24px 18px;
+  box-shadow: none;
+}
+
+.brand-lockup {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(235, 203, 114, 0.46);
+  border-radius: 50%;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.brand-lockup h1,
+.brand-name {
+  margin: 0;
+  color: #fffdf8;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.brand-subtitle,
+.nav-panel .muted {
+  margin: 3px 0 0;
+  color: rgba(244, 239, 230, 0.66);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.nav-groups,
+.nav-group,
+.nav-links,
+.desktop-task-nav,
+.desktop-utility-links {
+  display: grid;
+}
+
+.desktop-task-nav {
+  gap: 6px;
+}
+
+.desktop-task-link {
+  position: relative;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 52px;
+  padding-inline: 10px;
+}
+
+.desktop-task-link::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(235, 203, 114, 0.45);
+  transform: rotate(45deg);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.desktop-task-link.active::after {
+  opacity: 1;
+}
+
+.nav-task-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  color: rgba(255, 253, 248, 0.72);
+}
+
+.nav-task-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.desktop-task-link.active .nav-task-icon {
+  border-color: rgba(235, 203, 114, 0.7);
+  background: rgba(235, 203, 114, 0.12);
+  color: #fff;
+}
+
+.desktop-utility-nav {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 14px 8px 0;
+}
+
+.desktop-utility-nav summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  color: rgba(255, 253, 248, 0.72);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.desktop-utility-links {
+  gap: 2px;
+  padding-top: 6px;
+}
+
+.desktop-utility-links a {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+  color: rgba(255, 253, 248, 0.72);
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.desktop-utility-links a:hover,
+.desktop-utility-links a[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.nav-groups {
+  gap: 22px;
+}
+
+.nav-group {
+  gap: 9px;
+}
+
+.nav-links {
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-group-label,
+.eyebrow {
+  margin: 0;
+  color: var(--warm-text);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.nav-group-label {
+  padding: 0 10px;
+  color: rgba(244, 239, 230, 0.64);
+}
+
+.nav-link {
+  position: relative;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 48px;
+  border-radius: var(--radius-sm);
+  color: rgba(255, 253, 248, 0.78);
+  padding: 7px 9px;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.nav-link.active,
+.nav-link[aria-current="page"] {
+  background: rgba(255, 253, 248, 0.09);
+  box-shadow: inset 2px 0 0 var(--gold);
+  color: #fff;
+}
+
+.nav-link-index,
+.nav-index,
+.nav-item-index {
+  color: rgba(255, 253, 248, 0.62);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+}
+
+.nav-link strong,
+.nav-item-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.nav-link-copy > span,
+.nav-item-hint {
+  display: block;
+  margin-top: 2px;
+  color: rgba(244, 239, 230, 0.64);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.nav-footer {
+  margin-top: auto;
+  padding: 18px 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-footer strong {
+  display: block;
+  color: rgba(255, 253, 248, 0.86);
+  font-size: 12px;
+}
+
+.mobile-tab-bar {
+  display: none;
+}

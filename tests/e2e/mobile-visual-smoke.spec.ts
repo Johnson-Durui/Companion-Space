@@ -168,6 +168,10 @@ test("renders the redesigned primary mobile tabs without horizontal overflow", a
       await route.fulfill({ json: [session("session-active", "space-design", "speaking", "2026-08-14T10:10:00Z")] });
       return;
     }
+    if (path.includes("/classroom/flashcards")) {
+      await route.fulfill({ json: { items: [] } });
+      return;
+    }
     if (path === "/api/v1/memory/space-language") {
       await route.fulfill({ json: { items: memoryItems } });
       return;
@@ -192,13 +196,13 @@ test("renders the redesigned primary mobile tabs without horizontal overflow", a
   });
 
   for (const [path, name, heading, activeTab, loadedText] of [
-    ["/", "today-375", "今天，和Mori去哪里？", "今日", "NEXT CHAPTER"],
-    ["/spaces", "spaces-375", "学习空间", "空间", "日语听说"],
-    ["/study", "study-375", "今天想学什么？", "共学", "路线选择"],
-    ["/sessions", "sessions-375", "最近会话", "复盘", "产品设计 · 会话复盘"],
-    ["/memory", "memory-375", "把值得留下的，交给她记住。", "复盘", "每天用日语完成一次真实场景的口语练习"],
-    ["/review-items", "review-items-375", "不是重读，是再答一次。", "复盘", "第一次见面时，怎样用日语自然地介绍自己？"],
-    ["/me", "me-375", "我的", "我的", "CURRENT COMPANION"],
+    ["/", "today-375", "今天，和Mori去哪里？", "星轨书房", "NEXT CHAPTER"],
+    ["/spaces", "spaces-375", "星轨书房", "星轨书房", "日语听说"],
+    ["/study", "study-375", "今天想学什么？", "互动课堂", "路线选择"],
+    ["/sessions", "sessions-375", "最近会话", "记忆复盘", "产品设计 · 会话复盘"],
+    ["/memory", "memory-375", "把值得留下的，交给她记住。", "记忆复盘", "每天用日语完成一次真实场景的口语练习"],
+    ["/review-items", "review-items-375", "不是重读，是再答一次。", "记忆复盘", "第一次见面时，怎样用日语自然地介绍自己？"],
+    ["/me", "me-375", "我的", "星轨书房", "CURRENT COMPANION"],
   ] as const) {
     await page.goto(path, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();

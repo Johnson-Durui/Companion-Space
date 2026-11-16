@@ -1,11 +1,10 @@
-import { Alert, Descriptions, Empty, Spin, Statistic, Tag } from "antd";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 type BadgeTone = "default" | "good" | "warn" | "muted";
 
 export function StatusBadge({ label, tone = "default" }: { label: string; tone?: BadgeTone }) {
-  return <Tag className={`status-badge tone-${tone}`}>{label}</Tag>;
+  return <span className={`status-badge tone-${tone}`}>{label}</span>;
 }
 
 export function PageIntro({
@@ -65,7 +64,8 @@ export function SectionCard({
 export function StatCard({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
   return (
     <article className="metric-card">
-      <Statistic title={label} value={value} />
+      <p className="muted">{label}</p>
+      <strong className="stat-value">{value}</strong>
       {detail ? <p>{detail}</p> : null}
     </article>
   );
@@ -81,29 +81,20 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <Empty
-      className="empty-state"
-      image={<span className="empty-state-symbol" aria-hidden="true" />}
-      description={
-        <span className="empty-state-copy">
-          <strong>{title}</strong>
-          <span className="muted">{description}</span>
-        </span>
-      }
-    >
+    <div className="empty-state">
+      <span className="empty-state-copy"><strong>{title}</strong><span className="muted">{description}</span></span>
       {action}
-    </Empty>
+    </div>
   );
 }
 
 export function ErrorCallout({ message }: { message: string }) {
-  return <Alert className="error-callout" type="error" message={message} showIcon role="alert" />;
+  return <p className="error-callout" role="alert">{message}</p>;
 }
 
 export function LoadingState({ label = "正在读取..." }: { label?: string }) {
   return (
     <div className="muted loading-state" role="status" aria-live="polite">
-      <Spin size="small" />
       <span>{label}</span>
     </div>
   );
@@ -115,19 +106,11 @@ export function PropertyList({
   entries: Array<{ label: string; value: ReactNode }>;
 }) {
   return (
-    <Descriptions
-      className="meta-list wide"
-      bordered
-      colon={false}
-      column={{ xs: 1, sm: 1, md: 2 }}
-      layout="vertical"
-      size="small"
-      items={entries.map((entry) => ({
-        key: entry.label,
-        label: entry.label,
-        children: entry.value,
-      }))}
-    />
+    <dl className="meta-list wide">
+      {entries.map(({ label, value }) => (
+        <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+      ))}
+    </dl>
   );
 }
 

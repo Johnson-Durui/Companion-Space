@@ -10,6 +10,7 @@ import type { ReviewItem, StudySpaceSummary } from "@/lib/types";
 import { EmptyState, ErrorCallout, LoadingState, StatusBadge } from "@/components/ui";
 
 import styles from "./reflection-task-panel.module.css";
+import { ClassroomFlashcards } from "./classroom-flashcards";
 
 function isCompleted(item: ReviewItem) {
   return item.status === "completed" || item.status === "done";
@@ -194,6 +195,8 @@ export function ReviewItemsPanel({ initialSpaceId }: { initialSpaceId?: string }
           </label>
         ) : null}
       </section>
+
+      {selectedSpaceId ? <ClassroomFlashcards key={selectedSpaceId} spaceId={selectedSpaceId} /> : null}
 
       {error ? <ErrorCallout message={error} /> : null}
 

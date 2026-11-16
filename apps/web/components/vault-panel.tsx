@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Input } from "antd";
-import type { InputRef } from "antd";
 import { FormEvent, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { ApiError, getNeuralTtsSidecarStatus, getVaultStatus, initializeVault, lockVault, resetVault, unlockVault } from "@/lib/api";
-import { getOwnerSessionToken, subscribeOwnerSession } from "@/lib/owner-session";
+import { hasOwnerSession, subscribeOwnerSession } from "@/lib/owner-session";
 import type { NeuralTtsSidecarStatus, VaultStatus } from "@/lib/types";
 import { ErrorCallout, LoadingState, PropertyList, SectionCard, StatusBadge } from "@/components/ui";
 
@@ -38,12 +36,12 @@ export function VaultPanel({ returnHref }: { returnHref?: string }) {
   const [initPassword, setInitPassword] = useState("");
   const [unlockPassword, setUnlockPassword] = useState("");
   const [resetPassword, setResetPassword] = useState("");
-  const ownerToken = useSyncExternalStore(subscribeOwnerSession, getOwnerSessionToken, () => null);
+  const ownerToken = useSyncExternalStore(subscribeOwnerSession, hasOwnerSession, () => false);
   const refreshGenerationRef = useRef(0);
   const previousOwnerTokenRef = useRef(ownerToken);
-  const initPasswordRef = useRef<InputRef>(null);
-  const unlockPasswordRef = useRef<InputRef>(null);
-  const browserUnlocked = status?.unlocked === true && Boolean(ownerToken);
+  const initPasswordRef = useRef<HTMLInputElement>(null);
+  const unlockPasswordRef = useRef<HTMLInputElement>(null);
+  const browserUnlocked = status?.owner_session_authenticated === true;
 
   const refresh = useCallback(async () => {
     const generation = ++refreshGenerationRef.current;
@@ -199,7 +197,7 @@ export function VaultPanel({ returnHref }: { returnHref?: string }) {
               <form className="form-grid" aria-label="Vault 初始化" aria-busy={busy} onSubmit={handleInit}>
                 <label className="field">
                   <span>初始化主密码</span>
-                  <Input.Password
+                  <input type="password"
                     ref={initPasswordRef}
                     autoComplete="new-password"
                     minLength={8}
@@ -212,9 +210,9 @@ export function VaultPanel({ returnHref }: { returnHref?: string }) {
                     placeholder="至少 8 位，仅用于本地加密"
                   />
                 </label>
-                <Button type="primary" htmlType="submit" loading={busy} disabled={busy || !initPassword.trim()}>
+                <button className="primary-button" type="submit" disabled={busy || !initPassword.trim()}>
                   {busy ? "正在初始化..." : "初始化 Vault"}
-                </Button>
+                </button>
               </form>
             ) : null}
 
@@ -222,7 +220,7 @@ export function VaultPanel({ returnHref }: { returnHref?: string }) {
               <form className="form-grid" aria-label="Vault 解锁" aria-busy={busy} onSubmit={handleUnlock}>
                 <label className="field">
                   <span>解锁主密码</span>
-                  <Input.Password
+                  <input type="password"
                     ref={unlockPasswordRef}
                     autoComplete="current-password"
                     minLength={8}
@@ -235,9 +233,9 @@ export function VaultPanel({ returnHref }: { returnHref?: string }) {
                     placeholder="输入原主密码"
                   />
                 </label>
-                <Button type="primary" htmlType="submit" loading={busy} disabled={busy || !unlockPassword.trim()}>
+                <button className="primary-button" type="submit" disabled={busy || !unlockPassword.trim()}>
                   {busy ? "正在解锁..." : "解锁 Vault"}
-                </Button>
+                </button>
               </form>
             ) : null}
 
@@ -254,7 +252,7 @@ export function VaultPanel({ returnHref }: { returnHref?: string }) {
                   <form className="form-grid" aria-label="Vault 重置" aria-busy={busy} onSubmit={handleReset}>
                     <label className="field">
                       <span>当前主密码</span>
-                      <Input.Password
+                      <input type="password"
                         autoComplete="current-password"
                         minLength={8}
                         required
@@ -266,9 +264,9 @@ export function VaultPanel({ returnHref }: { returnHref?: string }) {
                         placeholder="验证后清除 Vault 凭据"
                       />
                     </label>
-                    <Button danger htmlType="submit" loading={busy} disabled={busy || !resetPassword.trim()}>
+                    <button className="ghost-button" type="submit" disabled={busy || !resetPassword.trim()}>
                       {busy ? "正在重置..." : "重置 Vault"}
-                    </Button>
+                    </button>
                   </form>
                 </details>
               </>
@@ -295,9 +293,9 @@ export function VaultPanel({ returnHref }: { returnHref?: string }) {
               />
               {sidecar ? <p className="micro-copy">{sidecar.how_to_switch}</p> : null}
               <div className="inline-actions">
-                <Button disabled={!browserUnlocked || busy} loading={busy} onClick={() => void runAction(lockVault, "Vault 已锁定。")}>
+                <button className="ghost-button" type="button" disabled={!browserUnlocked || busy} onClick={() => void runAction(lockVault, "Vault 已锁定。")}>
                   {busy ? "处理中..." : "立即锁定"}
-                </Button>
+                </button>
               </div>
             </>
           ) : (

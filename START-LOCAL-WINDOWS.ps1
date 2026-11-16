@@ -111,8 +111,8 @@ Write-Host "Starting Companion Space without Docker." -ForegroundColor Green
 Write-Host "Mode $(if ($Production) { 'production build + start' } else { 'development' })" -ForegroundColor DarkGray
 Write-Host "API  $apiUrl" -ForegroundColor DarkGray
 Write-Host "Web  $webUrl" -ForegroundColor DarkGray
-Write-Host "Open the Web URL after Next.js prints Ready. Four leads are painted-blender originals, not licensed samples." -ForegroundColor DarkGray
-Write-Host "Healthy API/TTS on 8000/8001 are reused. This script never stops TTS." -ForegroundColor DarkGray
+Write-Host "Open the Web URL after Next.js prints Ready. Choose a study space to start an interactive classroom." -ForegroundColor DarkGray
+Write-Host "A compatible API at the selected port is reused." -ForegroundColor DarkGray
 
 $webHealthy = Test-HttpSuccess $webUrl
 $webListening = Test-PortListening $WebPort

@@ -1,0 +1,77 @@
+.character-progressive-disclosure {
+  overflow: clip;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.character-progressive-disclosure > summary {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 22px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.character-progressive-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.character-progressive-disclosure > summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.character-progressive-disclosure[open] > summary::after {
+  content: "−";
+}
+
+.character-progressive-disclosure > summary > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.character-progressive-disclosure > summary strong {
+  font-family: "Songti SC", "STSong", Georgia, serif;
+  font-size: clamp(20px, 2vw, 26px);
+}
+
+.character-progressive-content {
+  padding: 0 14px 14px;
+}
+
+.character-progressive-content > .panel,
+.character-progressive-content > .page-stack {
+  margin: 0;
+}
+
+@media (max-width: 820px) {
+  .character-progressive-disclosure > summary {
+    min-height: 64px;
+    align-items: flex-start;
+    padding: 16px 18px;
+  }
+
+  .character-progressive-disclosure > summary > .muted {
+    display: none;
+  }
+}
+
+/* Companion portrait shared by lightweight mobile surfaces. */
+
+.app-pet-portrait {
+  width: 192px;
+  height: 208px;
+  display: block;
+  background-image: url("/assets/characters/pets/mori/spritesheet.webp");
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: 1536px 2288px;
+  image-rendering: auto;
+}

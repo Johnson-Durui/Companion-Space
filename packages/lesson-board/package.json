@@ -1,0 +1,14 @@
+{
+  "name": "@companion-space/lesson-board",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./board.tsx",
+  "dependencies": {
+    "katex": "0.19.1",
+    "@companion-space/api-client": "*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0"
+  }
+}

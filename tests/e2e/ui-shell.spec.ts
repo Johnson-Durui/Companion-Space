@@ -117,8 +117,8 @@ test.describe("responsive application shell", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
-    await expect(page.getByRole("navigation", { name: "主要导航" }).getByRole("link")).toHaveCount(5);
-    await expect(page.getByRole("link", { name: "主舞台", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("navigation", { name: "主要导航" }).locator(".desktop-task-nav").getByRole("link")).toHaveCount(3);
+    await expect(page.getByRole("link", { name: "星轨书房", exact: true })).toHaveAttribute("aria-current", "page");
     const overview = page.getByRole("navigation", { name: "学习概览" });
     await expect(overview.getByRole("link", { name: /学习空间/ })).toHaveAttribute("href", "/spaces");
     await expect(overview.getByRole("link", { name: /学习伙伴/ })).toHaveAttribute("href", "/characters");
@@ -274,8 +274,8 @@ test.describe("responsive application shell", () => {
     await page.goto("/me");
 
     const navigation = page.getByRole("navigation", { name: "主要导航" });
-    const myTab = navigation.locator(".mobile-tab-bar").getByRole("link", { name: "我的", exact: true });
-    await expect(myTab).toHaveAttribute("href", "/me");
+    const myTab = navigation.locator(".mobile-tab-bar").getByRole("link", { name: "星轨书房", exact: true });
+    await expect(myTab).toHaveAttribute("href", "/spaces");
     await expect(myTab).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("heading", { level: 1, name: "我的" })).toBeVisible();
     await expect(page.getByRole("link", { name: "管理角色" })).toHaveAttribute("href", "/characters");
@@ -308,7 +308,7 @@ test.describe("responsive application shell", () => {
 
     for (const path of ["/characters", "/providers", "/vault", "/settings"]) {
       await page.goto(path);
-      await expect(navigation.locator(".mobile-tab-bar").getByRole("link", { name: "我的", exact: true })).toHaveAttribute("aria-current", "page");
+      await expect(navigation.locator(".mobile-tab-bar").getByRole("link", { name: "星轨书房", exact: true })).toHaveAttribute("aria-current", "page");
     }
   });
 
@@ -334,7 +334,7 @@ test.describe("responsive application shell", () => {
       await expect(page.getByText(chapter.loadingText, { exact: true })).toBeVisible();
       await expect(page.getByText(chapter.contentText, { exact: true }).first()).toBeVisible();
       const navigation = page.getByRole("navigation", { name: "主要导航" });
-      await expect(navigation.getByRole("link")).toHaveCount(5);
+      await expect(navigation.locator(".mobile-tab-bar").getByRole("link")).toHaveCount(3);
       await expect(navigation.locator(".mobile-tab[aria-current='page']")).toContainText("复盘");
     });
   }
@@ -638,7 +638,7 @@ test.describe("responsive application shell", () => {
     await expect(launchLink).toHaveAttribute("href", "/spaces/space-recent/call");
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(page.getByRole("navigation", { name: "主要导航" })
-      .getByRole("link", { name: "开始共学", exact: true })).toHaveAttribute("aria-current", "page");
+      .getByRole("link", { name: "互动课堂", exact: true })).toHaveAttribute("aria-current", "page");
     await launcher.getByRole("radio", { name: /算法训练/ }).check();
     await expect(launchLink).toHaveAttribute("href", "/spaces/space-algorithms/call");
     expect(requests).toEqual(["/api/v1/spaces"]);
@@ -684,7 +684,7 @@ test.describe("responsive application shell", () => {
 
       await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
       const navigation = page.getByRole("navigation", { name: "主要导航" });
-      await expect(navigation.getByRole("link")).toHaveCount(5);
+      await expect(navigation.locator(".mobile-tab-bar").getByRole("link")).toHaveCount(3);
       await expect(page.locator('form[aria-label^="Vault"]')).toHaveCount(1);
       const activeLink = navigation.locator('.mobile-tab[aria-current="page"]');
       await expect.poll(async () => activeLink.evaluate((link, viewportWidth) => {
@@ -731,8 +731,8 @@ test.describe("responsive application shell", () => {
         expect(metrics.formControlFontSizes.length).toBeGreaterThan(0);
         expect(metrics.formControlFontSizes.every((size) => size >= 16)).toBe(true);
         await expect(page.locator("input:focus")).toHaveCount(0);
-        await expect(navigation.locator('.mobile-tab[aria-current="page"]')).toContainText("我的");
-        const studyLink = navigation.getByRole("link", { name: "共学", exact: true });
+        await expect(navigation.locator('.mobile-tab[aria-current="page"]')).toContainText("星轨书房");
+        const studyLink = navigation.getByRole("link", { name: "互动课堂", exact: true });
         await expect(studyLink).toHaveAttribute(
           "href",
           "/study",
@@ -741,10 +741,10 @@ test.describe("responsive application shell", () => {
           page.waitForURL(/\/study$/),
           studyLink.click(),
         ]);
-        await expect(navigation.locator('.mobile-tab[aria-current="page"]')).toContainText("共学");
+        await expect(navigation.locator('.mobile-tab[aria-current="page"]')).toContainText("互动课堂");
       } else {
         await page.goto("/study");
-        await expect(navigation.locator('.mobile-tab[aria-current="page"]')).toContainText("共学");
+        await expect(navigation.locator('.mobile-tab[aria-current="page"]')).toContainText("互动课堂");
       }
     });
   }

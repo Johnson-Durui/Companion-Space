@@ -3,7 +3,8 @@
   "private": true,
   "packageManager": "npm@11.21.2",
   "workspaces": [
-    "apps/*"
+    "apps/web",
+    "packages/*"
   ],
   "overrides": {
     "dompurify": "3.4.17",
@@ -17,12 +18,8 @@
     "test:bootstrap": "node --test tests/e2e/runtime.test.mjs",
     "dev:web": "npm run dev --workspace web -- --port 3000 --hostname 127.0.0.1",
     "build:web": "npm run build --workspace web",
-    "build:mobile": "npm run build --workspace @companion-space/mobile",
-    "ios:device": "npm run ios:device --workspace @companion-space/mobile",
-    "check:mobile": "npm run check --workspace @companion-space/mobile",
     "lint:web": "npm run lint --workspace web",
     "typecheck:web": "npm run typecheck --workspace web",
-    "typecheck:mobile": "npm run typecheck --workspace @companion-space/mobile",
     "repair:original-vrm-face": "node scripts/repair-original-vrm-face.mjs",
     "test:original-vrm-face": "node scripts/repair-original-vrm-face.mjs --check && node --test scripts/repair-original-vrm-face.test.mjs",
     "test:original-vrm": "node scripts/generate-original-vrm.mjs --check && npm run test:original-vrm-face && node scripts/verify-original-vrm-runtime.mjs",
@@ -34,9 +31,11 @@
     "test:e2e:vrm-performance": "node scripts/run-realtime-check.mjs performance",
     "test:e2e:realtime-soak": "node scripts/run-realtime-check.mjs soak",
     "test:e2e:realtime-soak:smoke": "node scripts/run-realtime-check.mjs soak-smoke",
-    "test:windows-startup": "node --test scripts/start-local-windows.test.mjs"
+    "test:windows-startup": "node --test scripts/start-local-windows.test.mjs",
+    "generate:api": "node scripts/generate-api-client.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "openapi-typescript": "7.13.0"
   }
 }

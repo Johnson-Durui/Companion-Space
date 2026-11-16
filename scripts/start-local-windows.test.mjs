@@ -6,6 +6,7 @@ import { createConnection } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { findPython } from "../tests/e2e/runtime.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const startupScript = path.join(repoRoot, "START-LOCAL-WINDOWS.ps1");
@@ -221,7 +222,7 @@ process.exit(42);
     await rm(fixtureDir, { recursive: true, force: true });
   });
 
-  const python = process.env.COMPANION_PYTHON ?? "python.exe";
+  const python = findPython();
   const result = await runStartup(apiPort, webPort, {
     production: true,
     env: {

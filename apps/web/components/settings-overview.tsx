@@ -6,12 +6,9 @@ import {
   getDashboardSnapshot,
   getLocalMetricsSummary,
   getNeuralTtsSidecarStatus,
-  getOwnerPreferences,
-  updateOwnerPreferences,
 } from "@/lib/api";
-import type { LocalMetricsSummary, NeuralTtsSidecarStatus, OwnerPreferences } from "@/lib/types";
+import type { LocalMetricsSummary, NeuralTtsSidecarStatus } from "@/lib/types";
 import { StatCard, LoadingState, ErrorCallout } from "@/components/ui";
-import { MobileDeviceSettings } from "@/components/mobile-device-settings";
 
 import styles from "./settings-overview.module.css";
 
@@ -20,11 +17,6 @@ export function SettingsOverview() {
   const [error, setError] = useState<string | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
-  const [preferencesError, setPreferencesError] = useState<string | null>(null);
-  const [preferencesNotice, setPreferencesNotice] = useState<string | null>(null);
-  const [savingPreferences, setSavingPreferences] = useState(false);
-  const [confirmAdult, setConfirmAdult] = useState(false);
-  const [ownerPreferences, setOwnerPreferences] = useState<OwnerPreferences | null>(null);
   const [localMetrics, setLocalMetrics] = useState<LocalMetricsSummary | null>(null);
   const [providerCount, setProviderCount] = useState(0);
   const [spaceCount, setSpaceCount] = useState(0);
@@ -37,15 +29,11 @@ export function SettingsOverview() {
     async function loadSnapshot() {
       setLoading(true);
       try {
-        const [snapshot, preferences] = await Promise.all([
-          getDashboardSnapshot(),
-          getOwnerPreferences(),
-        ]);
+        const snapshot = await getDashboardSnapshot();
         if (!cancelled) {
           setProviderCount(snapshot.providers.length);
           setSpaceCount(snapshot.spaces.length);
           setVaultState(snapshot.vault ? (snapshot.vault.unlocked ? "Unlocked" : "Locked") : "Unavailable");
-          setOwnerPreferences(preferences);
           setError(null);
         }
       } catch (loadError) {
@@ -100,48 +88,6 @@ export function SettingsOverview() {
     };
   }, []);
 
-  async function handleAdultModeToggle() {
-    if (!ownerPreferences) {
-      setPreferencesError("拥有者偏好尚未加载完成，请稍后重试。");
-      setPreferencesNotice(null);
-      return;
-    }
-
-    const enabling = !ownerPreferences.adult_relationships_enabled;
-    if (enabling && !confirmAdult) {
-      setPreferencesError("开启成人关系模式前，必须由本机拥有者明确确认已满 18 岁。");
-      setPreferencesNotice(null);
-      return;
-    }
-
-    setSavingPreferences(true);
-    try {
-      const updated = await updateOwnerPreferences({
-        adult_relationships_enabled: enabling,
-        confirm_age_18_or_older: enabling ? confirmAdult : false,
-      });
-      setOwnerPreferences(updated);
-      setPreferencesError(null);
-      setPreferencesNotice(
-        updated.adult_relationships_enabled
-          ? "成人关系模式已开启。现有和新建角色都将按新的本机偏好执行校验。"
-          : "成人关系模式已关闭。现有角色不会被改写，但后续成人关系创建、复制、试听与会话将被拦截。",
-      );
-      if (updated.adult_relationships_enabled) {
-        setConfirmAdult(false);
-      }
-    } catch (updateError) {
-      setPreferencesError(
-        updateError instanceof Error ? updateError.message : "更新成人关系模式失败",
-      );
-      setPreferencesNotice(null);
-    } finally {
-      setSavingPreferences(false);
-    }
-  }
-
-  const adultModeEnabled = ownerPreferences?.adult_relationships_enabled ?? false;
-  const adultConfirmedAt = ownerPreferences?.adult_age_confirmed_at ?? null;
   const activationCompleted = localMetrics
     ? Object.values(localMetrics.activation).filter((count) => count > 0).length
     : 0;
@@ -158,7 +104,7 @@ export function SettingsOverview() {
       <header className={styles.header}>
         <p className={styles.kicker}>本机档案</p>
         <h1>偏好与设置</h1>
-        <p>保险箱、配对和陪伴边界都写在这里。数据默认留在本机。</p>
+        <p>查看本地存储、模型服务和运行状态。</p>
         <dl className={styles.facts} aria-label="当前本机状态">
           <div>
             <dt>保险箱</dt>
@@ -189,60 +135,6 @@ export function SettingsOverview() {
           <strong>资料、字幕和数据库默认本地明文</strong>
           <p>API Key 单独加密，前端用保险箱流程提醒这一点。</p>
         </div>
-        <div className={styles.policyRow}>
-          <strong>成人关系模式默认关闭</strong>
-          <p>只有本机拥有者明确确认 18+ 后才允许开启；关闭后不会改写现有角色，但新的成人关系入口会被服务端拦截。</p>
-        </div>
-      </section>
-
-      <section className={styles.block} aria-labelledby="adult-mode-title">
-        <h2 id="adult-mode-title">成人关系模式</h2>
-        <p>这是拥有者级别偏好，不是角色级别开关。</p>
-        <div className={styles.policyRow}>
-          <strong>当前状态：{adultModeEnabled ? "Enabled" : "Disabled"}</strong>
-          <p>
-            {adultConfirmedAt
-              ? `最近一次 18+ 确认时间：${new Date(adultConfirmedAt).toLocaleString()}`
-              : "尚未记录 18+ 确认。"}
-          </p>
-        </div>
-        {!adultModeEnabled ? (
-          <label className={styles.ageCheck}>
-            <input
-              type="checkbox"
-              checked={confirmAdult}
-              disabled={savingPreferences || !ownerPreferences}
-              onChange={(event) => setConfirmAdult(event.target.checked)}
-            />
-            <span>
-              <strong>我确认当前本机拥有者已满 18 岁</strong>
-              <p>只有勾选后，才允许开启 Lover 等成人关系模式。</p>
-            </span>
-          </label>
-        ) : null}
-        <div className="inline-actions">
-          <button
-            type="button"
-            className="primary-button"
-            disabled={
-              savingPreferences ||
-              !ownerPreferences ||
-              (!adultModeEnabled && !confirmAdult)
-            }
-            onClick={() => void handleAdultModeToggle()}
-          >
-            {savingPreferences
-              ? "保存中..."
-              : adultModeEnabled
-                ? "关闭成人关系模式"
-                : "开启成人关系模式"}
-          </button>
-          <span className="muted">
-            该设置会影响角色创建、更新、复制、导入、试听和实时会话。
-          </span>
-        </div>
-        {preferencesNotice ? <p className="muted">{preferencesNotice}</p> : null}
-        {preferencesError ? <ErrorCallout message={preferencesError} /> : null}
       </section>
 
       <section className={styles.block} aria-labelledby="local-signals-title">
@@ -307,7 +199,6 @@ export function SettingsOverview() {
       <section className={styles.block} aria-labelledby="mobile-title">
         <h2 id="mobile-title">移动设备</h2>
         <p>一次性配对、可信设备查看与撤销都只允许本机拥有者操作。</p>
-        <MobileDeviceSettings />
       </section>
 
       <section className={styles.block} aria-labelledby="release-title">

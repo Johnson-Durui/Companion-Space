@@ -785,3 +785,33 @@
     transition: none;
   }
 }
+
+/* Desktop gives the board 70% of the classroom and keeps it visible at narrow widths. */
+@media (min-width: 901px) {
+  .shell .layout { grid-template-columns: minmax(230px, 3fr) minmax(0, 7fr); align-items: start; }
+}
+.shell .sideColumn { min-width: 0; }
+.shell .stageVisual :global([data-avatar-stage-background]) { min-height: clamp(260px, 38vh, 450px); }
+.shell .companionBubble { position: static; width: auto; margin: .5rem; padding: .7rem .8rem; }
+.shell .stageControls .controlBar { flex-wrap: wrap; }
+@media (max-width: 900px) {
+  .shell .layout { grid-template-columns: minmax(0, 1fr); }
+  .shell .stageVisual :global([data-avatar-stage-background]) { min-height: 235px; }
+}
+
+.shell .stage { background: var(--panel); border: 1px solid var(--line); }
+.shell .stageControls, .shell .stageSettingsBody { padding: 12px; }
+.shell .heroMetaDisclosure { align-self: center; }
+.shell .heroMeta { min-width: min(100%, 230px); grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: .55rem; }
+.shell .stageSettings, .shell .demoDisclosure { border-top: 1px solid var(--line); }
+.shell .heroMetaDisclosure > summary, .shell .stageSettings > summary, .shell .demoDisclosure > summary {
+  display: list-item;
+  cursor: pointer;
+  font-size: .875rem;
+  color: var(--accent-strong);
+}
+.shell .stageSettings > summary, .shell .demoDisclosure > summary { padding: .75rem; }
+.shell .heroMetaDisclosure:not([open]) > .heroMeta,
+.shell .stageSettings:not([open]) > .stageSettingsBody,
+.shell .demoDisclosure:not([open]) > div { display: none; }
+.tutorSpeech { margin: 0; padding: .75rem .85rem; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; line-height: 1.55; }

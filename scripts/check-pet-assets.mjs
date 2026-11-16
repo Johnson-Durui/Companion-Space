@@ -14,7 +14,7 @@ const PETS_ROOT = path.join(
 );
 const REGISTRY_PATH = path.join(
   REPO_ROOT,
-  "apps/web/components/avatar/pet-registry.ts",
+  "packages/avatar-engine/src/pet-registry.ts",
 );
 const RUNTIME_STYLE_PATH = path.join(
   REPO_ROOT,

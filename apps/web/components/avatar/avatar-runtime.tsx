@@ -5,6 +5,14 @@ import NextImage from "next/image";
 import type { CSSProperties, KeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  resolveAvatarGaze,
+  teachingFeedbackEmotion,
+  teachingFeedbackReactionKey,
+  type AvatarBoardFocus,
+  type AvatarTeachingFeedback,
+} from "@companion-space/avatar-engine/teaching-cue";
+
 import styles from "@/components/avatar/avatar-runtime.module.css";
 import {
   AVATAR_MOTION_STATES,
@@ -27,6 +35,11 @@ import type {
   CharacterPreviewState,
   CompanionEmotion,
 } from "@/lib/types";
+
+export type {
+  AvatarBoardFocus,
+  AvatarTeachingFeedback,
+} from "@companion-space/avatar-engine/teaching-cue";
 
 const LazyVrmStage = dynamic(
   () => import("@/components/avatar/vrm-stage").then((module) => module.VrmStage),
@@ -120,9 +133,11 @@ function detectMissingDependencies(error: Error) {
 
 export function AvatarRuntime({
   compact = false,
+  boardFocus,
   emotion = "neutral",
   recipe,
   reactionKey,
+  teachingFeedback,
   sessionId,
   state,
   speechController,
@@ -134,6 +149,7 @@ export function AvatarRuntime({
   onRuntimeModeChange,
 }: {
   compact?: boolean;
+  boardFocus?: AvatarBoardFocus | null;
   builtinRuntimeReady?: boolean;
   emotion?: CompanionEmotion;
   motionAssetUrls?: Partial<Record<CharacterPreviewState, string>>;
@@ -143,6 +159,7 @@ export function AvatarRuntime({
   onRuntimeModeChange?: (mode: AvatarRuntimeMode) => void;
   recipe: CharacterRecipe | Record<string, unknown>;
   reactionKey?: string | null;
+  teachingFeedback?: AvatarTeachingFeedback | null;
   sessionId?: string | null;
   state: CharacterPreviewState;
   speechController?: AvatarSpeechController;
@@ -193,21 +210,28 @@ export function AvatarRuntime({
     detail: `Loading ${portraitDisplayName} portrait.`,
     reason: "loading",
   });
+  const teachingReactionKey = teachingFeedbackReactionKey(teachingFeedback);
+  const effectiveReactionKey = teachingReactionKey ?? reactionKey;
+  const effectiveEmotion = teachingFeedbackEmotion(teachingFeedback) ?? emotion;
   const gestureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastReactionKeyRef = useRef<string | null | undefined>(reactionKey);
+  const lastReactionKeyRef = useRef<string | null | undefined>(effectiveReactionKey);
   const gazeInputRef = useRef<AvatarGazeInput>({ active: false, x: 0, y: 0 });
+  const pointerGazeRef = useRef({ active: false, x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  const updateGazeInput = useCallback((active: boolean, x = 0, y = 0) => {
-    const source = prefersReducedMotion === true ? "reduced" : active ? "pointer" : "idle";
-    const appliedX = source === "pointer" ? x : 0;
-    const appliedY = source === "pointer" ? y : 0;
-    gazeInputRef.current.active = source === "pointer";
+  const applyGazeInput = useCallback(() => {
+    const target = resolveAvatarGaze({
+      boardFocus,
+      pointer: pointerGazeRef.current,
+      reducedMotion: prefersReducedMotion === true,
+    });
+    const { source, x: appliedX, y: appliedY } = target;
+    gazeInputRef.current.active = target.active;
     gazeInputRef.current.x = appliedX;
     gazeInputRef.current.y = appliedY;
 
     if (spriteDefinition) {
-      const nextDirection = source === "pointer"
+      const nextDirection = target.active
         ? spriteGazeDirection(appliedX, appliedY, spriteDefinition.gaze.directions)
         : null;
       setSpriteDirection((current) => current === nextDirection ? current : nextDirection);
@@ -220,7 +244,12 @@ export function AvatarRuntime({
       viewport.style.setProperty("--avatar-gaze-eye-x", `${appliedX * 3}px`);
       viewport.style.setProperty("--avatar-gaze-eye-y", `${appliedY * -2}px`);
     }
-  }, [prefersReducedMotion, spriteDefinition]);
+  }, [boardFocus, prefersReducedMotion, spriteDefinition]);
+
+  const updatePointerGaze = useCallback((active: boolean, x = 0, y = 0) => {
+    pointerGazeRef.current = { active, x, y };
+    applyGazeInput();
+  }, [applyGazeInput]);
 
   const handlePointerInput = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (!event.isPrimary) {
@@ -228,28 +257,32 @@ export function AvatarRuntime({
     }
     const bounds = event.currentTarget.getBoundingClientRect();
     if (bounds.width <= 0 || bounds.height <= 0) {
-      updateGazeInput(false);
+      updatePointerGaze(false);
       return;
     }
     const clamp = (value: number) => Math.max(-1, Math.min(1, value));
-    updateGazeInput(
+    updatePointerGaze(
       true,
       clamp(((event.clientX - bounds.left) / bounds.width) * 2 - 1),
       clamp(1 - ((event.clientY - bounds.top) / bounds.height) * 2),
     );
-  }, [updateGazeInput]);
+  }, [updatePointerGaze]);
 
   const handlePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.isPrimary && event.pointerType !== "mouse") {
-      updateGazeInput(false);
+      updatePointerGaze(false);
     }
-  }, [updateGazeInput]);
+  }, [updatePointerGaze]);
 
   const handlePointerReset = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.isPrimary) {
-      updateGazeInput(false);
+      updatePointerGaze(false);
     }
-  }, [updateGazeInput]);
+  }, [updatePointerGaze]);
+
+  useEffect(() => {
+    applyGazeInput();
+  }, [applyGazeInput]);
 
   useEffect(() => {
     setLicensedStatus(null);
@@ -564,11 +597,11 @@ export function AvatarRuntime({
   }, []);
 
   useEffect(() => {
-    updateGazeInput(false);
-    const resetOnWindowBlur = () => updateGazeInput(false);
+    updatePointerGaze(false);
+    const resetOnWindowBlur = () => updatePointerGaze(false);
     window.addEventListener("blur", resetOnWindowBlur);
     return () => window.removeEventListener("blur", resetOnWindowBlur);
-  }, [updateGazeInput]);
+  }, [updatePointerGaze]);
 
   useEffect(() => () => {
     if (gestureTimerRef.current) {
@@ -595,12 +628,12 @@ export function AvatarRuntime({
   }, [isRuntimeInteractive, spriteDefinition]);
 
   useEffect(() => {
-    if (!isRuntimeInteractive || !reactionKey || reactionKey === lastReactionKeyRef.current) {
+    if (!isRuntimeInteractive || !effectiveReactionKey || effectiveReactionKey === lastReactionKeyRef.current) {
       return;
     }
-    lastReactionKeyRef.current = reactionKey;
+    lastReactionKeyRef.current = effectiveReactionKey;
     activateGesture();
-  }, [activateGesture, isRuntimeInteractive, reactionKey]);
+  }, [activateGesture, effectiveReactionKey, isRuntimeInteractive]);
 
   const handleGestureKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Enter" && event.key !== " ") {
@@ -614,7 +647,7 @@ export function AvatarRuntime({
     }
   }, [activateGesture]);
 
-  const spriteExpression = spriteDefinition?.emotionReactions[emotion] ?? "calm";
+  const spriteExpression = spriteDefinition?.emotionReactions[effectiveEmotion] ?? "calm";
   const spriteRow = spriteDefinition
     ? gestureActive
       ? spriteDefinition.gesture.row
@@ -676,12 +709,14 @@ export function AvatarRuntime({
         data-avatar-gesture-progress={gestureActive ? "0.500" : "0.000"}
         data-avatar-gesture-sequence={gestureSequence}
         data-avatar-gesture-state={gestureActive ? "active" : "idle"}
-        data-avatar-reaction-key={reactionKey ?? "none"}
+        data-avatar-board-focus={boardFocus?.active === false ? "none" : boardFocus?.id ?? "none"}
+        data-avatar-reaction-key={effectiveReactionKey ?? "none"}
+        data-avatar-teaching-feedback={teachingFeedback?.kind ?? "none"}
         data-avatar-reaction-sequence={gestureSequence}
         data-avatar-reaction-state={reducedMotion && gestureActive ? "reduced" : gestureActive ? "active" : "idle"}
         data-avatar-reduced-motion={reducedMotion}
         data-avatar-state={state}
-        data-avatar-emotion={emotion}
+        data-avatar-emotion={effectiveEmotion}
         data-avatar-state-mapped="true"
         data-avatar-framing={runtimeRecipe.avatarFraming}
         data-avatar-stage-background={runtimeRecipe.stageBackground}
@@ -700,7 +735,7 @@ export function AvatarRuntime({
         data-runtime-instance={activeLicensedStatus?.instance ?? (isPortraitRuntime || isSpriteRuntime || isUnsupportedRuntime ? runtimeRecipe.modelId : show3dRuntime ? "vrm" : "none")}
         data-runtime-canvas-count={activeLicensedStatus?.canvasCount ?? (show3dRuntime ? 1 : 0)}
         onClick={activateGesture}
-        onBlur={() => updateGazeInput(false)}
+        onBlur={() => updatePointerGaze(false)}
         onKeyDown={handleGestureKeyDown}
         onPointerCancel={handlePointerReset}
         onPointerDown={handlePointerInput}
@@ -732,7 +767,7 @@ export function AvatarRuntime({
           <>
             <LicensedRuntimeStage
               asset={licensedRuntimeAsset}
-              emotion={emotion}
+              emotion={effectiveEmotion}
               onStatusChange={handleLicensedStatusChange}
               reducedMotion={reducedMotion}
               speechController={speechController}
@@ -761,10 +796,10 @@ export function AvatarRuntime({
               <div
                 aria-label={`${portraitDisplayName} 2D character portrait`}
                 className={styles.portraitStage}
-                data-avatar-emotion={emotion}
+                data-avatar-emotion={effectiveEmotion}
                 data-avatar-state={state}
-                data-emotion={emotion}
-                data-expression={emotion}
+                data-emotion={effectiveEmotion}
+                data-expression={effectiveEmotion}
                 data-gesture={gestureActive ? "active" : "idle"}
                 data-gesture-active={gestureActive}
                 data-model-id={portraitDefinition.modelId}
@@ -861,7 +896,7 @@ export function AvatarRuntime({
                 />
                 {!spriteIsGazing && !gestureActive ? (
                   <span className={styles.spriteExpressionCue} data-expression={spriteExpression}>
-                    {expressionLabel(emotion)}
+                    {expressionLabel(effectiveEmotion)}
                   </span>
                 ) : null}
               </div>
@@ -881,10 +916,10 @@ export function AvatarRuntime({
         ) : show3dRuntime ? (
           <>
             <LazyVrmStage
-              emotion={emotion}
+              emotion={effectiveEmotion}
               gazeInputRef={gazeInputRef}
               gestureSequence={gestureSequence}
-              reactionKey={reactionKey}
+              reactionKey={effectiveReactionKey}
               onCapabilitiesChange={onCapabilitiesChange}
               recipe={recipe}
               motionAssetUrls={effectiveMotionUrls}

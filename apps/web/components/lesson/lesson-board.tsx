@@ -172,7 +172,7 @@ function renderMarkdownBlocks(source: string) {
   return nodes.length ? nodes : <p className={styles.placeholder}>当前步骤没有可渲染的 Markdown。</p>;
 }
 
-function MermaidBoard({ source, compact }: { source: string; compact: boolean }) {
+export function MermaidBoard({ source, compact }: { source: string; compact: boolean }) {
   const [svgUrl, setSvgUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const mermaidId = useId().replaceAll(":", "-");

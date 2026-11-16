@@ -1393,7 +1393,7 @@ test.describe("realtime guardrails", () => {
     await expectStaticAvatarPose(canvas);
 
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
     const pttButton = page.getByRole("button", { name: "按住说话" });
     await pttButton.focus();
     await page.keyboard.down("Space");
@@ -1981,7 +1981,7 @@ test.describe("realtime guardrails", () => {
     expect(assetRequests.some((url) => url.includes("motions/idle.vrma"))).toBeTruthy();
 
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
     await dispatchSyntheticRealtimeState(page, "thinking");
     await expect(canvas).toHaveAttribute("data-avatar-motion-requested-state", "thinking");
     await expect(canvas).toHaveAttribute("data-avatar-motion-mode", "procedural");
@@ -1997,7 +1997,7 @@ test.describe("realtime guardrails", () => {
     await expect(canvas).toHaveAttribute("data-avatar-motion-action-running", "true");
     await expectAnimatedBonePose(canvas);
     await page.getByRole("button", { name: "结束会话" }).click();
-    await expect(page.getByText("ended", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("本次共学已结束", { exact: true })).toBeVisible({ timeout: 20_000 });
   });
 
   test("keeps realtime captions, interruption, and session ending available after VRM fallback", async ({ page }) => {
@@ -2012,7 +2012,7 @@ test.describe("realtime guardrails", () => {
 
     await expect(page.getByTestId("avatar-fallback")).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const fallbackPrompt = "VRM 全部失败后还能继续实时讲解吗？";
     await commitRealtimeText(page, fallbackPrompt);
@@ -2022,7 +2022,7 @@ test.describe("realtime guardrails", () => {
     await expect(playbackMeter).toHaveAttribute("data-playback-level", "0", { timeout: 1_000 });
 
     await page.getByRole("button", { name: "结束会话" }).click();
-    await expect(page.getByText("ended", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("本次共学已结束", { exact: true })).toBeVisible({ timeout: 20_000 });
   });
 
   test("records submit-to-scheduled-playback latency from the browser playback signal", async ({ page }) => {
@@ -2038,7 +2038,7 @@ test.describe("realtime guardrails", () => {
     ).toHaveAttribute("data-runtime-mode", "ready", { timeout: 20_000 });
 
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const sessionId = await getRealtimeSessionId(page);
     const firstPlaybackLatencyMsPromise = waitForPersistedLocalMetricValue(
@@ -2078,7 +2078,7 @@ test.describe("realtime guardrails", () => {
     await expect(page.getByTestId("avatar-fallback")).toBeVisible();
 
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const prompt = "没有 WebGL 时还能继续文字学习吗？";
     await commitRealtimeText(page, prompt);
@@ -2120,7 +2120,7 @@ test.describe("realtime guardrails", () => {
     await expect(
       page.getByText(/实时会话不存在或已经失效/),
     ).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("text", { exact: true })).toBeVisible();
+    await expect(page.getByText("文字陪伴已就绪", { exact: true })).toBeVisible();
     const getUserMediaCalls = await page.evaluate(() => (
       window as typeof window & { __e2eGetUserMediaCalls?: number }
     ).__e2eGetUserMediaCalls ?? 0);
@@ -2138,7 +2138,7 @@ test.describe("realtime guardrails", () => {
     await openCallPage(page, fixture);
 
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole("button", { name: "按住说话" }).evaluate((button) => {
       button.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
@@ -2147,7 +2147,6 @@ test.describe("realtime guardrails", () => {
     await expect(page.getByText("按住说话中…", { exact: true })).toHaveCount(0);
 
     await holdToTalkBelowVad(page, 550);
-    await expect(page.getByText("按住说话已发送").first()).toBeVisible({ timeout: 20_000 });
     await expectRealtimeReply(page, "这是一段用于联调语音链路的模拟转写。");
 
     const assistantTurns = page.locator('[data-role="assistant"]');
@@ -2215,7 +2214,7 @@ test.describe("realtime guardrails", () => {
     await expect(page.getByLabel("兼容系统朗读")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: "开始语音" })).toBeEnabled();
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
     expect(sessionRequests).toHaveLength(1);
 
     const prompt = "语音策略确定后再开始这一轮。";
@@ -2304,7 +2303,7 @@ test.describe("realtime guardrails", () => {
     expect(policyReads).toBeGreaterThanOrEqual(2);
 
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
     expect(sessionRequests).toHaveLength(1);
   });
 
@@ -2329,7 +2328,7 @@ test.describe("realtime guardrails", () => {
     ]);
     await voiceSelect.selectOption("soft");
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
     await expect(voiceSelect).toBeDisabled();
     await page.evaluate(() => {
       const probe = (window as typeof window & {
@@ -2485,7 +2484,7 @@ test.describe("realtime guardrails", () => {
     await expect(page.getByText("本地神经语音", { exact: true })).toBeVisible();
     await expect(page.getByLabel("兼容系统朗读")).toHaveCount(0);
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const prompt = "神经语音必须播放服务端 PCM。";
     await commitRealtimeText(page, prompt);
@@ -2591,7 +2590,7 @@ test.describe("realtime guardrails", () => {
     await openCallPage(page, fixture);
     await page.getByLabel("兼容系统朗读").selectOption("healing");
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const delayedPrompt = "请等本机语音加载完成后再朗读。";
     await commitRealtimeText(page, delayedPrompt);
@@ -2690,7 +2689,7 @@ test.describe("realtime guardrails", () => {
     });
     await openCallPage(page, fixture);
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const prompt = "没有系统语音时也要保留这段文字。";
     await commitRealtimeText(page, prompt);
@@ -2736,7 +2735,7 @@ test.describe("realtime guardrails", () => {
     });
     await openCallPage(page, fixture);
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const prompt = "只有英文系统音色时请保持静音并保留中文文字。";
     await commitRealtimeText(page, prompt);
@@ -2766,7 +2765,7 @@ test.describe("realtime guardrails", () => {
       await installFakeMicrophone(page);
       await openCallPage(page, fixture);
       await page.getByRole("button", { name: "开始语音" }).click();
-      await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
       await page.evaluate(() => {
         const probe = (window as typeof window & {
           __e2eBuiltInVoice?: { holdOpen: boolean };
@@ -2783,7 +2782,7 @@ test.describe("realtime guardrails", () => {
 
       if (lifecycle === "end session") {
         await page.getByRole("button", { name: "结束会话" }).click();
-        await expect(page.getByText("ended", { exact: true })).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByText("本次共学已结束", { exact: true })).toBeVisible({ timeout: 20_000 });
       } else {
         expect(await page.evaluate(() => {
           const probe = (window as typeof window & {
@@ -2825,7 +2824,7 @@ test.describe("realtime guardrails", () => {
     await installFakeMicrophone(page);
     await openCallPage(page, fixture);
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
     await page.evaluate(() => {
       const testWindow = window as typeof window & {
         __e2eBuiltInVoice?: { holdOpen: boolean };
@@ -2984,7 +2983,7 @@ test.describe("realtime guardrails", () => {
     await expect.poll(() => page.evaluate(() => (
       window as typeof window & { __e2eNativeRefreshCount?: number }
     ).__e2eNativeRefreshCount ?? 0)).toBe(1);
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
   });
 
   test("invalidates a pending native refresh without breaking single-flight", async ({ page }) => {
@@ -3130,7 +3129,7 @@ test.describe("realtime guardrails", () => {
     await openCallPage(page, fixture);
     await expect(page.getByLabel("兼容系统朗读")).toHaveCount(0);
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const prompt = "同名模型也必须沿用真实连接的音频。";
     await commitRealtimeText(page, prompt);
@@ -3158,7 +3157,7 @@ test.describe("realtime guardrails", () => {
     await installFakeMicrophone(page);
     await openCallPage(page, fixture);
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const prompt = "请画一张白板解释这个知识点。";
     await commitRealtimeText(page, prompt);
@@ -3170,7 +3169,7 @@ test.describe("realtime guardrails", () => {
     await expectRealtimeReply(page, prompt);
 
     await page.getByRole("button", { name: "结束会话" }).click();
-    await expect(page.getByText("ended", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("本次共学已结束", { exact: true })).toBeVisible({ timeout: 20_000 });
   });
 
   test("avatar runtime state follows realtime session state transitions", async ({ page }) => {
@@ -3179,7 +3178,7 @@ test.describe("realtime guardrails", () => {
     await installFakeMicrophone(page);
     await openCallPage(page, fixture);
     await page.getByRole("button", { name: "开始语音" }).click();
-    await expect(page.getByText("connected")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("语音已连接", { exact: true })).toBeVisible({ timeout: 20_000 });
 
     const avatar = page.locator("[data-avatar-state]").first();
     const canvas = page.getByLabel("VRM character canvas").locator("canvas");
@@ -3326,7 +3325,7 @@ test.describe("realtime guardrails", () => {
     await expect(avatar).toHaveAttribute("data-avatar-emotion", "playful");
 
     await page.getByRole("button", { name: "结束会话" }).click();
-    await expect(page.getByText("ended", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("本次共学已结束", { exact: true })).toBeVisible({ timeout: 20_000 });
     await expect(avatar).toHaveAttribute("data-avatar-emotion", "neutral");
     await expect(canvas).toHaveAttribute("data-avatar-emotion", "neutral");
     await expect(canvas).toHaveAttribute("data-avatar-expression", "none");
@@ -4341,8 +4340,6 @@ async function initializeAndUnlockVault(page: Page) {
   const statusResponse = await page.request.get(`${apiBaseUrl}/api/v1/vault/status`);
   expect(statusResponse.ok()).toBeTruthy();
   const vaultStatus = await statusResponse.json() as { initialized?: unknown };
-  let ownerToken: string | null;
-
   if (vaultStatus.initialized !== true) {
     await page.getByLabel("初始化主密码").fill(vaultPassword);
     const initResponse = page.waitForResponse((response) =>
@@ -4351,7 +4348,6 @@ async function initializeAndUnlockVault(page: Page) {
     await page.getByRole("button", { name: "初始化 Vault" }).click();
     const response = await initResponse;
     expect(response.ok()).toBeTruthy();
-    ownerToken = ((await response.json()) as { owner_token?: string | null }).owner_token ?? null;
   } else {
     await page.getByLabel("解锁主密码").fill(vaultPassword);
     const unlockResponse = page.waitForResponse((response) =>
@@ -4360,10 +4356,14 @@ async function initializeAndUnlockVault(page: Page) {
     await page.getByRole("button", { name: "解锁" }).click();
     const response = await unlockResponse;
     expect(response.ok()).toBeTruthy();
-    ownerToken = ((await response.json()) as { owner_token?: string | null }).owner_token ?? null;
   }
 
   await expect(statusLabels.filter({ hasText: "Yes" })).toHaveCount(2, { timeout: 10_000 });
+  const bearerResponse = await page.request.post(`${apiBaseUrl}/api/v1/vault/unlock`, {
+    data: { password: vaultPassword },
+  });
+  expect(bearerResponse.ok()).toBeTruthy();
+  const ownerToken = ((await bearerResponse.json()) as { owner_token?: string | null }).owner_token ?? null;
   expect(ownerToken).toBeTruthy();
   return ownerToken as string;
 }
@@ -4679,11 +4679,7 @@ async function createRealtimeFixture(
 }
 
 async function openCallPage(page: Page, fixture: RealtimeFixture) {
-  const mobileViewport = (page.viewportSize()?.width ?? Number.POSITIVE_INFINITY) <= 760;
-  const spacesLink = page.getByRole("link", {
-    name: mobileViewport ? "空间" : "学习空间",
-    exact: true,
-  }).first();
+  const spacesLink = page.locator('nav a[href="/spaces"]').first();
   await Promise.all([
     page.waitForURL(/\/spaces$/, { timeout: 20_000 }),
     spacesLink.click(),

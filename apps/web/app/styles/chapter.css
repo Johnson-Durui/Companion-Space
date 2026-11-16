@@ -1,0 +1,93 @@
+/* Chapter product frame: visual-novel route, not SaaS intro cards. */
+.chapter-head {
+  display: grid;
+  gap: 10px;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.chapter-kicker {
+  margin: 0;
+  color: var(--warm-text);
+  font-size: 12px;
+  font-weight: 750;
+}
+.chapter-head h1 {
+  max-width: 16ch;
+  margin: 0;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: clamp(36px, 6vw, 56px);
+  font-weight: 860;
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+}
+.chapter-head > p {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.chapter-head .hero-actions {
+  padding-top: 4px;
+}
+.chapter-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 4px 0 0;
+}
+.chapter-facts > div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.chapter-facts dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.chapter-facts dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+@media (max-width: 480px) {
+  .dashboard-stage-copy h1 {
+    font-size: 31px;
+  }
+
+  .dashboard-stage-visual {
+    min-height: 230px;
+  }
+
+  .dashboard-stage-copy {
+    padding: 31px 23px 24px;
+  }
+
+  .dashboard-route {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .dashboard-route em {
+    display: none;
+  }
+
+  .dashboard-home .companion-bookmark-facts {
+    display: none;
+  }
+
+  .dashboard-home .companion-bookmark-copy > .muted {
+    display: none;
+  }
+
+  .dashboard-home > .dashboard-companion {
+    gap: 14px;
+    padding: 18px 16px;
+  }
+
+  .dashboard-home .companion-bookmark-copy h2 {
+    font-size: 21px;
+  }
+}
+.stat-value { font-size: 1.5rem; }

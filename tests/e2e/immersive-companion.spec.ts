@@ -24,7 +24,11 @@ test("immersive companion restores the same conversation after unlock and keeps 
   await page.getByLabel(status.initialized ? "解锁主密码" : "初始化主密码").fill("m7-playwright-pass");
   const authenticated = page.waitForResponse((r) => r.url().endsWith(`/api/v1/vault/${action}`) && r.request().method() === "POST");
   await page.getByRole("button", { name: status.initialized ? "解锁 Vault" : "初始化 Vault", exact: true }).click();
-  const token = (await (await authenticated).json()).owner_token as string;
+  expect((await authenticated).ok()).toBeTruthy();
+  const bearerResponse = await page.request.post(`${api}/api/v1/vault/unlock`, {
+    data: { password: "m7-playwright-pass" },
+  });
+  const token = (await bearerResponse.json() as { owner_token?: string }).owner_token;
   expect(token).toBeTruthy();
   const name = `沉浸共学验收 ${Date.now()}`;
   const created = await page.request.post(`${api}/api/v1/spaces`, {
@@ -33,7 +37,7 @@ test("immersive companion restores the same conversation after unlock and keeps 
   });
   expect(created.ok()).toBeTruthy();
   const space = await created.json() as { id: string };
-  await page.getByRole("link", { name: "学习空间", exact: true }).click();
+  await page.locator('nav a[href="/spaces"]').first().click();
   await page.locator("article.info-card").filter({ hasText: name }).getByRole("link", { name }).click();
   await page.getByRole("link", { name: "开始伴学会话" }).click();
   await expect(page.getByRole("textbox", { name: "发送文字消息" })).toBeEnabled({ timeout: 60_000 });
@@ -79,7 +83,12 @@ test("immersive companion restores the same conversation after unlock and keeps 
   await page.getByLabel("解锁主密码").fill("m7-playwright-pass");
   const unlocked = page.waitForResponse((r) => r.url().endsWith("/api/v1/vault/unlock") && r.request().method() === "POST");
   await page.getByRole("button", { name: "解锁 Vault", exact: true }).click();
-  const renewedToken = (await (await unlocked).json()).owner_token as string;
+  expect((await unlocked).ok()).toBeTruthy();
+  const renewedBearerResponse = await page.request.post(`${api}/api/v1/vault/unlock`, {
+    data: { password: "m7-playwright-pass" },
+  });
+  const renewedToken = (await renewedBearerResponse.json() as { owner_token?: string }).owner_token;
+  expect(renewedToken).toBeTruthy();
   await page.getByRole("link", { name: "继续上次共学", exact: true }).click();
   await expect(page.locator('[data-role="assistant"]').last()).toHaveText(firstReply ?? "", { timeout: 30_000 });
   await page.keyboard.press("Escape");
@@ -105,7 +114,7 @@ test("immersive companion restores the same conversation after unlock and keeps 
   await composer.press("Control+Enter");
   await expect(page.locator('[data-role="assistant"]')).toHaveCount(2, { timeout: 30_000 });
   const restoredSessions = await (await page.request.get(`${api}/api/v1/spaces/${space.id}/sessions`, {
-    headers: { Authorization: `Bearer ${renewedToken}` },
+    headers: { Authorization: `Bearer ${renewedToken as string}` },
   })).json() as Array<{ id: string }>;
   expect(restoredSessions.map((session) => session.id)).toEqual([sessions[0].id]);
   expect(sessionPosts).toBe(1);

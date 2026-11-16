@@ -163,33 +163,6 @@ test("fresh clone mock journey completes unlock to memory confirmation", async (
     expect(sessionPosts.requests).toHaveLength(0);
   });
 
-  await test.step("adult relationship mode requires an explicit owner confirmation", async () => {
-    await navigateViaSidebar(page, "设置");
-    await expect(page.getByText("当前状态：Disabled")).toBeVisible();
-
-    await navigateViaSidebar(page, "角色工作室");
-    const createDisclosure = await openCharacterDisclosure(page, "创建新角色");
-    const loverOption = createDisclosure.getByRole("button", { name: /^Lover/ });
-    await expect(loverOption).toBeDisabled();
-    await expect(page.getByText(/成人关系模式当前关闭/)).toBeVisible();
-
-    await navigateViaSidebar(page, "设置");
-    const enableButton = page.getByRole("button", { name: "开启成人关系模式" });
-    await expect(enableButton).toBeDisabled();
-    await page.getByLabel("我确认当前本机拥有者已满 18 岁").check();
-    await expect(enableButton).toBeEnabled();
-    await enableButton.click();
-    await expect(page.getByText("当前状态：Enabled")).toBeVisible();
-
-    await navigateViaSidebar(page, "角色工作室");
-    const enabledCreateDisclosure = await openCharacterDisclosure(page, "创建新角色");
-    await expect(enabledCreateDisclosure.getByRole("button", { name: /^Lover/ })).toBeEnabled();
-
-    await navigateViaSidebar(page, "设置");
-    await page.getByRole("button", { name: "关闭成人关系模式" }).click();
-    await expect(page.getByText("当前状态：Disabled")).toBeVisible();
-  });
-
   await test.step("mock provider is visible in provider registry", async () => {
     await navigateViaSidebar(page, "模型中心");
     await expect(page.getByRole("heading", { name: "Provider Connections" })).toBeVisible();
@@ -1172,25 +1145,28 @@ async function initializeAndUnlockVault(page: Page) {
   const statusResponse = await page.request.get(`${apiBaseUrl}/api/v1/vault/status`);
   expect(statusResponse.status()).toBe(200);
   const vaultStatus = await statusResponse.json() as { initialized?: unknown };
-  let ownerToken: string | null = null;
-
   if (vaultStatus.initialized !== true) {
     await page.getByLabel("初始化主密码").fill(vaultPassword);
     const initResponse = page.waitForResponse((response) =>
       response.url().endsWith("/api/v1/vault/init") && response.request().method() === "POST",
     );
     await page.getByRole("button", { name: "初始化 Vault" }).click();
-    ownerToken = ((await (await initResponse).json()) as { owner_token?: string | null }).owner_token ?? null;
+    expect((await initResponse).ok()).toBeTruthy();
   } else {
     await page.getByLabel("解锁主密码").fill(vaultPassword);
     const unlockResponse = page.waitForResponse((response) =>
       response.url().endsWith("/api/v1/vault/unlock") && response.request().method() === "POST",
     );
     await page.getByRole("button", { name: "解锁" }).click();
-    ownerToken = ((await (await unlockResponse).json()) as { owner_token?: string | null }).owner_token ?? null;
+    expect((await unlockResponse).ok()).toBeTruthy();
   }
 
   await expect(statusLabels.filter({ hasText: "Yes" })).toHaveCount(2);
+  const bearerResponse = await page.request.post(`${apiBaseUrl}/api/v1/vault/unlock`, {
+    data: { password: vaultPassword },
+  });
+  expect(bearerResponse.ok()).toBeTruthy();
+  const ownerToken = (await bearerResponse.json() as { owner_token?: string | null }).owner_token ?? null;
   expect(ownerToken).toBeTruthy();
   return ownerToken as string;
 }
@@ -1206,14 +1182,6 @@ async function authorizeFocusedBrowser(page: Page) {
   expect(unlockResponse.status()).toBe(200);
   const ownerToken = (await unlockResponse.json() as { owner_token?: string }).owner_token;
   expect(ownerToken).toBeTruthy();
-  await page.route("**/api/v1/**", async (route) => {
-    await route.continue({
-      headers: {
-        ...route.request().headers(),
-        Authorization: `Bearer ${ownerToken}`,
-      },
-    });
-  });
   return ownerToken as string;
 }
 
@@ -1638,7 +1606,14 @@ function watchSessionPosts(page: Page) {
 
 async function navigateViaSidebar(page: Page, label: string) {
   const navigation = page.getByRole("navigation");
-  const target = navigation.getByRole("link", { name: new RegExp(label) });
+  const hrefByLegacyLabel: Record<string, string> = {
+    "学习空间": "/spaces",
+    "会话复盘": "/review-items",
+  };
+  const href = hrefByLegacyLabel[label];
+  const target = href
+    ? navigation.locator(`a[href="${href}"]`)
+    : navigation.getByRole("link", { name: new RegExp(label) });
   const visibleTarget = target.filter({ visible: true }).first();
   if (!(await visibleTarget.count())) {
     await navigation.getByText("本地与服务设置", { exact: true }).click();

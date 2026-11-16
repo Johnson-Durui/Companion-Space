@@ -8,7 +8,7 @@ import test from "node:test";
 import { validatePetAssets, validatePetDirectory } from "./check-pet-assets.mjs";
 
 const SOURCE_DIR = path.resolve("apps/web/public/assets/characters/pets/mori");
-const REGISTRY_PATH = path.resolve("apps/web/components/avatar/pet-registry.ts");
+const REGISTRY_PATH = path.resolve("packages/avatar-engine/src/pet-registry.ts");
 const REGISTRY = {
   assetUrl: "/assets/characters/pets/mori/spritesheet.webp",
   atlas: { cellHeight: 208, cellWidth: 192, columns: 8, rows: 11 },

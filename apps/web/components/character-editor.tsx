@@ -8,7 +8,6 @@ import {
   downloadCharacterPack,
   duplicateCharacter,
   getCharacter,
-  getOwnerPreferences,
   listSpaces,
   previewCharacterVoice,
   removeCharacterAvatar,
@@ -63,7 +62,6 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [previewSpaces, setPreviewSpaces] = useState<StudySpaceSummary[]>([]);
   const [previewSpaceId, setPreviewSpaceId] = useState<string>("");
-  const [adultRelationshipsEnabled, setAdultRelationshipsEnabled] = useState(false);
   const voiceQueueRef = useRef<Pcm16PlaybackQueue | null>(null);
   const voiceRequestRef = useRef<AbortController | null>(null);
   const activeAssetsRef = useRef<CharacterRuntimeAssetUrls | null>(null);
@@ -93,14 +91,12 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [next, spaces, preferences] = await Promise.all([
+      const [next, spaces] = await Promise.all([
         getCharacter(characterId),
         listSpaces(),
-        getOwnerPreferences(),
       ]);
       setCharacter(next);
       setPreviewSpaces(spaces);
-      setAdultRelationshipsEnabled(preferences.adult_relationships_enabled);
       setPreviewSpaceId((current) => {
         if (current && spaces.some((space) => space.id === current)) {
           return current;
@@ -486,7 +482,6 @@ export function CharacterEditor({ characterId }: { characterId: string }) {
         mode="edit"
         seed={workshopSeed}
         seedKey={`${character.id}:${character.updated_at ?? ""}`}
-        adultRelationshipsEnabled={adultRelationshipsEnabled}
         busy={busy || voicePreviewState !== "idle" || bindingDefaultSpace}
         notice={notice}
         error={error}

@@ -269,6 +269,7 @@ export interface DemoReadyPayload {
 export interface VaultStatusWire {
   initialized: boolean;
   unlocked: boolean;
+  owner_session_authenticated: boolean;
 }
 
 export type VaultStatus = VaultStatusWire;

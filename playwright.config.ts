@@ -1,11 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const WEB_PORT = 3100;
-const API_PORT = 8100;
+const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 3100);
+const API_PORT = Number(process.env.E2E_API_PORT ?? 8100);
 const baseURL = `http://127.0.0.1:${WEB_PORT}`;
 const apiBaseURL = `http://127.0.0.1:${API_PORT}`;
 const wsBaseURL = `ws://127.0.0.1:${API_PORT}/api/v1/sessions/:sessionId/realtime`;
-const storageRoot = ".playwright/mock-storage";
+const storageRoot = process.env.E2E_STORAGE_ROOT ?? ".playwright/mock-storage";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === "1";
 const useHeadlessBrowser = process.env.E2E_HEADED !== "1";
 const browserChannel = process.env.E2E_BROWSER_CHANNEL;

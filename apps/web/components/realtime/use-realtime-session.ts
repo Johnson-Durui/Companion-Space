@@ -6,15 +6,23 @@ import * as api from "@/lib/api";
 import {
   INPUT_PCM16_FRAME_BYTES,
   OUTPUT_PCM16_SAMPLE_RATE,
-  Pcm16MonoFramer,
   Pcm16PlaybackQueue,
-  measureLevel,
 } from "@/components/realtime/realtime-audio";
+import { RealtimeAudioCapture } from "@/components/realtime/realtime-audio-capture";
+import {
+  RealtimeBrowserSpeech,
+  type BuiltInVoiceProfile,
+} from "@/components/realtime/realtime-browser-speech";
 import {
   decodeBoardUpdatePayload,
   decodeDemoReadyPayload,
 } from "@/components/realtime/realtime-types";
-import { tuneBuiltInVoice } from "@/components/avatar/emotion-profile";
+import {
+  createRealtimeWebSocket,
+  REALTIME_PROTOCOL,
+  sendRealtimeControlEvent,
+  type RealtimeControlEvent,
+} from "@/components/realtime/realtime-transport";
 import {
   decodeCompanionTurn,
   toTranscriptTurn,
@@ -48,7 +56,6 @@ const BARGE_IN_MS = 250;
 const DEFAULT_VAD_THRESHOLD = 0.035;
 const REALTIME_CONNECT_TIMEOUT_MS = 5000;
 const REALTIME_INTERRUPT_ACK_TIMEOUT_MS = 3000;
-const BUILT_IN_VOICE_LOAD_TIMEOUT_MS = 1200;
 const SESSION_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RESUMABLE_SESSION_STATES: ReadonlySet<string> = new Set([
@@ -87,19 +94,18 @@ type StreamTurnFn = (
 
 export type DemoNarrationResult = "completed" | "stopped";
 
-export interface BuiltInVoiceProfile {
-  id: "genki" | "soft" | "sweet" | "healing" | "youth" | "off";
-  pitch: number;
-  preferredVoiceNames?: readonly string[];
-  rate: number;
-  voiceIndex: number;
-}
+export type { BuiltInVoiceProfile } from "@/components/realtime/realtime-browser-speech";
 
 interface DemoNarrationRequest {
   characterId: string;
   text: string;
   voiceId?: string;
   speakingRate?: number;
+}
+
+export interface ClassroomInterruptContext {
+  boardActionId: string;
+  prompt: string;
 }
 
 interface UseRealtimeSessionResult {
@@ -129,9 +135,11 @@ interface UseRealtimeSessionResult {
   commitSilenceMs: number;
   setCommitSilenceMs: (value: number) => void;
   connect: () => Promise<void>;
+  ensureClassroomSession: () => Promise<string | null>;
   clearDemo: () => Promise<void>;
   disconnect: () => Promise<void>;
-  interrupt: () => void;
+  interrupt: () => boolean;
+  interruptWithContext: (context: ClassroomInterruptContext) => boolean;
   cancelPushToTalk: () => void;
   playDemoNarration: (input: DemoNarrationRequest) => Promise<DemoNarrationResult>;
   requestDemo: (topic: string) => Promise<boolean>;
@@ -140,22 +148,6 @@ interface UseRealtimeSessionResult {
   stopDemoNarration: () => Promise<void>;
   stopPushToTalk: () => void;
   toggleMute: () => void;
-}
-
-function selectBuiltInVoice(voices: SpeechSynthesisVoice[], profile: BuiltInVoiceProfile) {
-  const localVoices = voices.filter((voice) => voice.localService);
-  const candidates = localVoices.filter((voice) => /^zh(?:-|_)/i.test(voice.lang));
-  for (const preferredName of profile.preferredVoiceNames ?? []) {
-    const normalized = preferredName.trim().toLowerCase();
-    const matchingVoice = candidates.find((voice) =>
-      voice.name.toLowerCase().includes(normalized) ||
-      voice.voiceURI.toLowerCase().includes(normalized)
-    );
-    if (matchingVoice) {
-      return matchingVoice;
-    }
-  }
-  return candidates.length ? candidates[profile.voiceIndex % candidates.length] : null;
 }
 
 function payloadText(event: RealtimeEvent) {
@@ -216,50 +208,6 @@ function getStreamTurn() {
   return (api as unknown as { streamTurn?: StreamTurnFn }).streamTurn ?? null;
 }
 
-function createAudioWorkletModuleSource() {
-  return `
-    class PulseProcessor extends AudioWorkletProcessor {
-      constructor() {
-        super();
-        const renderQuantumSamples = 128;
-        const targetSamples = sampleRate * 0.02;
-        this.batchSamples = Math.max(
-          renderQuantumSamples,
-          Math.ceil(targetSamples / renderQuantumSamples) * renderQuantumSamples,
-        );
-        this.pcm = new Float32Array(this.batchSamples);
-        this.offset = 0;
-        this.sum = 0;
-      }
-
-      process(inputs) {
-        const channel = inputs[0]?.[0];
-        if (!channel || channel.length === 0) {
-          return true;
-        }
-
-        for (let index = 0; index < channel.length; index += 1) {
-          const sample = channel[index];
-          this.sum += sample * sample;
-          this.pcm[this.offset] = sample;
-          this.offset += 1;
-
-          if (this.offset === this.batchSamples) {
-            const pcm = this.pcm;
-            const level = Math.sqrt(this.sum / this.batchSamples);
-            this.pcm = new Float32Array(this.batchSamples);
-            this.offset = 0;
-            this.sum = 0;
-            this.port.postMessage({ level, pcm }, [pcm.buffer]);
-          }
-        }
-        return true;
-      }
-    }
-    registerProcessor("pulse-processor", PulseProcessor);
-  `;
-}
-
 function useEventCallback<TArgs extends unknown[], TResult>(
   callback: (...args: TArgs) => TResult,
 ): (...args: TArgs) => TResult {
@@ -305,8 +253,7 @@ export function useRealtimeSession(
   const [ttsPlaybackPolicy, setTtsPlaybackPolicy] = useState<TtsPlaybackPolicy | null>(null);
   const [commitSilenceMs, setCommitSilenceMs] = useState(DEFAULT_COMMIT_SILENCE_MS);
 
-  const captureContextRef = useRef<AudioContext | null>(null);
-  const captureNodeRef = useRef<AudioWorkletNode | ScriptProcessorNode | null>(null);
+  const audioCaptureRef = useRef<RealtimeAudioCapture | null>(null);
   const bargeInStartedAtRef = useRef<number | null>(null);
   const bargeInTriggeredRef = useRef(false);
   const demoFetchAbortControllerRef = useRef<AbortController | null>(null);
@@ -315,7 +262,6 @@ export function useRealtimeSession(
   const intentionallyClosedSocketsRef = useRef(new WeakSet<WebSocket>());
   const connectionStatusRef = useRef<ConnectionStatus>("idle");
   const lastVoiceAtRef = useRef<number | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
   const partialAssistantRef = useRef("");
   const pendingTtsChunkRef = useRef(false);
   const pageLifecycleActiveRef = useRef(
@@ -324,15 +270,11 @@ export function useRealtimeSession(
   const pageLifecycleGenerationRef = useRef(0);
   const remoteTurnActiveRef = useRef(false);
   const playbackQueueRef = useRef<Pcm16PlaybackQueue | null>(null);
-  const builtInSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const builtInMouthTimerRef = useRef<number | null>(null);
+  const browserSpeechRef = useRef<RealtimeBrowserSpeech | null>(null);
   const configuredBuiltInVoiceProfileRef = useRef(builtInVoiceProfile);
   const serverTtsPlaybackPolicyRef = useRef<TtsPlaybackPolicy | null>(null);
-  const builtInSpeechGenerationRef = useRef(0);
-  const pendingBuiltInVoiceCleanupRef = useRef<(() => void) | null>(null);
   const discardServerTtsChunkCountRef = useRef(0);
   const serverTtsFinishedRef = useRef(true);
-  const pcmFramerRef = useRef<Pcm16MonoFramer | null>(null);
   const deferredPushToTalkCommitRef = useRef<(() => void) | null>(null);
   const pushToTalkActiveRef = useRef(false);
   const pushToTalkAwaitingInterruptRef = useRef(false);
@@ -567,7 +509,7 @@ export function useRealtimeSession(
     lastVoiceAtRef.current = null;
     speechFrameCountRef.current = 0;
     speechStartedAtRef.current = null;
-    pcmFramerRef.current?.reset();
+    audioCaptureRef.current?.resetFrames();
   });
 
   const cancelPushToTalk = useEventCallback(() => {
@@ -675,8 +617,7 @@ export function useRealtimeSession(
   const finalizeBuiltInTurnIfComplete = useEventCallback(() => {
     if (
       !serverTtsFinishedRef.current ||
-      builtInSpeechRef.current !== null ||
-      pendingBuiltInVoiceCleanupRef.current !== null
+      browserSpeechRef.current?.hasPending()
     ) {
       return;
     }
@@ -689,111 +630,24 @@ export function useRealtimeSession(
     }
   });
 
-  const stopBuiltInMouthEnvelope = useEventCallback(() => {
-    if (builtInMouthTimerRef.current !== null) {
-      window.clearInterval(builtInMouthTimerRef.current);
-      builtInMouthTimerRef.current = null;
-    }
-  });
-
-  const startBuiltInMouthEnvelope = useEventCallback(() => {
-    stopBuiltInMouthEnvelope();
-    if (typeof window === "undefined") {
-      return;
-    }
-    const startedAt = window.performance.now();
-    const pulse = () => {
-      const elapsed = (window.performance.now() - startedAt) / 1000;
-      const level = 0.2
-        + 0.14 * (0.5 + 0.5 * Math.sin(elapsed * 11.3))
-        + 0.08 * (0.5 + 0.5 * Math.sin(elapsed * 17.7));
-      setPlaybackAudioLevel(level);
-    };
-    pulse();
-    builtInMouthTimerRef.current = window.setInterval(pulse, 50);
-  });
-
   const cancelBuiltInSpeech = useEventCallback(() => {
-    builtInSpeechGenerationRef.current += 1;
-    const pendingCleanup = pendingBuiltInVoiceCleanupRef.current;
-    pendingBuiltInVoiceCleanupRef.current = null;
-    pendingCleanup?.();
-    stopBuiltInMouthEnvelope();
-
-    const hadSpeech = builtInSpeechRef.current !== null;
-    builtInSpeechRef.current = null;
-    if (hadSpeech && typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    if (pendingCleanup || hadSpeech) {
-      setPlaybackAudioLevel(0);
-    }
-    return Boolean(pendingCleanup || hadSpeech);
+    return browserSpeechRef.current?.cancel() ?? false;
   });
 
-  const finishBuiltInSpeech = useEventCallback((utterance: SpeechSynthesisUtterance) => {
-    if (builtInSpeechRef.current !== utterance) {
-      return;
-    }
-    builtInSpeechRef.current = null;
-    stopBuiltInMouthEnvelope();
-    setPlaybackAudioLevel(0);
-    finalizeBuiltInTurnIfComplete();
-  });
-
-  const startBuiltInSpeech = useEventCallback((
-    text: string,
-    profile: BuiltInVoiceProfile,
-    voice: SpeechSynthesisVoice,
-    generation: number,
-    emotion: CompanionEmotion = "neutral",
-  ) => {
-    if (
-      generation !== builtInSpeechGenerationRef.current ||
-      typeof window === "undefined" ||
-      typeof window.SpeechSynthesisUtterance !== "function"
-    ) {
-      return;
-    }
-
-    const utterance = new window.SpeechSynthesisUtterance(text);
-    utterance.voice = voice;
-    utterance.lang = voice.lang;
-    const tuning = tuneBuiltInVoice(profile, emotion);
-    utterance.pitch = tuning.pitch;
-    utterance.rate = tuning.rate;
-    utterance.volume = 1;
-    utterance.onstart = () => {
-      if (builtInSpeechRef.current !== utterance) {
-        return;
-      }
+  const ensureBrowserSpeech = useEventCallback(() => {
+    if (!browserSpeechRef.current) {
+      browserSpeechRef.current = new RealtimeBrowserSpeech({
+        onComplete: finalizeBuiltInTurnIfComplete,
+        onError: setError,
+        onLevel: setPlaybackAudioLevel,
+        onStart: () => {
       maybeRecordFirstAudioLatency(0);
       stateRef.current = "speaking";
       setSessionState("speaking");
-      startBuiltInMouthEnvelope();
-    };
-    utterance.onend = () => finishBuiltInSpeech(utterance);
-    utterance.onerror = (event) => {
-      if (builtInSpeechRef.current !== utterance) {
-        return;
-      }
-      const interrupted = event.error === "canceled" || event.error === "interrupted";
-      finishBuiltInSpeech(utterance);
-      if (!interrupted) {
-        setError("本机语音播放失败，文字回复仍然可用。");
-      }
-    };
-
-    builtInSpeechRef.current = utterance;
-    updateRemoteTurnActive(true);
-    stateRef.current = "speaking";
-    setSessionState("speaking");
-    try {
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      finishBuiltInSpeech(utterance);
-      setError("本机语音播放失败，文字回复仍然可用。");
+        },
+      });
     }
+    return browserSpeechRef.current;
   });
 
   const speakWithBuiltInVoice = useEventCallback((text: string, emotion: CompanionEmotion = "neutral") => {
@@ -802,73 +656,16 @@ export function useRealtimeSession(
       return false;
     }
     serverTtsFinishedRef.current = false;
-    cancelBuiltInSpeech();
-    const generation = builtInSpeechGenerationRef.current;
     if (profile.id === "off") {
+      cancelBuiltInSpeech();
       setPlaybackAudioLevel(0);
       clearFirstAudioMeasurement();
       return true;
     }
-    if (
-      typeof window === "undefined" ||
-      !("speechSynthesis" in window) ||
-      typeof window.SpeechSynthesisUtterance !== "function"
-    ) {
-      setPlaybackAudioLevel(0);
-      clearFirstAudioMeasurement();
-      setError("当前浏览器不支持本机语音，已保留文字回复且不会播放测试提示音。");
-      return true;
-    }
-
-    const initialVoice = selectBuiltInVoice(
-      window.speechSynthesis.getVoices(),
-      profile,
-    );
-    if (initialVoice) {
-      startBuiltInSpeech(text, profile, initialVoice, generation, emotion);
-      return true;
-    }
-
-    let timeoutId: number | null = null;
-    const cleanup = () => {
-      window.speechSynthesis.removeEventListener("voiceschanged", handleVoicesChanged);
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-      if (pendingBuiltInVoiceCleanupRef.current === cleanup) {
-        pendingBuiltInVoiceCleanupRef.current = null;
-      }
-    };
-    const handleVoicesChanged = () => {
-      if (generation !== builtInSpeechGenerationRef.current) {
-        cleanup();
-        return;
-      }
-      const voice = selectBuiltInVoice(
-        window.speechSynthesis.getVoices(),
-        profile,
-      );
-      if (!voice) {
-        return;
-      }
-      cleanup();
-      startBuiltInSpeech(text, profile, voice, generation, emotion);
-    };
-
-    pendingBuiltInVoiceCleanupRef.current = cleanup;
-    window.speechSynthesis.addEventListener("voiceschanged", handleVoicesChanged);
-    timeoutId = window.setTimeout(() => {
-      if (generation !== builtInSpeechGenerationRef.current) {
-        cleanup();
-        return;
-      }
-      cleanup();
-      setPlaybackAudioLevel(0);
-      clearFirstAudioMeasurement();
-      setError("没有检测到本机语音，已保留文字回复且不会播放测试提示音。");
-      finalizeBuiltInTurnIfComplete();
-    }, BUILT_IN_VOICE_LOAD_TIMEOUT_MS);
-    handleVoicesChanged();
+    updateRemoteTurnActive(true);
+    stateRef.current = "speaking";
+    setSessionState("speaking");
+    ensureBrowserSpeech().speak(text, profile, emotion);
     return true;
   });
 
@@ -891,12 +688,7 @@ export function useRealtimeSession(
     updatePushToTalkAwaitingInterrupt(false);
     updatePushToTalkActive(false);
     setPushToTalkStatus("idle");
-    captureNodeRef.current?.disconnect();
-    captureNodeRef.current = null;
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-    mediaStreamRef.current = null;
-    void captureContextRef.current?.close();
-    captureContextRef.current = null;
+    void audioCaptureRef.current?.stop();
     setAudioLevel(0);
     setPlaybackAudioLevel(0);
     resetVoiceTracking();
@@ -1205,22 +997,24 @@ export function useRealtimeSession(
     }
   });
 
-  const sendSocketEvent = useEventCallback((type: string, payload: Record<string, unknown> = {}) => {
-    const currentSessionId = sessionIdRef.current;
-    const socket = socketRef.current;
-    if (!currentSessionId || !socket || socket.readyState !== WebSocket.OPEN) {
-      return false;
+  const ensureClassroomSession = useEventCallback(async () => {
+    try {
+      return await ensureSession();
+    } catch (sessionError) {
+      setError(formatRequestError(sessionError, "创建课堂会话失败"));
+      return null;
     }
-    socket.send(
-      JSON.stringify({
-        type,
-        session_id: currentSessionId,
-        state: stateRef.current,
-        payload,
-      }),
-    );
-    return true;
   });
+
+  const sendSocketEvent = useEventCallback(
+    (type: RealtimeControlEvent["type"], payload?: RealtimeControlEvent["payload"]) =>
+      sendRealtimeControlEvent(
+        socketRef.current,
+        sessionIdRef.current,
+        stateRef.current,
+        { type, payload } as RealtimeControlEvent,
+      ),
+  );
 
   const handleRealtimeBinaryMessage = useEventCallback((chunk: ArrayBuffer) => {
     if (discardServerTtsChunkCountRef.current > 0) {
@@ -1440,7 +1234,7 @@ export function useRealtimeSession(
     }
   });
 
-  const interrupt = useEventCallback(() => {
+  const interrupt = useEventCallback((context?: ClassroomInterruptContext) => {
     stopPlaybackForUserInterrupt();
     const hadLocalDemoNarration =
       demoFetchAbortControllerRef.current !== null || demoPlaybackResolverRef.current !== null;
@@ -1459,7 +1253,13 @@ export function useRealtimeSession(
     }
     const previousState = stateRef.current;
     stateRef.current = "interrupted";
-    if (!sendSocketEvent("turn.interrupt")) {
+    const interruptPayload = context
+      ? {
+          board_action_id: context.boardActionId.trim(),
+          prompt: context.prompt.trim(),
+        }
+      : undefined;
+    if (!sendSocketEvent("turn.interrupt", interruptPayload)) {
       stateRef.current = previousState;
       updateRemoteTurnActive(false);
       if (hadLocalDemoNarration) {
@@ -1473,6 +1273,14 @@ export function useRealtimeSession(
     setAvatarEmotion("neutral");
     setSessionState("interrupted");
     return true;
+  });
+
+  const interruptWithContext = useEventCallback((context: ClassroomInterruptContext) => {
+    if (!context.boardActionId.trim() || !context.prompt.trim()) {
+      setError("板书打断缺少定位信息，已拒绝发送。");
+      return false;
+    }
+    return interrupt(context);
   });
 
   const commitVoiceTurn = useEventCallback((source: "vad" | "ptt" = "vad") => {
@@ -1602,7 +1410,7 @@ export function useRealtimeSession(
       }
 
       if (!isMuted && socketRef.current?.readyState === WebSocket.OPEN) {
-        const frames = pcmFramerRef.current?.push(pcm) ?? [];
+        const frames = audioCaptureRef.current?.frame(pcm) ?? [];
         speechFrameCountRef.current += frames.length;
         for (const frame of frames) {
           if (frame.byteLength !== INPUT_PCM16_FRAME_BYTES) {
@@ -1644,80 +1452,15 @@ export function useRealtimeSession(
   }, [handleAudioFrame]);
 
   const startAudioCapture = useEventCallback(async (lifecycleGeneration: number) => {
-    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error("当前浏览器不支持麦克风采集；请改用文字模式。");
-    }
-
+    const capture = audioCaptureRef.current ?? new RealtimeAudioCapture();
+    audioCaptureRef.current = capture;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-      });
-      if (
-        !pageLifecycleActiveRef.current ||
-        lifecycleGeneration !== pageLifecycleGenerationRef.current
-      ) {
-        stream.getTracks().forEach((track) => track.stop());
-        throw new Error("Page lifecycle changed before microphone capture started.");
-      }
-      mediaStreamRef.current = stream;
-      const context = new window.AudioContext();
-      captureContextRef.current = context;
-      await context.resume();
-      if (
-        !pageLifecycleActiveRef.current ||
-        lifecycleGeneration !== pageLifecycleGenerationRef.current
-      ) {
-        throw new Error("Page lifecycle changed while microphone capture was starting.");
-      }
-      if (context.state !== "running") {
-        throw new Error("麦克风音频上下文未启动；请再点击一次开启实时。");
-      }
-      pcmFramerRef.current = new Pcm16MonoFramer(context.sampleRate);
-      const source = context.createMediaStreamSource(stream);
-
-      if (typeof AudioWorkletNode !== "undefined" && context.audioWorklet) {
-        const blob = new Blob([createAudioWorkletModuleSource()], {
-          type: "application/javascript",
-        });
-        const moduleUrl = URL.createObjectURL(blob);
-        try {
-          await context.audioWorklet.addModule(moduleUrl);
-        } finally {
-          URL.revokeObjectURL(moduleUrl);
-        }
-
-        const node = new AudioWorkletNode(context, "pulse-processor");
-        node.port.onmessage = (event: MessageEvent<{ level: number; pcm: Float32Array }>) => {
-          handleAudioFrame(event.data.level, event.data.pcm);
-        };
-        const sink = context.createGain();
-        sink.gain.value = 0;
-        source.connect(node);
-        node.connect(sink);
-        sink.connect(context.destination);
-        captureNodeRef.current = node;
-        return;
-      }
-
-      const legacyContext = context as AudioContext & {
-        createScriptProcessor(
-          bufferSize?: number,
-          numberOfInputChannels?: number,
-          numberOfOutputChannels?: number,
-        ): ScriptProcessorNode;
-      };
-      const fallbackNode = legacyContext.createScriptProcessor(1024, 1, 1);
-      fallbackNode.onaudioprocess = (event: AudioProcessingEvent) => {
-        const channel = event.inputBuffer.getChannelData(0);
-        handleAudioFrame(measureLevel(channel), new Float32Array(channel));
-      };
-      source.connect(fallbackNode);
-      fallbackNode.connect(legacyContext.destination);
-      captureNodeRef.current = fallbackNode;
+      await capture.start(
+        () =>
+          pageLifecycleActiveRef.current &&
+          lifecycleGeneration === pageLifecycleGenerationRef.current,
+        handleAudioFrame,
+      );
     } catch (captureError) {
       stopAudioCapture();
       if (isMicrophonePermissionError(captureError)) {
@@ -1796,10 +1539,7 @@ export function useRealtimeSession(
       ) {
         throw new Error("Page lifecycle changed while realtime was connecting.");
       }
-      const socket = new WebSocket(realtimeUrl, [
-        "companion-v1",
-        `ticket.${realtimeTicket.ticket}`,
-      ]);
+      const socket = createRealtimeWebSocket(realtimeUrl, realtimeTicket.ticket);
       socket.binaryType = "arraybuffer";
       socketRef.current = socket;
 
@@ -1911,11 +1651,11 @@ export function useRealtimeSession(
           );
         }, REALTIME_CONNECT_TIMEOUT_MS);
         const handleOpen = () => {
-          if (socket.protocol === "companion-v1") {
+          if (socket.protocol === REALTIME_PROTOCOL) {
             return;
           }
           cleanup();
-          reject(new Error("实时服务未确认 companion-v1 子协议，已拒绝连接。"));
+          reject(new Error(`实时服务未确认 ${REALTIME_PROTOCOL} 子协议，已拒绝连接。`));
         };
         const handleSessionOpen = (message: MessageEvent) => {
           if (typeof message.data !== "string") {
@@ -2499,10 +2239,12 @@ export function useRealtimeSession(
     commitSilenceMs,
     setCommitSilenceMs,
     connect,
+    ensureClassroomSession,
     clearDemo,
     cancelPushToTalk,
     disconnect,
     interrupt,
+    interruptWithContext,
     playDemoNarration,
     requestDemo,
     sendText,

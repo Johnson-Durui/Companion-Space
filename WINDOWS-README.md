@@ -105,57 +105,6 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 本仓库是 npm workspace，用 `npm.cmd`，不要用 pnpm。
 
-## Android / iOS 移动端
-
-手机不能使用 `companion.localhost`，因为 `.localhost` 在手机上指向手机
-自己。请先给宿主机配置一个手机可访问且系统信任的 HTTPS 域名，并在
-`.env` 把 `APP_HOST` 改为该域名。当前 Caddyfile 对所有主机名都使用内部 CA
-（`tls internal`），**不会**因为换成公共域名就自动拿到 Let's Encrypt 证书。
-本地域名或 IP 使用内部 CA 时，需要在每台手机上安装并信任该 CA。
-
-构建移动壳：
-
-```powershell
-$env:COMPANION_MOBILE_TRUSTED_ORIGINS='https://companion.example.com'
-npm run check:mobile
-npm run typecheck:mobile
-npm run build:mobile
-npm run cap:sync --workspace @companion-space/mobile
-```
-
-Android 需要 Node 24、JDK 21、Android SDK 36 / Build Tools 36.0.0；生成的
-工程位于 `apps/mobile/android`。iOS 工程位于 `apps/mobile/ios`，但必须在
-macOS + Xcode 26 以上环境编译；签名和 TestFlight 还需要你自己的 Apple
-凭据。
-
-使用时先在电脑浏览器解锁 Vault，进入 **设置 → 移动设备** 生成一次性
-8 位配对码，再在手机 App 输入服务器地址、8 位配对码和设备名。
-长期刷新凭据只保存在 Android Keystore / iOS Keychain；访问凭据不进入
-URL、localStorage 或 Preferences。丢失手机后应立即在同一页面撤销设备。
-完整网络、证书和令牌生命周期见 `docs/lan-pairing.md`。
-
-移动端首次配对只需输入电脑端“设置 → 移动设备”生成的 8 位码、受信 HTTPS
-地址和设备名称。每次只保留一个 5 分钟有效的配对码；生成新码会让旧码立即失效。
-数据库只保存由 Vault 密钥生成的 HMAC 校验值，不保存明文或可离线穷举的普通哈希。
-
-Android 可用 Android Studio 打开 `apps/mobile/android`，或在该目录运行
-`.\gradlew.bat :app:assembleDebug :app:assembleRelease`。调试 APK 位于
-`app/build/outputs/apk/debug/app-debug.apk`，可用
-`adb install -r app/build/outputs/apk/debug/app-debug.apk` 安装。Release APK 默认未签名，
-商店发布需另行配置签名并生成 AAB。iOS 请在 macOS 上打开
-`apps/mobile/ios/App/App.xcodeproj`，选择模拟器或已配置签名的真机运行。
-
-Android 正式 AAB 必须配置真实 HTTPS 地址和四项签名变量后运行：
-
-```powershell
-npm run android:release:check --workspace @companion-space/mobile
-npm run android:release --workspace @companion-space/mobile
-```
-
-CI 会额外生成明确标记为 unsigned 的 Android AAB，并在 macOS runner
-构建 Debug/Release iOS Simulator App、运行 `AppTests`。正式上架仍需要
-你自己的 Google Play / Apple Developer 签名凭据。
-
 ## 本地神经语音怎么切
 
 推荐通过「语音接口配置」新建并绑定自己的本地连接，见 [语音服务接入](docs/voice-service.md)。下面是使用 `.env` 中 `BUILTIN_NEURAL_TTS_ENABLED=true` 注册的内置连接时的行为。

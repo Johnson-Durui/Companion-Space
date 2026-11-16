@@ -93,10 +93,15 @@ export function SpacesPanel() {
     <section className={`${styles.page} page-stack`}>
       <header className={styles.intro}>
         <div>
-          <span className={styles.kicker}>THEME MAP · 学习地图</span>
-          <h1>学习空间</h1>
+          <h1>星轨书房</h1>
         </div>
-        <p>每个主题都是一段独立旅程。资料、会话与记忆留在各自的世界里，搭档会陪你从上次停下的地方继续。</p>
+        <p>选择学习空间，整理资料或继续上一堂课。</p>
+        <div className="inline-actions" aria-label="本地设置">
+          <Link href="/vault" className="ghost-button">本地保险箱</Link>
+          <Link href="/providers" className="ghost-button">声音与模型</Link>
+          <Link href="/characters" className="ghost-button">导师工作室</Link>
+          <Link href="/settings" className="ghost-button">本机设置</Link>
+        </div>
       </header>
 
       {error ? <ErrorCallout message={error} /> : null}

@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import { AntdRegistry } from "@ant-design/nextjs-registry";
-
-import { AppThemeProvider } from "@/components/app-theme-provider";
 import { SidebarNav } from "@/components/sidebar-nav";
 
 import "./globals.css";
+import "katex/dist/katex.min.css";
 
 export const metadata: Metadata = {
   title: process.env.APP_DISPLAY_NAME?.trim() || "Companion Space",
@@ -26,19 +24,15 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     <html lang="zh-CN">
       <body>
-        <AntdRegistry>
-          <AppThemeProvider>
-            <a className="skip-link" href="#main-content">
-              跳到主要内容
-            </a>
-            <div className="app-shell">
-              <SidebarNav displayName={displayName} />
-              <main id="main-content" className="app-main" tabIndex={-1}>
-                {children}
-              </main>
-            </div>
-          </AppThemeProvider>
-        </AntdRegistry>
+        <a className="skip-link" href="#main-content">
+          跳到主要内容
+        </a>
+        <div className="app-shell">
+          <SidebarNav displayName={displayName} />
+          <main id="main-content" className="app-main" tabIndex={-1}>
+            {children}
+          </main>
+        </div>
       </body>
     </html>
   );

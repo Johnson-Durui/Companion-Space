@@ -32,6 +32,10 @@ class VaultStatusResponse(BaseModel):
     unlocked: bool
 
 
+class VaultBrowserStatusResponse(VaultStatusResponse):
+    owner_session_authenticated: bool
+
+
 class NeuralTtsSidecarStatusResponse(BaseModel):
     enabled: bool
     ready: bool

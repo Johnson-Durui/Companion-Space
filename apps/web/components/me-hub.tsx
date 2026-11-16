@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Skeleton } from "antd";
 import { useEffect, useState } from "react";
 
 import { getVaultStatus, listCharacters, listProviders } from "@/lib/api";
@@ -89,7 +88,7 @@ export function MeHub() {
           <p className={styles.kicker}>同行角色</p>
           <h2>{loading ? "正在找你的伙伴…" : summary.characterName || "创建你的第一个学习搭子"}</h2>
           {loading ? (
-            <Skeleton active paragraph={{ rows: 1 }} title={false} />
+            <div className="loading-state" role="status">正在读取…</div>
           ) : (
             <p>{characterStatus}</p>
           )}

@@ -734,6 +734,82 @@
       ]
     },
     {
+      "method": "GET",
+      "path": "/api/v1/sessions/{session_id}/classroom",
+      "handler": "get_classroom",
+      "operation_id": "get_classroom_api_v1_sessions__session_id__classroom_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/ClassroomSnapshot",
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/classroom/events",
+      "handler": "send_classroom_event",
+      "operation_id": "send_classroom_event_api_v1_sessions__session_id__classroom_events_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/ClassroomEventRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/ClassroomSnapshot",
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/classroom/flashcards",
+      "handler": "propose_classroom_flashcards",
+      "operation_id": "propose_classroom_flashcards_api_v1_sessions__session_id__classroom_flashcards_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/FlashcardListResponse",
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions/{session_id}/classroom/start",
+      "handler": "start_classroom",
+      "operation_id": "start_classroom_api_v1_sessions__session_id__classroom_start_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/ClassroomStartRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/ClassroomSnapshot",
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
       "method": "POST",
       "path": "/api/v1/sessions/{session_id}/demos",
       "handler": "create_demo",
@@ -1011,6 +1087,62 @@
       ]
     },
     {
+      "method": "GET",
+      "path": "/api/v1/spaces/{space_id}/classroom/flashcards",
+      "handler": "list_classroom_flashcards",
+      "operation_id": "list_classroom_flashcards_api_v1_spaces__space_id__classroom_flashcards_get",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/FlashcardListResponse",
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/spaces/{space_id}/classroom/flashcards/{card_id}/confirm",
+      "handler": "confirm_classroom_flashcard",
+      "operation_id": "confirm_classroom_flashcard_api_v1_spaces__space_id__classroom_flashcards__card_id__confirm_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/FlashcardRecord",
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/spaces/{space_id}/classroom/flashcards/{card_id}/rate",
+      "handler": "rate_classroom_flashcard",
+      "operation_id": "rate_classroom_flashcard_api_v1_spaces__space_id__classroom_flashcards__card_id__rate_post",
+      "status_codes": [
+        "200",
+        "422"
+      ],
+      "request_schema_refs": [
+        "#/components/schemas/FlashcardRatingRequest"
+      ],
+      "response_schema_refs": [
+        "#/components/schemas/FlashcardRecord",
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
       "method": "PUT",
       "path": "/api/v1/spaces/{space_id}/default-character",
       "handler": "update_space_default_character",
@@ -1226,6 +1358,23 @@
     },
     {
       "method": "POST",
+      "path": "/api/v1/vault/logout",
+      "handler": "vault_logout",
+      "operation_id": "vault_logout_api_v1_vault_logout_post",
+      "status_codes": [
+        "204",
+        "422"
+      ],
+      "request_schema_refs": [],
+      "response_schema_refs": [
+        "#/components/schemas/HTTPValidationError"
+      ],
+      "auth_dependencies": [
+        "require_owner"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/v1/vault/password",
       "handler": "rotate_vault_password",
       "operation_id": "rotate_vault_password_api_v1_vault_password_post",
@@ -1309,11 +1458,13 @@
       "handler": "vault_status",
       "operation_id": "vault_status_api_v1_vault_status_get",
       "status_codes": [
-        "200"
+        "200",
+        "422"
       ],
       "request_schema_refs": [],
       "response_schema_refs": [
-        "#/components/schemas/VaultStatusResponse"
+        "#/components/schemas/HTTPValidationError",
+        "#/components/schemas/VaultBrowserStatusResponse"
       ],
       "auth_dependencies": []
     },

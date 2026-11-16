@@ -9,6 +9,9 @@ import {
 } from "@/components/avatar/avatar-runtime";
 import { LessonBoard, resolveBoardFrame } from "@/components/lesson/lesson-board";
 import { LessonPlayer } from "@/components/lesson/lesson-player";
+import { getBuiltinPortraitDefinition } from "@/components/avatar/portrait-registry";
+import { ClassroomBoard } from "./classroom-board";
+import { useClassroomBoard } from "./use-classroom-board";
 import { createAvatarSpeechController } from "@/components/avatar/vrm-speech-controller";
 import {
   loadCharacterRuntimeAssetUrls,
@@ -276,6 +279,8 @@ export function RealtimeCallShell({
   >({});
   const [catalogErrors, setCatalogErrors] = useState<string[]>([]);
   const [spaceName, setSpaceName] = useState("当前学习空间");
+  const [spaceTopic, setSpaceTopic] = useState("");
+  const [preferPortrait, setPreferPortrait] = useState(false);
   const [spaceDefaultCharacterId, setSpaceDefaultCharacterId] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarStatus, setAvatarStatus] = useState("正在读取空间默认角色。");
@@ -294,6 +299,7 @@ export function RealtimeCallShell({
     setCharacters([]);
     setCatalogErrors([]);
     setSpaceName("当前学习空间");
+    setSpaceTopic("");
     setSpaceDefaultCharacterId(null);
     setTtsPlaybackPolicy(null);
     setVoicePolicyStatus("loading");
@@ -317,6 +323,7 @@ export function RealtimeCallShell({
           return;
         }
         setSpaceName(space.title);
+        setSpaceTopic(space.theme?.trim() || "");
         setSpaceDefaultCharacterId(space.default_character_id ?? null);
         const ttsAssignment = space.model_assignments?.find(
           (assignment) => assignment.capability === "tts",
@@ -525,6 +532,10 @@ export function RealtimeCallShell({
     };
   }, [avatarCharacterId, session.isSessionHydrating, sessionResumeFailed]);
 
+  const portrait = displayedAvatarCharacter
+    ? getBuiltinPortraitDefinition(`${displayedAvatarCharacter.recipe.avatar_model.toLowerCase()}_2d`)
+    : null;
+  const showPortrait = Boolean(preferPortrait && portrait);
   const previewRecipe = useMemo(() => {
     if (!displayedAvatarCharacter) {
       return defaultAvatarProfile;
@@ -534,9 +545,10 @@ export function RealtimeCallShell({
       ...createDefaultCharacterRecipe(displayedAvatarCharacter.recipe),
       display_name: displayedAvatarCharacter.name,
       relationship_label: roleLabel(displayedAvatarCharacter.recipe.relationship_role),
-      vrm_asset_url: avatarAssetUrl ?? "",
+      avatar_model: showPortrait && portrait ? portrait.modelId : displayedAvatarCharacter.recipe.avatar_model,
+      vrm_asset_url: showPortrait ? "" : avatarAssetUrl ?? "",
     };
-  }, [avatarAssetUrl, displayedAvatarCharacter]);
+  }, [avatarAssetUrl, displayedAvatarCharacter, portrait, showPortrait]);
 
   const liveBoardFrame = useMemo(
     () => resolveBoardFrame(session.currentBoardActions),
@@ -575,6 +587,23 @@ export function RealtimeCallShell({
       : "选一个想看懂的主题，角色会把它拆成可暂停、可重播的分步演示。";
   const narrationCharacterId = session.sessionId ? session.sessionCharacterId : null;
   const avatarEmotion = mapAvatarEmotion(session.sessionState, session.avatarEmotion);
+  const classroom = useClassroomBoard({
+    spaceId,
+    sessionId: session.sessionId,
+    ensureSession: session.ensureClassroomSession,
+    canInterrupt: session.connectionStatus === "connected" && session.hasRemoteTurn,
+    interrupt: session.interruptWithContext,
+    stopNarration: session.stopDemoNarration,
+    narrate: async (text) => {
+      if (!narrationCharacterId) throw new Error("请先选择课堂导师。");
+      return session.playDemoNarration({
+        characterId: narrationCharacterId,
+        text,
+        voiceId: avatarCharacter?.recipe.voice_id,
+        speakingRate: avatarCharacter?.recipe.speaking_rate,
+      });
+    },
+  });
   const characterSelectionLocked = Boolean(session.sessionId)
     || session.isSessionHydrating
     || session.isSendingText
@@ -602,12 +631,11 @@ export function RealtimeCallShell({
     <section className={`panel ${styles.shell} ${immersive ? styles.immersive : ""}`} data-presentation={immersive ? "immersive" : "study"}>
       <div className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className="eyebrow">和 {displayedAvatarName} 一起</p>
           <h1>{spaceName}</h1>
           <p className={styles.heroLead}>{friendlyConnectionStatus}</p>
         </div>
         <div className={styles.presentationActions}>
-          <Link href="/room" className={styles.roomLink}>返回书房 <span aria-hidden="true">↗</span></Link>
+          <Link href="/spaces" className={styles.roomLink}>返回书房 <span aria-hidden="true">↗</span></Link>
           <button
             ref={presentationButtonRef}
             type="button"
@@ -616,7 +644,7 @@ export function RealtimeCallShell({
             onClick={() => setImmersive((current) => !current)}
           >{immersive ? "退出沉浸" : "沉浸陪伴"}</button>
         </div>
-        <details className={styles.heroMetaDisclosure} open={disclosureOpen}>
+        <details className={styles.heroMetaDisclosure}>
           <summary>连接详情</summary>
           <div className={styles.heroMeta}>
             <div>
@@ -653,9 +681,11 @@ export function RealtimeCallShell({
                   && !avatarLicensedRuntimeAsset
                 )}
                 compact
+                boardFocus={classroom.focus}
+                teachingFeedback={classroom.feedback}
                 emotion={avatarEmotion}
                 licensedRuntimeAsset={
-                  displayedAvatarCharacter ? avatarLicensedRuntimeAsset : null
+                  displayedAvatarCharacter && !showPortrait ? avatarLicensedRuntimeAsset : null
                 }
                 motionAssetUrls={
                   displayedAvatarCharacter ? avatarMotionAssetUrls : emptyMotionAssetUrls
@@ -665,7 +695,7 @@ export function RealtimeCallShell({
                 sessionId={session.sessionId}
                 state={mapAvatarState(session.sessionState)}
                 speechController={realtimeAvatarSpeechController}
-                visualBlock={avatarVisualBlock}
+                visualBlock={showPortrait ? null : avatarVisualBlock}
               />
               <div className={styles.stagePresence} role="status" aria-live="polite">
                 <span className={styles.presenceDot} aria-hidden="true" />
@@ -674,13 +704,16 @@ export function RealtimeCallShell({
                   <span>{companionStateLabel}</span>
                 </div>
               </div>
-              {immersive ? (
+              {immersive && !classroom.snapshot ? (
                 <div className={styles.companionBubble} aria-hidden="true">
                   <small>{session.transcript.some((turn) => turn.role === "assistant") ? `${displayedAvatarName} · 最近回复` : "与你共学"}</small>
                   <p>{session.partialCaption || [...session.transcript].reverse().find((turn) => turn.role === "assistant")?.text || "把想弄懂的问题告诉我，我们一起从这里开始。"}</p>
                 </div>
               ) : null}
             </div>
+            {classroom.snapshot?.tutor.narration ? (
+              <p className={styles.tutorSpeech} aria-live="polite">{classroom.snapshot.tutor.narration}</p>
+            ) : null}
             <div className={styles.stageControls}>
               <div className={styles.controlBar}>
                 <button
@@ -790,9 +823,18 @@ export function RealtimeCallShell({
                 </details>
               </div>
             </div>
-            <details className={styles.stageSettings} open={disclosureOpen}>
-              <summary>角色与语音设置</summary>
+            <details className={styles.stageSettings}>
+              <summary>导师与声线</summary>
               <div className={styles.stageSettingsBody}>
+              {portrait ? (
+                <label className={styles.characterField}>
+                  <span>导师形象</span>
+                  <select value={showPortrait ? "portrait" : "vrm"} onChange={(event) => setPreferPortrait(event.target.value === "portrait")}>
+                    <option value="vrm">3D VRM</option>
+                    <option value="portrait">2D 立绘</option>
+                  </select>
+                </label>
+              ) : null}
               <p className={styles.helperText}>{avatarStatus}</p>
               {catalogErrors.length ? (
                 <p className={styles.errorText}>{catalogErrors.join("；")}</p>
@@ -904,39 +946,23 @@ export function RealtimeCallShell({
             </details>
           </div>
 
-          <details
-            className={`${styles.mobileDisclosure} ${styles.boardDisclosure}`}
-            open={disclosureOpen}
-          >
-            <summary>当前板书</summary>
-            <div className={`panel ${styles.boardPanel}`}>
-            <div className={styles.panelTopline}>
-              <div>
-                <p className="eyebrow">学习板书</p>
-                <h3>当前板书</h3>
-              </div>
-              <span>
-                {session.currentBoardActions.length
-                  ? `${session.currentBoardActions.length} 条`
-                  : "等待新的板书"}
-              </span>
-            </div>
-            <LessonBoard
-              compact
-              action={liveBoardFrame.action}
-              baseAction={liveBoardFrame.baseAction}
-            />
-            <p className={styles.helperText}>
-              这里展示当前对话里最新的一张板书。高亮步骤会叠加在上一张板书上。
-            </p>
-            </div>
-          </details>
+        </div>
 
+        <div className={styles.sideColumn}>
+          <ClassroomBoard
+            classroom={classroom}
+            defaultTopic={spaceTopic}
+            spaceId={spaceId}
+            disabled={!voicePolicyReady || session.isSessionHydrating || session.connectionStatus === "ended"}
+            liveBoard={liveBoardFrame.action ? (
+              <LessonBoard compact action={liveBoardFrame.action} baseAction={liveBoardFrame.baseAction} />
+            ) : null}
+          />
           <details
             className={`${styles.mobileDisclosure} ${styles.demoDisclosure}`}
-            open={disclosureOpen}
+            open={session.demo ? true : undefined}
           >
-            <summary>互动演示</summary>
+            <summary>演示脚本与回放</summary>
             <div>
               <LessonPlayer
                 canRequestDemo={
@@ -1039,9 +1065,6 @@ export function RealtimeCallShell({
             </form>
             <p className={styles.composerHint}>Ctrl / ⌘ + Enter 发送 · 语音需要主动开启{immersive ? " · Esc 退出沉浸" : ""}</p>
           </div>
-        </div>
-
-        <aside className={styles.sideColumn}>
           <div className={`panel ${styles.captionPanel}`}>
             <p className="eyebrow">伙伴正在说</p>
             <h3>实时字幕</h3>
@@ -1105,7 +1128,7 @@ export function RealtimeCallShell({
             </ul>
             </div>
           </details>
-        </aside>
+        </div>
       </div>
     </section>
   );

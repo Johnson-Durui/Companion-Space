@@ -38,6 +38,7 @@ from app.services.companion import (
     CharacterNotFoundError,
     SessionNotFoundError,
 )
+from app.services.pedagogical_orchestrator import PedagogicalOrchestrator
 
 router = APIRouter()
 
@@ -223,6 +224,14 @@ async def end_session(
         session_id=session_id,
         include_candidates=True,
     )
+    classroom = PedagogicalOrchestrator(
+        container.repository,
+        container.spaces,
+        container.companion,
+        container.demos,
+    )
+    if classroom.store.get_snapshot(session_id) is not None:
+        classroom.propose_flashcards(session_id)
     duration_ms = 0
     if session.ended_at is not None:
         duration_ms = max(
