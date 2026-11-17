@@ -1,5 +1,7 @@
 {
   "candidate_answer": "A proposed answer supplied as an untrusted data block.",
+  "classroom_context": "Course excerpts, role card, and beat context supplied as untrusted data blocks.",
+  "classroom_instruction": "Server-owned move and style instructions with a server-owned speech budget.",
   "course_context": "Course, material, section, or unit metadata supplied as an untrusted data block.",
   "exam_items": "Exam items supplied as an untrusted data block.",
   "existing_items": "Existing questions supplied as an untrusted data block.",

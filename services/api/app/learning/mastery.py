@@ -13,7 +13,7 @@ EvidenceSource = Literal[
     "review",
 ]
 Verdict = Literal["correct", "partial", "incorrect", "dont_know", "revealed"]
-ItemType = Literal["choice", "multi", "numeric", "short"]
+ItemType = Literal["choice", "multi", "numeric", "short", "explain", "steps"]
 JudgedBy = Literal["exact", "model"]
 MasteryStatus = Literal["unseen", "learning", "shaky", "mastered"]
 SelfLevel = Literal["never", "attended_but_lost", "basic", "strong"]

@@ -1,5 +1,6 @@
 {
   "preview_sample": "你好，我是{name}。准备好时，告诉我你想从哪里开始。",
   "preview_voice_changed": "这个音色暂不可用，已换成默认音色。可以换一位老师试听。",
-  "preview_browser": "在线语音暂不可用，已切换到浏览器语音。检查网络后可以再试。"
+  "preview_browser": "在线语音暂不可用，已切换到浏览器语音。检查网络后可以再试。",
+  "lesson_protected_reply": "我们先停一下。可以按自己的思路再试一次。"
 }

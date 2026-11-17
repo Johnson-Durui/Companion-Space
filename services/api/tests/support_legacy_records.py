@@ -45,10 +45,11 @@ def seed_memory(repository: SQLiteRepository, item: MemoryItem) -> None:
 def seed_review(repository: SQLiteRepository, item: ReviewItem) -> None:
     with repository.connection() as conn:
         conn.execute(
-            "INSERT INTO review_items (id, space_id, prompt, answer, status, source_session_id,"
-            " created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO review_cards (id, space_id, kind, front, back, state, legacy_source_session_id,"
+            " due_at, created_at, updated_at) VALUES (?, ?, 'flashcard', ?, ?, ?, ?, ?, ?, ?)",
             (
                 item.id, item.space_id, item.prompt, item.answer, item.status.value, item.source_session_id,
+                item.due_at.isoformat() if item.due_at else None,
                 item.created_at.isoformat(), item.updated_at.isoformat(),
             ),
         )

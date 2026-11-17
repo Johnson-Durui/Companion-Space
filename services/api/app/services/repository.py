@@ -23,6 +23,7 @@ from app.repositories.mixins.sessions import SessionMixin
 from app.repositories.mixins.turns import TurnMixin
 from app.repositories.mixins.memory import MemoryMixin
 from app.repositories.mixins.learning import LearningMixin
+from app.repositories.mixins.teaching import TeachingMixin
 from app.repositories.mixins.rows import RowMixin
 
 
@@ -38,6 +39,7 @@ class SQLiteRepository(
     TurnMixin,
     MemoryMixin,
     LearningMixin,
+    TeachingMixin,
     RowMixin,
 ):
     """Compatibility façade composed from bounded domain repository mixins."""

@@ -91,7 +91,7 @@ def _parse_rewritten_rubric(raw: str) -> list[dict]:
     return result
 
 
-def _numeric_value(value: str) -> Fraction | None:
+def numeric_value(value: str) -> Fraction | None:
     compact = value.strip().replace(" ", "")
     if not re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:/[+-]?(?:\d+(?:\.\d*)?|\.\d+))?", compact):
         return None
@@ -146,7 +146,7 @@ class ItemVerifier:
     async def _equivalent(self, left: str, right: str) -> bool:
         if left.strip().casefold() == right.strip().casefold():
             return True
-        left_number, right_number = _numeric_value(left), _numeric_value(right)
+        left_number, right_number = numeric_value(left), numeric_value(right)
         if left_number is not None and right_number is not None:
             return left_number == right_number
         return await self.gateway.complete_tagged(

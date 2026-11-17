@@ -71,7 +71,9 @@ class MemoryMixin:
     def list_review_items(self, space_id: str) -> list[ReviewItem]:
         with self.connection() as conn:
             rows = conn.execute(
-                "SELECT * FROM review_items WHERE space_id = ? ORDER BY updated_at DESC",
+                """SELECT * FROM review_cards
+                   WHERE space_id = ? AND kind = 'flashcard' AND source_lesson_id IS NULL
+                   ORDER BY updated_at DESC""",
                 (space_id,),
             ).fetchall()
         return [self._row_to_review(row) for row in rows]
@@ -80,8 +82,8 @@ class MemoryMixin:
         with self.connection() as conn:
             rows = conn.execute(
                 """
-                SELECT * FROM review_items
-                WHERE source_session_id = ?
+                SELECT * FROM review_cards
+                WHERE legacy_source_session_id = ? AND kind = 'flashcard'
                 ORDER BY updated_at DESC
                 """,
                 (session_id,),
@@ -107,11 +109,11 @@ class MemoryMixin:
             {
                 "id": row["id"],
                 "space_id": row["space_id"],
-                "prompt": row["prompt"],
-                "answer": row["answer"],
+                "prompt": row["front"],
+                "answer": row["back"],
                 "due_at": row["due_at"],
-                "status": row["status"],
-                "source_session_id": row["source_session_id"] if "source_session_id" in row.keys() else None,
+                "status": row["state"],
+                "source_session_id": row["legacy_source_session_id"],
                 "created_at": row["created_at"],
                 "updated_at": row["updated_at"],
             }

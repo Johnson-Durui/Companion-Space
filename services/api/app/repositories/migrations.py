@@ -4,7 +4,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CURRENT_SCHEMA_VERSION = 8
+CURRENT_SCHEMA_VERSION = 9
 
 
 @dataclass(frozen=True)
@@ -328,6 +328,52 @@ def migrate_v7_to_v8(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA user_version = 8")
 
 
+def migrate_v8_to_v9(conn: sqlite3.Connection) -> None:
+    _execute(conn, (
+        "CREATE UNIQUE INDEX plan_items_space_id ON plan_items(space_id, id)",
+        """CREATE TABLE lesson_plans (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL, plan_item_id TEXT NOT NULL,
+            status TEXT NOT NULL, plan_json TEXT, model TEXT, verify_stats_json TEXT,
+            error TEXT, created_at TEXT NOT NULL,
+            UNIQUE (space_id, plan_item_id, id),
+            FOREIGN KEY(space_id, plan_item_id) REFERENCES plan_items(space_id, id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE lessons (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL, plan_item_id TEXT,
+            lesson_plan_id TEXT, character_id TEXT, status TEXT NOT NULL
+                CHECK (status IN ('active', 'paused', 'done', 'abandoned')),
+            state_json TEXT NOT NULL, board_json TEXT, recap_json TEXT, carry_over_json TEXT,
+            started_at TEXT NOT NULL, ended_at TEXT,
+            UNIQUE (space_id, id), UNIQUE (space_id, plan_item_id),
+            FOREIGN KEY(space_id) REFERENCES study_spaces(id) ON DELETE CASCADE,
+            FOREIGN KEY(space_id, plan_item_id, lesson_plan_id)
+                REFERENCES lesson_plans(space_id, plan_item_id, id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE lesson_events (
+            lesson_id TEXT NOT NULL, seq INTEGER NOT NULL CHECK (seq > 0),
+            gen INTEGER NOT NULL CHECK (gen >= 0), type TEXT NOT NULL,
+            data_json TEXT NOT NULL, t_ms INTEGER NOT NULL CHECK (t_ms >= 0),
+            PRIMARY KEY (lesson_id, seq),
+            FOREIGN KEY(lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE review_cards (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL, kp_id TEXT, kind TEXT NOT NULL,
+            front TEXT, back TEXT, item_ref TEXT, fsrs_json TEXT, due_at TEXT,
+            state TEXT NOT NULL, source_lesson_id TEXT, legacy_source_session_id TEXT,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            FOREIGN KEY(space_id) REFERENCES study_spaces(id) ON DELETE CASCADE,
+            FOREIGN KEY(space_id, source_lesson_id) REFERENCES lessons(space_id, id) ON DELETE CASCADE
+        )""",
+        """INSERT INTO review_cards(
+               id, space_id, kind, front, back, due_at, state, legacy_source_session_id, created_at, updated_at
+           )
+           SELECT id, space_id, 'flashcard', prompt, answer, due_at, status, source_session_id, created_at, updated_at
+           FROM review_items""",
+        "DROP TABLE review_items",
+    ))
+    conn.execute("PRAGMA user_version = 9")
+
+
 MIGRATIONS = (
     Migration(1, 2, migrate_v1_to_v2),
     Migration(2, 3, migrate_v2_to_v3),
@@ -336,6 +382,7 @@ MIGRATIONS = (
     Migration(5, 6, migrate_v5_to_v6),
     Migration(6, 7, migrate_v6_to_v7),
     Migration(7, 8, migrate_v7_to_v8),
+    Migration(8, 9, migrate_v8_to_v9),
 )
 
 
