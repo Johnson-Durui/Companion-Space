@@ -1,5 +1,7 @@
 # Companion Space v2
 
+> 正在重塑为 v1.0，见[重塑总纲](docs/rebuild/PLAN.md)。
+
 [English](README.en.md)
 
 本地优先、单用户的二次元学习搭子。从自己的书房进入学习空间，导入资料、选择伙伴，用文字或语音共学，再把对话整理成复盘与记忆。支持 Windows 本机运行和 Docker 部署；记录保存在本机，接入外部模型时会向你选择的服务发送相应请求。
@@ -74,7 +76,7 @@ docker compose up --build
 
 不要在 API 运行时直接复制 `companion.db`、WAL/SHM 或整个 `storage/`。更换 API 镜像前先跑备份。
 
-本地开发（不用 Docker）见 [WINDOWS-README.md](WINDOWS-README.md)。本仓库是 **npm workspace**，用 `npm.cmd` / `npm`，不要用 pnpm。
+本地开发（不用 Docker）见 [WINDOWS-README.md](legacy/WINDOWS-README.md)。本仓库是 **npm workspace**，用 `npm.cmd` / `npm`，不要用 pnpm。
 
 ## 当前仓库布局
 
@@ -116,7 +118,7 @@ NEXT_PUBLIC_REALTIME_WS_URL=/api/v1/sessions/:sessionId/realtime
 
 六个原创 VRM 允许再分发和修改且无需署名，但其内嵌权限不授权企业商业使用，并禁止过度暴力/性、政治/宗教、反社会或仇恨用途；不得剥离内嵌元数据。完整字段见模型 `manifest.json` 与 [第三方/素材声明](assets/THIRD_PARTY_NOTICES.md)。其中 MIRA/KITE/CAEL/LYRA 是 painted-blender 级模型，NOVA/ECHO 是同一运行时契约下的 original-vrm 原型模型。
 
-仓库发布的是经过校验的六个 VRM 二进制与哈希；精确的 painted albedo 输入和本地 `.blend` 工作文件不在公开仓库。干净 clone 可以直接运行这些模型，但不承诺从公开源逐字节重建相同哈希。详见 [原创 3D 契约](docs/design/original-companions-3d.md)。
+仓库发布的是经过校验的六个 VRM 二进制与哈希；精确的 painted albedo 输入和本地 `.blend` 工作文件不在公开仓库。干净 clone 可以直接运行这些模型，但不承诺从公开源逐字节重建相同哈希。详见 [原创 3D 契约](docs/archive/design/original-companions-3d.md)。
 
 ## 验证命令
 
@@ -141,10 +143,10 @@ PYTHONPATH=services/api python3 -m pytest services/api/tests -q
 
 ## 文档
 
-- [Windows 快速启动](WINDOWS-README.md)
-- [部署](docs/deployment.md)
-- [移动配对](docs/lan-pairing.md)
-- [架构](docs/architecture.md)
+- [Windows 快速启动](legacy/WINDOWS-README.md)
+- [部署](docs/archive/deployment.md)
+- [移动配对](docs/archive/lan-pairing.md)
+- [架构](docs/archive/architecture.md)
 - [隐私](docs/privacy-and-data.md)
 - [安全模型](docs/security-model.md)
 - [素材许可](docs/asset-licensing.md)

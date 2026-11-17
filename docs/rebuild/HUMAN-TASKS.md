@@ -89,4 +89,4 @@ EVAL_MODEL_JUDGE=评分模型名（走第二家就加 @2）
 
 ## 待处理（由 Codex 追加）
 
-（空）
+- 发布前确认 MIRA、KITE、CAEL、LYRA 四张立绘的逐项作者与再分发许可，并更新 [素材许可](../../assets/avatars/LICENSES.md)。M0 已保留原文件并核对首次入库提交。

@@ -1,5 +1,7 @@
 # Companion Space v2
 
+> Companion Space is being rebuilt for v1.0. See the [rebuild plan](docs/rebuild/PLAN.md).
+
 [简体中文](README.md) | **English**
 
 Companion Space is a local-first anime-style study companion. Create learning spaces, import materials, choose a character, study through text or voice, and turn sessions into reviews and confirmed memories.
@@ -29,4 +31,4 @@ Open `https://companion.localhost`, trust Caddy's local CA, unlock the Vault, an
 
 Run `npm run typecheck:web`, `npm run lint:web`, `npm run test:runtime-config`, and `npm run test:pet-assets`. With Python dependencies installed, run `python -m ruff check services/api` and `python -m pytest services/api/tests -q`.
 
-See [Windows usage](WINDOWS-README.md), [architecture](docs/architecture.md), [deployment](docs/deployment.md), [voice service](docs/voice-service.md), [asset licensing](docs/asset-licensing.md), and [contributing](CONTRIBUTING.md).
+See [Windows usage](legacy/WINDOWS-README.md), [architecture](docs/archive/architecture.md), [deployment](docs/archive/deployment.md), [voice service](docs/archive/voice-service.md), [asset licensing](docs/asset-licensing.md), and [contributing](CONTRIBUTING.md).
