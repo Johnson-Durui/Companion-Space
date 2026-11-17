@@ -1,0 +1,20 @@
+{
+  "course": "kinematics",
+  "mappings": {
+    "2022-1": ["displacement-distance"],
+    "2022-2": ["average-instant-velocity"],
+    "2022-3": ["position-time-graph"],
+    "2022-4": ["uniform-acceleration-velocity"],
+    "2022-5": ["displacement-distance"],
+    "2023-1": ["acceleration"],
+    "2023-2": ["uniform-acceleration-velocity"],
+    "2023-3": ["uniform-acceleration-displacement"],
+    "2023-4": ["uniform-acceleration-velocity"],
+    "2023-5": ["uniform-acceleration-displacement"],
+    "2024-1": ["free-fall"],
+    "2024-2": ["uniform-acceleration-velocity"],
+    "2024-3": ["uniform-acceleration-displacement"],
+    "2024-4": ["acceleration"],
+    "2024-5": ["free-fall"]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "course": "kinematics",
+  "papers": [
+    {
+      "paper_id": "exam-2022",
+      "year": 2022,
+      "total_score": 25,
+      "items": [
+        {"id": "2022-1", "no": "1", "type": "choice", "score": 5, "answer": "C"},
+        {"id": "2022-2", "no": "2", "type": "numeric", "score": 5, "answer": "5 m/s"},
+        {"id": "2022-3", "no": "3", "type": "choice", "score": 5, "answer": "B"},
+        {"id": "2022-4", "no": "4", "type": "numeric", "score": 5, "answer": "11 m/s"},
+        {"id": "2022-5", "no": "5", "type": "short", "score": 5, "answer": "路程是轨迹长度，位移是有方向的位置变化"}
+      ]
+    },
+    {
+      "paper_id": "exam-2023",
+      "year": 2023,
+      "total_score": 25,
+      "items": [
+        {"id": "2023-1", "no": "1", "type": "choice", "score": 5, "answer": "B"},
+        {"id": "2023-2", "no": "2", "type": "numeric", "score": 5, "answer": "4 m/s"},
+        {"id": "2023-3", "no": "3", "type": "numeric", "score": 5, "answer": "18 m"},
+        {"id": "2023-4", "no": "4", "type": "choice", "score": 5, "answer": "D"},
+        {"id": "2023-5", "no": "5", "type": "numeric", "score": 5, "answer": "10 m"}
+      ]
+    },
+    {
+      "paper_id": "exam-2024",
+      "year": 2024,
+      "total_score": 25,
+      "items": [
+        {"id": "2024-1", "no": "1", "type": "numeric", "score": 5, "answer": "20 m"},
+        {"id": "2024-2", "no": "2", "type": "choice", "score": 5, "answer": "B"},
+        {"id": "2024-3", "no": "3", "type": "numeric", "score": 5, "answer": "28 m"},
+        {"id": "2024-4", "no": "4", "type": "choice", "score": 5, "answer": "C"},
+        {"id": "2024-5", "no": "5", "type": "numeric", "score": 5, "answer": "30 m/s"}
+      ]
+    }
+  ]
+}
