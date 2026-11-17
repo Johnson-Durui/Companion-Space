@@ -7,6 +7,7 @@ from pathlib import Path
 from threading import Event
 
 import pytest
+from app.api.deps import get_container
 from app.core.config import Settings
 from app.services import repository as repository_module
 from app.services.repository import CURRENT_SCHEMA_VERSION, SQLiteRepository
@@ -152,14 +153,18 @@ def test_schema_v2_migrates_refresh_recovery_columns_without_losing_devices(
     tmp_path: Path,
 ) -> None:
     settings = _settings(tmp_path)
-    repository = SQLiteRepository(settings)
-    device = repository.create_trusted_device(
-        device_id="preserved-device",
-        name="Preserved phone",
-        refresh_token="preserved-refresh-token",
-        ttl_seconds=600,
-    )
+    SQLiteRepository(settings)
+    device_id = "preserved-device"
+    refresh_hash = "archived-refresh-hash"
     with sqlite3.connect(settings.metadata_db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO trusted_devices (
+                id, name, refresh_token_hash, refresh_expires_at, created_at, last_seen_at
+            ) VALUES (?, 'Preserved phone', ?, '2030-01-01', '2026-01-01', '2026-01-01')
+            """,
+            (device_id, refresh_hash),
+        )
         conn.executescript(
             """
             DROP INDEX idx_trusted_devices_previous_refresh_token_hash;
@@ -187,7 +192,7 @@ def test_schema_v2_migrates_refresh_recovery_columns_without_losing_devices(
             """
         )
 
-    migrated = SQLiteRepository(settings)
+    SQLiteRepository(settings)
 
     with sqlite3.connect(settings.metadata_db_path) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_SCHEMA_VERSION
@@ -196,15 +201,35 @@ def test_schema_v2_migrates_refresh_recovery_columns_without_losing_devices(
         }
         stored_hash = conn.execute(
             "SELECT refresh_token_hash FROM trusted_devices WHERE id = ?",
-            (device.id,),
+            (device_id,),
         ).fetchone()
     assert {
         "previous_refresh_token_hash",
         "previous_refresh_expires_at",
         "previous_refresh_uses_remaining",
     } <= columns
-    assert stored_hash == (device.refresh_token_hash,)
-    assert migrated.list_trusted_devices()[0].id == device.id
+    assert stored_hash == (refresh_hash,)
+
+
+def test_retired_mobile_owner_sessions_cannot_authenticate(client, owner_token: str) -> None:
+    container = get_container()
+    mobile_token = "retired-mobile-token"
+    mobile_session = container.repository.put_owner_session(
+        session_id="retired-mobile-session", token=mobile_token
+    )
+    with container.repository.connection() as conn:
+        conn.execute(
+            "UPDATE owner_sessions SET device_id = ? WHERE id = ?",
+            ("retired-device", mobile_session.id),
+        )
+
+    assert client.get(
+        "/api/v1/spaces", headers={"Authorization": f"Bearer {mobile_token}"}
+    ).status_code == 401
+    assert not container.vault.validate_owner_session(mobile_session.id)
+    assert client.get(
+        "/api/v1/spaces", headers={"Authorization": f"Bearer {owner_token}"}
+    ).status_code == 200
 
 
 def test_failed_schema_migration_rolls_back_every_schema_change(

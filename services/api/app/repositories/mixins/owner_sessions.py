@@ -20,21 +20,18 @@ from app.models.domain import (
     MaterialKind,
     MemoryItem,
     ModelAssignment,
-    PairingChallenge,
     ProviderCapability,
     ProviderConnection,
     ReviewItem,
     SessionRecord,
     SessionState,
     StudySpace,
-    TrustedDevice,
     TtsPlaybackPolicy,
     TurnRole,
 )
 from app.rag.embeddings import extract_terms, normalize_text
 from app.repositories.mixins.common import (
     CharacterInUseError,
-    OwnerPreferences,
     OwnerSession,
     RealtimeTicket,
     _from_db,
@@ -59,7 +56,6 @@ class OwnerSessionMixin:
         session_id: str,
         token: str,
         ttl_seconds: int | None = None,
-        device_id: str | None = None,
     ) -> OwnerSession:
         created_at = utcnow()
         expires_at = (
@@ -72,15 +68,14 @@ class OwnerSessionMixin:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO owner_sessions
-                    (id, token_hash, expires_at, created_at, device_id)
-                VALUES (?, ?, ?, ?, ?)
+                    (id, token_hash, expires_at, created_at)
+                VALUES (?, ?, ?, ?)
                 """,
                 (
                     session_id,
                     token_hash,
                     _to_db(expires_at),
                     _to_db(created_at),
-                    device_id,
                 ),
             )
         return OwnerSession(
@@ -88,14 +83,13 @@ class OwnerSessionMixin:
             token_hash=token_hash,
             expires_at=expires_at,
             created_at=created_at,
-            device_id=device_id,
         )
 
     def get_owner_session(self, token: str) -> OwnerSession | None:
         token_hash = self.hash_token(token)
         with self.connection() as conn:
             row = conn.execute(
-                "SELECT id, token_hash, expires_at, created_at, device_id FROM owner_sessions WHERE token_hash = ?",
+                "SELECT id, token_hash, expires_at, created_at FROM owner_sessions WHERE token_hash = ? AND device_id IS NULL",
                 (token_hash,),
             ).fetchone()
         return self._owner_session_from_row(row)
@@ -103,7 +97,7 @@ class OwnerSessionMixin:
     def get_owner_session_by_id(self, session_id: str) -> OwnerSession | None:
         with self.connection() as conn:
             row = conn.execute(
-                "SELECT id, token_hash, expires_at, created_at, device_id FROM owner_sessions WHERE id = ?",
+                "SELECT id, token_hash, expires_at, created_at FROM owner_sessions WHERE id = ? AND device_id IS NULL",
                 (session_id,),
             ).fetchone()
         return self._owner_session_from_row(row)
@@ -116,7 +110,6 @@ class OwnerSessionMixin:
             token_hash=row["token_hash"],
             expires_at=_from_db(row["expires_at"]) or utcnow(),
             created_at=_from_db(row["created_at"]) or utcnow(),
-            device_id=row["device_id"],
         )
         if session.expires_at <= utcnow():
             self.delete_owner_session_by_id(session.id)
@@ -139,54 +132,7 @@ class OwnerSessionMixin:
 
     def list_owner_session_hashes(self) -> set[str]:
         with self.connection() as conn:
-            rows = conn.execute("SELECT token_hash FROM owner_sessions").fetchall()
+            rows = conn.execute(
+                "SELECT token_hash FROM owner_sessions WHERE device_id IS NULL"
+            ).fetchall()
         return {row["token_hash"] for row in rows}
-
-    def get_owner_preferences(self) -> OwnerPreferences:
-        with self.connection() as conn:
-            row = conn.execute(
-                """
-                SELECT adult_relationships_enabled, adult_age_confirmed_at
-                FROM owner_preferences
-                WHERE id = 1
-                """
-            ).fetchone()
-        if row is None:
-            raise RuntimeError("Owner preferences row is missing")
-        return OwnerPreferences(
-            adult_relationships_enabled=bool(
-                row["adult_relationships_enabled"]
-            ),
-            adult_age_confirmed_at=_from_db(row["adult_age_confirmed_at"]),
-        )
-
-    def set_owner_preferences(
-        self,
-        *,
-        adult_relationships_enabled: bool,
-        adult_age_confirmed_at: datetime | None,
-    ) -> OwnerPreferences:
-        if adult_relationships_enabled and adult_age_confirmed_at is None:
-            raise ValueError(
-                "Adult relationship mode requires an 18+ owner confirmation"
-            )
-        confirmed_at = (
-            adult_age_confirmed_at if adult_relationships_enabled else None
-        )
-        with self.connection() as conn:
-            conn.execute(
-                """
-                UPDATE owner_preferences
-                SET adult_relationships_enabled = ?,
-                    adult_age_confirmed_at = ?
-                WHERE id = 1
-                """,
-                (
-                    int(adult_relationships_enabled),
-                    _to_db(confirmed_at),
-                ),
-            )
-        return OwnerPreferences(
-            adult_relationships_enabled=adult_relationships_enabled,
-            adult_age_confirmed_at=confirmed_at,
-        )

@@ -20,21 +20,18 @@ from app.models.domain import (
     MaterialKind,
     MemoryItem,
     ModelAssignment,
-    PairingChallenge,
     ProviderCapability,
     ProviderConnection,
     ReviewItem,
     SessionRecord,
     SessionState,
     StudySpace,
-    TrustedDevice,
     TtsPlaybackPolicy,
     TurnRole,
 )
 from app.rag.embeddings import extract_terms, normalize_text
 from app.repositories.mixins.common import (
     CharacterInUseError,
-    OwnerPreferences,
     OwnerSession,
     RealtimeTicket,
     _from_db,

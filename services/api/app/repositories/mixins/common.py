@@ -44,13 +44,6 @@ class OwnerSession:
     token_hash: str
     expires_at: datetime
     created_at: datetime
-    device_id: str | None = None
-
-
-@dataclass(frozen=True)
-class OwnerPreferences:
-    adult_relationships_enabled: bool
-    adult_age_confirmed_at: datetime | None
 
 
 @dataclass

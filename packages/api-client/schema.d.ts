@@ -278,91 +278,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/mobile/auth/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Refresh Mobile Access */
-        post: operations["refresh_mobile_access_api_v1_mobile_auth_refresh_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mobile/devices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Mobile Devices */
-        get: operations["list_mobile_devices_api_v1_mobile_devices_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mobile/devices/{device_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke Mobile Device */
-        delete: operations["revoke_mobile_device_api_v1_mobile_devices__device_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mobile/pairing-challenges": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Mobile Pairing Challenge */
-        post: operations["create_mobile_pairing_challenge_api_v1_mobile_pairing_challenges_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/mobile/pairing/exchange": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Exchange Mobile Pairing Challenge */
-        post: operations["exchange_mobile_pairing_challenge_api_v1_mobile_pairing_exchange_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/providers/connections": {
         parameters: {
             query?: never;
@@ -1085,24 +1000,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/vault/preferences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Vault Preferences */
-        get: operations["get_vault_preferences_api_v1_vault_preferences_get"];
-        /** Update Vault Preferences */
-        put: operations["update_vault_preferences_api_v1_vault_preferences_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/vault/reset": {
         parameters: {
             query?: never;
@@ -1502,11 +1399,6 @@ export interface components {
             /** Sections */
             sections: components["schemas"]["ConceptSection"][];
         };
-        /** DeviceRefreshRequest */
-        DeviceRefreshRequest: {
-            /** Refresh Token */
-            refresh_token: string;
-        };
         /** DiagramEdge */
         DiagramEdge: {
             /** From Id */
@@ -1757,46 +1649,6 @@ export interface components {
             /** Status */
             status: string;
         };
-        /** MobileAuthResponse */
-        MobileAuthResponse: {
-            /** Access Token */
-            access_token: string;
-            /**
-             * Access Token Expires At
-             * Format: date-time
-             */
-            access_token_expires_at: string;
-            device: components["schemas"]["MobileDeviceResponse"];
-            /** Refresh Token */
-            refresh_token: string;
-            /**
-             * Token Type
-             * @default bearer
-             */
-            token_type: string;
-        };
-        /** MobileDeviceResponse */
-        MobileDeviceResponse: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Id */
-            id: string;
-            /**
-             * Last Seen At
-             * Format: date-time
-             */
-            last_seen_at: string;
-            /** Name */
-            name: string;
-            /**
-             * Refresh Expires At
-             * Format: date-time
-             */
-            refresh_expires_at: string;
-        };
         /** ModelAssignment */
         ModelAssignment: {
             capability: components["schemas"]["ProviderCapability"];
@@ -1846,46 +1698,6 @@ export interface components {
             new_spaces_use_neural: boolean;
             /** Ready */
             ready: boolean;
-        };
-        /** OwnerPreferencesResponse */
-        OwnerPreferencesResponse: {
-            /** Adult Age Confirmed At */
-            adult_age_confirmed_at: string | null;
-            /** Adult Relationships Enabled */
-            adult_relationships_enabled: boolean;
-        };
-        /** OwnerPreferencesUpdateRequest */
-        OwnerPreferencesUpdateRequest: {
-            /** Adult Relationships Enabled */
-            adult_relationships_enabled: boolean;
-            /**
-             * Confirm Age 18 Or Older
-             * @default false
-             */
-            confirm_age_18_or_older: boolean;
-        };
-        /** PairDeviceRequest */
-        PairDeviceRequest: {
-            /** Challenge Id */
-            challenge_id?: string | null;
-            /** Code */
-            code: string;
-            /** Device Name */
-            device_name: string;
-        };
-        /** PairingChallengeResponse */
-        PairingChallengeResponse: {
-            /** Attempts Allowed */
-            attempts_allowed: number;
-            /** Challenge Id */
-            challenge_id: string;
-            /** Code */
-            code: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
         };
         /**
          * ProviderCapability
@@ -3056,165 +2868,6 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    refresh_mobile_access_api_v1_mobile_auth_refresh_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DeviceRefreshRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MobileAuthResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_mobile_devices_api_v1_mobile_devices_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MobileDeviceResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    revoke_mobile_device_api_v1_mobile_devices__device_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                device_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_mobile_pairing_challenge_api_v1_mobile_pairing_challenges_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PairingChallengeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    exchange_mobile_pairing_challenge_api_v1_mobile_pairing_exchange_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PairDeviceRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MobileAuthResponse"];
                 };
             };
             /** @description Validation Error */
@@ -4932,72 +4585,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VaultUnlockResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_vault_preferences_api_v1_vault_preferences_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnerPreferencesResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_vault_preferences_api_v1_vault_preferences_put: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OwnerPreferencesUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OwnerPreferencesResponse"];
                 };
             };
             /** @description Validation Error */

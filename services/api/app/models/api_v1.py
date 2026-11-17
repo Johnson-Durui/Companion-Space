@@ -51,16 +51,6 @@ class VaultUnlockResponse(BaseModel):
     owner_token: str | None = None
 
 
-class OwnerPreferencesResponse(BaseModel):
-    adult_relationships_enabled: bool
-    adult_age_confirmed_at: datetime | None
-
-
-class OwnerPreferencesUpdateRequest(BaseModel):
-    adult_relationships_enabled: bool
-    confirm_age_18_or_older: bool = False
-
-
 class LocalMetricSignalRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

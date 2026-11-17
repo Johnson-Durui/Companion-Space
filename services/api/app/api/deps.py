@@ -20,7 +20,6 @@ from app.services.vault import OwnerTokenState, VaultService
 OWNER_SESSION_REQUIRED = "Owner session required"
 OWNER_SESSION_INVALID = "Invalid owner session"
 VAULT_LOCKED = "Vault is locked"
-LOCAL_OWNER_SESSION_REQUIRED = "Local owner session required"
 
 
 @dataclass
@@ -136,17 +135,4 @@ def optional_owner(
             token = container.vault.unprotect_browser_token(protected_token)
     if not token or container.vault.owner_token_state(token) is not OwnerTokenState.valid:
         return None
-    return token
-
-
-def require_local_owner(
-    token: str = Depends(require_owner),
-    container: ServiceContainer = Depends(get_container),
-) -> str:
-    owner_session = container.repository.get_owner_session(token)
-    if owner_session is None or owner_session.device_id is not None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=LOCAL_OWNER_SESSION_REQUIRED,
-        )
     return token

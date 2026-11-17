@@ -4,10 +4,6 @@ from urllib.parse import urlsplit
 
 from pydantic import Field
 
-MOBILE_APP_ORIGINS = (
-    "https://app.companion.local",
-    "capacitor://app.companion.local",
-)
 DEV_BROWSER_ORIGINS = (
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -121,7 +117,7 @@ class Settings(BaseSettings):
             for origin in self.allowed_origins.split(",")
             if origin.strip()
         ]
-        origins = [*configured, *MOBILE_APP_ORIGINS]
+        origins = configured
         if self.app_env == "development":
             origins.extend(DEV_BROWSER_ORIGINS)
         return list(dict.fromkeys(origin for origin in origins if origin))

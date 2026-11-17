@@ -7,14 +7,13 @@ import hmac
 import json
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 from app.core.config import Settings
-from app.models.domain import PairingChallenge, TrustedDevice
-from app.services.repository import OwnerPreferences, SQLiteRepository
+from app.services.repository import SQLiteRepository
 
 try:
     from argon2.low_level import Type, hash_secret_raw
@@ -60,14 +59,6 @@ class VaultPayloadError(VaultError):
     pass
 
 
-class PairingChallengeError(VaultError):
-    pass
-
-
-class InvalidDeviceRefreshTokenError(VaultError):
-    pass
-
-
 class OwnerTokenState(str, Enum):
     valid = "valid"
     invalid = "invalid"
@@ -81,12 +72,6 @@ class VaultStatus:
 
 
 class VaultService:
-    PAIRING_TTL_SECONDS = 5 * 60
-    PAIRING_MAX_ATTEMPTS = 5
-    DEVICE_REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60
-    DEVICE_ACCESS_TTL_SECONDS = 15 * 60
-    DEVICE_REFRESH_RECOVERY_TTL_SECONDS = 30
-
     def __init__(self, settings: Settings, repository: SQLiteRepository) -> None:
         self.settings = settings
         self.repository = repository
@@ -109,10 +94,6 @@ class VaultService:
     def initialize(self, password: str) -> None:
         if self.settings.vault_path.exists():
             raise VaultAlreadyInitializedError("Vault already initialized")
-        self.repository.set_owner_preferences(
-            adult_relationships_enabled=False,
-            adult_age_confirmed_at=None,
-        )
         key, salt = self._derive_key(password)
         payload = self._encrypt_payload(key, {"sentinel": "companion-space", "provider_secrets": {}})
         payload["salt"] = self._b64(salt)
@@ -120,7 +101,6 @@ class VaultService:
         self._session_key = key
         self._session_epoch += 1
         self._locked_owner_token_hashes.clear()
-        self._clear_mobile_credentials()
 
     def unlock(self, password: str) -> None:
         key = self._key_for_password(password)
@@ -134,7 +114,6 @@ class VaultService:
         self._session_epoch += 1
         self.repository.delete_all_realtime_tickets()
         self.repository.delete_all_owner_sessions()
-        self.repository.delete_all_pairing_challenges()
 
     def verify_password(self, password: str) -> bool:
         try:
@@ -145,17 +124,12 @@ class VaultService:
 
     def reset(self, password: str) -> None:
         self._key_for_password(password)
-        self.repository.set_owner_preferences(
-            adult_relationships_enabled=False,
-            adult_age_confirmed_at=None,
-        )
         self._session_key = None
         self._session_epoch += 1
         self._locked_owner_token_hashes.clear()
         self.settings.vault_path.unlink(missing_ok=True)
         self.repository.delete_all_realtime_tickets()
         self.repository.delete_all_owner_sessions()
-        self._clear_mobile_credentials()
 
     def rotate_password(self, current_password: str, new_password: str) -> None:
         current_key = self._key_for_password(current_password)
@@ -169,33 +143,11 @@ class VaultService:
         self._locked_owner_token_hashes.clear()
         self.repository.delete_all_realtime_tickets()
         self.repository.delete_all_owner_sessions()
-        self._clear_mobile_credentials()
-
-    def get_owner_preferences(self) -> OwnerPreferences:
-        return self.repository.get_owner_preferences()
-
-    def update_adult_relationship_preferences(
-        self,
-        *,
-        enabled: bool,
-        confirm_age_18_or_older: bool,
-    ) -> OwnerPreferences:
-        if enabled and not confirm_age_18_or_older:
-            raise ValueError(
-                "You must confirm that the local owner is 18 or older"
-            )
-        return self.repository.set_owner_preferences(
-            adult_relationships_enabled=enabled,
-            adult_age_confirmed_at=(
-                datetime.now(timezone.utc) if enabled else None
-            ),
-        )
 
     def issue_owner_token(
         self,
         *,
         ttl_seconds: int | None = None,
-        device_id: str | None = None,
     ) -> str:
         if self._session_key is None:
             raise VaultLockedError("Vault is locked")
@@ -204,7 +156,6 @@ class VaultService:
             session_id=str(uuid4()),
             token=token,
             ttl_seconds=ttl_seconds,
-            device_id=device_id,
         )
         return token
 
@@ -244,110 +195,6 @@ class VaultService:
             ).decode("utf-8")
         except (InvalidTag, ValueError, binascii.Error, UnicodeDecodeError):
             return None
-
-    def create_pairing_challenge(self) -> tuple[str, PairingChallenge]:
-        if self._session_key is None:
-            raise VaultLockedError("Vault is locked")
-        code = f"{secrets.randbelow(100_000_000):08d}"
-        challenge_id = str(uuid4())
-        challenge = self.repository.create_pairing_challenge(
-            challenge_id=challenge_id,
-            code_verifier=self._pairing_code_verifier(challenge_id, code),
-            ttl_seconds=self.PAIRING_TTL_SECONDS,
-            max_attempts=self.PAIRING_MAX_ATTEMPTS,
-        )
-        return code, challenge
-
-    def pair_device(
-        self,
-        *,
-        challenge_id: str | None,
-        code: str,
-        name: str,
-    ) -> tuple[TrustedDevice, str, str, datetime]:
-        if self._session_key is None:
-            raise VaultLockedError("Vault is locked")
-        refresh_token = self._b64url(secrets.token_bytes(32))
-        access_token = secrets.token_urlsafe(32)
-        status, device, owner_session = self.repository.pair_trusted_device(
-            challenge_id=challenge_id,
-            code_verifier_for_challenge=lambda resolved_id: self._pairing_code_verifier(
-                resolved_id,
-                code,
-            ),
-            device_id=str(uuid4()),
-            name=name,
-            refresh_token=refresh_token,
-            refresh_ttl_seconds=self.DEVICE_REFRESH_TTL_SECONDS,
-            owner_session_id=str(uuid4()),
-            access_token=access_token,
-            access_ttl_seconds=self.DEVICE_ACCESS_TTL_SECONDS,
-        )
-        if status != "consumed" or device is None or owner_session is None:
-            raise PairingChallengeError("Invalid or expired pairing challenge")
-        return device, refresh_token, access_token, owner_session.expires_at
-
-    def _pairing_code_verifier(self, challenge_id: str, code: str) -> str:
-        if self._session_key is None:  # pragma: no cover - caller invariant
-            raise VaultLockedError("Vault is locked")
-        return hmac.new(
-            self._session_key,
-            b"companion-mobile-pairing-v1\0"
-            + challenge_id.encode("utf-8")
-            + b"\0"
-            + code.encode("ascii"),
-            hashlib.sha256,
-        ).hexdigest()
-
-    def refresh_device_access(self, refresh_token: str) -> tuple[TrustedDevice, str, str, datetime]:
-        if self._session_key is None:
-            raise VaultLockedError("Vault is locked")
-        next_refresh_token = self._derive_mobile_token(
-            refresh_token, purpose=b"refresh"
-        )
-        access_token = self._derive_mobile_token(
-            refresh_token, purpose=b"access"
-        )
-        owner_session_id = self._derive_mobile_token(
-            refresh_token, purpose=b"session"
-        )
-        rotated = self.repository.rotate_trusted_device_token(
-            refresh_token=refresh_token,
-            next_refresh_token=next_refresh_token,
-            owner_session_id=owner_session_id,
-            access_token=access_token,
-            access_ttl_seconds=self.DEVICE_ACCESS_TTL_SECONDS,
-            refresh_ttl_seconds=self.DEVICE_REFRESH_TTL_SECONDS,
-            recovery_ttl_seconds=self.DEVICE_REFRESH_RECOVERY_TTL_SECONDS,
-        )
-        if rotated is None:
-            raise InvalidDeviceRefreshTokenError("Invalid device refresh token")
-        device, owner_session = rotated
-        return device, next_refresh_token, access_token, owner_session.expires_at
-
-    def _derive_mobile_token(self, refresh_token: str, *, purpose: bytes) -> str:
-        if self._session_key is None:  # pragma: no cover - caller invariant
-            raise VaultLockedError("Vault is locked")
-        digest = hmac.new(
-            self._session_key,
-            b"companion-mobile-v1\0" + purpose + b"\0" + refresh_token.encode("utf-8"),
-            hashlib.sha256,
-        ).digest()
-        return self._b64url(digest)
-
-    def list_trusted_devices(self) -> list[TrustedDevice]:
-        if self._session_key is None:
-            raise VaultLockedError("Vault is locked")
-        return self.repository.list_trusted_devices()
-
-    def revoke_trusted_device(self, device_id: str) -> bool:
-        if self._session_key is None:
-            raise VaultLockedError("Vault is locked")
-        return self.repository.delete_trusted_device(device_id)
-
-    def _clear_mobile_credentials(self) -> None:
-        self.repository.delete_all_pairing_challenges()
-        self.repository.delete_all_trusted_devices()
 
     def owner_token_state(self, token: str) -> OwnerTokenState:
         token_hash = self.repository.hash_token(token)

@@ -6,7 +6,6 @@ import sqlite3
 from app.repositories.migrations import CURRENT_SCHEMA_VERSION
 from app.repositories.mixins.common import (
     CharacterInUseError,
-    OwnerPreferences,
     OwnerSession,
     RealtimeTicket,
     _from_db,
@@ -15,8 +14,6 @@ from app.repositories.mixins.common import (
 )
 from app.repositories.mixins.infrastructure import InfrastructureMixin
 from app.repositories.mixins.owner_sessions import OwnerSessionMixin
-from app.repositories.mixins.pairing import PairingChallengeMixin
-from app.repositories.mixins.trusted_devices import TrustedDeviceMixin
 from app.repositories.mixins.metrics_tickets import MetricsTicketMixin
 from app.repositories.mixins.course import CourseMixin
 from app.repositories.mixins.rag_read import RagReadMixin
@@ -31,8 +28,6 @@ from app.repositories.mixins.rows import RowMixin
 class SQLiteRepository(
     InfrastructureMixin,
     OwnerSessionMixin,
-    PairingChallengeMixin,
-    TrustedDeviceMixin,
     MetricsTicketMixin,
     CourseMixin,
     RagReadMixin,

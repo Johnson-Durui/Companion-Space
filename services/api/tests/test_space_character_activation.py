@@ -14,10 +14,8 @@ def _headers(owner_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {owner_token}"}
 
 
-def _create_character(client, headers: dict[str, str], name: str, *, lover: bool = False) -> dict:
-    recipe = CharacterRecipe(
-        relationship_role="lover" if lover else "study companion"
-    ).model_dump(mode="json")
+def _create_character(client, headers: dict[str, str], name: str) -> dict:
+    recipe = CharacterRecipe(relationship_role="study companion").model_dump(mode="json")
     response = client.post(
         "/api/v1/characters",
         headers=headers,
@@ -187,23 +185,23 @@ def test_activation_enforces_adult_policy_without_mutating_space(client, owner_t
         json={"character_pack_id": allowed["id"]},
     ).status_code == 200
 
-    assert client.put(
-        "/api/v1/vault/preferences",
+    repository = get_container().repository
+    legacy = repository.get_character(_create_character(client, headers, "Legacy")["id"])
+    assert legacy is not None
+    legacy.recipe = legacy.recipe.model_copy(update={"relationship_role": "lover"})
+    repository.upsert_character(legacy)
+    rejected_create = client.post(
+        "/api/v1/characters",
         headers=headers,
-        json={"adult_relationships_enabled": True, "confirm_age_18_or_older": True},
-    ).status_code == 200
-    lover = _create_character(client, headers, "Adult", lover=True)
-    assert client.put(
-        "/api/v1/vault/preferences",
-        headers=headers,
-        json={"adult_relationships_enabled": False, "confirm_age_18_or_older": False},
-    ).status_code == 200
+        json={"name": "Adult", "recipe": {"relationship_role": "lover"}},
+    )
+    assert rejected_create.status_code == 400
 
     before = client.get(f"/api/v1/spaces/{space['id']}", headers=headers).json()["space"]
     rejected = client.put(
         f"/api/v1/spaces/{space['id']}/default-character",
         headers=headers,
-        json={"character_pack_id": lover["id"]},
+        json={"character_pack_id": legacy.id},
     )
     assert rejected.status_code == 400
     assert client.get(f"/api/v1/spaces/{space['id']}", headers=headers).json()["space"] == before

@@ -335,20 +335,3 @@ class RealtimeEvent(BaseModel):
     session_id: str
     state: SessionState | None = None
     payload: dict = Field(default_factory=dict)
-
-
-class PairingChallenge(BaseModel):
-    id: str
-    code_hash: str
-    attempts_remaining: int
-    expires_at: datetime
-    created_at: datetime
-
-
-class TrustedDevice(BaseModel):
-    id: str
-    name: str
-    refresh_token_hash: str
-    refresh_expires_at: datetime
-    created_at: datetime
-    last_seen_at: datetime

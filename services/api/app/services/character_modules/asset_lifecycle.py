@@ -173,21 +173,11 @@ class CharacterAssetLifecycleMixin:
             return self._replace_asset_layer(existing, updated, asset_files)
 
     def ensure_relationship_allowed(self, recipe: CharacterRecipe) -> None:
-        if not self.relationship_requires_adult_mode(recipe.relationship_role):
-            return
-        preferences = self.repository.get_owner_preferences()
-        if not preferences.adult_relationships_enabled:
-            raise ValueError(
-                "Adult relationship mode is disabled; the local owner must "
-                "confirm they are 18 or older before using this relationship"
-            )
-
-    @staticmethod
-    def relationship_requires_adult_mode(relationship_role: str) -> bool:
-        normalized = " ".join(relationship_role.casefold().split())
-        return bool(_ADULT_RELATIONSHIP_PATTERN.search(normalized)) or any(
+        normalized = " ".join(recipe.relationship_role.casefold().split())
+        if _ADULT_RELATIONSHIP_PATTERN.search(normalized) or any(
             term in normalized for term in _ADULT_RELATIONSHIP_TERMS
-        )
+        ):
+            raise ValueError("Adult relationship roles are not supported")
 
     def export_character_pack(self, character_id: str) -> bytes:
         with _AVATAR_LIFECYCLE_LOCK:
