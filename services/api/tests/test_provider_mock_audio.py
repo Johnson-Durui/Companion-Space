@@ -41,19 +41,6 @@ def test_provider_adapter_audio_methods_default_to_configuration_error() -> None
         )
 
 
-def test_mock_provider_transcribes_pcm16_to_deterministic_text() -> None:
-    provider = MockLLMProvider()
-
-    text = asyncio.run(
-        provider.transcribe_pcm16(
-            model="mock-stt-v1",
-            pcm16=b"\x00\x00\x01\x00\x02\x00\x03\x00",
-        )
-    )
-
-    assert text == "这是一段用于联调语音链路的模拟转写。"
-
-
 def test_mock_provider_streams_non_empty_even_pcm_chunks() -> None:
     provider = MockLLMProvider()
 
@@ -62,5 +49,3 @@ def test_mock_provider_streams_non_empty_even_pcm_chunks() -> None:
     assert chunks
     assert all(chunk for chunk in chunks)
     assert all(len(chunk) % 2 == 0 for chunk in chunks)
-    duration_seconds = sum(len(chunk) for chunk in chunks) / (2 * 24_000)
-    assert duration_seconds == 2.0

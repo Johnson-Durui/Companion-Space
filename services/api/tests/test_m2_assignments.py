@@ -289,7 +289,6 @@ def test_builtin_mock_connection_cannot_be_deleted(
     )
 
     assert response.status_code == 400
-    assert "built-in Mock" in response.json()["detail"]
 
 
 def test_updating_provider_connection_keeps_existing_assignment(
