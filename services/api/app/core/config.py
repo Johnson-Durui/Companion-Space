@@ -22,9 +22,7 @@ except ImportError:  # pragma: no cover
 
 
 class Settings(BaseSettings):
-    app_display_name: str = "Companion Space"
     app_env: str = "development"
-    default_character_style: str = "cool"
     app_base_url: str = "http://localhost:3000"
     api_base_url: str = "http://localhost:8000"
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
@@ -33,18 +31,16 @@ class Settings(BaseSettings):
     sqlite_db_filename: str = "companion.db"
     sqlite_busy_timeout_ms: int = Field(default=5_000, ge=0, le=60_000)
     vault_filename: str = "vault.json"
-    embedding_provider: str = "bge_m3"
-    reranker_provider: str = "bge_reranker_v2_m3"
+    embedding_provider: str = "local_hybrid"
+    reranker_provider: str = "local"
     retrieval_top_k: int = 4
-    embedding_model_name: str = "BAAI/bge-m3"
-    reranker_model_name: str = "BAAI/bge-reranker-v2-m3"
+    embedding_model_name: str | None = None
+    reranker_model_name: str | None = None
     allow_ml_fallback: bool = True
 
-    memory_write_enabled: bool = True
     audio_persist_enabled: bool = False
     builtin_neural_tts_enabled: bool = False
     local_neural_tts_base_url: str = "http://127.0.0.1:8001"
-    citation_required: bool = True
     owner_session_ttl_hours: int = 12
     realtime_ticket_ttl_seconds: int = 90
     max_document_size_bytes: int = 50 * 1024 * 1024

@@ -57,5 +57,7 @@ def build_reranker_provider(settings: Settings) -> RerankerProvider:
         if find_spec("FlagEmbedding") is None and settings.allow_ml_fallback:
             logger.warning("FlagEmbedding not installed; falling back to LocalScoreReranker")
             return LocalScoreReranker()
+        if not settings.reranker_model_name:
+            raise ValueError("RERANKER_MODEL_NAME is required when using BGE reranker")
         return BGERerankerProvider(settings)
     raise RuntimeError(f"Unsupported reranker provider: {settings.reranker_provider}")
