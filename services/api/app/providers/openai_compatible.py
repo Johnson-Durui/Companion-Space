@@ -67,18 +67,21 @@ class OpenAICompatibleProvider(LLMProvider):
         self._transport = transport
 
     async def _stream_once(self, request: LLMRequest) -> AsyncIterator[StreamChunk]:
-        options = request.extra_body
+        official = httpx.URL(self.base_url).host == "api.openai.com"
+        token_limit_field = "max_completion_tokens" if official else "max_tokens"
         payload: dict[str, Any] = {
             "stream_options": {"include_usage": True},
-            **options,
+            **request.extra_body,
             "model": request.model,
             "stream": True,
             "messages": [
                 {"role": "system", "content": request.system},
                 *(_openai_message(message) for message in request.messages),
             ],
-            "max_tokens": request.max_tokens,
+            token_limit_field: request.max_tokens,
         }
+        if official:
+            payload.pop("max_tokens", None)
         if payload.get("stream_options") is None:
             payload.pop("stream_options", None)
         if request.temperature is not None:

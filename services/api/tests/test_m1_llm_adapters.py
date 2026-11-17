@@ -81,6 +81,29 @@ def test_compatibility_stream_preserves_images_options_and_native_path(path):
     assert bodies[0]["messages"][1]["content"][0]["image_url"]["url"] == "data:image/png;base64,AA=="
 
 
+def test_official_openai_stream_sends_max_completion_tokens():
+    req = request().model_copy(update={
+        "model": "gpt-6-luna",
+        "extra_body": {"reasoning_effort": "none"},
+    })
+
+    def handle(outbound):
+        payload = json.loads(outbound.content)
+        if "max_tokens" in payload or payload.get("max_completion_tokens") != req.max_tokens:
+            return httpx.Response(400)
+        return httpx.Response(200, stream=Events([{"choices": [{"delta": {"content": "Ready"}}]}]))
+
+    provider = OpenAICompatibleProvider(
+        api_key="offline-test-token", provider_name="openai-compatible",
+        base_url="https://api.openai.com/v1", timeout=3, transport=httpx.MockTransport(handle),
+    )
+
+    async def consume():
+        return "".join([chunk.text async for chunk in provider.stream(req)])
+
+    assert asyncio.run(consume()) == "Ready"
+
+
 @pytest.mark.parametrize("statuses, attempts, error", [
     ([503, 429, 200], 3, None),
     ([401, 200], 1, ProviderAuthenticationError),
