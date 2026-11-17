@@ -1,22 +1,28 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import asyncio
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 from fastapi import Depends, Header, HTTPException, Request, status
 
 from app.core.config import Settings, get_settings
-from app.services.characters import CharacterService
+from app.llm.gateway import LLMGateway
 from app.services.browser_session import OWNER_COOKIE_NAME, require_cookie_csrf
-from app.services.companion import CompanionService
+from app.services.characters import CharacterService
+from app.services.jobs import JobRunner
 from app.services.provider_registry import ProviderRegistryService
 from app.services.repository import SQLiteRepository
+from app.services.settings_store import get_setting
 from app.services.spaces import StudySpaceService
+from app.services.tutor_catalog import TutorCatalog
 from app.services.vault import OwnerTokenState, VaultService
 
 OWNER_SESSION_REQUIRED = "Owner session required"
 OWNER_SESSION_INVALID = "Invalid owner session"
 VAULT_LOCKED = "Vault is locked"
+type GatewayFactory = Callable[[ProviderRegistryService], LLMGateway]
 
 
 @dataclass
@@ -26,45 +32,59 @@ class ServiceContainer:
     vault: VaultService
     spaces: StudySpaceService
     characters: CharacterService
+    tutors: TutorCatalog
     providers: ProviderRegistryService
-    companion: CompanionService
+    gateway: LLMGateway
+    jobs: JobRunner
+    settings_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def aclose(self) -> None:
-        await self.companion.aclose()
-        await self.providers.aclose()
-        self.spaces.close()
+        try:
+            await self.jobs.aclose()
+        finally:
+            try:
+                await asyncio.to_thread(self.spaces.close)
+            finally:
+                await self.providers.aclose()
 
     def close(self) -> None:
-        self.companion.close()
-        self.providers.close()
         self.spaces.close()
+        self.providers.close()
 
 
-@lru_cache
-def get_container() -> ServiceContainer:
-    settings = get_settings()
+def build_container(settings: Settings, gateway_factory: GatewayFactory = LLMGateway) -> ServiceContainer:
     repository = SQLiteRepository(settings)
     vault = VaultService(settings, repository)
-    spaces = StudySpaceService(settings, repository)
-    characters = CharacterService(repository)
     providers = ProviderRegistryService(repository, vault)
+    spaces = StudySpaceService(settings, repository)
     spaces.set_provider_registry(providers)
+    tutors = TutorCatalog(repository)
+    tutors.seed()
+    jobs = JobRunner(repository, concurrency=get_setting(repository, "analysis_concurrency", 4))
     spaces.start_ingestion_worker()
-    companion = CompanionService(
-        settings,
-        repository,
-        spaces,
-        providers,
-    )
     return ServiceContainer(
         settings=settings,
         repository=repository,
         vault=vault,
         spaces=spaces,
-        characters=characters,
+        characters=CharacterService(repository),
+        tutors=tutors,
         providers=providers,
-        companion=companion,
+        gateway=gateway_factory(providers),
+        jobs=jobs,
     )
+
+
+@lru_cache
+def get_container() -> ServiceContainer:
+    return build_container(get_settings())
+
+
+def _owner_token(request: Request, authorization: str | None, container: ServiceContainer) -> tuple[str | None, bool]:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip(), False
+    protected = request.cookies.get(OWNER_COOKIE_NAME)
+    return (container.vault.unprotect_browser_token(protected), True) if protected else (None, False)
 
 
 def require_owner(
@@ -72,38 +92,24 @@ def require_owner(
     authorization: str | None = Header(default=None),
     container: ServiceContainer = Depends(get_container),
 ) -> str:
-    bearer_token = None
-    if authorization and authorization.lower().startswith("bearer "):
-        bearer_token = authorization.split(" ", 1)[1].strip()
-
-    token = bearer_token
-    if token is None:
-        protected_token = request.cookies.get(OWNER_COOKIE_NAME)
-        if protected_token:
-            token = container.vault.unprotect_browser_token(protected_token)
-            if token is not None:
-                require_cookie_csrf(request, container.settings)
-
+    token, from_cookie = _owner_token(request, authorization, container)
     if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=OWNER_SESSION_REQUIRED,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    owner_state = container.vault.owner_token_state(token)
-    if owner_state is OwnerTokenState.vault_locked:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=VAULT_LOCKED,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    if owner_state is OwnerTokenState.invalid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=OWNER_SESSION_INVALID,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return token
+        detail, code = OWNER_SESSION_REQUIRED, "owner_session_required"
+    else:
+        owner_state = container.vault.owner_token_state(token)
+        if owner_state is OwnerTokenState.valid:
+            if from_cookie:
+                require_cookie_csrf(request, container.settings)
+            return token
+        if owner_state is OwnerTokenState.vault_locked:
+            detail, code = VAULT_LOCKED, "vault_locked"
+        else:
+            detail, code = OWNER_SESSION_INVALID, "owner_session_invalid"
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail={"code": code, "message": detail},
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def optional_owner(
@@ -111,14 +117,5 @@ def optional_owner(
     authorization: str | None = Header(default=None),
     container: ServiceContainer = Depends(get_container),
 ) -> str | None:
-    bearer_token = None
-    if authorization and authorization.lower().startswith("bearer "):
-        bearer_token = authorization.split(" ", 1)[1].strip()
-    token = bearer_token
-    if token is None:
-        protected_token = request.cookies.get(OWNER_COOKIE_NAME)
-        if protected_token:
-            token = container.vault.unprotect_browser_token(protected_token)
-    if not token or container.vault.owner_token_state(token) is not OwnerTokenState.valid:
-        return None
-    return token
+    token, _ = _owner_token(request, authorization, container)
+    return token if token and container.vault.owner_token_state(token) is OwnerTokenState.valid else None

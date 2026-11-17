@@ -1,0 +1,388 @@
+[
+  {
+    "id": "bigmodel",
+    "label": "智谱 BigModel",
+    "adapter": "openai-compatible",
+    "base_url": "https://open.bigmodel.cn/api/paas/v4",
+    "key_url": "https://open.bigmodel.cn/usercenter/proj-mgmt/apikeys",
+    "cn_reachable": true,
+    "free_tier_note": "有免费对话和图片模型",
+    "models": {
+      "live": "glm-4.7-flash",
+      "analysis": "glm-4.7-flash",
+      "vision": "glm-4.6v-flash"
+    },
+    "params": {
+      "live": {
+        "thinking": {
+          "type": "disabled"
+        },
+        "stream_options": null
+      },
+      "analysis": {
+        "thinking": {
+          "type": "disabled"
+        },
+        "stream_options": null
+      },
+      "vision": {
+        "thinking": {
+          "type": "disabled"
+        },
+        "stream_options": null
+      }
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "notes": "图片诊断走兼容聊天接口。",
+    "sources": [
+      "https://docs.bigmodel.cn/cn/guide/models/free/glm-4.7-flash",
+      "https://docs.bigmodel.cn/cn/guide/models/free/glm-4.6v-flash",
+      "https://docs.bigmodel.cn/cn/api-reference/模型-api/对话补全",
+      "https://docs.bigmodel.cn/cn/guide/capabilities/streaming"
+    ]
+  },
+  {
+    "id": "siliconflow",
+    "label": "硅基流动",
+    "adapter": "openai-compatible",
+    "base_url": "https://api.siliconflow.cn/v1",
+    "key_url": "https://cloud.siliconflow.cn/account/ak",
+    "cn_reachable": true,
+    "free_tier_note": "有免费嵌入和录音转写模型，需按平台要求注册",
+    "models": {
+      "live": "deepseek-ai/DeepSeek-V4-Flash",
+      "analysis": "Pro/deepseek-ai/DeepSeek-V4",
+      "embedding": "BAAI/bge-m3",
+      "stt": "FunAudioLLM/SenseVoiceSmall"
+    },
+    "params": {
+      "live": {
+        "enable_thinking": false
+      }
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "notes": "图片模型可从连接的模型列表中选择。",
+    "sources": [
+      "https://docs.siliconflow.cn/docs/api/chat-completions-post",
+      "https://docs.siliconflow.cn/docs/api/embeddings-post",
+      "https://docs.siliconflow.cn/docs/api/audio-transcriptions-post"
+    ]
+  },
+  {
+    "id": "deepseek",
+    "label": "DeepSeek",
+    "adapter": "openai-compatible",
+    "base_url": "https://api.deepseek.com",
+    "key_url": "https://platform.deepseek.com/api_keys",
+    "cn_reachable": true,
+    "free_tier_note": "按量计费",
+    "models": {
+      "live": "deepseek-flash",
+      "analysis": "deepseek-flash",
+      "vision": "deepseek-flash"
+    },
+    "params": {
+      "live": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "analysis": {
+        "reasoning_effort": "high",
+        "probe_max_tokens": 4096
+      },
+      "vision": {
+        "thinking": {
+          "type": "disabled"
+        }
+      }
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "sources": [
+      "https://api-docs.deepseek.com/quick_start/pricing.md",
+      "https://api-docs.deepseek.com/guides/thinking_mode.md",
+      "https://api-docs.deepseek.com/guides/vision.md"
+    ]
+  },
+  {
+    "id": "dashscope",
+    "label": "阿里云百炼",
+    "adapter": "openai-compatible",
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "key_url": "https://bailian.console.aliyun.com/cn-beijing?tab=model#/api-key",
+    "cn_reachable": true,
+    "free_tier_note": "部分新账户获模型试用额度",
+    "models": {
+      "live": "qwen3.8-flash",
+      "analysis": "qwen4-max",
+      "vision": "qwen3.8-flash"
+    },
+    "params": {
+      "live": {
+        "enable_thinking": false
+      },
+      "analysis": {
+        "probe_max_tokens": 4096
+      },
+      "vision": {
+        "enable_thinking": false
+      }
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "sources": [
+      "https://www.alibabacloud.com/help/en/model-studio/deep-thinking",
+      "https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-dashscope"
+    ]
+  },
+  {
+    "id": "ark",
+    "label": "火山方舟",
+    "adapter": "openai-compatible",
+    "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+    "key_url": "https://console.volcengine.com/ark/region:cn-beijing/apikey",
+    "cn_reachable": true,
+    "free_tier_note": "试用资格以控制台为准",
+    "models": {
+      "live": "doubao-seed-2-1-lite-260915",
+      "analysis": "doubao-seed-2-1-pro-260915"
+    },
+    "params": {
+      "live": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "analysis": {
+        "probe_max_tokens": 4096
+      }
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "notes": "可以手工填写推理接入点 ID。",
+    "sources": [
+      "https://ark.volcengine.com/region:cn-beijing/docs/model-parameter-support",
+      "https://www.volcengine.com/docs/82379/1330626"
+    ]
+  },
+  {
+    "id": "moonshot",
+    "label": "Kimi",
+    "adapter": "openai-compatible",
+    "base_url": "https://api.moonshot.cn/v1",
+    "key_url": "https://platform.kimi.com/console/api-keys",
+    "cn_reachable": true,
+    "free_tier_note": "按量计费",
+    "models": {
+      "analysis": "kimi-k3.1-pro"
+    },
+    "params": {
+      "analysis": {
+        "reasoning_effort": "high",
+        "probe_max_tokens": 16384
+      }
+    },
+    "supports": {
+      "vision": true,
+      "list_models": true
+    },
+    "manual_live": "Kimi K3.1 Pro 的思考无法关闭，适合分析。",
+    "sources": [
+      "https://platform.kimi.com/docs/guide/use-thinking-models"
+    ]
+  },
+  {
+    "id": "openrouter",
+    "label": "OpenRouter",
+    "adapter": "openai-compatible",
+    "base_url": "https://openrouter.ai/api/v1",
+    "key_url": "https://openrouter.ai/settings/keys",
+    "cn_reachable": false,
+    "free_tier_note": "部分模型免费，限额和模型清单随时变化",
+    "models": {},
+    "supports": {
+      "vision": true,
+      "list_models": true
+    },
+    "manual_live": "从模型列表选择支持关闭思考的模型。",
+    "sources": [
+      "https://openrouter.ai/docs/api-reference/list-available-models",
+      "https://openrouter.ai/docs/guides/best-practices/reasoning-tokens"
+    ]
+  },
+  {
+    "id": "gemini",
+    "label": "Google Gemini",
+    "adapter": "gemini",
+    "base_url": "https://generativelanguage.googleapis.com",
+    "key_url": "https://aistudio.google.com/apikey",
+    "cn_reachable": false,
+    "free_tier_note": "部分模型有免费额度，视地区与账号而定",
+    "models": {
+      "live": "gemini-2.5-flash-lite",
+      "analysis": "gemini-3.5-flash",
+      "vision": "gemini-3.5-flash"
+    },
+    "params": {
+      "live": {
+        "generationConfig": {
+          "thinkingConfig": {
+            "thinkingBudget": 0
+          }
+        }
+      },
+      "analysis": {
+        "generationConfig": {
+          "thinkingConfig": {
+            "thinkingLevel": "low"
+          }
+        },
+        "probe_max_tokens": 2048
+      },
+      "vision": {
+        "generationConfig": {
+          "thinkingConfig": {
+            "thinkingLevel": "minimal"
+          }
+        },
+        "probe_max_tokens": 2048
+      }
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "sources": [
+      "https://ai.google.dev/gemini-api/docs/thinking",
+      "https://ai.google.dev/gemini-api/docs/text-generation",
+      "https://ai.google.dev/gemini-api/docs/image-understanding"
+    ]
+  },
+  {
+    "id": "openai",
+    "label": "OpenAI",
+    "adapter": "openai-compatible",
+    "base_url": "https://api.openai.com/v1",
+    "key_url": "https://platform.openai.com/api-keys",
+    "cn_reachable": false,
+    "free_tier_note": "按量计费",
+    "models": {
+      "live": "gpt-4.1-mini",
+      "analysis": "gpt-4.1-mini",
+      "vision": "gpt-4.1-mini",
+      "embedding": "text-embedding-3-small"
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "sources": [
+      "https://platform.openai.com/docs/models/gpt-4.1-mini",
+      "https://platform.openai.com/docs/models/text-embedding-3-small"
+    ]
+  },
+  {
+    "id": "anthropic",
+    "label": "Anthropic",
+    "adapter": "anthropic",
+    "base_url": "https://api.anthropic.com/v1",
+    "key_url": "https://platform.claude.com/settings/keys",
+    "cn_reachable": false,
+    "free_tier_note": "按量计费",
+    "models": {
+      "live": "claude-sonnet-4-6",
+      "analysis": "claude-sonnet-4-6",
+      "vision": "claude-sonnet-4-6"
+    },
+    "params": {
+      "analysis": {
+        "thinking": {
+          "type": "adaptive"
+        },
+        "probe_max_tokens": 4096
+      }
+    },
+    "supports": {
+      "vision": true,
+      "list_models": true
+    },
+    "sources": [
+      "https://platform.claude.com/docs/en/models/sonnet-4-6/overview",
+      "https://platform.claude.com/docs/en/build-with-claude/thinking"
+    ]
+  },
+  {
+    "id": "ollama",
+    "label": "Ollama",
+    "adapter": "ollama",
+    "base_url": "http://127.0.0.1:11434/v1",
+    "cn_reachable": true,
+    "free_tier_note": "在你的电脑上运行",
+    "models": {},
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "manual_live": "先在 Ollama 安装模型，再获取模型列表。",
+    "requires_api_key": false,
+    "sources": [
+      "https://docs.ollama.com/api/openai-compatibility"
+    ]
+  },
+  {
+    "id": "lm-studio",
+    "label": "LM Studio",
+    "adapter": "lm-studio",
+    "base_url": "http://127.0.0.1:1234/v1",
+    "cn_reachable": true,
+    "free_tier_note": "在你的电脑上运行",
+    "models": {},
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "manual_live": "启动 LM Studio 本地服务器后获取模型列表。",
+    "requires_api_key": false,
+    "sources": [
+      "https://lmstudio.ai/docs/developer/openai-compat"
+    ]
+  },
+  {
+    "id": "custom",
+    "label": "自定义连接",
+    "adapter": "openai-compatible",
+    "cn_reachable": false,
+    "free_tier_note": "由所用服务决定",
+    "models": {},
+    "supports": {
+      "vision": true,
+      "list_models": true
+    },
+    "manual_live": "填写兼容接口地址，获取模型列表或手填模型名。",
+    "notes": "使用服务商给出的完整接口根地址。",
+    "sources": [],
+    "requires_api_key": false
+  }
+]

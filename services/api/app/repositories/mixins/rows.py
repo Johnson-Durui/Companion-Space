@@ -37,7 +37,6 @@ from app.repositories.mixins.common import (
     _from_db,
     _fts_sparse_terms_expression,
     _to_db,
-    _tts_playback_policy,
     utcnow,
 )
 from app.repositories.migrations import (
@@ -130,7 +129,6 @@ class RowMixin:
             capability=ProviderCapability(row["capability"]),
             provider_connection_id=row["provider_connection_id"],
             model_name=row["model_name"],
-            is_bootstrap_default=bool(row["is_bootstrap_default"]),
             created_at=_from_db(row["created_at"]) or utcnow(),
             updated_at=_from_db(row["updated_at"]) or utcnow(),
         )

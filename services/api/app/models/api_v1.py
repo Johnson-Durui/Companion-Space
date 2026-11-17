@@ -8,81 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from app.models.domain import (
     CharacterPack,
     CharacterRecipe,
-    CompanionTurn,
     IngestionJob,
     MaterialKind,
-    MemoryItem,
     ModelAssignment,
     ProviderCapability,
-    ReviewItem,
-    ReviewStatus,
-    SessionRecord,
     StudySpace,
 )
-
-
-class VaultPasswordPayload(BaseModel):
-    password: str = Field(min_length=8, max_length=200)
-
-
-class VaultStatusResponse(BaseModel):
-    initialized: bool
-    unlocked: bool
-
-
-class VaultBrowserStatusResponse(VaultStatusResponse):
-    owner_session_authenticated: bool
-
-
-class NeuralTtsSidecarStatusResponse(BaseModel):
-    enabled: bool
-    ready: bool
-    connection_id: str
-    model: str | None = None
-    new_spaces_use_neural: bool
-    how_to_switch: str
-
-
-class VaultUnlockResponse(BaseModel):
-    initialized: bool
-    unlocked: bool
-    owner_token: str | None = None
-
-
-class RealtimeTicketResponse(BaseModel):
-    ticket: str
-    expires_at: datetime
-
-
-class ProviderConnectionCreateRequest(BaseModel):
-    provider: str
-    label: str = Field(min_length=1, max_length=120)
-    api_key: str = Field(default="", max_length=400)
-    base_url: str | None = None
-
-
-class ProviderConnectionUpdateRequest(BaseModel):
-    label: str | None = Field(default=None, min_length=1, max_length=120)
-    api_key: str | None = Field(default=None, min_length=1, max_length=400)
-    base_url: str | None = None
-
-
-class ProviderSpeechPreviewRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    model: Annotated[
-        str,
-        StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
-    ]
-    text: Annotated[
-        str,
-        StringConstraints(strip_whitespace=True, min_length=1, max_length=240),
-    ]
-    voice_id: Annotated[
-        str,
-        StringConstraints(strip_whitespace=True, min_length=1, max_length=120),
-    ]
-    speaking_rate: float = Field(default=1.0, ge=0.5, le=2.0)
 
 
 class StudySpaceCreateRequest(BaseModel):
@@ -130,50 +61,10 @@ class CharacterVoicePreviewRequest(BaseModel):
     speaking_rate: float | None = Field(default=None, ge=0.5, le=2.0)
 
 
-class SessionCreateRequest(BaseModel):
-    space_id: str
-    character_pack_id: str | None = None
-
-
-class SessionTurnRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=4000)
-
-
-class SessionSummaryRequest(BaseModel):
-    summary: str = ""
-
-
-class SessionRecapUpdateRequest(BaseModel):
-    summary: str = ""
-    notes: str = ""
-
-
-class MemoryUpdateRequest(BaseModel):
-    content: str
-    status: str
-    sensitive: bool = False
-
-
-class ReviewUpdateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    prompt: str | None = None
-    answer: str | None = None
-    due_at: datetime | None = None
-    status: ReviewStatus | None = None
-
-
 class ModelAssignmentRequest(BaseModel):
     capability: ProviderCapability
     provider_connection_id: str
     model_name: str = Field(min_length=1, max_length=120)
-
-
-class SessionTranscriptResponse(BaseModel):
-    session: SessionRecord
-    turns: list[CompanionTurn]
-    memory_candidates: list[MemoryItem] = Field(default_factory=list)
-    review_items: list[ReviewItem] = Field(default_factory=list)
 
 
 class MaterialResponse(BaseModel):
@@ -203,11 +94,3 @@ class SpaceDetailResponse(BaseModel):
 
 class CharacterListResponse(BaseModel):
     items: list[CharacterPack]
-
-
-class MemoryListResponse(BaseModel):
-    items: list[MemoryItem]
-
-
-class ReviewListResponse(BaseModel):
-    items: list[ReviewItem]

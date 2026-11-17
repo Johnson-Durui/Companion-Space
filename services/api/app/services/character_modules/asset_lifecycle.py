@@ -18,6 +18,7 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlsplit
 from uuid import uuid4
 
+from app.core.errors import ResourceNotFoundError
 from app.models.domain import CharacterPack, CharacterRecipe, DEFAULT_CHARACTER_RECIPE_DATA
 from app.services.character_modules.common import *
 from app.services.repository import SQLiteRepository
@@ -201,9 +202,9 @@ class CharacterAssetLifecycleMixin:
         self._validate_manifest_keys(manifest)
         normalized_path = self._normalize_requested_asset_path(asset_path)
         if normalized_path not in self._listed_asset_paths(manifest):
-            raise ValueError("Character asset not found")
+            raise ResourceNotFoundError("Character asset not found")
         target = self._contained_child(self._asset_root(character_id), normalized_path)
         readable = _existing_io_file(target)
         if readable is None or self._is_executable_name(normalized_path):
-            raise ValueError("Character asset not found")
+            raise ResourceNotFoundError("Character asset not found")
         return readable, self._guess_media_type(normalized_path)

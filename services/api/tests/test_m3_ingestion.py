@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from io import BytesIO
 
 import pytest
@@ -205,7 +204,7 @@ def test_upload_rejects_pdf_over_page_limit(
     assert "500" in response.json()["detail"]
 
 
-def test_valid_pdf_runs_async_index_retrieval_and_server_citation_chain(
+def test_valid_pdf_runs_async_index_and_retrieval(
     client,
     owner_token: str,
     isolated_settings,
@@ -239,21 +238,6 @@ def test_valid_pdf_runs_async_index_retrieval_and_server_citation_chain(
     )
     assert retrieval.hits
     assert retrieval.hits[0].chunk.material_id == payload["material"]["id"]
-
-    session = container.companion.create_session(
-        space_id=space_id,
-        character_pack_id=None,
-    )
-    turn = asyncio.run(
-        container.companion.submit_text_turn(
-            session_id=session.id,
-            text="What does Bayes theorem do with new evidence?",
-        )
-    )
-    assert turn.citations
-    assert {citation.material_id for citation in turn.citations} == {
-        payload["material"]["id"]
-    }
 
     detail = client.get(
         f"/api/v1/spaces/{space_id}",

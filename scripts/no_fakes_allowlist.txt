@@ -1,0 +1,2 @@
+services/api/app/repositories/schema_compat.py Frozen pre-v6 schema baseline whose historical provider cleanup cannot be edited.
+services/api/app/repositories/migrations.py v6 removes persisted rows from the retired built-in provider.

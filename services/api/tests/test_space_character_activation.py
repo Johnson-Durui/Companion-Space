@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Barrier
-from uuid import uuid4
 
 from app.api.deps import get_container
-from app.models.domain import CharacterRecipe, SessionRecord, SessionState
-from app.services.repository import CharacterInUseError
+from app.models.domain import CharacterRecipe
 
 
 def _headers(owner_token: str) -> dict[str, str]:
@@ -137,44 +133,6 @@ def test_default_character_route_is_owner_only_strict_and_idempotent(
     assert cleared.json()["goal"] == "new goal"
 
 
-def test_session_character_is_an_immutable_snapshot_and_new_sessions_use_current_default(
-    client,
-    owner_token: str,
-) -> None:
-    headers = _headers(owner_token)
-    first = _create_character(client, headers, "First snapshot")
-    second = _create_character(client, headers, "Second snapshot")
-    space = _create_space(client, headers, "Snapshots")
-
-    assert client.put(
-        f"/api/v1/spaces/{space['id']}/default-character",
-        headers=headers,
-        json={"character_pack_id": first["id"]},
-    ).status_code == 200
-    old_session = client.post(
-        "/api/v1/sessions", headers=headers, json={"space_id": space["id"]}
-    ).json()
-
-    assert client.put(
-        f"/api/v1/spaces/{space['id']}/default-character",
-        headers=headers,
-        json={"character_pack_id": second["id"]},
-    ).status_code == 200
-    new_session = client.post(
-        "/api/v1/sessions", headers=headers, json={"space_id": space["id"]}
-    ).json()
-    explicit = client.post(
-        "/api/v1/sessions",
-        headers=headers,
-        json={"space_id": space["id"], "character_pack_id": first["id"]},
-    ).json()
-
-    assert old_session["character_pack_id"] == first["id"]
-    assert new_session["character_pack_id"] == second["id"]
-    assert explicit["character_pack_id"] == first["id"]
-    assert get_container().repository.get_session(old_session["id"]).character_pack_id == first["id"]
-
-
 def test_activation_enforces_adult_policy_without_mutating_space(client, owner_token: str) -> None:
     headers = _headers(owner_token)
     allowed = _create_character(client, headers, "Allowed")
@@ -222,14 +180,16 @@ def test_character_delete_rejects_space_or_session_references_and_restores_asset
         headers=headers,
         json={"character_pack_id": default_character["id"]},
     ).status_code == 200
-    session = client.post(
-        "/api/v1/sessions",
-        headers=headers,
-        json={"space_id": space["id"], "character_pack_id": session_character["id"]},
-    )
-    assert session.status_code == 201
-
     container = get_container()
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc).isoformat()
+    with container.repository.connection() as conn:
+        conn.execute(
+            "INSERT INTO sessions (id, space_id, character_pack_id, state, summary, created_at, updated_at) "
+            "VALUES (?, ?, ?, 'idle', '', ?, ?)",
+            ("legacy-session", space["id"], session_character["id"], now, now),
+        )
     asset_file = Path(container.repository.settings.characters_root) / session_character["id"] / "keep.txt"
     asset_file.parent.mkdir(parents=True)
     asset_file.write_text("keep", encoding="utf-8")
@@ -244,83 +204,3 @@ def test_character_delete_rejects_space_or_session_references_and_restores_asset
     deleted = client.delete(f"/api/v1/characters/{unused['id']}", headers=headers)
     assert deleted.status_code == 204
     assert container.repository.get_character(unused["id"]) is None
-
-
-def test_session_upsert_cannot_rebind_snapshot(isolated_settings) -> None:
-    container = get_container()
-    first_space = container.spaces.create_space(name="First")
-    second_space = container.spaces.create_space(name="Second")
-    first = container.characters.create_character(name="First")
-    second = container.characters.create_character(name="Second")
-    session = container.companion.create_session(
-        space_id=first_space.id,
-        character_pack_id=first.id,
-    )
-
-    rebound = session.model_copy(
-        update={
-            "space_id": second_space.id,
-            "character_pack_id": second.id,
-            "created_at": session.created_at.replace(year=session.created_at.year - 1),
-            "state": SessionState.listening,
-        }
-    )
-    upserted = container.repository.upsert_session(rebound)
-
-    stored = container.repository.get_session(session.id)
-    assert stored is not None
-    assert upserted == stored
-    assert upserted.space_id == first_space.id
-    assert upserted.character_pack_id == first.id
-    assert upserted.created_at == session.created_at
-    assert stored.space_id == first_space.id
-    assert stored.character_pack_id == first.id
-    assert stored.created_at == session.created_at
-    assert stored.state is SessionState.listening
-
-
-def test_session_create_and_character_delete_are_linearized(isolated_settings) -> None:
-    container = get_container()
-    space = container.spaces.create_space(name="Concurrent")
-    character = container.characters.create_character(name="Contended")
-    now = space.created_at
-    session = SessionRecord(
-        id=str(uuid4()),
-        space_id=space.id,
-        character_pack_id=character.id,
-        state=SessionState.idle,
-        created_at=now,
-        updated_at=now,
-    )
-    barrier = Barrier(2)
-
-    def create() -> str:
-        barrier.wait()
-        try:
-            container.repository.create_session(
-                session,
-                requested_character_pack_id=character.id,
-                fallback_character_pack_id=character.id,
-                validate_character=lambda _: None,
-            )
-        except ValueError:
-            return "missing"
-        return "created"
-
-    def delete() -> str:
-        barrier.wait()
-        try:
-            container.repository.delete_character(character.id)
-        except CharacterInUseError:
-            return "in-use"
-        return "deleted"
-
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        create_future = executor.submit(create)
-        delete_future = executor.submit(delete)
-        outcomes = {create_future.result(), delete_future.result()}
-
-    assert outcomes in ({"created", "in-use"}, {"missing", "deleted"})
-    stored_session = container.repository.get_session(session.id)
-    stored_character = container.repository.get_character(character.id)
-    assert (stored_session is None) is (stored_character is None)

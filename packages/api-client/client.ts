@@ -6,9 +6,8 @@ export function browserApiFetch(input: RequestInfo | URL, init: RequestInit = {}
   const url = new URL(request?.url ?? String(input), globalThis.location?.href);
   const headers = new Headers(init.headers ?? request?.headers);
   const method = (init.method ?? request?.method ?? "GET").toUpperCase();
-  // Cookies are host scoped. Never forward the readable CSRF value to another host.
-  if (typeof document !== "undefined" && url.hostname === globalThis.location.hostname &&
-      url.protocol === globalThis.location.protocol && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+  // Use the CSRF token only for same-origin requests. Never forward the readable CSRF value to another host.
+  if (typeof document !== "undefined" && url.origin === globalThis.location.origin && !["GET", "HEAD", "OPTIONS"].includes(method)) {
     const token = document.cookie.match(/(?:^|;\s*)companion_csrf=([^;]+)/)?.[1];
     if (token) headers.set("X-CSRF-Token", token);
   }

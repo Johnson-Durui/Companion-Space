@@ -3,9 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from app.models.domain import TtsPlaybackPolicy
-
-
 class CharacterInUseError(ValueError):
     """Raised when a durable space or session still references a character."""
 
@@ -20,16 +17,6 @@ def _to_db(dt: datetime | None) -> str | None:
 
 def _from_db(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
-
-
-def _tts_playback_policy(connection_id: str | None) -> TtsPlaybackPolicy | None:
-    if connection_id is None:
-        return None
-    if connection_id == "builtin-mock":
-        return "browser-compat"
-    if connection_id == "builtin-neural-tts":
-        return "server-neural"
-    return "server"
 
 
 def _fts_sparse_terms_expression(column_name: str) -> str:

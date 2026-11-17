@@ -230,7 +230,6 @@ class ModelAssignment(BaseModel):
     capability: ProviderCapability
     provider_connection_id: str
     model_name: str
-    is_bootstrap_default: bool = False
     created_at: datetime
     updated_at: datetime
 

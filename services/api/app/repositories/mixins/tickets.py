@@ -68,6 +68,16 @@ class TicketMixin:
             return None
         return ticket
 
+    def consume_realtime_ticket(self, token: str, *, session_id: str) -> str | None:
+        with self.connection() as conn:
+            row = conn.execute(
+                """DELETE FROM realtime_tickets
+                   WHERE token_hash = ? AND session_id = ? AND expires_at > ?
+                   RETURNING owner_session_id""",
+                (self.hash_token(token), session_id, _to_db(utcnow())),
+            ).fetchone()
+        return row["owner_session_id"] if row is not None else None
+
     def delete_realtime_ticket(self, token: str) -> None:
         token_hash = self.hash_token(token)
         with self.connection() as conn:

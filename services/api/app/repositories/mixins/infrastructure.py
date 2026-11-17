@@ -4,9 +4,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import sqlite3
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 from collections.abc import Callable
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import Settings
@@ -37,7 +40,6 @@ from app.repositories.mixins.common import (
     _from_db,
     _fts_sparse_terms_expression,
     _to_db,
-    _tts_playback_policy,
     utcnow,
 )
 from app.repositories.migrations import (
@@ -135,10 +137,17 @@ class InfrastructureMixin:
                     f"Unable to enable SQLite WAL mode; SQLite returned {journal_mode!r}"
                 )
 
+            if 0 < version < CURRENT_SCHEMA_VERSION:
+                result = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+                if result[0] != 0:
+                    raise RuntimeError("SQLite could not checkpoint before migration")
+
             conn.execute("BEGIN IMMEDIATE")
             transaction_started = True
             version = self._schema_version(conn)
             self._reject_future_schema(version)
+            if 0 < version < CURRENT_SCHEMA_VERSION:
+                self._backup_database(version)
 
             yield conn
 
@@ -161,16 +170,49 @@ class InfrastructureMixin:
         finally:
             conn.close()
 
+    def _backup_database(self, version: int) -> None:
+        path = self.settings.metadata_db_path
+        backup = path.with_name(f"{path.name}.v{version}.bak")
+        if backup.exists():
+            if not backup.is_file():
+                raise RuntimeError(f"Unable to back up SQLite schema v{version}: backup path is not a file")
+            return
+
+        temporary = None
+        try:
+            with NamedTemporaryFile(dir=path.parent, prefix=f".{backup.name}.", delete=False) as file:
+                temporary = Path(file.name)
+            # Read through SQLite while the initialization connection holds the
+            # writer lock so any transactions between checkpoint and lock are included.
+            with closing(self._open_connection()) as source, closing(sqlite3.connect(temporary)) as target:
+                source.backup(target)
+            with temporary.open("r+b") as saved:
+                os.fsync(saved.fileno())
+            try:
+                if os.name == "nt":
+                    os.rename(temporary, backup)
+                else:
+                    os.link(temporary, backup)
+            except FileExistsError:
+                return
+        except (OSError, sqlite3.Error) as exc:
+            raise RuntimeError(f"Unable to back up SQLite schema v{version} before migration") from exc
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
     def _initialize(self) -> None:
         from app.repositories.schema_base import BASE_SCHEMA_SQL
         from app.repositories.schema_compat import ensure_legacy_schema
 
         with self._schema_initialization_connection() as conn:
-            if self._schema_version(conn) == CURRENT_SCHEMA_VERSION:
+            version = self._schema_version(conn)
+            if version == CURRENT_SCHEMA_VERSION:
                 return
-            conn.executescript(BASE_SCHEMA_SQL)
-            ensure_legacy_schema(conn)
-            if self._schema_version(conn) == 0:
+            if version < 5:
+                conn.executescript(BASE_SCHEMA_SQL)
+                ensure_legacy_schema(conn)
+            if version == 0:
                 conn.execute("PRAGMA user_version = 1")
             apply_pending_migrations(conn)
 

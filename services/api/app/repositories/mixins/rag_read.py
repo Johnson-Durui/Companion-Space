@@ -37,7 +37,6 @@ from app.repositories.mixins.common import (
     _from_db,
     _fts_sparse_terms_expression,
     _to_db,
-    _tts_playback_policy,
     utcnow,
 )
 from app.repositories.migrations import (

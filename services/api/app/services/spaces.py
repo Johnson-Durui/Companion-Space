@@ -7,7 +7,7 @@ import re
 import shutil
 import threading
 import time
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
@@ -16,13 +16,13 @@ from uuid import uuid4
 
 from pypdf import PdfReader
 
+from app.core.errors import ResourceNotFoundError
 from app.core.config import Settings
 from app.models.domain import (
     Chunk,
     IngestionJob,
     Material,
     MaterialKind,
-    ModelAssignment,
     ProviderCapability,
     RetrievalHit,
     RetrievalResult,
@@ -39,16 +39,7 @@ from app.services.material_storage import (
     build_material_storage_key,
     canonical_material_storage_key,
 )
-from app.services.provider_registry import (
-    BUILTIN_MOCK_CONNECTION_ID,
-    BUILTIN_MOCK_ANALYSIS_MODEL,
-    BUILTIN_MOCK_MODEL,
-    BUILTIN_MOCK_STT_MODEL,
-    BUILTIN_MOCK_TTS_MODEL,
-    ProviderRegistryService,
-    ResolvedProvider,
-    ensure_builtin_mock_connection,
-)
+from app.services.provider_registry import ProviderRegistryService, ResolvedProvider
 from app.services.repository import SQLiteRepository
 
 HEADING_PATTERN = re.compile(r"^(#{1,3}\s+.+|[0-9]+\.\s+.+|第[一二三四五六七八九十百千0-9]+[章节部分].+)$", re.MULTILINE)
@@ -270,37 +261,7 @@ class StudySpaceService:
     def create_space(self, *, name: str, topic: str = "", goal: str = "") -> StudySpace:
         now = datetime.now(timezone.utc)
         space = StudySpace(id=str(uuid4()), name=name, topic=topic, goal=goal, created_at=now, updated_at=now)
-        ensure_builtin_mock_connection(self.repository)
-        tts_target = (
-            self.provider_registry.bootstrap_tts_target()
-            if self.provider_registry is not None
-            else nullcontext((BUILTIN_MOCK_CONNECTION_ID, BUILTIN_MOCK_TTS_MODEL))
-        )
-        with tts_target as (tts_connection_id, tts_model_name):
-            self.repository.upsert_space(space)
-            for capability, model_name in (
-                (ProviderCapability.chat_llm, BUILTIN_MOCK_MODEL),
-                (ProviderCapability.analysis_llm, BUILTIN_MOCK_ANALYSIS_MODEL),
-                (ProviderCapability.stt, BUILTIN_MOCK_STT_MODEL),
-                (ProviderCapability.tts, tts_model_name),
-            ):
-                connection_id = (
-                    tts_connection_id
-                    if capability is ProviderCapability.tts
-                    else BUILTIN_MOCK_CONNECTION_ID
-                )
-                self.repository.upsert_model_assignment(
-                    ModelAssignment(
-                        id=str(uuid4()),
-                        space_id=space.id,
-                        capability=capability,
-                        provider_connection_id=connection_id,
-                        model_name=model_name,
-                        is_bootstrap_default=True,
-                        created_at=now,
-                        updated_at=now,
-                    )
-                )
+        self.repository.upsert_space(space)
         self._material_dir(space.id).mkdir(parents=True, exist_ok=True)
         return space
 
@@ -357,7 +318,7 @@ class StudySpaceService:
     def require_space(self, space_id: str) -> StudySpace:
         space = self.repository.get_space(space_id)
         if space is None:
-            raise ValueError("Study space not found")
+            raise ResourceNotFoundError("Study space not found")
         return space
 
     def list_materials(self, space_id: str) -> list[Material]:
@@ -372,9 +333,9 @@ class StudySpaceService:
         self.require_space(space_id)
         material = self.repository.get_material(material_id)
         if material is None:
-            raise ValueError("Material not found")
+            raise ResourceNotFoundError("Material not found")
         if material.space_id != space_id:
-            raise ValueError("Material not found")
+            raise ResourceNotFoundError("Material not found")
 
         storage_path = self._validated_material_path(material)
         material_root = self._material_dir(space_id).resolve()
@@ -478,7 +439,7 @@ class StudySpaceService:
         self.require_space(space_id)
         material = self.repository.get_material(material_id)
         if material is None or material.space_id != space_id:
-            raise ValueError("Material not found")
+            raise ResourceNotFoundError("Material not found")
         jobs = [
             job
             for job in self.repository.list_ingestion_jobs(space_id)
@@ -515,7 +476,7 @@ class StudySpaceService:
         while True:
             job = self.repository.get_ingestion_job(job_id)
             if job is None:
-                raise ValueError("Ingestion job not found")
+                raise ResourceNotFoundError("Ingestion job not found")
             if job.status in INGESTION_TERMINAL_STATUSES:
                 return job
             if time.monotonic() >= deadline:

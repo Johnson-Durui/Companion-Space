@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from support_legacy_records import seed_session, seed_memory, seed_review
+
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -308,7 +310,8 @@ def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_setti
             updated_at=now,
         )
     )
-    session = repository.upsert_session(
+    session = seed_session(
+        repository,
         SessionRecord(
             id=str(uuid4()),
             space_id=space.id,
@@ -318,7 +321,8 @@ def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_setti
             updated_at=now,
         )
     )
-    repository.upsert_memory_item(
+    seed_memory(
+        repository,
         MemoryItem(
             id=str(uuid4()),
             space_id=space.id,
@@ -329,7 +333,8 @@ def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_setti
             updated_at=now,
         )
     )
-    repository.upsert_review_item(
+    seed_review(
+        repository,
         ReviewItem(
             id=str(uuid4()),
             space_id=space.id,

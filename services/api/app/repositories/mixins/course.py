@@ -9,6 +9,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
+from app.core.errors import ResourceNotFoundError
 from app.core.config import Settings
 from app.models.domain import (
     CharacterPack,
@@ -37,7 +38,6 @@ from app.repositories.mixins.common import (
     _from_db,
     _fts_sparse_terms_expression,
     _to_db,
-    _tts_playback_policy,
     utcnow,
 )
 from app.repositories.migrations import (
@@ -47,6 +47,11 @@ from app.repositories.migrations import (
     migrate_v2_to_v3,
 )
 from app.services.material_storage import canonicalize_legacy_material_storage_key
+
+
+# Built-in tutors have a versioned recipe and a dedicated API. The old
+# workshop must never treat them as editable legacy packs.
+_LEGACY_RECIPE = "COALESCE(json_extract(recipe_json, '$.schema_version'), 1) != 2"
 
 
 class CourseMixin:
@@ -106,7 +111,7 @@ class CourseMixin:
                 (name, topic, goal, _to_db(updated_at), space_id),
             )
             if cursor.rowcount != 1:
-                raise ValueError(f"Study space not found: {space_id}")
+                raise ResourceNotFoundError(f"Study space not found: {space_id}")
             row = conn.execute(
                 "SELECT * FROM study_spaces WHERE id = ?", (space_id,)
             ).fetchone()
@@ -125,14 +130,14 @@ class CourseMixin:
                 "SELECT * FROM study_spaces WHERE id = ?", (space_id,)
             ).fetchone()
             if row is None:
-                raise ValueError(f"Study space not found: {space_id}")
+                raise ResourceNotFoundError(f"Study space not found: {space_id}")
             if character_pack_id is not None:
                 character = conn.execute(
-                    "SELECT * FROM character_packs WHERE id = ?",
+                    f"SELECT * FROM character_packs WHERE id = ? AND {_LEGACY_RECIPE}",
                     (character_pack_id,),
                 ).fetchone()
                 if character is None:
-                    raise ValueError(f"Character not found: {character_pack_id}")
+                    raise ResourceNotFoundError(f"Character not found: {character_pack_id}")
                 validate_character(self._row_to_character(character))
             if row["default_character_pack_id"] == character_pack_id:
                 return self._row_to_space(row)
@@ -156,12 +161,12 @@ class CourseMixin:
 
     def list_characters(self) -> list[CharacterPack]:
         with self.connection() as conn:
-            rows = conn.execute("SELECT * FROM character_packs ORDER BY updated_at DESC").fetchall()
+            rows = conn.execute(f"SELECT * FROM character_packs WHERE {_LEGACY_RECIPE} ORDER BY updated_at DESC").fetchall()
         return [self._row_to_character(row) for row in rows]
 
     def get_character(self, character_id: str) -> CharacterPack | None:
         with self.connection() as conn:
-            row = conn.execute("SELECT * FROM character_packs WHERE id = ?", (character_id,)).fetchone()
+            row = conn.execute(f"SELECT * FROM character_packs WHERE id = ? AND {_LEGACY_RECIPE}", (character_id,)).fetchone()
         return self._row_to_character(row) if row else None
 
     def upsert_character(self, character: CharacterPack) -> CharacterPack:
@@ -200,5 +205,5 @@ class CourseMixin:
                 raise CharacterInUseError(
                     f"Character is in use and cannot be deleted: {character_id}"
                 )
-            cursor = conn.execute("DELETE FROM character_packs WHERE id = ?", (character_id,))
+            cursor = conn.execute(f"DELETE FROM character_packs WHERE id = ? AND {_LEGACY_RECIPE}", (character_id,))
         return cursor.rowcount == 1

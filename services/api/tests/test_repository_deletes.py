@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from uuid import uuid4
 
 from app.api.deps import get_container
-from app.models.domain import MemoryItem, ReviewItem
 
 
 def test_delete_material_is_scoped_to_its_space(isolated_settings) -> None:
@@ -102,49 +99,3 @@ def test_delete_character_removes_only_the_target_character(isolated_settings) -
     assert deleted is True
     assert container.repository.get_character(deleted_character.id) is None
     assert container.repository.get_character(kept_character.id) is not None
-
-
-def test_delete_memory_item_is_scoped_to_its_space(isolated_settings) -> None:
-    container = get_container()
-    first_space = container.spaces.create_space(name="First", topic="", goal="")
-    second_space = container.spaces.create_space(name="Second", topic="", goal="")
-    now = datetime.now(timezone.utc)
-    memory = MemoryItem(
-        id=str(uuid4()),
-        space_id=first_space.id,
-        content="Keep this memory in its original space.",
-        created_at=now,
-        updated_at=now,
-    )
-    container.repository.upsert_memory_item(memory)
-
-    deleted = container.repository.delete_memory_item(
-        space_id=second_space.id,
-        memory_id=memory.id,
-    )
-
-    assert deleted is False
-    assert any(item.id == memory.id for item in container.repository.list_memory_items(first_space.id))
-
-
-def test_delete_review_item_is_scoped_to_its_space(isolated_settings) -> None:
-    container = get_container()
-    first_space = container.spaces.create_space(name="First", topic="", goal="")
-    second_space = container.spaces.create_space(name="Second", topic="", goal="")
-    now = datetime.now(timezone.utc)
-    review = ReviewItem(
-        id=str(uuid4()),
-        space_id=first_space.id,
-        prompt="Keep this review item.",
-        created_at=now,
-        updated_at=now,
-    )
-    container.repository.upsert_review_item(review)
-
-    deleted = container.repository.delete_review_item(
-        space_id=second_space.id,
-        review_id=review.id,
-    )
-
-    assert deleted is False
-    assert any(item.id == review.id for item in container.repository.list_review_items(first_space.id))

@@ -6,6 +6,7 @@ from dataclasses import replace
 import pytest
 
 from app.api.deps import get_container
+from app.models.domain import ProviderCapability
 from app.providers.errors import ProviderTimeoutError
 
 
@@ -51,6 +52,11 @@ def test_voice_preview_timeout_returns_gateway_timeout(
     assert character.status_code == 201
 
     providers = get_container().providers
+    connection = providers.save_connection(provider="elevenlabs", label="Timeout test", api_key="test-key")
+    providers.save_assignment(
+        space_id=space.json()["id"], capability=ProviderCapability.tts,
+        provider_connection_id=connection["id"], model_name="test-voice",
+    )
     original_resolve = providers.resolve
 
     def resolve_with_timeout(**kwargs):

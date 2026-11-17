@@ -2,23 +2,25 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Any
-from urllib.parse import urlparse
 
 import httpx
 
 from app.models.domain import ProviderCapability
-from app.providers.base import LLMProvider, ProviderMessage, ProviderStreamChunk
+from app.providers.base import LLMProvider, LLMRequest, Message, StreamChunk, Usage
 from app.providers.errors import (
     ProviderAuthenticationError,
+    ProviderConfigurationError,
+    ProviderProtocolError,
     ProviderError,
     ProviderRateLimitError,
     ProviderTimeoutError,
     ProviderUnavailableError,
 )
-from app.providers.pinned_http import build_pinned_http_transport
 from app.providers.sse import SSEJSONEvent, iter_sse_json
+from app.providers.thinking import ThinkingFilter
+from app.providers.url_policy import validate
 
-DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com"
+DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1"
 DEFAULT_ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_TIMEOUT_SECONDS = 45.0
 
@@ -59,96 +61,79 @@ class AnthropicLLMProvider(LLMProvider):
             raise ValueError("Anthropic timeout must be greater than 0")
 
         self._api_key = api_key
-        self.base_url = self._validate_base_url(base_url)
+        try:
+            self.base_url = validate(base_url, provider=self.name)
+        except ProviderConfigurationError as error:
+            raise ValueError(error.public_detail) from None
         self.version = version
         self.timeout = timeout
         self.transport = transport
 
-    async def generate_reply_stream(
-        self,
-        *,
-        model: str,
-        system_prompt: str,
-        history: list[ProviderMessage],
-        user_message: str,
-    ) -> AsyncIterator[ProviderStreamChunk]:
-        payload = {
-            "model": model,
-            "max_tokens": 1024,
+    async def _stream_once(self, request: LLMRequest) -> AsyncIterator[StreamChunk]:
+        payload: dict[str, Any] = {
+            **request.extra_body,
+            "model": request.model,
+            "max_tokens": request.max_tokens,
             "stream": True,
-            "system": system_prompt,
-            "messages": [
-                *({"role": turn.role, "content": turn.content} for turn in history),
-                {"role": "user", "content": user_message},
-            ],
+            "system": request.system,
+            "messages": [_anthropic_message(message) for message in request.messages],
         }
+        if request.temperature is not None:
+            payload["temperature"] = request.temperature
+        if request.stop is not None:
+            payload["stop_sequences"] = request.stop
 
-        input_tokens: int | None = None
-        output_tokens: int | None = None
-
+        reasoning_filter = ThinkingFilter()
         try:
-            async with self._build_client() as client:
+            async with self._build_client(request.timeout_s) as client:
                 async with client.stream(
-                    "POST",
-                    "/v1/messages",
-                    headers=self._headers(accept_sse=True),
-                    json=payload,
+                    "POST", "messages", headers=self._headers(accept_sse=True), json=payload,
                 ) as response:
                     await self._raise_for_status(response, operation="chat stream")
                     async for event in self._iter_sse_events(response):
                         body = self._coerce_mapping(event.data)
                         event_type = str(body.get("type") or event.event)
-
-                        if event_type == "message_start":
-                            input_tokens = self._extract_usage_value(body, "input_tokens") or input_tokens
-                            continue
-                        if event_type == "message_delta":
-                            output_tokens = self._extract_usage_value(body, "output_tokens") or output_tokens
-                            continue
-                        if event_type in {"content_block_start", "content_block_stop", "ping"}:
-                            continue
-                        if event_type in {"message_stop", "done"}:
-                            if input_tokens is not None or output_tokens is not None:
-                                yield self._build_stream_chunk(
-                                    text="",
-                                    input_tokens=input_tokens,
-                                    output_tokens=output_tokens,
-                                )
-                            return
                         if event_type == "error" or event.event == "error":
                             self._raise_midstream_error(body)
-                        if event_type != "content_block_delta":
-                            continue
 
-                        delta = self._coerce_mapping(body.get("delta"))
-                        if delta.get("type") != "text_delta":
-                            continue
-
-                        text = str(delta.get("text") or "")
-                        if not text:
-                            continue
-
-                        yield self._build_stream_chunk(
-                            text=text,
-                            input_tokens=input_tokens,
-                            output_tokens=output_tokens,
-                        )
-        except httpx.TimeoutException as exc:
-            raise self._build_error(
-                ProviderTimeoutError,
-                "Anthropic request timed out",
-            ) from exc
-        except httpx.RequestError as exc:
-            raise self._build_error(
-                ProviderUnavailableError,
-                "Anthropic is currently unreachable",
-            ) from exc
+                        if event_type == "message_start":
+                            tokens = self._extract_usage_value(body, "input_tokens")
+                            if tokens is not None:
+                                yield StreamChunk(usage=Usage(input_tokens=tokens))
+                        elif event_type == "message_delta":
+                            tokens = self._extract_usage_value(body, "output_tokens")
+                            reason = self._coerce_mapping(body.get("delta")).get("stop_reason")
+                            visible, reasoning = reasoning_filter.finish()
+                            reasoning_filter = ThinkingFilter()
+                            yield StreamChunk(
+                                text=visible,
+                                reasoning=reasoning,
+                                finish_reason="length" if reason == "max_tokens" else reason,
+                                usage=Usage(output_tokens=tokens) if tokens is not None else None,
+                            )
+                        elif event_type == "content_block_delta":
+                            delta = self._coerce_mapping(body.get("delta"))
+                            if delta.get("type") == "thinking_delta":
+                                yield StreamChunk(reasoning=str(delta.get("thinking") or ""))
+                            if delta.get("type") == "text_delta":
+                                visible, reasoning = reasoning_filter.feed(str(delta.get("text") or ""))
+                                if visible or reasoning:
+                                    yield StreamChunk(text=visible, reasoning=reasoning)
+                        elif event_type in {"message_stop", "done"}:
+                            break
+                    visible, reasoning = reasoning_filter.finish()
+                    if visible or reasoning:
+                        yield StreamChunk(text=visible, reasoning=reasoning)
+        except httpx.TimeoutException:
+            raise self._build_error(ProviderTimeoutError, "Anthropic request timed out") from None
+        except httpx.RequestError:
+            raise self._build_error(ProviderUnavailableError, "Anthropic is currently unreachable") from None
 
     async def discover_models(self, capability: ProviderCapability | None = None) -> list[str]:
         _ = capability
         try:
             async with self._build_client() as client:
-                response = await client.get("/v1/models", headers=self._headers())
+                response = await client.get("models", headers=self._headers())
                 await self._raise_for_status(response, operation="model discovery")
         except httpx.TimeoutException as exc:
             raise self._build_error(
@@ -170,18 +155,11 @@ class AnthropicLLMProvider(LLMProvider):
                 models.append(model_id)
         return models
 
-    def _build_client(self) -> httpx.AsyncClient:
-        transport = self.transport
-        if transport is None:
-            transport = build_pinned_http_transport(
-                self.base_url,
-                provider=self.name,
-            )
+    def _build_client(self, timeout: float | None = None) -> httpx.AsyncClient:
         return httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=httpx.Timeout(self.timeout),
-            transport=transport,
-            trust_env=False,
+            base_url=f"{self.base_url}/",
+            timeout=self.timeout if timeout is None else timeout,
+            transport=self.transport,
             follow_redirects=False,
         )
 
@@ -200,9 +178,8 @@ class AnthropicLLMProvider(LLMProvider):
             return
 
         status_code = response.status_code
-        await response.aread()
         retry_after = self._retry_after_seconds(response)
-        if status_code == 401:
+        if status_code in {401, 403}:
             raise self._build_error(
                 ProviderAuthenticationError,
                 f"Anthropic {operation} authentication failed. Check the API Key.",
@@ -217,7 +194,7 @@ class AnthropicLLMProvider(LLMProvider):
                 retry_after=retry_after,
             )
         raise self._build_error(
-            ProviderUnavailableError,
+            ProviderUnavailableError if status_code >= 500 else ProviderProtocolError,
             f"Anthropic {operation} failed with status {status_code}.",
             status_code=status_code,
             retry_after=retry_after,
@@ -253,19 +230,6 @@ class AnthropicLLMProvider(LLMProvider):
             return value
         return {}
 
-    def _build_stream_chunk(
-        self,
-        *,
-        text: str,
-        input_tokens: int | None,
-        output_tokens: int | None,
-    ) -> ProviderStreamChunk:
-        return ProviderStreamChunk(
-            text=text,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-        )
-
     @staticmethod
     def _extract_usage_value(payload: dict[str, Any], key: str) -> int | None:
         usage_candidates = [
@@ -279,17 +243,6 @@ class AnthropicLLMProvider(LLMProvider):
             if isinstance(value, int):
                 return value
         return None
-
-    @staticmethod
-    def _validate_base_url(base_url: str) -> str:
-        parsed = urlparse(base_url)
-        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ValueError("Anthropic base_url must be an absolute http(s) URL")
-        if parsed.query or parsed.fragment:
-            raise ValueError("Anthropic base_url must not include query or fragment")
-        if parsed.path not in {"", "/"}:
-            raise ValueError("Anthropic base_url must not include a path")
-        return f"{parsed.scheme}://{parsed.netloc}"
 
     def _build_error(
         self,
@@ -315,3 +268,22 @@ class AnthropicLLMProvider(LLMProvider):
             return float(raw_value)
         except ValueError:
             return None
+
+
+def _anthropic_message(message: Message) -> dict[str, Any]:
+    if isinstance(message.content, str):
+        return {"role": message.role, "content": message.content}
+    parts: list[dict[str, Any]] = []
+    for part in message.content:
+        if part["type"] == "image":
+            if not part.get("image_b64") or not part.get("mime"):
+                raise ProviderConfigurationError(
+                    provider="anthropic", public_detail="An image needs bytes and a MIME type.",
+                )
+            parts.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": part["mime"], "data": part["image_b64"]},
+            })
+        else:
+            parts.append({"type": "text", "text": part.get("text", "")})
+    return {"role": message.role, "content": parts}

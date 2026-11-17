@@ -56,7 +56,7 @@ def test_transcribe_pcm16_posts_in_memory_wav_multipart() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
-        assert request.url.path == "/custom-root/v1/audio/transcriptions"
+        assert request.url.path == "/custom-root/audio/transcriptions"
         assert request.headers["authorization"] == "Bearer test-key"
         assert request.headers["content-type"].startswith("multipart/form-data; boundary=")
         assert b'name="model"' in request.content
@@ -82,7 +82,7 @@ def test_synthesize_speech_stream_filters_empty_chunks_and_realigns_pcm_frames()
 
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
-        assert request.url.path == "/custom-root/v1/audio/speech"
+        assert request.url.path == "/custom-root/audio/speech"
         assert request.headers["authorization"] == "Bearer test-key"
         body = json.loads(request.content.decode("utf-8"))
         assert body == {

@@ -5,30 +5,25 @@ import binascii
 import hashlib
 import hmac
 import json
+from pathlib import Path
 import secrets
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from threading import RLock
+from typing import Any, Literal
 from uuid import uuid4
+
+from argon2.low_level import Type, hash_secret_raw
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from app.core.config import Settings
 from app.services.repository import SQLiteRepository
+from app.services.vault_keys import KeyStorageError, VaultKeyStore, atomic_write
 
-try:
-    from argon2.low_level import Type, hash_secret_raw
-except ImportError:  # pragma: no cover
-    Type = None
-    hash_secret_raw = None
-
-try:
-    from cryptography.exceptions import InvalidTag
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-except ImportError:  # pragma: no cover
-    AESGCM = None
-
-    class InvalidTag(Exception):
-        pass
+_VAULT_VERSION = 2
+KeyStorage = Literal["credential_store", "key_file", "password", "legacy"]
 
 
 class VaultError(RuntimeError):
@@ -59,16 +54,29 @@ class VaultPayloadError(VaultError):
     pass
 
 
+class VaultStateError(VaultError):
+    pass
+
+
 class OwnerTokenState(str, Enum):
     valid = "valid"
     invalid = "invalid"
     vault_locked = "vault_locked"
 
 
-@dataclass
+@dataclass(frozen=True)
 class VaultStatus:
     initialized: bool
     unlocked: bool
+    key_storage: KeyStorage = "credential_store"
+
+    @property
+    def password_enabled(self) -> bool:
+        return self.key_storage == "password"
+
+    @property
+    def warning(self) -> str | None:
+        return "key_file_fallback" if self.key_storage == "key_file" else None
 
 
 class VaultService:
@@ -78,93 +86,176 @@ class VaultService:
         self._session_key: bytes | None = None
         self._session_epoch = 0
         self._locked_owner_token_hashes: set[str] = set()
+        self._mutex = RLock()
+        self.keys = VaultKeyStore(settings.storage_root / "key.bin")
         self.settings.storage_root.mkdir(parents=True, exist_ok=True)
 
     @property
     def dependencies_ready(self) -> bool:
-        return bool(AESGCM)
+        return True
 
     @property
     def session_epoch(self) -> int:
         return self._session_epoch
 
     def status(self) -> VaultStatus:
-        return VaultStatus(initialized=self.settings.vault_path.exists(), unlocked=self._session_key is not None)
+        with self._mutex:
+            if not self.settings.vault_path.exists():
+                return VaultStatus(initialized=False, unlocked=False)
+            storage = self._storage(self._read_payload())
+            return VaultStatus(True, self._session_key is not None, storage)
 
-    def initialize(self, password: str) -> None:
-        if self.settings.vault_path.exists():
-            raise VaultAlreadyInitializedError("Vault already initialized")
-        key, salt = self._derive_key(password)
-        payload = self._encrypt_payload(key, {"sentinel": "companion-space", "provider_secrets": {}})
-        payload["salt"] = self._b64(salt)
-        self._write_payload(payload)
+    def bootstrap(self) -> VaultStatus:
+        with self._mutex:
+            if not self.settings.vault_path.exists():
+                self.initialize()
+            else:
+                document = self._read_payload()
+                storage = self._storage(document)
+                if storage == "password":
+                    self._finish_password_transition(document)
+                elif storage != "legacy" and self._session_key is None:
+                    try:
+                        key = self.keys.load(storage)
+                    except KeyStorageError as exc:
+                        raise VaultDependencyError(str(exc)) from exc
+                    self._read_secrets(key, document)
+                    self._session_key = key
+            return self.status()
+
+    def initialize(self, password: str | None = None) -> None:
+        with self._mutex:
+            if self.settings.vault_path.exists():
+                raise VaultAlreadyInitializedError("Vault already initialized")
+            if self._backup_path.exists():
+                raise VaultPayloadError("Restore the saved vault file before initializing")
+            self._initialize_empty(password)
+
+    def _initialize_empty(self, password: str | None) -> None:
+        key = secrets.token_bytes(32)
+        payload = {"sentinel": "companion-space", "provider_secrets": {}}
+        self._save_document(key, payload, password)
         self._session_key = key
         self._session_epoch += 1
         self._locked_owner_token_hashes.clear()
 
     def unlock(self, password: str) -> None:
-        key = self._key_for_password(password)
-        self._session_key = key
-        self._session_epoch += 1
-        self._locked_owner_token_hashes.clear()
+        with self._mutex:
+            document = self._read_payload()
+            storage = self._storage(document)
+            key = self._key_for_password(password, document)
+            if storage == "legacy":
+                payload = self._read_secrets(key, document)
+                key = secrets.token_bytes(32)
+                self._save_document(key, payload, password=None)
+                self._revoke_owner_sessions()
+            else:
+                self._read_secrets(key, document)
+                self._finish_password_transition(document)
+            self._session_key = key
+            self._session_epoch += 1
+            self._locked_owner_token_hashes.clear()
+
+    def skip_migration(self) -> None:
+        with self._mutex:
+            if self._storage(self._read_payload()) != "legacy":
+                raise VaultStateError("No vault migration is pending")
+            self._initialize_empty(password=None)
+            self._revoke_owner_sessions()
 
     def lock(self) -> None:
-        self._locked_owner_token_hashes = self.repository.list_owner_session_hashes()
-        self._session_key = None
-        self._session_epoch += 1
-        self.repository.delete_all_realtime_tickets()
-        self.repository.delete_all_owner_sessions()
+        with self._mutex:
+            self._locked_owner_token_hashes = self.repository.list_owner_session_hashes()
+            self._session_key = None
+            self._session_epoch += 1
+            self._revoke_owner_sessions()
 
     def verify_password(self, password: str) -> bool:
-        try:
-            self._key_for_password(password)
-        except InvalidVaultPasswordError:
-            return False
-        return True
+        with self._mutex:
+            document = self._read_payload()
+            try:
+                key = self._key_for_password(password, document)
+                self._read_secrets(key, document)
+            except InvalidVaultPasswordError:
+                return False
+            return True
 
-    def reset(self, password: str) -> None:
-        self._key_for_password(password)
-        self._session_key = None
-        self._session_epoch += 1
-        self._locked_owner_token_hashes.clear()
-        self.settings.vault_path.unlink(missing_ok=True)
-        self.repository.delete_all_realtime_tickets()
-        self.repository.delete_all_owner_sessions()
+    def set_password(self, password: str | None, current_password: str | None = None) -> None:
+        with self._mutex:
+            key = self._require_key()
+            previous = self._read_payload()
+            storage = self._storage(previous)
+            if storage == "password":
+                if current_password is None:
+                    raise VaultStateError("Current password required")
+                if self._key_for_password(current_password, previous) != key:
+                    raise InvalidVaultPasswordError("Invalid vault password")
+            elif storage == "legacy":
+                raise VaultStateError("Complete vault migration first")
+            elif password is None:
+                return
+
+            payload = self._read_secrets(key, previous)
+            if password is not None and storage != "password":
+                # Publish the password-wrapped key first. Reopen removes any
+                # stale external copy if the process stopped during cleanup.
+                next_document = self._save_document(key, payload, password, retire_storage=storage)
+                try:
+                    self._finish_password_transition(next_document)
+                except VaultError:
+                    # The wrapped key is durable. Require unlocking it before
+                    # resuming operations if retiring the external copy failed.
+                    self.lock()
+                    raise
+            else:
+                # Any external key staged before disabling the password must
+                # be unable to decrypt the still-password-protected document.
+                if password is None:
+                    key = secrets.token_bytes(32)
+                self._save_document(key, payload, password)
+                self._session_key = key
+            self._session_epoch += 1
+            self._revoke_owner_sessions()
 
     def rotate_password(self, current_password: str, new_password: str) -> None:
-        current_key = self._key_for_password(current_password)
-        payload = self._decrypt_payload(current_key, self._read_payload())
-        next_key, salt = self._derive_key(new_password)
-        encrypted = self._encrypt_payload(next_key, payload)
-        encrypted["salt"] = self._b64(salt)
-        self._write_payload(encrypted)
-        self._session_key = next_key
-        self._session_epoch += 1
-        self._locked_owner_token_hashes.clear()
-        self.repository.delete_all_realtime_tickets()
-        self.repository.delete_all_owner_sessions()
+        self.set_password(new_password, current_password)
+
+    def reset(self, password: str) -> None:
+        with self._mutex:
+            document = self._read_payload()
+            self._key_for_password(password, document)
+            self._finish_password_transition(document)
+            self.settings.vault_path.unlink()
+            self._backup_path.unlink(missing_ok=True)
+            self._session_key = None
+            self._session_epoch += 1
+            self._locked_owner_token_hashes.clear()
+            self._revoke_owner_sessions()
+
+    def _revoke_owner_sessions(self) -> None:
+        self.repository.revoke_owner_sessions()
 
     def issue_owner_token(
         self,
         *,
         ttl_seconds: int | None = None,
     ) -> str:
-        if self._session_key is None:
-            raise VaultLockedError("Vault is locked")
-        token = secrets.token_urlsafe(32)
-        self.repository.put_owner_session(
-            session_id=str(uuid4()),
-            token=token,
-            ttl_seconds=ttl_seconds,
-        )
-        return token
+        with self._mutex:
+            self._require_key()
+            token = secrets.token_urlsafe(32)
+            self.repository.put_owner_session(
+                session_id=str(uuid4()),
+                token=token,
+                ttl_seconds=ttl_seconds,
+            )
+            return token
 
     def protect_browser_token(self, token: str) -> str:
-        if self._session_key is None or AESGCM is None:
-            raise VaultLockedError("Vault is locked")
+        with self._mutex:
+            session_key = self._require_key()
         nonce = secrets.token_bytes(12)
         key = hmac.new(
-            self._session_key,
+            session_key,
             b"companion-browser-session-v1",
             hashlib.sha256,
         ).digest()
@@ -176,7 +267,9 @@ class VaultService:
         return self._b64url(nonce + encrypted)
 
     def unprotect_browser_token(self, protected_token: str) -> str | None:
-        if self._session_key is None or AESGCM is None:
+        with self._mutex:
+            session_key = self._session_key
+        if session_key is None:
             return None
         try:
             payload = self._b64url_decode(protected_token)
@@ -184,7 +277,7 @@ class VaultService:
             if len(nonce) != 12 or not encrypted:
                 return None
             key = hmac.new(
-                self._session_key,
+                session_key,
                 b"companion-browser-session-v1",
                 hashlib.sha256,
             ).digest()
@@ -238,71 +331,127 @@ class VaultService:
     def consume_realtime_ticket(self, ticket: str, *, session_id: str) -> str | None:
         if self._session_key is None or not self._is_b64url(ticket):
             return None
-        record = self.repository.get_realtime_ticket(ticket)
-        if record is None or record.session_id != session_id:
+        record = self.repository.consume_realtime_ticket(ticket, session_id=session_id)
+        if record is None or self.owner_session_state(record) is not OwnerTokenState.valid:
             return None
-        if self.owner_session_state(record.owner_session_id) is not OwnerTokenState.valid:
-            return None
-        self.repository.delete_realtime_ticket_by_id(record.id)
-        return record.owner_session_id
+        return record
 
     def put_provider_secret(self, connection_id: str, api_key: str) -> None:
-        payload = self._require_unlocked_payload()
-        payload.setdefault("provider_secrets", {})[connection_id] = api_key
-        self._persist_decrypted(payload)
+        with self._mutex:
+            key = self._require_key()
+            document = self._read_payload()
+            payload = self._read_secrets(key, document)
+            payload["provider_secrets"][connection_id] = api_key
+            document.update(self._encrypt_payload(key, payload))
+            self._write_payload(document)
 
     def get_provider_secret(self, connection_id: str) -> str | None:
-        payload = self._require_unlocked_payload()
-        return payload.get("provider_secrets", {}).get(connection_id)
+        with self._mutex:
+            payload = self._read_secrets(self._require_key(), self._read_payload())
+            return payload["provider_secrets"].get(connection_id)
 
     def delete_provider_secret(self, connection_id: str) -> None:
-        payload = self._require_unlocked_payload()
-        payload.setdefault("provider_secrets", {}).pop(connection_id, None)
-        self._persist_decrypted(payload)
+        with self._mutex:
+            key = self._require_key()
+            document = self._read_payload()
+            payload = self._read_secrets(key, document)
+            if payload["provider_secrets"].pop(connection_id, None) is not None:
+                document.update(self._encrypt_payload(key, payload))
+                self._write_payload(document)
 
-    def _require_unlocked_payload(self) -> dict[str, Any]:
+    def _require_key(self) -> bytes:
         if self._session_key is None:
             raise VaultLockedError("Vault is locked")
-        return self._decrypt_payload(self._session_key, self._read_payload())
+        return self._session_key
 
-    def _persist_decrypted(self, payload: dict[str, Any]) -> None:
-        if self._session_key is None:
-            raise VaultLockedError("Vault is locked")
-        encrypted = self._encrypt_payload(self._session_key, payload)
-        current = self._read_payload()
-        encrypted["salt"] = current["salt"]
-        self._write_payload(encrypted)
+    def _finish_password_transition(self, document: dict[str, Any]) -> None:
+        storage = document.get("retire_storage")
+        if storage in ("credential_store", "key_file"):
+            try:
+                self.keys.delete(storage)
+            except KeyStorageError as exc:
+                raise VaultDependencyError(str(exc)) from exc
+            del document["retire_storage"]
+            self._write_payload(document, backup=False)
 
-    def _key_for_password(self, password: str) -> bytes:
-        payload = self._read_payload()
-        try:
-            salt = self._unb64(payload["salt"])
-        except (KeyError, TypeError, ValueError, binascii.Error) as exc:
-            raise VaultPayloadError("Vault payload is invalid") from exc
-        key, _ = self._derive_key(password, salt=salt)
-        decrypted = self._decrypt_payload(key, payload, invalid_tag_is_password=True)
-        sentinel = decrypted.get("sentinel")
-        if not isinstance(sentinel, str) or not secrets.compare_digest(sentinel, "companion-space"):
-            raise InvalidVaultPasswordError("Invalid vault password")
-        return key
-
-    def _derive_key(self, password: str, *, salt: bytes | None = None) -> tuple[bytes, bytes]:
-        if not self.dependencies_ready:
-            raise VaultDependencyError("Vault dependencies missing: cryptography is required")
-        actual_salt = salt or secrets.token_bytes(16)
-        if hash_secret_raw and Type is not None:
-            key = hash_secret_raw(
-                secret=password.encode("utf-8"),
-                salt=actual_salt,
-                time_cost=3,
-                memory_cost=65536,
-                parallelism=2,
-                hash_len=32,
-                type=Type.ID,
-            )
+    def _save_document(
+        self, key: bytes, payload: dict[str, Any], password: str | None,
+        *, retire_storage: KeyStorage | None = None,
+    ) -> dict[str, Any]:
+        base: dict[str, Any] = {"version": _VAULT_VERSION, **self._encrypt_payload(key, payload)}
+        if password is None:
+            try:
+                base["key_storage"] = self.keys.save(key)
+            except KeyStorageError as exc:
+                raise VaultDependencyError(str(exc)) from exc
         else:
-            key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), actual_salt, 390000, dklen=32)
+            password_key, salt = self._derive_key(password)
+            base["key_storage"] = "password"
+            base["password_wrap"] = {
+                "salt": self._b64(salt),
+                **self._encrypt_payload(password_key, {"dek": self._b64(key)}),
+            }
+        if retire_storage is not None:
+            base["retire_storage"] = retire_storage
+        self._write_payload(base)
+        return base
+
+    @staticmethod
+    def _storage(document: dict[str, Any]) -> KeyStorage:
+        if "version" not in document:
+            return "legacy"
+        storage = document.get("key_storage")
+        if document["version"] != _VAULT_VERSION or storage not in ("credential_store", "key_file", "password"):
+            raise VaultPayloadError("Unsupported vault format")
+        return storage
+
+    def _key_for_password(self, password: str, document: dict[str, Any]) -> bytes:
+        storage = self._storage(document)
+        if storage not in ("legacy", "password"):
+            raise VaultStateError("No password is configured")
+        try:
+            payload = document if storage == "legacy" else document["password_wrap"]
+            salt = self._unb64(payload["salt"])
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:
+            raise VaultPayloadError("Vault payload is invalid") from exc
+        if len(salt) != 16:
+            raise VaultPayloadError("Vault payload is invalid")
+        key, _ = self._derive_key(password, salt=salt)
+        decoded = self._decrypt_payload(key, payload, invalid_tag_is_password=True)
+        if storage == "legacy":
+            self._check_payload(decoded)
+            return key
+        try:
+            dek = self._unb64(decoded["dek"])
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:
+            raise VaultPayloadError("Vault payload is invalid") from exc
+        if len(dek) != 32:
+            raise VaultPayloadError("Vault payload is invalid")
+        return dek
+
+    @staticmethod
+    def _derive_key(password: str, *, salt: bytes | None = None) -> tuple[bytes, bytes]:
+        actual_salt = salt if salt is not None else secrets.token_bytes(16)
+        key = hash_secret_raw(
+            secret=password.encode("utf-8"),
+            salt=actual_salt,
+            time_cost=3,
+            memory_cost=65536,
+            parallelism=2,
+            hash_len=32,
+            type=Type.ID,
+        )
         return key, actual_salt
+
+    def _read_secrets(self, key: bytes, document: dict[str, Any]) -> dict[str, Any]:
+        payload = self._decrypt_payload(key, document)
+        self._check_payload(payload)
+        return payload
+
+    @staticmethod
+    def _check_payload(payload: dict[str, Any]) -> None:
+        if payload.get("sentinel") != "companion-space" or not isinstance(payload.get("provider_secrets"), dict):
+            raise VaultPayloadError("Vault payload is invalid")
 
     def _encrypt_payload(self, key: bytes, payload: dict[str, Any]) -> dict[str, str]:
         nonce = secrets.token_bytes(12)
@@ -312,7 +461,7 @@ class VaultService:
     def _decrypt_payload(
         self,
         key: bytes,
-        payload: dict[str, str],
+        payload: dict[str, Any],
         *,
         invalid_tag_is_password: bool = False,
     ) -> dict[str, Any]:
@@ -326,7 +475,7 @@ class VaultService:
             if invalid_tag_is_password:
                 raise InvalidVaultPasswordError("Invalid vault password") from exc
             raise VaultPayloadError("Unable to decrypt vault payload") from exc
-        except (KeyError, TypeError, ValueError, binascii.Error) as exc:
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:
             raise VaultPayloadError("Vault payload is invalid") from exc
         try:
             decoded = json.loads(plaintext.decode("utf-8"))
@@ -336,7 +485,11 @@ class VaultService:
             raise VaultPayloadError("Vault payload is invalid")
         return decoded
 
-    def _read_payload(self) -> dict[str, str]:
+    @property
+    def _backup_path(self) -> Path:
+        return self.settings.vault_path.with_suffix(self.settings.vault_path.suffix + ".bak")
+
+    def _read_payload(self) -> dict[str, Any]:
         if not self.settings.vault_path.exists():
             raise VaultNotInitializedError("Vault not initialized")
         try:
@@ -347,8 +500,14 @@ class VaultService:
             raise VaultPayloadError("Vault payload is invalid")
         return payload
 
-    def _write_payload(self, payload: dict[str, str]) -> None:
-        self.settings.vault_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    def _write_payload(self, payload: dict[str, Any], *, backup: bool = True) -> None:
+        path = self.settings.vault_path
+        try:
+            if backup and path.exists():
+                atomic_write(self._backup_path, path.read_bytes())
+            atomic_write(path, json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+        except OSError as exc:
+            raise VaultPayloadError("Unable to save the vault; existing data was preserved") from exc
 
     @staticmethod
     def _b64(value: bytes) -> str:

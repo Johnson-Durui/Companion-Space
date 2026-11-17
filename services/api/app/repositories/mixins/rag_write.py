@@ -9,6 +9,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
+from app.core.errors import ResourceNotFoundError
 from app.core.config import Settings
 from app.models.domain import (
     CharacterPack,
@@ -37,7 +38,6 @@ from app.repositories.mixins.common import (
     _from_db,
     _fts_sparse_terms_expression,
     _to_db,
-    _tts_playback_policy,
     utcnow,
 )
 from app.repositories.migrations import (
@@ -174,7 +174,7 @@ class RagWriteMixin:
                 (failed_job_id,),
             ).fetchone()
             if row is None:
-                raise ValueError("Ingestion job not found")
+                raise ResourceNotFoundError("Ingestion job not found")
             failed_job = self._row_to_ingestion_job(row)
             if failed_job.status != "failed":
                 raise ValueError("Only failed ingestion jobs can be retried")

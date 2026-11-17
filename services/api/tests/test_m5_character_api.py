@@ -319,50 +319,6 @@ def test_managed_motion_route_rejects_invalid_input_without_mutation(
     assert after == before
 
 
-def test_character_voice_preview_streams_ephemeral_mock_pcm(client, owner_token: str) -> None:
-    headers = _auth_headers(owner_token)
-    space = client.post(
-        "/api/v1/spaces",
-        headers=headers,
-        json={"name": "Voice Preview Space", "topic": "", "goal": ""},
-    )
-    character = client.post(
-        "/api/v1/characters",
-        headers=headers,
-        json={
-            "name": "Preview Companion",
-            "description": "",
-            "recipe": {
-                "voice_provider": "mock",
-                "voice_model": "mock-voice",
-                "voice_id": "preview",
-                "speaking_rate": 1.0,
-            },
-        },
-    )
-
-    assert space.status_code == 201
-    assert character.status_code == 201
-
-    preview = client.post(
-        f"/api/v1/characters/{character.json()['id']}/voice-preview",
-        headers=headers,
-        json={
-            "space_id": space.json()["id"],
-            "text": "这段声音只用于即时试听。",
-            "voice_id": "unsaved-preview-voice",
-            "speaking_rate": 1.15,
-        },
-    )
-
-    assert preview.status_code == 200
-    assert preview.headers["content-type"] == "audio/pcm;rate=24000"
-    assert preview.headers["cache-control"] == "no-store"
-    assert preview.headers["x-audio-channels"] == "1"
-    assert preview.headers["x-audio-sample-rate"] == "24000"
-    assert len(preview.content) == 2 * 24_000 * 2
-
-
 def test_character_create_rejects_invalid_recipe_bounds(client, owner_token: str) -> None:
     created = client.post(
         "/api/v1/characters",

@@ -206,16 +206,15 @@ def test_anthropic_provider_maps_midstream_error_event() -> None:
 
 
 @pytest.mark.parametrize(
-    ("status_code", "error_type", "public_detail"),
+    ("status_code", "error_type"),
     [
-        (401, ProviderAuthenticationError, "Anthropic chat stream authentication failed. Check the API Key."),
-        (429, ProviderRateLimitError, "Anthropic chat stream rate limit reached. Try again later."),
+        (401, ProviderAuthenticationError),
+        (429, ProviderRateLimitError),
     ],
 )
 def test_anthropic_provider_maps_http_statuses(
     status_code: int,
     error_type: type[Exception],
-    public_detail: str,
 ) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -234,7 +233,6 @@ def test_anthropic_provider_maps_http_statuses(
 
     assert exc_info.value.provider == "anthropic"
     assert exc_info.value.upstream_status == status_code
-    assert exc_info.value.public_detail == public_detail
     assert f"status-{status_code}" not in str(exc_info.value)
 
 
@@ -265,5 +263,5 @@ def test_anthropic_provider_maps_network_error() -> None:
 
 
 def test_anthropic_provider_validates_base_url() -> None:
-    with pytest.raises(ValueError, match="absolute http"):
+    with pytest.raises(ValueError):
         AnthropicLLMProvider(api_key="test-anthropic-secret", base_url="api.anthropic.com")

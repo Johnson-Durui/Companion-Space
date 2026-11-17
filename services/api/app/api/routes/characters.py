@@ -29,14 +29,12 @@ from app.models.domain import (
 from app.providers.errors import (
     ProviderProtocolError,
 )
-from app.services.realtime import (
-    TTS_CONTENT_TYPE,
-    TTS_SAMPLE_RATE_HZ,
-)
 from app.api.routes._shared import _read_limited_body
 
 router = APIRouter()
 
+TTS_CONTENT_TYPE = "audio/pcm"
+TTS_SAMPLE_RATE_HZ = 24000
 CHARACTER_VOICE_PREVIEW_MAX_BYTES = 10 * 1024 * 1024
 
 

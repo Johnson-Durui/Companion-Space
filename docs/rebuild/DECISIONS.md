@@ -45,3 +45,12 @@
 - 旧互动白板依赖本阶段删除的课堂契约，随旧界面归档。共享包保留可复用的数学渲染。旧 E2E 和其中的 `dataset` 探针保存在归档目录，已退出活动工作区和 CI。
 - 角色素材的实际旧路径位于 `apps/web/public/assets/characters/`。角色与动作文件按原字节移动；保留的 VRM 通过内嵌条款及许可表检查。首次加入 MIRA、KITE、CAEL、LYRA 四张立绘的提交是 `b2096ac`，逐项许可仍待确认。
 - Windows 环境通过桌面目录联接访问 E 盘工作树。执行门时使用真实 E 盘路径和可用的本机回环连接，旧数据继续保存在原目录。
+
+## M1 执行决定
+
+- v6 先备份旧库再迁移。显式清除旧移动会话及其票据、自动模型绑定和已退役连接，兼容早期没有完整外键约束的库。原 v1–v5 迁移及 v5 建表、兼容脚本冻结。旧对话、消息和记忆的表及读接口留在仓储层。
+- 凭据使用系统凭据库，确实不可用时使用当前用户专属的 `key.bin`。凭据写入后无法读回确认时返回错误，防止留下两份可用的同一密钥。关闭主密码时轮换 DEK，使中断写入不会削弱旧密文的密码保护。Windows 备用文件用操作系统 SID 设置显式 ACL，原子写使用临时文件描述符、同步及替换。[Microsoft icacls](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls)
+- 自定义地址保留供应商原路径，已有的 URL 内嵌凭据、查询串和片段限制继续生效。明确的本地兼容地址允许空 Key，远程连接按适配器校验。已核对供应商原生文档，来源随 `presets.json` 保存。模型目录变化快，方舟和部分兼容供应商使用手填或发现结果。旧资料入库继续使用 `ingestion_jobs` 与显式课程绑定。
+- 角色的第二版内容由独立接口读取。旧角色 API 只接触原配方，以免旧的编辑接口覆盖新内置老师。标识、默认讲法和默认音色由本次内容包首次导入，后续由项目所有者复核。新角色的 3D 预览安排在 M6。
+- Python 依赖锁定 `keyring==25.7.0`（MIT，复用系统凭据库）、`edge-tts==7.3.1`（LGPL-3.0 原样安装，默认在线试听）、`aiohttp==3.14.5`（Apache-2.0 与 MIT，Edge 网络错误类型）、`numpy==2.5.5`（BSD-3-Clause，分批嵌入张量）、`json-repair==0.64.9`（MIT，仅在严格 JSON 解析失败时复核修复）。试听不依赖独立 TTS 服务，失败时由浏览器接手并显示原因。[Keyring](https://pypi.org/project/keyring/25.7.0/) [Edge TTS 许可](https://github.com/rany2/edge-tts/blob/7.3.1/LICENSE) [aiohttp](https://pypi.org/project/aiohttp/3.14.5/) [NumPy](https://pypi.org/project/numpy/2.5.5/) [JSON Repair](https://pypi.org/project/json-repair/0.64.9/)
+- 前端使用 Vite 8、声明式 React Router 8、TanStack Query 5、Zustand 5、Tailwind 4 与 TypeScript 5.9。React/React DOM 统一锁在 19.2.9，兼容路由器和保留的三维渲染依赖，避免重复运行时。精确依赖与许可随 npm 锁文件记录。新界面沿用旧色板与立绘，数据和契约直接由 FastAPI 提供。[Vite](https://vite.dev/guide/) [React Router](https://reactrouter.com/start/declarative/installation) [Tailwind CSS](https://tailwindcss.com/docs/installation/using-vite) [TanStack Query](https://tanstack.com/query/latest/docs/framework/react/installation)

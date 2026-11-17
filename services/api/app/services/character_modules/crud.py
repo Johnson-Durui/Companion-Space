@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from uuid import uuid4
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 
+from app.core.errors import ResourceNotFoundError
 from app.models.domain import CharacterPack, CharacterRecipe, DEFAULT_CHARACTER_RECIPE_DATA
 from app.services.character_modules.common import *
 from app.services.repository import SQLiteRepository
@@ -60,7 +61,7 @@ class CharacterCrudMixin:
     def require_character(self, character_id: str) -> CharacterPack:
         character = self.get_character(character_id)
         if character is None:
-            raise ValueError("Character not found")
+            raise ResourceNotFoundError("Character not found")
         return character
 
     def update_character(

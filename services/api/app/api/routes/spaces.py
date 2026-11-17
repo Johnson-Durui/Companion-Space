@@ -16,6 +16,7 @@ from app.api.deps import (
     get_container,
     require_owner,
 )
+from app.providers.errors import ProviderConfigurationError, provider_error_code
 from app.models.api_v1 import (
     MaterialIngestionResponse,
     MaterialNoteRequest,
@@ -214,13 +215,19 @@ def save_assignment(
     _: str = Depends(require_owner),
     container: ServiceContainer = Depends(get_container),
 ) -> ModelAssignment:
+    def store_assignment() -> ModelAssignment:
+        try:
+            return container.providers.save_assignment(
+                space_id=space_id,
+                capability=payload.capability,
+                provider_connection_id=payload.provider_connection_id,
+                model_name=payload.model_name,
+            )
+        except ProviderConfigurationError as error:
+            raise HTTPException(400, detail={"code": provider_error_code(error), "message": error.public_detail}) from error
+
     if payload.capability is not ProviderCapability.embedding:
-        return container.providers.save_assignment(
-            space_id=space_id,
-            capability=payload.capability,
-            provider_connection_id=payload.provider_connection_id,
-            model_name=payload.model_name,
-        )
+        return store_assignment()
     with container.spaces.embedding_assignment_change():
         previous = next(
             (
@@ -230,12 +237,7 @@ def save_assignment(
             ),
             None,
         )
-        saved = container.providers.save_assignment(
-            space_id=space_id,
-            capability=payload.capability,
-            provider_connection_id=payload.provider_connection_id,
-            model_name=payload.model_name,
-        )
+        saved = store_assignment()
         if (
             previous is None
             or previous.provider_connection_id != saved.provider_connection_id

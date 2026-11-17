@@ -2,9 +2,13 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
+
+APP_ROOT = Path(__file__).resolve().parents[4]
 
 DEV_BROWSER_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 )
@@ -23,11 +27,14 @@ except ImportError:  # pragma: no cover
 
 class Settings(BaseSettings):
     app_env: str = "development"
-    app_base_url: str = "http://localhost:3000"
-    api_base_url: str = "http://localhost:8000"
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    app_base_url: str = "http://127.0.0.1:8000"
+    api_base_url: str = "http://127.0.0.1:8000"
+    allowed_origins: str = ""
 
-    object_storage_path: str = "./storage"
+    object_storage_path: str = Field(
+        default="./storage",
+        validation_alias=AliasChoices("COMPANION_DATA_DIR", "OBJECT_STORAGE_PATH", "object_storage_path"),
+    )
     sqlite_db_filename: str = "companion.db"
     sqlite_busy_timeout_ms: int = Field(default=5_000, ge=0, le=60_000)
     vault_filename: str = "vault.json"
@@ -49,14 +56,14 @@ class Settings(BaseSettings):
     max_character_pack_size_bytes: int = 200 * 1024 * 1024
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=APP_ROOT / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
     @property
     def repo_root(self) -> Path:
-        return Path(__file__).resolve().parents[4]
+        return APP_ROOT
 
     @property
     def prompt_dir(self) -> Path:

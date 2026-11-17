@@ -37,7 +37,6 @@ from app.repositories.mixins.common import (
     _from_db,
     _fts_sparse_terms_expression,
     _to_db,
-    _tts_playback_policy,
     utcnow,
 )
 from app.repositories.migrations import (
@@ -89,7 +88,7 @@ class OwnerSessionMixin:
         token_hash = self.hash_token(token)
         with self.connection() as conn:
             row = conn.execute(
-                "SELECT id, token_hash, expires_at, created_at FROM owner_sessions WHERE token_hash = ? AND device_id IS NULL",
+                "SELECT id, token_hash, expires_at, created_at FROM owner_sessions WHERE token_hash = ?",
                 (token_hash,),
             ).fetchone()
         return self._owner_session_from_row(row)
@@ -97,7 +96,7 @@ class OwnerSessionMixin:
     def get_owner_session_by_id(self, session_id: str) -> OwnerSession | None:
         with self.connection() as conn:
             row = conn.execute(
-                "SELECT id, token_hash, expires_at, created_at FROM owner_sessions WHERE id = ? AND device_id IS NULL",
+                "SELECT id, token_hash, expires_at, created_at FROM owner_sessions WHERE id = ?",
                 (session_id,),
             ).fetchone()
         return self._owner_session_from_row(row)
@@ -133,6 +132,11 @@ class OwnerSessionMixin:
     def list_owner_session_hashes(self) -> set[str]:
         with self.connection() as conn:
             rows = conn.execute(
-                "SELECT token_hash FROM owner_sessions WHERE device_id IS NULL"
+                "SELECT token_hash FROM owner_sessions"
             ).fetchall()
         return {row["token_hash"] for row in rows}
+
+    def revoke_owner_sessions(self) -> None:
+        with self.connection() as conn:
+            conn.execute("DELETE FROM realtime_tickets")
+            conn.execute("DELETE FROM owner_sessions")

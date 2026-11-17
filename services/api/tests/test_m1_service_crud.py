@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from support_legacy_records import seed_session, seed_turn, seed_memory, seed_review
+
 import json
 from datetime import datetime, timezone
 
@@ -16,7 +18,6 @@ from app.models.domain import (
     SessionRecord,
     TurnRole,
 )
-from app.services import provider_registry as provider_registry_module
 from app.services.characters import CharacterService
 from app.services.provider_registry import ProviderRegistryService
 from app.services.repository import SQLiteRepository
@@ -41,8 +42,9 @@ def _seed_space_dependents(repository: SQLiteRepository, *, space_id: str, provi
         created_at=now,
         updated_at=now,
     )
-    repository.upsert_session(session)
-    repository.add_turn(
+    seed_session(repository, session)
+    seed_turn(
+        repository,
         CompanionTurn(
             id=f"turn-{space_id}",
             session_id=session.id,
@@ -53,7 +55,8 @@ def _seed_space_dependents(repository: SQLiteRepository, *, space_id: str, provi
             created_at=now,
         )
     )
-    repository.upsert_memory_item(
+    seed_memory(
+        repository,
         MemoryItem(
             id=f"memory-{space_id}",
             space_id=space_id,
@@ -62,7 +65,8 @@ def _seed_space_dependents(repository: SQLiteRepository, *, space_id: str, provi
             updated_at=now,
         )
     )
-    repository.upsert_review_item(
+    seed_review(
+        repository,
         ReviewItem(
             id=f"review-{space_id}",
             space_id=space_id,
@@ -115,14 +119,7 @@ def test_space_detail_and_delete_cascade_stay_scoped(isolated_settings) -> None:
     detail = service.get_space_detail(target.id)
     assert detail["space"].id == target.id
     assert [item.id for item in detail["materials"]] == [target_material.id]
-    assert len(detail["assignments"]) == 4
-    assert {item.space_id for item in detail["assignments"]} == {target.id}
-    assert {item.capability for item in detail["assignments"]} == {
-        ProviderCapability.analysis_llm,
-        ProviderCapability.chat_llm,
-        ProviderCapability.stt,
-        ProviderCapability.tts,
-    }
+    assert [item.provider_connection_id for item in detail["assignments"]] == [connection.id]
 
     assert service.delete_space(target.id) is True
     assert service.get_space(target.id) is None
@@ -255,17 +252,11 @@ def test_character_asset_read_rejects_credential_shaped_manifest_keys(isolated_s
 
 def test_provider_partial_update_rotates_key_without_returning_plaintext(
     isolated_settings,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        provider_registry_module,
-        "_default_host_resolver",
-        lambda hostname: ("8.8.8.8",),
-    )
     settings = _local_settings(isolated_settings)
     repository = SQLiteRepository(settings)
     vault = VaultService(settings, repository)
-    vault.initialize("provider-service-secret")
+    vault.bootstrap()
     service = ProviderRegistryService(repository, vault)
 
     created = service.save_connection(

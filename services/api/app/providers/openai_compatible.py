@@ -5,15 +5,16 @@ import wave
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from typing import Any, AsyncIterator, Sequence
-from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
 from app.models.domain import ProviderCapability
 from app.providers.base import (
     LLMProvider,
-    ProviderMessage,
-    ProviderStreamChunk,
+    LLMRequest,
+    Message,
+    StreamChunk,
+    Usage,
     iter_pcm16_audio_chunks,
 )
 from app.providers.errors import (
@@ -24,15 +25,16 @@ from app.providers.errors import (
     ProviderTimeoutError,
     ProviderUnavailableError,
 )
-from app.providers.pinned_http import build_pinned_http_transport
 from app.providers.sse import iter_sse_json
+from app.providers.thinking import ThinkingFilter
+from app.providers.url_policy import validate
 
 
 class OpenAICompatibleProvider(LLMProvider):
     def __init__(
         self,
         *,
-        api_key: str,
+        api_key: str | None,
         base_url: str,
         provider_name: str,
         timeout: float,
@@ -45,8 +47,8 @@ class OpenAICompatibleProvider(LLMProvider):
                 public_detail="Provider name is required.",
             )
 
-        normalized_api_key = api_key.strip()
-        if not normalized_api_key:
+        normalized_api_key = api_key.strip() if api_key is not None else None
+        if normalized_api_key == "":
             raise ProviderConfigurationError(
                 provider=normalized_provider_name,
                 public_detail="API key is required.",
@@ -60,45 +62,62 @@ class OpenAICompatibleProvider(LLMProvider):
 
         self.name = normalized_provider_name
         self._api_key = normalized_api_key
-        self.base_url = _normalize_api_root(base_url, provider_name=self.name)
+        self.base_url = validate(base_url, provider=self.name)
         self.timeout = timeout
         self._transport = transport
 
-    async def generate_reply_stream(
-        self,
-        *,
-        model: str,
-        system_prompt: str,
-        history: list[ProviderMessage],
-        user_message: str,
-    ) -> AsyncIterator[ProviderStreamChunk]:
-        payload = {
-            "model": model,
-            "stream": True,
+    async def _stream_once(self, request: LLMRequest) -> AsyncIterator[StreamChunk]:
+        options = request.extra_body
+        payload: dict[str, Any] = {
             "stream_options": {"include_usage": True},
+            **options,
+            "model": request.model,
+            "stream": True,
             "messages": [
-                {"role": "system", "content": system_prompt},
-                *({"role": turn.role, "content": turn.content} for turn in history),
-                {"role": "user", "content": user_message},
+                {"role": "system", "content": request.system},
+                *(_openai_message(message) for message in request.messages),
             ],
+            "max_tokens": request.max_tokens,
         }
+        if payload.get("stream_options") is None:
+            payload.pop("stream_options", None)
+        if request.temperature is not None:
+            payload["temperature"] = request.temperature
+        if request.stop is not None:
+            payload["stop"] = request.stop
+        if request.json_object:
+            payload["response_format"] = {"type": "json_object"}
 
-        async with self._client() as client:
+        reasoning_filter = ThinkingFilter()
+        async with self._client(request.timeout_s) as client:
             try:
                 async with client.stream("POST", "chat/completions", json=payload) as response:
                     self._raise_for_status(response)
                     async for event in iter_sse_json(response.aiter_lines(), provider=self.name):
-                        yield self._parse_chat_stream_event(event.data)
-            except httpx.TimeoutException as exc:
+                        chunk = self._parse_chat_stream_event(event.data)
+                        visible, reasoning = reasoning_filter.feed(chunk.text)
+                        if chunk.finish_reason:
+                            tail, thought_tail = reasoning_filter.finish()
+                            visible += tail
+                            reasoning += thought_tail
+                            reasoning_filter = ThinkingFilter()
+                        chunk.text = visible
+                        chunk.reasoning += reasoning
+                        if chunk.text or chunk.reasoning or chunk.finish_reason or chunk.usage:
+                            yield chunk
+                    visible, reasoning = reasoning_filter.finish()
+                    if visible or reasoning:
+                        yield StreamChunk(text=visible, reasoning=reasoning)
+            except httpx.TimeoutException:
                 raise ProviderTimeoutError(
                     provider=self.name,
                     public_detail="The provider timed out. Please retry.",
-                ) from exc
-            except httpx.RequestError as exc:
+                ) from None
+            except httpx.RequestError:
                 raise ProviderUnavailableError(
                     provider=self.name,
                     public_detail="The provider is unavailable. Please retry.",
-                ) from exc
+                ) from None
 
     async def discover_models(self, capability: ProviderCapability | None = None) -> list[str]:
         _ = capability
@@ -207,7 +226,7 @@ class OpenAICompatibleProvider(LLMProvider):
             )
 
         text = payload.get("text")
-        if not isinstance(text, str) or not text:
+        if not isinstance(text, str):
             raise ProviderProtocolError(
                 provider=self.name,
                 public_detail="Provider returned an invalid transcription response.",
@@ -258,21 +277,12 @@ class OpenAICompatibleProvider(LLMProvider):
                     public_detail="The provider is unavailable. Please retry.",
                 ) from exc
 
-    def _client(self) -> httpx.AsyncClient:
-        transport = self._transport
-        if transport is None:
-            transport = build_pinned_http_transport(
-                self.base_url,
-                provider=self.name,
-            )
+    def _client(self, timeout: float | None = None) -> httpx.AsyncClient:
         return httpx.AsyncClient(
             base_url=f"{self.base_url}/",
-            headers={
-                "authorization": f"Bearer {self._api_key}",
-            },
-            timeout=self.timeout,
-            transport=transport,
-            trust_env=False,
+            headers={"authorization": f"Bearer {self._api_key}"} if self._api_key else {},
+            timeout=self.timeout if timeout is None else timeout,
+            transport=self._transport,
             follow_redirects=False,
         )
 
@@ -314,14 +324,22 @@ class OpenAICompatibleProvider(LLMProvider):
             )
         return data
 
-    def _parse_chat_stream_event(self, payload: Any) -> ProviderStreamChunk:
+    def _parse_chat_stream_event(self, payload: Any) -> StreamChunk:
         if not isinstance(payload, dict):
             raise ProviderProtocolError(
                 provider=self.name,
                 public_detail="Provider returned an invalid streaming response.",
             )
 
-        text = ""
+        if payload.get("error") is not None:
+            error = payload["error"]
+            status = error.get("code") if isinstance(error, dict) else None
+            if isinstance(status, int) and status >= 400:
+                self._raise_for_status(httpx.Response(status))
+            raise ProviderProtocolError(provider=self.name, public_detail="The provider reported a stream error.")
+
+        text = reasoning = ""
+        finish_reason = None
         choices = payload.get("choices")
         if choices is not None:
             if not isinstance(choices, list):
@@ -343,13 +361,18 @@ class OpenAICompatibleProvider(LLMProvider):
                         public_detail="Provider returned an invalid streaming response.",
                     )
                 text = _extract_delta_text(delta.get("content"), provider_name=self.name)
+                reasoning = _extract_delta_text(
+                    delta.get("reasoning_content") or delta.get("reasoning"), provider_name=self.name,
+                )
+                reason = first_choice.get("finish_reason")
+                finish_reason = reason if isinstance(reason, str) else None
 
         input_tokens, output_tokens = _extract_usage(payload.get("usage"), provider_name=self.name)
-        return ProviderStreamChunk(
-            text=text,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+        usage = (
+            Usage(input_tokens=input_tokens, output_tokens=output_tokens)
+            if input_tokens is not None or output_tokens is not None else None
         )
+        return StreamChunk(text=text, reasoning=reasoning, finish_reason=finish_reason, usage=usage)
 
     def _raise_for_status(self, response: httpx.Response) -> None:
         status = response.status_code
@@ -385,38 +408,23 @@ class OpenAICompatibleProvider(LLMProvider):
         )
 
 
-def _normalize_api_root(base_url: str, *, provider_name: str) -> str:
-    candidate = base_url.strip()
-    if not candidate:
-        raise ProviderConfigurationError(
-            provider=provider_name,
-            public_detail="Base URL is required.",
-        )
-
-    parsed = urlsplit(candidate)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise ProviderConfigurationError(
-            provider=provider_name,
-            public_detail="Base URL must be a valid http(s) URL.",
-        )
-    if parsed.username or parsed.password:
-        raise ProviderConfigurationError(
-            provider=provider_name,
-            public_detail="Base URL must not include credentials.",
-        )
-    if parsed.query or parsed.fragment:
-        raise ProviderConfigurationError(
-            provider=provider_name,
-            public_detail="Base URL must not include query strings or fragments.",
-        )
-
-    path = parsed.path.rstrip("/")
-    if not path:
-        path = "/v1"
-    elif not path.endswith("/v1"):
-        path = f"{path}/v1"
-
-    return urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+def _openai_message(message: Message) -> dict[str, Any]:
+    if isinstance(message.content, str):
+        return {"role": message.role, "content": message.content}
+    parts: list[dict[str, Any]] = []
+    for part in message.content:
+        if part["type"] == "image":
+            if not part.get("image_b64") or not part.get("mime"):
+                raise ProviderConfigurationError(
+                    provider="connection", public_detail="An image needs bytes and a MIME type.",
+                )
+            parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{part['mime']};base64,{part['image_b64']}"},
+            })
+        else:
+            parts.append({"type": "text", "text": part.get("text", "")})
+    return {"role": message.role, "content": parts}
 
 
 def _extract_delta_text(content: Any, *, provider_name: str) -> str:

@@ -37,7 +37,6 @@ from app.repositories.mixins.common import (
     _from_db,
     _fts_sparse_terms_expression,
     _to_db,
-    _tts_playback_policy,
     utcnow,
 )
 from app.repositories.migrations import (
@@ -57,34 +56,6 @@ class TurnMixin:
                 (session_id,),
             ).fetchall()
         return [self._row_to_turn(row) for row in rows]
-
-    def add_turn(self, turn: CompanionTurn) -> CompanionTurn:
-        with self.connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO turns
-                (id, session_id, space_id, role, display_text, spoken_text, emotion, board_actions_json, citations_json, suggested_actions_json, usage_json, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    turn.id,
-                    turn.session_id,
-                    turn.space_id,
-                    turn.role.value,
-                    turn.display_text,
-                    turn.spoken_text,
-                    turn.emotion,
-                    json.dumps(
-                        [item.model_dump(mode="json") for item in turn.board_actions],
-                        ensure_ascii=False,
-                    ),
-                    json.dumps([item.model_dump(mode="json") for item in turn.citations], ensure_ascii=False),
-                    json.dumps(turn.suggested_actions, ensure_ascii=False),
-                    turn.usage.model_dump_json(),
-                    _to_db(turn.created_at),
-                ),
-            )
-        return turn
 
     def _row_to_session(self, row: sqlite3.Row) -> SessionRecord:
         return SessionRecord(

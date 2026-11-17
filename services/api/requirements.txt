@@ -9,3 +9,8 @@ google-genai==2.13.0
 pypdf==6.21.4
 pydantic-settings==2.10.1
 uvicorn[standard]==0.35.0
+keyring==25.7.0
+edge-tts==7.3.1
+numpy==2.5.5
+json-repair==0.64.9
+aiohttp==3.14.5

@@ -4,7 +4,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CURRENT_SCHEMA_VERSION = 5
+CURRENT_SCHEMA_VERSION = 6
 
 
 @dataclass(frozen=True)
@@ -98,11 +98,67 @@ def migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA user_version = 5")
 
 
+def migrate_v5_to_v6(conn: sqlite3.Connection) -> None:
+    _execute(conn, (
+        """DELETE FROM realtime_tickets WHERE owner_session_id IN (
+                SELECT id FROM owner_sessions WHERE device_id IS NOT NULL)""",
+        "DELETE FROM owner_sessions WHERE device_id IS NOT NULL",
+        """DELETE FROM model_assignments
+           WHERE is_bootstrap_default = 1 OR provider_connection_id IN (
+               SELECT id FROM provider_connections WHERE provider = 'mock'
+           )""",
+        "DELETE FROM provider_connections WHERE provider = 'mock'",
+        "DROP TABLE IF EXISTS pairing_challenges",
+        "DROP TABLE IF EXISTS trusted_devices",
+        "DROP TABLE IF EXISTS local_metric_events",
+        "DROP TABLE IF EXISTS classroom_states",
+        "DROP TABLE IF EXISTS classroom_flashcards",
+        "DROP INDEX IF EXISTS idx_owner_sessions_device_id",
+        "ALTER TABLE owner_sessions DROP COLUMN device_id",
+        "ALTER TABLE owner_preferences DROP COLUMN adult_relationships_enabled",
+        "ALTER TABLE owner_preferences DROP COLUMN adult_age_confirmed_at",
+        "ALTER TABLE model_assignments DROP COLUMN is_bootstrap_default",
+        """CREATE TABLE jobs (
+            id TEXT PRIMARY KEY,
+            space_id TEXT REFERENCES study_spaces(id) ON DELETE CASCADE,
+            material_id TEXT REFERENCES materials(id) ON DELETE CASCADE,
+            kind TEXT NOT NULL,
+            stage TEXT,
+            status TEXT NOT NULL,
+            progress REAL NOT NULL DEFAULT 0,
+            detail TEXT,
+            payload_json TEXT,
+            tokens_in INTEGER NOT NULL DEFAULT 0,
+            tokens_out INTEGER NOT NULL DEFAULT 0,
+            error TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX idx_jobs_space_id ON jobs(space_id)",
+        "CREATE INDEX idx_jobs_material_id ON jobs(material_id)",
+        "CREATE INDEX idx_jobs_status ON jobs(status, created_at)",
+        """CREATE TABLE llm_cache (
+            key TEXT PRIMARY KEY, model TEXT NOT NULL, response TEXT NOT NULL,
+            tokens_in INTEGER, tokens_out INTEGER, created_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE llm_usage (
+            day TEXT NOT NULL, role TEXT NOT NULL, model TEXT NOT NULL,
+            calls INTEGER NOT NULL, tokens_in INTEGER NOT NULL, tokens_out INTEGER NOT NULL,
+            PRIMARY KEY(day, role, model)
+        )""",
+        """CREATE TABLE app_settings (
+            key TEXT PRIMARY KEY, value_json TEXT NOT NULL, updated_at TEXT NOT NULL
+        )""",
+    ))
+    conn.execute("PRAGMA user_version = 6")
+
+
 MIGRATIONS = (
     Migration(1, 2, migrate_v1_to_v2),
     Migration(2, 3, migrate_v2_to_v3),
     Migration(3, 4, migrate_v3_to_v4),
     Migration(4, 5, migrate_v4_to_v5),
+    Migration(5, 6, migrate_v5_to_v6),
 )
 
 

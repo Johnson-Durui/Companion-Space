@@ -37,7 +37,6 @@ from app.repositories.mixins.common import (
     _from_db,
     _fts_sparse_terms_expression,
     _to_db,
-    _tts_playback_policy,
     utcnow,
 )
 from app.repositories.migrations import (
@@ -120,11 +119,10 @@ class ProviderMixin:
                     capability,
                     provider_connection_id,
                     model_name,
-                    is_bootstrap_default,
                     created_at,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     assignment.id,
@@ -132,7 +130,6 @@ class ProviderMixin:
                     assignment.capability.value,
                     assignment.provider_connection_id,
                     assignment.model_name,
-                    int(assignment.is_bootstrap_default),
                     _to_db(assignment.created_at),
                     _to_db(assignment.updated_at),
                 ),
