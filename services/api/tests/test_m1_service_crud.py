@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from io import BytesIO
-from zipfile import ZipFile
 
 import pytest
 
@@ -181,7 +179,7 @@ def test_material_delete_requires_matching_space_and_contained_path(isolated_set
     assert repository.get_material(escaped_material.id) is not None
 
 
-def test_character_crud_and_export_enforce_license_and_containment(isolated_settings, tmp_path) -> None:
+def test_character_crud_and_asset_path_containment(isolated_settings, tmp_path) -> None:
     settings = _local_settings(isolated_settings)
     repository = SQLiteRepository(settings)
     service = CharacterService(repository)
@@ -213,19 +211,7 @@ def test_character_crud_and_export_enforce_license_and_containment(isolated_sett
     asset_root.mkdir(parents=True)
     (asset_root / "model.vrm").write_bytes(b"safe-vrm")
     (asset_root / "LICENSE.txt").write_text("CC0", encoding="utf-8")
-    archive = service.export_character_pack(original.id)
-    with ZipFile(BytesIO(archive)) as bundle:
-        assert set(bundle.namelist()) == {
-            "asset_manifest.json",
-            "character.json",
-            "recipe.json",
-            "assets/LICENSE.txt",
-            "assets/model.vrm",
-        }
-        character_payload = json.loads(bundle.read("character.json"))
-        assert character_payload["id"] == original.id
-        assert "api_key" not in bundle.read("asset_manifest.json").decode("utf-8").lower()
-        assert bundle.read("assets/model.vrm") == b"safe-vrm"
+    assert service.read_character_asset(original.id, "model.vrm") == (b"safe-vrm", "model/gltf-binary")
 
     escaped_file = tmp_path / "outside.vrm"
     escaped_file.write_bytes(b"do-not-export")
@@ -238,18 +224,8 @@ def test_character_crud_and_export_enforce_license_and_containment(isolated_sett
         },
     )
     with pytest.raises(ValueError, match="outside"):
-        service.export_character_pack(original.id)
-
-    service.update_character(
-        original.id,
-        asset_manifest={
-            "redistribution_allowed": "no",
-            "license": "restricted",
-            "model_path": "model.vrm",
-        },
-    )
-    with pytest.raises(ValueError, match="redistribution"):
-        service.export_character_pack(original.id)
+        service.read_character_asset(original.id, "../outside.vrm")
+    assert escaped_file.read_bytes() == b"do-not-export"
 
     assert service.delete_character(original.id) is True
     assert service.get_character(original.id) is None
@@ -257,7 +233,7 @@ def test_character_crud_and_export_enforce_license_and_containment(isolated_sett
     assert not asset_root.exists()
 
 
-def test_character_export_rejects_credential_shaped_manifest_keys(isolated_settings) -> None:
+def test_character_asset_read_rejects_credential_shaped_manifest_keys(isolated_settings) -> None:
     settings = _local_settings(isolated_settings)
     repository = SQLiteRepository(settings)
     service = CharacterService(repository)
@@ -274,7 +250,7 @@ def test_character_export_rejects_credential_shaped_manifest_keys(isolated_setti
     )
 
     with pytest.raises(ValueError, match="credential"):
-        service.export_character_pack(character.id)
+        service.read_character_asset(character.id, "model.vrm")
 
 
 def test_provider_partial_update_rotates_key_without_returning_plaintext(

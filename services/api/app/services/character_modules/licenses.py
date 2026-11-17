@@ -26,23 +26,6 @@ from app.services.repository import SQLiteRepository
 
 
 class CharacterLicenseMixin:
-    def _ensure_export_license_requirements(self, manifest: dict[str, Any]) -> None:
-        if not isinstance(manifest.get("license"), str) or not manifest["license"].strip():
-            raise ValueError("Character asset manifest must include a license")
-        if not isinstance(manifest.get("license_path"), str) or not manifest["license_path"].strip():
-            raise ValueError("Character asset manifest must include a license_path")
-
-    def _ensure_import_license_requirements(self, manifest: dict[str, Any]) -> None:
-        self._ensure_export_license_requirements(manifest)
-        listed_paths = self._listed_asset_paths(manifest)
-        if manifest["license_path"] not in listed_paths:
-            raise ValueError("Character asset manifest license_path must be listed in asset_paths")
-
-    @classmethod
-    def _ensure_recipe_only_manifest(cls, manifest: dict[str, Any]) -> None:
-        if cls._listed_asset_paths(manifest):
-            raise ValueError("Recipe-only character packs cannot declare asset paths")
-
     @staticmethod
     def _permission_flag(value: object) -> str | None:
         if not isinstance(value, str):

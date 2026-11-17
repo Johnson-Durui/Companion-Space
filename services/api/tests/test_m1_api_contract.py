@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import io
 import json
-import zipfile
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -178,7 +176,7 @@ def test_provider_update_rotates_secret_without_returning_it(client, owner_token
     assert "secret-rotated-value" not in serialized
 
 
-def test_character_crud_duplicate_and_export_exclude_credentials(client, owner_token: str) -> None:
+def test_character_crud_and_duplicate(client, owner_token: str) -> None:
     headers = _auth_headers(owner_token)
     created = client.post(
         "/api/v1/characters",
@@ -216,18 +214,6 @@ def test_character_crud_duplicate_and_export_exclude_credentials(client, owner_t
     )
     assert duplicated.status_code == 201
     assert duplicated.json()["id"] != character_id
-
-    exported = client.get(
-        f"/api/v1/characters/{character_id}/export",
-        headers=headers,
-    )
-    assert exported.status_code == 200
-    with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
-        names = set(archive.namelist())
-        assert "character.json" in names
-        payload = archive.read("character.json").decode("utf-8")
-        assert "api_key" not in payload
-        assert "owner_token" not in payload
 
     deleted = client.delete(f"/api/v1/characters/{character_id}", headers=headers)
     assert deleted.status_code == 204

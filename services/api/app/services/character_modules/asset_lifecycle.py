@@ -13,12 +13,10 @@ import stat
 import struct
 import unicodedata
 from datetime import datetime, timezone
-from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlsplit
 from uuid import uuid4
-from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 
 from app.models.domain import CharacterPack, CharacterRecipe, DEFAULT_CHARACTER_RECIPE_DATA
 from app.services.character_modules.common import *
@@ -27,14 +25,9 @@ from app.services.repository import SQLiteRepository
 
 class CharacterAssetLifecycleMixin:
     def import_character_upload(self, *, filename: str, data: bytes) -> CharacterPack:
-        suffix = Path(filename or "").suffix.lower()
-        if suffix == ".vrm":
-            return self._import_vrm_upload(filename=filename, data=data)
-        if suffix == ".zip":
-            return self._import_character_pack_upload(filename=filename, data=data)
-        if suffix == ".json":
-            return self._import_character_card_upload(data=data)
-        raise ValueError("Character import only supports .vrm, .zip, and .json files")
+        if Path(filename or "").suffix.lower() != ".vrm":
+            raise ValueError("Character import only supports .vrm files")
+        return self._import_vrm_upload(filename=filename, data=data)
 
     def replace_character_avatar(
         self,
@@ -178,63 +171,6 @@ class CharacterAssetLifecycleMixin:
             term in normalized for term in _ADULT_RELATIONSHIP_TERMS
         ):
             raise ValueError("Adult relationship roles are not supported")
-
-    def export_character_pack(self, character_id: str) -> bytes:
-        with _AVATAR_LIFECYCLE_LOCK:
-            return self._export_character_pack_unlocked(character_id)
-
-    def _export_character_pack_unlocked(self, character_id: str) -> bytes:
-        character = self.require_character(character_id)
-        manifest = self._clone_json_like(character.asset_manifest)
-        self._validate_manifest_keys(manifest)
-        managed = self._trusted_managed_motions(manifest)
-        if managed:
-            state = next(state for state in ("idle", "listening", "thinking", "speaking") if state in managed)
-            raise ValueError(
-                f"Managed motion '{state}' cannot be exported because owner uploads are local-only"
-            )
-
-        asset_root = self._asset_root(character_id)
-        files: dict[str, Path] = {}
-        total_size = 0
-        asset_paths = self._listed_asset_paths(manifest)
-        for relative_path in asset_paths:
-            source = self._contained_child(asset_root, relative_path)
-            if not source.is_file():
-                raise ValueError(f"Character asset is missing or is not a file: {relative_path}")
-            if self._is_executable_name(relative_path):
-                raise ValueError("Character pack cannot export executable assets")
-            archive_name = f"assets/{Path(relative_path).as_posix()}"
-            if archive_name in files:
-                continue
-            total_size += source.stat().st_size
-            if total_size > self.repository.settings.max_character_pack_size_bytes:
-                raise ValueError("Character pack exceeds the configured size limit")
-            files[archive_name] = source
-        if asset_paths:
-            if self._permission_flag(manifest.get("redistribution_allowed")) != "yes":
-                raise ValueError("Character assets cannot be exported without explicit redistribution permission")
-            self._ensure_export_license_requirements(manifest)
-
-        character_payload = {
-            "id": character.id,
-            "name": character.name,
-            "description": character.description,
-            "created_at": character.created_at.isoformat(),
-            "updated_at": character.updated_at.isoformat(),
-        }
-        output = BytesIO()
-        with ZipFile(output, mode="w", compression=ZIP_DEFLATED) as bundle:
-            bundle.writestr("character.json", self._json_bytes(character_payload))
-            bundle.writestr("recipe.json", self._json_bytes(character.recipe.model_dump(mode="json")))
-            bundle.writestr("asset_manifest.json", self._json_bytes(manifest))
-            for archive_name, source in sorted(files.items()):
-                bundle.write(source, archive_name)
-
-        archive = output.getvalue()
-        if len(archive) > self.repository.settings.max_character_pack_size_bytes:
-            raise ValueError("Character pack exceeds the configured size limit")
-        return archive
 
     def resolve_character_asset(self, character_id: str, asset_path: str) -> tuple[Path, str]:
         with _AVATAR_LIFECYCLE_LOCK:

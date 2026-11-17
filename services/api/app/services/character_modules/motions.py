@@ -225,7 +225,11 @@ class CharacterMotionMixin:
 
     @classmethod
     def _clean_managed_motion_filename(cls, filename: str) -> str:
-        cleaned = cls._clean_character_card_text(str(filename or "")).strip()
+        filename = str(filename or "")
+        if _UNICODE_SURROGATES.search(filename):
+            raise ValueError("Managed motion filename contains invalid Unicode")
+        normalized = filename.replace("\r\n", "\n").replace("\r", "\n")
+        cleaned = _CONTROL_CHARACTERS.sub("", normalized).strip()
         if (
             not cleaned
             or len(cleaned) > 255

@@ -29,7 +29,6 @@ from app.models.domain import (
 from app.providers.errors import (
     ProviderProtocolError,
 )
-from app.services.characters import CHARACTER_CARD_MAX_BYTES
 from app.services.realtime import (
     TTS_CONTENT_TYPE,
     TTS_SAMPLE_RATE_HZ,
@@ -69,13 +68,15 @@ async def import_character(
     _: str = Depends(require_owner),
     container: ServiceContainer = Depends(get_container),
 ):
-    filename = unquote(request.headers.get("x-filename", "character-pack.zip"))
-    max_bytes = container.settings.max_character_pack_size_bytes
-    if Path(filename).suffix.lower() == ".json":
-        max_bytes = min(max_bytes, CHARACTER_CARD_MAX_BYTES)
+    encoded_filename = request.headers.get("x-filename")
+    if not encoded_filename:
+        raise ValueError("X-Filename header is required for character import")
+    filename = unquote(encoded_filename)
+    if Path(filename).suffix.lower() != ".vrm":
+        raise ValueError("Character import only supports .vrm files")
     data = await _read_limited_body(
         request,
-        max_bytes=max_bytes,
+        max_bytes=container.settings.max_character_pack_size_bytes,
     )
     character = container.characters.import_character_upload(
         filename=filename,
@@ -232,24 +233,6 @@ async def preview_character_voice(
             "Cache-Control": "no-store",
             "X-Audio-Channels": "1",
             "X-Audio-Sample-Rate": str(TTS_SAMPLE_RATE_HZ),
-        },
-    )
-
-
-@router.get("/characters/{character_id}/export")
-def export_character(
-    character_id: str,
-    _: str = Depends(require_owner),
-    container: ServiceContainer = Depends(get_container),
-) -> Response:
-    archive = container.characters.export_character_pack(character_id)
-    return Response(
-        content=archive,
-        media_type="application/zip",
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="character-pack-{character_id}.zip"'
-            )
         },
     )
 

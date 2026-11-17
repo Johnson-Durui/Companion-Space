@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import io
 import json
 import struct
-import zipfile
 from pathlib import Path
 
 import pytest
@@ -13,10 +11,6 @@ from app.api.deps import get_container
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _BUNDLED_VRMA_PATH = _REPO_ROOT / "assets-archive" / "motions" / "companion-idle.vrma"
-_PNG_1X1 = bytes.fromhex(
-    "89504e470d0a1a0a0000000d4948445200000001000000010804000000b51c0c02"
-    "0000000b4944415478da6364f80f00010501012718e3660000000049454e44ae426082"
-)
 
 
 def _auth_headers(owner_token: str, **extra: str) -> dict[str, str]:
@@ -59,113 +53,7 @@ def _make_vrma() -> bytes:
     return _BUNDLED_VRMA_PATH.read_bytes()
 
 
-def _make_airi_character_zip() -> bytes:
-    payload = io.BytesIO()
-    with zipfile.ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(
-            "manifest.json",
-            json.dumps(
-                {
-                    "format": "airi-character-card",
-                    "version": 1,
-                    "card": {"path": "card.json", "spec": "chara_card_v3"},
-                    "resources": {
-                        "displayModel": {
-                            "format": "vrm",
-                            "path": "models/body-model.vrm",
-                            "name": "AIRI API source.vrm",
-                            "url": "https://untrusted.example/model.vrm",
-                        }
-                    },
-                }
-            ),
-        )
-        archive.writestr(
-            "card.json",
-            json.dumps(
-                {
-                    "spec": "chara_card_v3",
-                    "spec_version": "3.0",
-                    "data": {
-                        "name": "AIRI API Mika",
-                        "description": "Persona only.",
-                        "system_prompt": "AIRI_API_PROMPT_MUST_NOT_LEAK",
-                        "extensions": {"remote": "https://untrusted.example/extension"},
-                    },
-                }
-            ),
-        )
-        archive.writestr("models/body-model.vrm", _make_vrm0(title="AIRI API VRM"))
-    return payload.getvalue()
-
-
-def _make_airi_archive_display_zip(display_format: str) -> bytes:
-    model = io.BytesIO()
-    with zipfile.ZipFile(model, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        if display_format == "live2d-zip":
-            archive.writestr(
-                "avatar.model3.json",
-                json.dumps(
-                    {
-                        "Version": 3,
-                        "FileReferences": {
-                            "Moc": "avatar.moc3",
-                            "Textures": ["avatar.png"],
-                        },
-                    }
-                ),
-            )
-            archive.writestr("avatar.moc3", b"MOC3-api-model")
-        else:
-            archive.writestr(
-                "avatar.json",
-                json.dumps(
-                    {
-                        "skeleton": {"spine": "4.2"},
-                        "bones": [{"name": "root"}],
-                        "slots": [],
-                        "skins": [],
-                        "animations": {},
-                    }
-                ),
-            )
-            archive.writestr("avatar.atlas.txt", "avatar.png\nsize: 1,1\nformat: RGBA8888\n")
-        archive.writestr("avatar.png", _PNG_1X1)
-
-    payload = io.BytesIO()
-    with zipfile.ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(
-            "manifest.json",
-            json.dumps(
-                {
-                    "format": "airi-character-card",
-                    "version": 1,
-                    "card": {"path": "card.json", "spec": "chara_card_v3"},
-                    "resources": {
-                        "displayModel": {
-                            "format": display_format,
-                            "path": "models/body-model.zip",
-                            "name": f"AIRI API {display_format}",
-                        }
-                    },
-                }
-            ),
-        )
-        archive.writestr(
-            "card.json",
-            json.dumps(
-                {
-                    "spec": "chara_card_v3",
-                    "spec_version": "3.0",
-                    "data": {"name": f"AIRI API {display_format}"},
-                }
-            ),
-        )
-        archive.writestr("models/body-model.zip", model.getvalue())
-    return payload.getvalue()
-
-
-def test_character_import_route_supports_vrm_and_export_contract(client, owner_token: str) -> None:
+def test_character_import_route_serves_single_vrm(client, owner_token: str) -> None:
     headers = _auth_headers(owner_token, **{"x-filename": "api-mika.vrm"})
     imported = client.post("/api/v1/characters/import", headers=headers, content=_make_vrm0())
 
@@ -178,20 +66,6 @@ def test_character_import_route_supports_vrm_and_export_contract(client, owner_t
     assert payload["asset_manifest"]["redistribution_allowed"] == "yes"
     assert payload["asset_manifest"]["modification_allowed"] == "yes"
     assert payload["asset_manifest"]["attribution_required"] == "no"
-
-    exported = client.get(f"/api/v1/characters/{payload['id']}/export", headers=_auth_headers(owner_token))
-    assert exported.status_code == 200
-    with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
-        assert set(archive.namelist()) >= {
-            "asset_manifest.json",
-            "character.json",
-            "recipe.json",
-            "assets/model.vrm",
-            "assets/licenses/vrm-meta.json",
-        }
-        manifest = json.loads(archive.read("asset_manifest.json"))
-        assert manifest["redistribution_allowed"] == "yes"
-        assert "api_key" not in archive.read("character.json").decode("utf-8").lower()
 
     asset = client.get(
         f"/api/v1/characters/{payload['id']}/assets/model.vrm",
@@ -326,229 +200,31 @@ def test_character_avatar_route_requires_vrm_filename_and_enforces_size_limit(
     assert "limit" in oversized.json()["detail"].lower()
 
 
-def test_character_import_route_supports_v3_character_card_without_prompt_overrides(
-    client,
-    owner_token: str,
-) -> None:
-    card = {
-        "spec": "chara_card_v3",
-        "spec_version": "3.0",
-        "data": {
-            "name": "Mika",
-            "nickname": "Miki",
-            "description": "A multilingual companion. 你好!",
-            "first_mes": "<char> greets {{user}}.",
-            "alternate_greetings": ["<bot> welcomes <user>."],
-            "system_prompt": "API_SYSTEM_OVERRIDE_MUST_NOT_LEAK",
-            "post_history_instructions": "API_POST_HISTORY_MUST_NOT_LEAK",
-            "extensions": {"avatar": "https://untrusted.example/avatar.png"},
-        },
-    }
-    headers = _auth_headers(owner_token, **{"x-filename": "mika.json"})
-
-    imported = client.post(
-        "/api/v1/characters/import",
-        headers=headers,
-        content=json.dumps(card, ensure_ascii=False).encode("utf-8"),
-    )
-
-    assert imported.status_code == 201
-    payload = imported.json()
-    assert payload["name"] == "Mika"
-    assert "Nickname:\nMiki" in payload["description"]
-    assert "Miki greets the user." in payload["description"]
-    assert "Miki welcomes the user." in payload["description"]
-    assert "你好" in payload["description"]
-    serialized_payload = json.dumps(payload, ensure_ascii=False)
-    assert "API_SYSTEM_OVERRIDE_MUST_NOT_LEAK" not in serialized_payload
-    assert "API_POST_HISTORY_MUST_NOT_LEAK" not in serialized_payload
-    assert "untrusted.example" not in serialized_payload
-    assert "extensions" not in payload["asset_manifest"]
-    assert payload["asset_manifest"] == {
-        "pack_kind": "recipe-only",
-        "render_mode": "vrm-or-2d-fallback",
-        "source_format": "character-card",
-        "source_spec": "chara_card_v3",
-        "source_spec_version": "3.0",
-        "prompt_overrides_ignored": True,
-    }
-
-    remote_asset = client.get(
-        f"/api/v1/characters/{payload['id']}/assets/avatar.png",
-        headers=_auth_headers(owner_token),
-    )
-    assert remote_asset.status_code == 404
-
-    exported = client.get(
-        f"/api/v1/characters/{payload['id']}/export",
-        headers=_auth_headers(owner_token),
-    )
-    assert exported.status_code == 200
-    with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
-        metadata = b"".join(
-            archive.read(name)
-            for name in ("character.json", "recipe.json", "asset_manifest.json")
-        )
-        assert b"API_SYSTEM_OVERRIDE_MUST_NOT_LEAK" not in metadata
-        assert b"API_POST_HISTORY_MUST_NOT_LEAK" not in metadata
-        assert b"untrusted.example" not in metadata
-        assert archive.namelist() == ["character.json", "recipe.json", "asset_manifest.json"]
-
-
-def test_character_import_route_supports_airi_zip_with_vrm(
-    client,
-    owner_token: str,
-) -> None:
-    imported = client.post(
-        "/api/v1/characters/import",
-        headers=_auth_headers(owner_token, **{"x-filename": "airi.zip"}),
-        content=_make_airi_character_zip(),
-    )
-
-    assert imported.status_code == 201
-    payload = imported.json()
-    assert payload["name"] == "AIRI API Mika"
-    assert payload["asset_manifest"]["format"] == "vrm"
-    assert payload["asset_manifest"]["model_path"] == "model.vrm"
-    assert payload["asset_manifest"]["license_path"] == "licenses/vrm-meta.json"
-    assert payload["asset_manifest"]["source_filename"] == "body-model.vrm"
-    assert payload["asset_manifest"]["source_format"] == "airi-character-card"
-    assert payload["asset_manifest"]["source_display_model_format"] == "vrm"
-    assert payload["asset_manifest"]["source_display_model_name"] == "AIRI API source.vrm"
-    assert payload["asset_manifest"]["source_display_model_imported"] is True
-    assert payload["asset_manifest"]["prompt_overrides_ignored"] is True
-    assert "AIRI_API_PROMPT_MUST_NOT_LEAK" not in json.dumps(payload)
-    assert "untrusted.example" not in json.dumps(payload)
-
-    model = client.get(
-        f"/api/v1/characters/{payload['id']}/assets/model.vrm",
-        headers=_auth_headers(owner_token),
-    )
-    assert model.status_code == 200
-    assert model.headers["cache-control"] == "private, no-store"
-    assert model.headers["content-type"] == "model/gltf-binary"
-    assert model.content == _make_vrm0(title="AIRI API VRM")
-    original_path = client.get(
-        f"/api/v1/characters/{payload['id']}/assets/models/body-model.vrm",
-        headers=_auth_headers(owner_token),
-    )
-    assert original_path.status_code == 404
-
-    exported = client.get(
-        f"/api/v1/characters/{payload['id']}/export",
-        headers=_auth_headers(owner_token),
-    )
-    assert exported.status_code == 200
-    with zipfile.ZipFile(io.BytesIO(exported.content)) as archive:
-        assert "assets/model.vrm" in archive.namelist()
-        assert "assets/licenses/vrm-meta.json" in archive.namelist()
-
-
 @pytest.mark.parametrize(
-    ("display_format", "entrypoint"),
-    [("live2d-zip", "avatar.model3.json"), ("spine-zip", "avatar.json")],
+    ("filename", "content", "error"),
+    [
+        ("archive.zip", b"zip", ".vrm"),
+        ("card.json", b"{}", ".vrm"),
+        (None, b"missing", "X-Filename"),
+        ("oversized.vrm", b"x" * 17, "limit"),
+    ],
 )
-def test_character_import_route_supports_protected_airi_archive_display_models(
-    client,
-    owner_token: str,
-    display_format: str,
-    entrypoint: str,
-) -> None:
-    imported = client.post(
-        "/api/v1/characters/import",
-        headers=_auth_headers(owner_token, **{"x-filename": "airi.zip"}),
-        content=_make_airi_archive_display_zip(display_format),
-    )
-
-    assert imported.status_code == 201
-    payload = imported.json()
-    manifest = payload["asset_manifest"]
-    assert manifest["format"] == display_format
-    assert manifest["validation_level"] == "structure-only"
-    assert manifest["entrypoint"] == entrypoint
-    assert manifest["model_path"] == "display-model/model.zip"
-    assert manifest["redistribution_allowed"] == "no"
-    assert manifest["source_display_model_imported"] is True
-
-    unauthenticated = client.get(
-        f"/api/v1/characters/{payload['id']}/assets/display-model/model.zip"
-    )
-    assert unauthenticated.status_code == 401
-    model = client.get(
-        f"/api/v1/characters/{payload['id']}/assets/display-model/model.zip",
-        headers=_auth_headers(owner_token),
-    )
-    assert model.status_code == 200
-    assert model.headers["cache-control"] == "private, no-store"
-    assert model.headers["content-type"] == "application/zip"
-    with zipfile.ZipFile(io.BytesIO(model.content)) as archive:
-        assert entrypoint in archive.namelist()
-
-    exported = client.get(
-        f"/api/v1/characters/{payload['id']}/export",
-        headers=_auth_headers(owner_token),
-    )
-    assert exported.status_code == 400
-    assert "redistribution" in exported.json()["detail"].lower()
-
-
-def test_character_card_size_limit_is_enforced_before_service_dispatch(
-    client,
-    owner_token: str,
-    monkeypatch,
+def test_character_import_validates_format_and_size_before_dispatch(
+    client, owner_token: str, monkeypatch, filename, content, error,
 ) -> None:
     def unexpected_dispatch(*, filename: str, data: bytes):
         raise AssertionError(f"service received {filename} with {len(data)} bytes")
 
-    monkeypatch.setattr(
-        get_container().characters,
-        "import_character_upload",
-        unexpected_dispatch,
-    )
-
-    response = client.post(
-        "/api/v1/characters/import",
-        headers=_auth_headers(owner_token, **{"x-filename": "oversized.json"}),
-        content=b"x" * 1_000_001,
-    )
+    container = get_container()
+    monkeypatch.setattr(container.settings, "max_character_pack_size_bytes", 16)
+    monkeypatch.setattr(container.characters, "import_character_upload", unexpected_dispatch)
+    headers = _auth_headers(owner_token)
+    if filename is not None:
+        headers["X-Filename"] = filename
+    response = client.post("/api/v1/characters/import", headers=headers, content=content)
 
     assert response.status_code == 400
-    assert "limit" in response.json()["detail"].lower()
-
-
-def test_character_vrma_asset_uses_glb_media_type(client, owner_token: str) -> None:
-    headers = _auth_headers(owner_token)
-    payload = io.BytesIO()
-    manifest = {
-        "model_path": "model.vrm",
-        "license_path": "LICENSE.txt",
-        "asset_paths": ["model.vrm", "LICENSE.txt", "motions/wave.vrma"],
-        "redistribution_allowed": "yes",
-        "license": "CC0",
-    }
-    recipe = {"motions": {"idle": "breathe", "greeting": "motions/wave.vrma"}}
-    with zipfile.ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr("character.json", json.dumps({"name": "Animated API"}))
-        archive.writestr("recipe.json", json.dumps(recipe))
-        archive.writestr("asset_manifest.json", json.dumps(manifest))
-        archive.writestr("assets/model.vrm", _make_vrm0())
-        archive.writestr("assets/LICENSE.txt", b"CC0")
-        archive.writestr("assets/motions/wave.vrma", _make_vrma())
-
-    imported = client.post(
-        "/api/v1/characters/import",
-        headers={**headers, "x-filename": "animated.zip"},
-        content=payload.getvalue(),
-    )
-    assert imported.status_code == 201
-
-    asset = client.get(
-        f"/api/v1/characters/{imported.json()['id']}/assets/motions/wave.vrma",
-        headers=headers,
-    )
-    assert asset.status_code == 200
-    assert asset.headers["content-type"] == "model/gltf-binary"
-    assert asset.content == _make_vrma()
+    assert error.lower() in response.json()["detail"].lower()
 
 
 @pytest.mark.parametrize("state", ["idle", "listening", "thinking", "speaking"])
@@ -641,38 +317,6 @@ def test_managed_motion_route_rejects_invalid_input_without_mutation(
     assert error.lower() in response.json()["detail"].lower()
     after = client.get(f"/api/v1/characters/{created['id']}", headers=_auth_headers(owner_token)).json()
     assert after == before
-
-
-def test_character_import_route_rejects_restricted_vrm_export(client, owner_token: str) -> None:
-    imported = client.post(
-        "/api/v1/characters/import",
-        headers=_auth_headers(owner_token, **{"x-filename": "restricted.vrm"}),
-        content=_make_vrm0(title="Restricted API", license_name="Redistribution_Prohibited"),
-    )
-    assert imported.status_code == 201
-    imported_payload = imported.json()
-
-    metadata_override = client.put(
-        f"/api/v1/characters/{imported_payload['id']}",
-        headers=_auth_headers(owner_token),
-        json={
-            "name": imported_payload["name"],
-            "description": imported_payload["description"],
-            "recipe": imported_payload["recipe"],
-            "asset_manifest": {
-                **imported_payload["asset_manifest"],
-                "redistribution_allowed": "yes",
-            },
-        },
-    )
-    assert metadata_override.status_code == 422
-
-    exported = client.get(
-        f"/api/v1/characters/{imported_payload['id']}/export",
-        headers=_auth_headers(owner_token),
-    )
-    assert exported.status_code == 400
-    assert "redistribution" in exported.json()["detail"].lower()
 
 
 def test_character_voice_preview_streams_ephemeral_mock_pcm(client, owner_token: str) -> None:

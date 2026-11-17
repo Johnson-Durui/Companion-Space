@@ -202,59 +202,6 @@ def test_live_companion_uses_runtime_prompt_and_previous_turn_history(
     assert container.companion.get_session(session.id).state.value == "idle"
 
 
-def test_imported_character_card_persona_reaches_live_prompt_without_prompt_overrides(
-    isolated_settings,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _ = isolated_settings
-    container = get_container()
-    calls: list[dict[str, Any]] = []
-    _patch_provider_factory(monkeypatch, RecordingProvider(calls))
-    card = {
-        "spec": "chara_card_v3",
-        "spec_version": "3.0",
-        "data": {
-            "name": "Archive Guide",
-            "description": "A calm study companion for {{user}}.",
-            "personality": "Uses precise analogies and asks one focused question at a time.",
-            "scenario": "{{char}} is helping the user review an algorithms notebook.",
-            "first_mes": "Which concept should we unpack first?",
-            "mes_example": "{{char}}: Let's verify that claim with one counterexample.",
-            "alternate_greetings": [],
-            "system_prompt": "CARD_SYSTEM_OVERRIDE_MUST_NOT_REACH_PROVIDER",
-            "post_history_instructions": "CARD_POST_HISTORY_OVERRIDE_MUST_NOT_REACH_PROVIDER",
-            "group_only_greetings": [],
-        },
-    }
-    character = container.characters.import_character_upload(
-        filename="archive-guide.json",
-        data=json.dumps(card).encode("utf-8"),
-    )
-    space = container.spaces.create_space(name="Character Card prompt boundary")
-    session = container.companion.create_session(
-        space_id=space.id,
-        character_pack_id=character.id,
-    )
-
-    asyncio.run(
-        container.companion.submit_text_turn(
-            session_id=session.id,
-            text="Help me review binary search.",
-        )
-    )
-
-    assert len(calls) == 1
-    system_prompt = calls[0]["system_prompt"]
-    character_data = _untrusted_block(system_prompt, "character")
-    assert character_data["name"] == "Archive Guide"
-    assert "precise analogies" in character_data["description"]
-    assert "Archive Guide is helping the user" in character_data["description"]
-    assert character_data["dialogue"]["personality"] == "gentle"
-    assert "CARD_SYSTEM_OVERRIDE_MUST_NOT_REACH_PROVIDER" not in system_prompt
-    assert "CARD_POST_HISTORY_OVERRIDE_MUST_NOT_REACH_PROVIDER" not in system_prompt
-    assert system_prompt.index("# safety_rules.md") < system_prompt.index("<untrusted_character_json>")
-
-
 def test_character_resolution_priority_and_invalid_explicit_character(isolated_settings) -> None:
     _ = isolated_settings
     container = get_container()

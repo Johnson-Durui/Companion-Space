@@ -68,11 +68,6 @@ _ADULT_RELATIONSHIP_TERMS = (
     "浪漫关系",
 )
 _REDISTRIBUTION_ALLOWED = {"1", "allowed", "true", "yes"}
-_PACK_METADATA_FILES = {
-    "asset_manifest.json",
-    "character.json",
-    "recipe.json",
-}
 _EXECUTABLE_SUFFIXES = {
     ".app",
     ".bat",
@@ -131,53 +126,11 @@ _BUILT_IN_VRMA_URLS = frozenset(
     for state in ("idle", "listening", "thinking", "speaking")
 )
 _MANAGED_MOTION_STATES = frozenset({"idle", "listening", "thinking", "speaking"})
-_EXECUTABLE_SIGNATURES = (
-    b"#!",
-    b"MZ",
-    b"\x7fELF",
-    b"\xfe\xed\xfa\xce",
-    b"\xce\xfa\xed\xfe",
-    b"\xfe\xed\xfa\xcf",
-    b"\xcf\xfa\xed\xfe",
-    b"\xca\xfe\xba\xbe",
-    b"\xbe\xba\xfe\xca",
-)
 _CREDENTIAL_VALUE_PATTERNS = (
     re.compile(r"(?i)\b(?:api[_-]?key|secret|password|credential)\b\s*[:=]\s*\S+"),
     re.compile(r"(?i)\b(?:authorization|bearer)\b\s*[:=]?\s+[a-z0-9._\-]{8,}"),
     re.compile(r"\bsk-[A-Za-z0-9]{12,}\b"),
     re.compile(r"\b[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b"),
-)
-CHARACTER_CARD_MAX_BYTES = 1_000_000
-_AIRI_MANIFEST_PATH = "manifest.json"
-_AIRI_CARD_PATH = "card.json"
-_AIRI_DISPLAY_MODEL_FORMATS = {"vrm", "live2d-zip", "spine-zip"}
-_AIRI_ARCHIVE_DISPLAY_MODEL_FORMATS = {"live2d-zip", "spine-zip"}
-_AIRI_DISPLAY_MODEL_ASSET_PATH = "display-model/model.zip"
-_AIRI_DISPLAY_MODEL_LICENSE_PATH = "licenses/airi-display-model.json"
-_AIRI_TRUSTED_PROVENANCE_KEYS = frozenset(
-    {
-        "source_format",
-        "source_container_version",
-        "source_card_spec",
-        "source_card_spec_version",
-        "source_display_model_format",
-        "source_display_model_name",
-        "source_display_model_imported",
-    }
-)
-_AIRI_PERSONA_IMPORT_FIELDS = frozenset(
-    {
-        "name",
-        "nickname",
-        "description",
-        "personality",
-        "scenario",
-        "first_mes",
-        "alternate_greetings",
-        "system_prompt",
-        "post_history_instructions",
-    }
 )
 _WINDOWS_RESERVED_PATH_NAMES = frozenset(
     {"aux", "con", "nul", "prn"}
@@ -185,32 +138,8 @@ _WINDOWS_RESERVED_PATH_NAMES = frozenset(
     | {f"lpt{index}" for index in range(1, 10)}
 )
 _WINDOWS_INVALID_PATH_CHARACTERS = frozenset('<>:"|?*')
-_MAX_CHARACTER_ARCHIVE_MEMBERS = 4096
-_MAX_CHARACTER_CENTRAL_DIRECTORY_BYTES = 8 * 1024 * 1024
-_ZIP_EOCD_SIGNATURE = b"PK\x05\x06"
-_CHARACTER_CARD_V3_VERSION = re.compile(r"3\.(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*))?")
-_CHARACTER_CARD_TEXT_FIELDS = (
-    ("description", "Description"),
-    ("personality", "Personality"),
-    ("scenario", "Scenario"),
-    ("first_mes", "First message"),
-    ("mes_example", "Message examples"),
-)
-_CHARACTER_CARD_IGNORED_PROMPT_FIELDS = (
-    "system_prompt",
-    "post_history_instructions",
-)
-_CHARACTER_CARD_MAX_FIELD_LENGTH = 20_000
-_CHARACTER_CARD_MAX_TOTAL_TEXT_LENGTH = 100_000
-_CHARACTER_CARD_MAX_ALTERNATE_GREETINGS = 32
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x09\x0b\x0c\x0e-\x1f\x7f-\x9f]")
 _UNICODE_SURROGATES = re.compile(r"[\ud800-\udfff]")
-_CHARACTER_CARD_PLACEHOLDERS = re.compile(
-    r"\{\{\s*(char|user)\s*\}\}|<(char|bot|user)>",
-    re.IGNORECASE,
-)
-
-
 def _parse_vroid_hub_permissions(meta: dict[str, Any]) -> dict[str, str]:
     for raw_url in (meta.get("otherPermissionUrl"), meta.get("otherLicenseUrl")):
         if not isinstance(raw_url, str) or not raw_url.strip():
@@ -241,5 +170,5 @@ __all__ = [
     name
     for name in globals()
     if (name.startswith("_") and not name.startswith("__"))
-    or name in {"CHARACTER_CARD_MAX_BYTES", "logger"}
+    or name == "logger"
 ]
