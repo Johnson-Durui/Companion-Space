@@ -35,6 +35,21 @@ jobs:
           PYTHONPATH: services/api
         run: python -m pytest services/api/tests -q --basetemp "${{ runner.temp }}/cs-api"
 
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npx.cmd --yes npm@11.21.2 ci
+
+      - name: Build frontend
+        run: npm.cmd run build --workspace web
+
+      - name: Smoke Windows PowerShell launcher
+        run: npm.cmd run test:startup
+
   backend:
     runs-on: ubuntu-latest
     steps:
@@ -68,8 +83,66 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Audit frontend dependencies
+        run: npx --yes npm@11.21.2 audit --audit-level=high
+
       - name: Install Python dependency auditor
         run: python -m pip install pip-audit
 
       - name: Audit backend dependencies
         run: python -m pip_audit -r services/api/requirements.txt
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install frontend dependencies
+        run: npx --yes npm@11.21.2 ci
+
+      - name: Install backend dependencies
+        run: python -m pip install -r services/api/requirements.txt
+
+      - name: Verify generated OpenAPI contract
+        env:
+          COMPANION_DATA_DIR: ${{ runner.temp }}/cs-contract
+        run: npm run generate:api:check
+
+      - name: Check production sources
+        run: python scripts/check_no_fakes.py
+
+      - name: Typecheck
+        run: npm run typecheck --workspace web
+
+      - name: Lint
+        run: npm run lint --workspace web
+
+      - name: Frontend unit tests
+        run: npm run test --workspace web
+
+      - name: Build
+        run: npm run build --workspace web
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify single-process browser flow
+        run: npm run test:e2e

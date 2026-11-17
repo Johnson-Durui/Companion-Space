@@ -2,6 +2,18 @@
 
 > Companion Space is being rebuilt for v1.0. See the [rebuild plan](docs/rebuild/PLAN.md).
 
+## M1 local quick start
+
+1. Install Python 3.12 or later. Building the web UI from source also requires Node.js 24.
+2. Double-click `start.bat` on Windows or run `sh start.sh` on macOS or Linux.
+3. When [Companion Space](http://127.0.0.1:8000/welcome) opens, choose a tutor. In Settings, add a model connection using a preset and your key. Run the connection checks, then try a message or image on the diagnostic page.
+
+The welcome page opens without a password on first run. Enabling a master password requires it on restart. The app encrypts keys at rest in the data directory shown in Settings.
+
+To use a Chinese Python package mirror, pass `-Mirror cn` to `start.ps1` or run `sh start.sh --mirror cn`. Distributions with a prebuilt web UI only need Python at runtime.
+
+> The remaining sections document the pre-rebuild version. Use the local quick start for this worktree.
+
 [简体中文](README.md) | **English**
 
 Companion Space is a local-first anime-style study companion. Create learning spaces, import materials, choose a character, study through text or voice, and turn sessions into reviews and confirmed memories.

@@ -2,6 +2,18 @@
 
 > 正在重塑为 v1.0，见[重塑总纲](docs/rebuild/PLAN.md)。
 
+## M1 本机快速开始
+
+1. 安装 Python 3.12 或更新版本。从源码构建界面时需要 Node.js 24。
+2. Windows 双击 `start.bat`。macOS 和 Linux 在项目根目录运行 `sh start.sh`。
+3. 浏览器打开 [伴学空间](http://127.0.0.1:8000/welcome) 后选择老师。到「设置 → 模型」选预设、填密钥、保存并测试，然后用「试聊」检查流式对话或图片识别。
+
+默认直接打开欢迎页。启用可选主密码后，重启时输入它即可解锁。应用把模型密钥加密保存在设置页显示的数据目录。
+
+Python 下载慢时，Windows 可运行 `powershell -NoProfile -ExecutionPolicy Bypass -File start.ps1 -Mirror cn`。macOS 和 Linux 可运行 `sh start.sh --mirror cn`。发行包自带已构建的界面时只需要 Python。
+
+> 以下为重塑前版本的历史说明。运行当前工作树请使用本机快速开始。
+
 [English](README.en.md)
 
 本地优先、单用户的二次元学习搭子。从自己的书房进入学习空间，导入资料、选择伙伴，用文字或语音共学，再把对话整理成复盘与记忆。支持 Windows 本机运行和 Docker 部署；记录保存在本机，接入外部模型时会向你选择的服务发送相应请求。
