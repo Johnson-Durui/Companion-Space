@@ -23,8 +23,6 @@ from app.api.routes.realtime import (
 from app.models.api_v1 import (
     RealtimeTicketResponse,
     SessionCreateRequest,
-    SessionDemoRequest,
-    SessionDemoResponse,
     SessionRecapUpdateRequest,
     SessionSummaryRequest,
     SessionTranscriptResponse,
@@ -38,7 +36,6 @@ from app.services.companion import (
     CharacterNotFoundError,
     SessionNotFoundError,
 )
-from app.services.pedagogical_orchestrator import PedagogicalOrchestrator
 
 router = APIRouter()
 
@@ -143,20 +140,6 @@ async def create_turn(
     )
 
 
-@router.post("/sessions/{session_id}/demos", response_model=SessionDemoResponse)
-async def create_demo(
-    session_id: str,
-    payload: SessionDemoRequest,
-    _: str = Depends(require_owner),
-    container: ServiceContainer = Depends(get_container),
-) -> SessionDemoResponse:
-    demo = await container.demos.create_demo(
-        session_id=session_id,
-        topic=payload.topic,
-    )
-    return SessionDemoResponse.model_validate(demo)
-
-
 @router.post("/sessions/{session_id}/turns/stream")
 async def stream_turn(
     session_id: str,
@@ -224,14 +207,6 @@ async def end_session(
         session_id=session_id,
         include_candidates=True,
     )
-    classroom = PedagogicalOrchestrator(
-        container.repository,
-        container.spaces,
-        container.companion,
-        container.demos,
-    )
-    if classroom.store.get_snapshot(session_id) is not None:
-        classroom.propose_flashcards(session_id)
     duration_ms = 0
     if session.ended_at is not None:
         duration_ms = max(

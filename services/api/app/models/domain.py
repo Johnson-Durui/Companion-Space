@@ -23,9 +23,6 @@ CompanionEmotion = Literal[
     "concerned",
 ]
 TtsPlaybackPolicy = Literal["browser-compat", "server-neural", "server"]
-LessonTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
-LessonCaption = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=400)]
-LessonNarration = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1200)]
 
 
 def _load_character_recipe_defaults(filename: str) -> dict[str, Any]:
@@ -270,21 +267,6 @@ class CompanionTurn(BaseModel):
     suggested_actions: list[str] = Field(default_factory=list)
     usage: UsageRecord = Field(default_factory=UsageRecord)
     created_at: datetime
-
-
-class LessonStep(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    board: BoardAction
-    caption: LessonCaption
-    narration: LessonNarration
-
-
-class LessonScript(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    title: LessonTitle
-    steps: list[LessonStep] = Field(min_length=3, max_length=8)
 
 
 class MemoryItem(BaseModel):

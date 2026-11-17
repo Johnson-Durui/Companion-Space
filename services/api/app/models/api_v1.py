@@ -8,10 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from app.models.domain import (
     CharacterPack,
     CharacterRecipe,
-    Citation,
     CompanionTurn,
     IngestionJob,
-    LessonScript,
     MaterialKind,
     MemoryItem,
     ModelAssignment,
@@ -163,10 +161,6 @@ class SessionTurnRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
 
 
-class SessionDemoRequest(BaseModel):
-    topic: str = Field(min_length=1, max_length=240)
-
-
 class SessionSummaryRequest(BaseModel):
     summary: str = ""
 
@@ -202,14 +196,6 @@ class SessionTranscriptResponse(BaseModel):
     turns: list[CompanionTurn]
     memory_candidates: list[MemoryItem] = Field(default_factory=list)
     review_items: list[ReviewItem] = Field(default_factory=list)
-
-
-class SessionDemoResponse(BaseModel):
-    session_id: str
-    topic: str
-    script: LessonScript
-    citations: list[Citation] = Field(default_factory=list)
-    used_space_materials: bool
 
 
 class MaterialResponse(BaseModel):

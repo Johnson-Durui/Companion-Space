@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Re-exported for existing API routes and tests.
 from app.services.character_modules.common import CHARACTER_CARD_MAX_BYTES
-from app.services.character_modules.persona import TutorPersona, build_tutor_persona
 from app.services.character_modules.crud import CharacterCrudMixin
 from app.services.character_modules.asset_lifecycle import CharacterAssetLifecycleMixin
 from app.services.character_modules.motions import CharacterMotionMixin
@@ -34,6 +33,3 @@ class CharacterService(
     VrmaValidationMixin,
 ):
     """Compatibility façade composed from focused character-domain mixins."""
-
-    def tutor_persona(self, character_id: str) -> TutorPersona:
-        return build_tutor_persona(self.require_character(character_id))

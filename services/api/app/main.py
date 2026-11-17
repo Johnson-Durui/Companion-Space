@@ -71,7 +71,6 @@ def _provider_timeout_capability(
         "/api/v1/characters/{character_id}/voice-preview": ProviderCapability.tts,
         "/api/v1/sessions/{session_id}/turns": ProviderCapability.chat_llm,
         "/api/v1/sessions/{session_id}/turns/stream": ProviderCapability.chat_llm,
-        "/api/v1/sessions/{session_id}/demos": ProviderCapability.analysis_llm,
     }
     return capability_by_route.get(route_path, ProviderCapability.chat_llm)
 

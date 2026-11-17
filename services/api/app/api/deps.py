@@ -9,7 +9,6 @@ from app.core.config import Settings, get_settings
 from app.services.characters import CharacterService
 from app.services.browser_session import OWNER_COOKIE_NAME, require_cookie_csrf
 from app.services.companion import CompanionService
-from app.services.demos import DemoService
 from app.services.legacy_import import LegacyKnowledgeImporter
 from app.services.metrics import MetricsService
 from app.services.provider_registry import ProviderRegistryService
@@ -32,7 +31,6 @@ class ServiceContainer:
     characters: CharacterService
     providers: ProviderRegistryService
     companion: CompanionService
-    demos: DemoService
     legacy_importer: LegacyKnowledgeImporter
 
     async def aclose(self) -> None:
@@ -65,7 +63,6 @@ def get_container() -> ServiceContainer:
         providers,
         metrics=metrics,
     )
-    demos = DemoService(settings, repository, spaces, providers, companion)
     legacy_importer = LegacyKnowledgeImporter(settings, spaces)
     return ServiceContainer(
         settings=settings,
@@ -76,7 +73,6 @@ def get_container() -> ServiceContainer:
         characters=characters,
         providers=providers,
         companion=companion,
-        demos=demos,
         legacy_importer=legacy_importer,
     )
 

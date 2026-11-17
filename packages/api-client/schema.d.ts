@@ -452,91 +452,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sessions/{session_id}/classroom": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Classroom */
-        get: operations["get_classroom_api_v1_sessions__session_id__classroom_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/classroom/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send Classroom Event */
-        post: operations["send_classroom_event_api_v1_sessions__session_id__classroom_events_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/classroom/flashcards": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Propose Classroom Flashcards */
-        post: operations["propose_classroom_flashcards_api_v1_sessions__session_id__classroom_flashcards_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/classroom/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Start Classroom */
-        post: operations["start_classroom_api_v1_sessions__session_id__classroom_start_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/demos": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Demo */
-        post: operations["create_demo_api_v1_sessions__session_id__demos_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/sessions/{session_id}/end": {
         parameters: {
             query?: never;
@@ -706,57 +621,6 @@ export interface paths {
         post?: never;
         /** Delete Assignment */
         delete: operations["delete_assignment_api_v1_spaces__space_id__assignments__capability__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/classroom/flashcards": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Classroom Flashcards */
-        get: operations["list_classroom_flashcards_api_v1_spaces__space_id__classroom_flashcards_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/classroom/flashcards/{card_id}/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Confirm Classroom Flashcard */
-        post: operations["confirm_classroom_flashcard_api_v1_spaces__space_id__classroom_flashcards__card_id__confirm_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/classroom/flashcards/{card_id}/rate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Rate Classroom Flashcard */
-        post: operations["rate_classroom_flashcard_api_v1_spaces__space_id__classroom_flashcards__card_id__rate_post"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1085,22 +949,6 @@ export interface components {
          * @enum {string}
          */
         BoardActionKind: "mermaid" | "markdown" | "highlight";
-        /** BoardActionV2 */
-        BoardActionV2: {
-            /** Citation Ids */
-            citation_ids?: string[];
-            /** Id */
-            id: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "concept_sheet" | "step_sandbox" | "interactive_diagram" | "checkpoint_quiz" | "laser_focus";
-            /** Payload */
-            payload: components["schemas"]["ConceptSheetPayload"] | components["schemas"]["StepSandboxPayload"] | components["schemas"]["InteractiveDiagramPayload"] | components["schemas"]["CheckpointQuizPayload"] | components["schemas"]["LaserFocusPayload"];
-            /** Title */
-            title: string;
-        };
         /** CharacterCreateRequest */
         CharacterCreateRequest: {
             /**
@@ -1271,13 +1119,6 @@ export interface components {
             /** Voice Id */
             voice_id?: string | null;
         };
-        /** CheckpointQuizPayload */
-        CheckpointQuizPayload: {
-            /** Options */
-            options: components["schemas"]["QuizOption"][];
-            /** Question */
-            question: string;
-        };
         /** Citation */
         Citation: {
             /** Chunk Id */
@@ -1290,68 +1131,6 @@ export interface components {
             material_id: string;
             /** Title */
             title: string;
-        };
-        /** ClassroomEventRequest */
-        ClassroomEventRequest: {
-            /** Action Id */
-            action_id?: string | null;
-            /** Answer Id */
-            answer_id?: string | null;
-            /** Parameters */
-            parameters?: {
-                [key: string]: string | number;
-            };
-            /** Question */
-            question?: string | null;
-            /**
-             * Type
-             * @enum {string}
-             */
-            type: "advance" | "ask" | "quiz_answer" | "interrupt" | "update_parameters";
-        };
-        /** ClassroomFeedback */
-        ClassroomFeedback: {
-            /** Correct */
-            correct?: boolean | null;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "instruction" | "answer" | "correct" | "correction" | "interrupted";
-            /** Message */
-            message: string;
-        };
-        /** ClassroomSnapshot */
-        ClassroomSnapshot: {
-            /** Active Action Id */
-            active_action_id: string;
-            /** Board Actions */
-            board_actions: components["schemas"]["BoardActionV2"][];
-            /** Citations */
-            citations?: components["schemas"]["Citation"][];
-            feedback?: components["schemas"]["ClassroomFeedback"] | null;
-            /**
-             * Phase
-             * @enum {string}
-             */
-            phase: "concept" | "sandbox" | "diagram" | "quiz" | "review";
-            /** Session Id */
-            session_id: string;
-            /** Space Id */
-            space_id: string;
-            /** Topic */
-            topic: string;
-            tutor: components["schemas"]["TutorState"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** ClassroomStartRequest */
-        ClassroomStartRequest: {
-            /** Topic */
-            topic: string;
         };
         /** CompanionTurn */
         CompanionTurn: {
@@ -1385,97 +1164,6 @@ export interface components {
             suggested_actions?: string[];
             usage?: components["schemas"]["UsageRecord"];
         };
-        /** ConceptSection */
-        ConceptSection: {
-            /** Formula */
-            formula?: string | null;
-            /** Heading */
-            heading: string;
-            /** Markdown */
-            markdown: string;
-        };
-        /** ConceptSheetPayload */
-        ConceptSheetPayload: {
-            /** Sections */
-            sections: components["schemas"]["ConceptSection"][];
-        };
-        /** DiagramEdge */
-        DiagramEdge: {
-            /** From Id */
-            from_id: string;
-            /** Label */
-            label?: string | null;
-            /** To Id */
-            to_id: string;
-        };
-        /** DiagramNode */
-        DiagramNode: {
-            /** Id */
-            id: string;
-            /** Label */
-            label: string;
-            /** Question */
-            question: string;
-        };
-        /** FlashcardListResponse */
-        FlashcardListResponse: {
-            /** Items */
-            items: components["schemas"]["FlashcardRecord"][];
-        };
-        /** FlashcardRatingRequest */
-        FlashcardRatingRequest: {
-            /**
-             * Rating
-             * @enum {integer}
-             */
-            rating: 1 | 2 | 3 | 4;
-        };
-        /** FlashcardRecord */
-        FlashcardRecord: {
-            /** Answer */
-            answer: string;
-            /** Citations */
-            citations?: components["schemas"]["Citation"][];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Difficulty */
-            difficulty?: number | null;
-            /** Due At */
-            due_at?: string | null;
-            /** Id */
-            id: string;
-            /**
-             * Lapses
-             * @default 0
-             */
-            lapses: number;
-            /** Prompt */
-            prompt: string;
-            /**
-             * Reps
-             * @default 0
-             */
-            reps: number;
-            /** Source Session Id */
-            source_session_id: string;
-            /** Space Id */
-            space_id: string;
-            /** Stability */
-            stability?: number | null;
-            /**
-             * Status
-             * @enum {string}
-             */
-            status: "proposed" | "active";
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1504,22 +1192,6 @@ export interface components {
              */
             updated_at: string;
         };
-        /** InteractiveDiagramPayload */
-        InteractiveDiagramPayload: {
-            /** Edges */
-            edges?: components["schemas"]["DiagramEdge"][];
-            /** Mermaid */
-            mermaid: string;
-            /** Nodes */
-            nodes: components["schemas"]["DiagramNode"][];
-        };
-        /** LaserFocusPayload */
-        LaserFocusPayload: {
-            /** Target */
-            target: string;
-            /** Target Action Id */
-            target_action_id: string;
-        };
         /**
          * LearningArtifactsStatus
          * @enum {string}
@@ -1529,21 +1201,6 @@ export interface components {
         LegacyKnowledgeImportRequest: {
             /** Document Id */
             document_id: string;
-        };
-        /** LessonScript */
-        LessonScript: {
-            /** Steps */
-            steps: components["schemas"]["LessonStep"][];
-            /** Title */
-            title: string;
-        };
-        /** LessonStep */
-        LessonStep: {
-            board: components["schemas"]["BoardAction"];
-            /** Caption */
-            caption: string;
-            /** Narration */
-            narration: string;
         };
         /** LocalMetricSignalRequest */
         LocalMetricSignalRequest: {
@@ -1741,13 +1398,6 @@ export interface components {
             /** Voice Id */
             voice_id: string;
         };
-        /** QuizOption */
-        QuizOption: {
-            /** Id */
-            id: string;
-            /** Label */
-            label: string;
-        };
         /** RealtimeTicketResponse */
         RealtimeTicketResponse: {
             /**
@@ -1808,40 +1458,12 @@ export interface components {
             prompt?: string | null;
             status?: components["schemas"]["ReviewStatus"] | null;
         };
-        /** SandboxStep */
-        SandboxStep: {
-            /** Active Line */
-            active_line: number;
-            /** Label */
-            label: string;
-            /** Values */
-            values: {
-                [key: string]: string | number;
-            };
-        };
         /** SessionCreateRequest */
         SessionCreateRequest: {
             /** Character Pack Id */
             character_pack_id?: string | null;
             /** Space Id */
             space_id: string;
-        };
-        /** SessionDemoRequest */
-        SessionDemoRequest: {
-            /** Topic */
-            topic: string;
-        };
-        /** SessionDemoResponse */
-        SessionDemoResponse: {
-            /** Citations */
-            citations?: components["schemas"]["Citation"][];
-            script: components["schemas"]["LessonScript"];
-            /** Session Id */
-            session_id: string;
-            /** Topic */
-            topic: string;
-            /** Used Space Materials */
-            used_space_materials: boolean;
         };
         /** SessionRecapUpdateRequest */
         SessionRecapUpdateRequest: {
@@ -1944,24 +1566,6 @@ export interface components {
             materials: components["schemas"]["MaterialResponse"][];
             space: components["schemas"]["StudySpace"];
         };
-        /** StepSandboxPayload */
-        StepSandboxPayload: {
-            /** Code */
-            code: string;
-            /**
-             * Current Step
-             * @default 0
-             */
-            current_step: number;
-            /** Editable Parameters */
-            editable_parameters?: string[];
-            /** Parameters */
-            parameters?: {
-                [key: string]: string | number;
-            };
-            /** Steps */
-            steps: components["schemas"]["SandboxStep"][];
-        };
         /** StudySpace */
         StudySpace: {
             /**
@@ -2031,30 +1635,6 @@ export interface components {
          * @enum {string}
          */
         TurnRole: "user" | "assistant";
-        /** TutorState */
-        TutorState: {
-            /**
-             * Emotion
-             * @default focused
-             * @enum {string}
-             */
-            emotion: "neutral" | "warm" | "cheerful" | "curious" | "focused" | "playful" | "concerned";
-            /**
-             * Gaze Target
-             * @default board
-             */
-            gaze_target: string;
-            /**
-             * Interrupted
-             * @default false
-             */
-            interrupted: boolean;
-            /**
-             * Narration
-             * @default
-             */
-            narration: string;
-        };
         /** UsageRecord */
         UsageRecord: {
             /**
@@ -3369,183 +2949,6 @@ export interface operations {
             };
         };
     };
-    get_classroom_api_v1_sessions__session_id__classroom_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClassroomSnapshot"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    send_classroom_event_api_v1_sessions__session_id__classroom_events_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClassroomEventRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClassroomSnapshot"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    propose_classroom_flashcards_api_v1_sessions__session_id__classroom_flashcards_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlashcardListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    start_classroom_api_v1_sessions__session_id__classroom_start_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClassroomStartRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClassroomSnapshot"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_demo_api_v1_sessions__session_id__demos_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionDemoRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionDemoResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     end_session_api_v1_sessions__session_id__end_post: {
         parameters: {
             query?: never;
@@ -4017,113 +3420,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_classroom_flashcards_api_v1_spaces__space_id__classroom_flashcards_get: {
-        parameters: {
-            query?: {
-                status_filter?: ("proposed" | "active" | "due") | null;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlashcardListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    confirm_classroom_flashcard_api_v1_spaces__space_id__classroom_flashcards__card_id__confirm_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-                card_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlashcardRecord"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rate_classroom_flashcard_api_v1_spaces__space_id__classroom_flashcards__card_id__rate_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-                card_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FlashcardRatingRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlashcardRecord"];
-                };
             };
             /** @description Validation Error */
             422: {

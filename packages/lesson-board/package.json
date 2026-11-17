@@ -3,10 +3,9 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "exports": "./board.tsx",
+  "exports": "./math.tsx",
   "dependencies": {
-    "katex": "0.19.1",
-    "@companion-space/api-client": "*"
+    "katex": "0.19.1"
   },
   "peerDependencies": {
     "react": "^19.1.0"

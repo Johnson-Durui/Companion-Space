@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 from contextlib import suppress
 from urllib.parse import urlsplit
 
@@ -50,11 +49,6 @@ router = APIRouter()
 
 REALTIME_PROTOCOL = "companion-v1"
 REALTIME_TICKET_PREFIX = "ticket."
-DEMO_REQUEST_PATTERN = re.compile(r"(演示一下|演示下|demo)", re.IGNORECASE)
-DEMO_TOPIC_PREFIX_PATTERN = re.compile(
-    r"^\s*(请|麻烦|帮我)?\s*(演示一下|演示下|demo)\s*[:：,， ]*\s*",
-    re.IGNORECASE,
-)
 
 
 def _origin_allowed(
@@ -87,27 +81,6 @@ def _extract_realtime_ticket(protocol_header: str | None) -> str | None:
         return None
     ticket = ticket_protocol[len(REALTIME_TICKET_PREFIX) :].strip()
     return ticket or None
-
-
-def _is_demo_request(text: str) -> bool:
-    return bool(DEMO_REQUEST_PATTERN.search(text))
-
-
-def _derive_demo_topic(
-    *,
-    text: str,
-    user_history: list[str],
-    fallback_topic: str,
-) -> str:
-    stripped = DEMO_TOPIC_PREFIX_PATTERN.sub("", text).strip("：:，, 。.!?？")
-    if stripped:
-        return stripped
-    for item in reversed(user_history):
-        candidate = item.strip()
-        if candidate and candidate != text.strip():
-            return candidate[:240]
-    fallback = fallback_topic.strip()
-    return (fallback or "当前学习主题")[:240]
 
 
 def _serialize_companion_event(
@@ -503,46 +476,6 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                     generation=generation,
                 )
 
-    async def run_demo(
-        *,
-        generation: int,
-        topic: str,
-    ) -> None:
-        try:
-            transition_state(SessionState.thinking, code="demo_started")
-            demo = await container.demos.create_demo(
-                session_id=session_id,
-                topic=topic,
-            )
-            if not runtime.is_generation_current(generation):
-                return
-            transition_state(SessionState.idle, code="demo_completed")
-            await send_json_event(
-                _realtime_event(
-                    session_id,
-                    event_type="demo.ready",
-                    state=SessionState.idle,
-                    payload=demo,
-                ),
-                generation=generation,
-            )
-        except asyncio.CancelledError:
-            raise
-        except ProviderError as error:
-            record_provider_failure(
-                error,
-                capability=ProviderCapability.analysis_llm,
-            )
-            if runtime.is_generation_current(generation):
-                transition_state(
-                    SessionState.error,
-                    code="demo_provider_error",
-                )
-                await send_json_event(
-                    _serialize_provider_error_event(session_id, error),
-                    generation=generation,
-                )
-
     async def run_commit(
         *,
         generation: int,
@@ -574,22 +507,6 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                 ),
                 generation=generation,
             ):
-                return
-
-            if _is_demo_request(resolved_text):
-                space = container.spaces.require_space(session.space_id)
-                await run_demo(
-                    generation=generation,
-                    topic=_derive_demo_topic(
-                        text=resolved_text,
-                        user_history=[
-                            turn.display_text
-                            for turn in container.repository.list_turns(session_id)
-                            if turn.role.value == "user"
-                        ],
-                        fallback_topic=space.topic or space.goal,
-                    ),
-                )
                 return
 
             await run_turn(

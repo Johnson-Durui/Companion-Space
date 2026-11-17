@@ -21,56 +21,22 @@ class MockLLMProvider(LLMProvider):
         _ = system_prompt
         _ = history
 
-        if model == "mock-analysis-v1":
-            request_prefix = "请围绕这个主题输出完整的分步演示脚本："
-            demo_topic = user_message.removeprefix(request_prefix).strip() or "当前主题"
-            payload = {
-                "title": f"{demo_topic[:100]} · 分步演示",
-                "steps": [
-                    {
-                        "board": {
-                            "kind": "markdown",
-                            "content": "1. 明确问题\n2. 拆出关键变量\n3. 先看整体结构",
-                        },
-                        "caption": "先把问题拆成三块。",
-                        "narration": "第一步先把题目里的目标、条件和对象拆开，这样后面的推导就不会乱。",
-                    },
-                    {
-                        "board": {
-                            "kind": "mermaid",
-                            "content": "flowchart LR\nA[已知条件] --> B[关键关系]\nB --> C[结论]",
-                        },
-                        "caption": "把关系连成一条因果链。",
-                        "narration": "第二步把条件之间的关系串起来，确定是哪一个条件推动了下一步。",
-                    },
-                    {
-                        "board": {
-                            "kind": "highlight",
-                            "content": "这里决定最终结论。",
-                            "target": "关键关系",
-                        },
-                        "caption": "最后标出真正决定结果的部分。",
-                        "narration": "第三步只抓住最关键的连接点，再回头解释为什么它会导向最终答案。",
-                    },
-                ],
-            }
-        else:
-            payload = {
-                "display_text": (
-                    "欢迎来到本地演示。我们可以先整理资料、试试板书，再回顾这段学习。"
-                    "此回复为预设内容；在「声音与模型」接入模型后，就能围绕你的问题自由对话。"
-                ),
-                "spoken_text": "欢迎来到本地演示。我们可以先整理资料、试试板书，再回顾这段学习。这是一条预设回复。",
-                "emotion": "playful",
-                "suggested_actions": ["继续追问", "换一个角色", "开始复盘"],
-            }
-            if any(keyword in user_message.lower() for keyword in ("画", "图", "board", "白板")):
-                payload["board_actions"] = [
-                    {
-                        "kind": "markdown",
-                        "content": "- 关键概念\n- 因果关系\n- 下一步问题",
-                    }
-                ]
+        payload = {
+            "display_text": (
+                "欢迎来到本地演示。我们可以先整理资料、试试板书，再回顾这段学习。"
+                "此回复为预设内容；在「声音与模型」接入模型后，就能围绕你的问题自由对话。"
+            ),
+            "spoken_text": "欢迎来到本地演示。我们可以先整理资料、试试板书，再回顾这段学习。这是一条预设回复。",
+            "emotion": "playful",
+            "suggested_actions": ["继续追问", "换一个角色", "开始复盘"],
+        }
+        if any(keyword in user_message.lower() for keyword in ("画", "图", "board", "白板")):
+            payload["board_actions"] = [
+                {
+                    "kind": "markdown",
+                    "content": "- 关键概念\n- 因果关系\n- 下一步问题",
+                }
+            ]
         raw_text = json.dumps(payload, ensure_ascii=False)
         split_points = (19, 47, len(raw_text))
         offset = 0
