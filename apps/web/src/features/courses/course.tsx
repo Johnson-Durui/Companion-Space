@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
-import { publicMessage } from "../../app/api";
+import { Link, useNavigate, useParams } from "react-router";
+import { api, bodyOf, publicMessage } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
 import {
@@ -191,11 +191,18 @@ function ExamItems({ items }: { items: ExamItem[] }) {
 }
 
 function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { courseId: string; point: KnowledgePoint; allPoints: KnowledgePoint[]; onChanged: () => void }) {
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [source, setSource] = useState(point.source_refs[0]);
   const [examOpen, setExamOpen] = useState(false);
   const exams = useQuery({ queryKey: courseKeys.exams(courseId, point.id), queryFn: () => listExamItems(courseId, point.id), enabled: examOpen });
   const revise = useMutation({ mutationFn: (body: Parameters<typeof updateKnowledgePoint>[2]) => updateKnowledgePoint(courseId, point.id, body), onSuccess: () => { setEditing(false); onChanged(); } });
+  const lesson = useMutation({
+    mutationFn: async () => bodyOf(await api.POST("/api/v2/courses/{course_id}/lessons", {
+      params: { path: { course_id: courseId } }, body: { kp_id: point.id },
+    })),
+    onSuccess: (result) => navigate(`/lessons/${result.id}`),
+  });
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -206,6 +213,12 @@ function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { cours
       <div className="kp-heading"><div><span className="kp-kind">{t.courses.kinds[point.kind as keyof typeof t.courses.kinds] ?? point.kind}</span><h3>{point.name}</h3></div><button className="button quiet revise-button" onClick={() => setEditing((value) => !value)}>{t.courses.revise}</button></div>
       {point.assumed ? <div className="notice"><p>{t.courses.assumed}</p></div> : null}
       <p>{point.summary}</p>
+      <div className="actions">
+        <button className="button primary" disabled={lesson.isPending} onClick={() => lesson.mutate()}>
+          {lesson.isPending ? t.classroom.preparing : t.classroom.openLesson}
+        </button>
+      </div>
+      {lesson.isError ? <Problem error={lesson.error} /> : null}
       {point.formula ? <pre className="formula">{point.formula}</pre> : null}
       <dl className="kp-stats">
         <div><dt>{t.courses.importance}</dt><dd>{t.courses.importanceValue[point.importance]}</dd></div>

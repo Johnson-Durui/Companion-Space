@@ -437,6 +437,18 @@ def test_backfill_answer_carries_evidence_and_restores_original_question(plan: d
     assert resumed.ask == original
 
 
+def test_end_clears_open_ask_and_resumes_when_wrapping(plan: dict[str, object]) -> None:
+    state = _state(
+        stage="teaching", active_ask={"kind": "open", "purpose": "probe"},
+        queued=[{"move": "RESUME", "state_patch": {}}],
+    )
+    wrapping = decide(state, {"type": "control", "action": "end"}, {}, plan)
+    assert wrapping.move == "WRAP"
+    assert wrapping.state_patch["active_ask"] is None
+    finished = decide({**state, **wrapping.state_patch}, {"type": "beat_done"}, {}, plan)
+    assert finished.state_patch["stage"] == "done"
+
+
 def test_wrap_is_emitted_once_then_finish_is_idempotent(plan: dict[str, object]) -> None:
     wrapping = decide(_state(stage="teaching", seg_idx=1, items_done={"p1": "correct"}), {"type": "beat_done"}, {}, plan)
     assert wrapping.move == "WRAP"

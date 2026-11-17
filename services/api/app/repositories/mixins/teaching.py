@@ -31,6 +31,48 @@ def _decode(row: sqlite3.Row) -> dict:
 class TeachingMixin:
     """Store lesson plans, resumable snapshots, and their ordered event history."""
 
+    def lesson_course(self, lesson_id: str) -> str | None:
+        with self.connection() as conn:
+            row = conn.execute("SELECT space_id FROM lessons WHERE id = ?", (lesson_id,)).fetchone()
+            return row["space_id"] if row else None
+
+    def create_point_lesson_item(self, space_id: str, kp_id: str, *, minutes: int) -> str | None:
+        with self.connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            point = conn.execute(
+                "SELECT name FROM knowledge_points WHERE space_id = ? AND id = ? AND status = 'active'",
+                (space_id, kp_id),
+            ).fetchone()
+            if point is None:
+                return None
+            ids = _encode([kp_id])
+            item = conn.execute(
+                """SELECT plan_items.id FROM plan_items JOIN study_plans ON study_plans.id = plan_items.plan_id
+                   WHERE plan_items.space_id = ? AND study_plans.status = 'on_demand'
+                     AND kind = 'lesson' AND kp_ids_json = ? AND plan_items.status != 'abandoned'
+                   ORDER BY plan_items.ord DESC LIMIT 1""",
+                (space_id, ids),
+            ).fetchone()
+            if item:
+                return item["id"]
+            plan = conn.execute(
+                "SELECT id FROM study_plans WHERE space_id = ? AND status = 'on_demand'", (space_id,),
+            ).fetchone()
+            plan_id = plan["id"] if plan else str(uuid4())
+            if plan is None:
+                conn.execute(
+                    "INSERT INTO study_plans(id, space_id, version, status, created_at) VALUES (?, ?, 1, 'on_demand', ?)",
+                    (plan_id, space_id, utcnow().isoformat()),
+                )
+            item_id = str(uuid4())
+            conn.execute(
+                """INSERT INTO plan_items(id, plan_id, space_id, ord, kind, title, kp_ids_json, est_minutes)
+                   SELECT ?, ?, ?, COALESCE(MAX(ord), 0) + 1, 'lesson', ?, ?, ?
+                   FROM plan_items WHERE space_id = ? AND plan_id = ?""",
+                (item_id, plan_id, space_id, point["name"], ids, minutes, space_id, plan_id),
+            )
+            return item_id
+
     def get_plan_item(self, space_id: str, plan_item_id: str) -> dict | None:
         with self.connection() as conn:
             row = conn.execute(

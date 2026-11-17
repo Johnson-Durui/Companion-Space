@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from time import time_ns
 
 from app.analysis.retrieval import retrieve_for_kp
@@ -10,6 +11,7 @@ from app.services.tutor_catalog import TutorCatalog
 from app.teaching.director import Director
 from app.teaching.evidence import OBJECTIVE_TYPES
 from app.teaching.finish import finish_lesson
+from app.teaching.lsp_parser import LspEvent
 from app.teaching.realizer import Realizer
 from app.teaching.speech_text import clean_speech
 from app.teaching.understanding import InvalidAnswer, grade_objective, understand
@@ -54,7 +56,10 @@ class LessonRuntime:
         self.lesson_id = lesson_id
         self.realizer = Realizer(gateway)
 
-    async def step(self, event: dict, *, elapsed_ms: int = 0) -> list[dict]:
+    async def step(
+        self, event: dict, *, elapsed_ms: int = 0, split_speech: Callable[[str], list[str]] | None = None,
+        on_say: Callable[[int, str], Awaitable[None]] | None = None,
+    ) -> list[dict]:
         lesson = await asyncio.to_thread(self.repository.get_lesson, self.space_id, self.lesson_id)
         if lesson is None:
             raise ValueError("Lesson was not found in this course")
@@ -75,6 +80,17 @@ class LessonRuntime:
         if event["type"] == "time_up":
             state["time_up_sent"] = True
         board = lesson["board"] or {}
+        if event["type"] == "interrupt" and type(event.get("heard_seq")) is int:
+            history = await asyncio.to_thread(self.repository.list_lesson_events, self.space_id, self.lesson_id)
+            heard = {
+                row["gen"]: row["data"]["heard_seq"] for row in history
+                if row["type"] == "beat.cancelled" and type(row["data"].get("heard_seq")) is int
+            }
+            heard[lesson["gen"]] = event["heard_seq"]
+            board = {}
+            for row in history:
+                if row["type"] == "board" and row["seq"] <= heard.get(row["gen"], lesson["seq"]):
+                    validate_board(LspEvent(row["type"], row["data"]), board)
         ask = state.get("active_ask")
         item = _item_for_ask(ask, plan)
         if event["type"] == "control" and event.get("action") == "resume":
@@ -90,8 +106,13 @@ class LessonRuntime:
                 self.repository.list_lesson_events, self.space_id, self.lesson_id, after=state["playback_after_seq"],
             )
             appended = await self._commit(lesson, lesson["gen"], [], state, board, status="active")
-            return [row for row in replay if row["gen"] == lesson["gen"] and row["type"] != "state"] + appended
+            return [
+                {**row, "data": {**row["data"], "paused": False}} if row["type"] == "state" else row
+                for row in replay if row["gen"] == lesson["gen"]
+            ] + appended
         event = await self._understand(event, state, ask, item, plan)
+        if event["type"] == "prefill":
+            return [event]
         if event["type"] == "control" and event.get("action") == "pause":
             return await self._commit(lesson, lesson["gen"], [], state, board, status="paused")
         learner = await asyncio.to_thread(self._learner)
@@ -110,6 +131,16 @@ class LessonRuntime:
         def add(event_type: str, data: dict) -> None:
             events.append({"type": event_type, "data": data, "t_ms": time_ns() // 1_000_000})
 
+        spoken = 0
+
+        async def say(data: dict) -> None:
+            nonlocal spoken
+            for text in split_speech(data["text"]) if split_speech else (data["text"],):
+                spoken += 1
+                add("say", {**data, "text": text, "seg": spoken})
+                if on_say is not None:
+                    await on_say(spoken, text)
+
         stale = decision.args.get("judge")
         if stale:
             add("judge", stale)
@@ -121,13 +152,11 @@ class LessonRuntime:
         if decision.move:
             add("beat.start", {"move": decision.move, "ask_after": bool(decision.ask)})
             context = await asyncio.to_thread(self._context, lesson, plan, next_state, decision.args)
-            spoken = 0
             async for generated in self.realizer.run(
                 decision, context=context, board=board, item=decision_item or outbound_item or item,
             ):
                 if generated.type == "say":
-                    spoken += 1
-                    add("say", {**generated.data, "seg": spoken})
+                    await say(generated.data)
                 elif validate_board(generated, board):
                     add(generated.type, generated.data)
             if not spoken:
@@ -135,7 +164,7 @@ class LessonRuntime:
             if outbound_item and decision.move in _INTRO:
                 stem = clean_speech(outbound_item.get("stem_spoken") or outbound_item["stem"])
                 if stem:
-                    add("say", {"text": stem, "emotion": "neutral", "seg": spoken + 1})
+                    await say({"text": stem, "emotion": "neutral"})
             if decision.move == "SHOW_SOLUTION" and decision_item:
                 add("judge", {"item_id": decision.args["item_id"], "correct_answer": decision_item["answer"]})
             if decision.ask:
@@ -148,7 +177,7 @@ class LessonRuntime:
         if decision.move:
             add("beat.end", {"ask": bool(decision.ask)})
         if event["type"] == "interrupt":
-            add("beat.cancelled", {"gen": gen, "reason": "student"})
+            add("beat.cancelled", {"gen": gen, "reason": "student", "heard_seq": event.get("heard_seq", 0)})
 
         observation = None
         proof = decision.args.get("evidence")
@@ -175,12 +204,17 @@ class LessonRuntime:
             "data": {"stage": state.get("stage"), "seg_idx": state.get("seg_idx", 0), "paused": status == "paused"},
             "t_ms": time_ns() // 1_000_000,
         })
-        recorded = await asyncio.to_thread(
+        writing = asyncio.create_task(asyncio.to_thread(
             self.repository.append_lesson_events,
             self.space_id, self.lesson_id, gen=gen, events=events, state=state, board=board, status=status,
             expected_seq=lesson["seq"], observation=observation, recap=recap,
             carry_over=state.get("carry_over"), cards=cards,
-        )
+        ))
+        try:
+            recorded = await asyncio.shield(writing)
+        except asyncio.CancelledError:
+            await writing
+            raise
         if recorded is None:
             raise ValueError("Lesson was removed while preparing this turn")
         return recorded
@@ -201,6 +235,9 @@ class LessonRuntime:
                 return {"type": "quick_action", "kind": f"style:{result.get('style_id', '')}"}
             if intent == "stop":
                 return {"type": "control", "action": "pause"}
+            if event.get("prefill") and intent == "answer" and item and item["type"] in OBJECTIVE_TYPES:
+                return {"type": "prefill", "data": {"item_id": ask["item_id"], "value": result["value"],
+                                                     "via": event.get("via", "text")}}
             return {**event, "intent": "question" if intent == "answer" else intent}
         if event["type"] != "student_answer" or not item or event.get("item_id") != ask.get("item_id"):
             return event

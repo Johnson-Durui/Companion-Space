@@ -38,6 +38,8 @@ class ServiceContainer:
     gateway: LLMGateway
     jobs: JobRunner
     settings_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    preparing_lessons: set[str] = field(default_factory=set)
+    live_lessons: set[str] = field(default_factory=set)
 
     async def aclose(self) -> None:
         try:

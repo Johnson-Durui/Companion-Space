@@ -12,6 +12,8 @@ _ITEM_SILENCE_MS = {
     "short": 60_000,
     "steps": 90_000,
     "explain": 90_000,
+    "proof": 90_000,
+    "essay": 90_000,
 }
 _OPEN_ASK_KINDS = frozenset({"open", "summary", "ack"})
 _ACTIVE_STAGES = frozenset({"opening", "teaching", "practice"})

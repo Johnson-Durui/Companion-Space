@@ -3,9 +3,53 @@
 import re
 
 from app.llm.gateway import LLMGateway
+from app.repositories.mixins.common import utcnow
 from app.providers.errors import MissingRoleError
 from app.services.provider_registry import RoleTestResult
 from app.voice.tts.edge import EdgeUnavailableError
+
+
+def seed_classroom(container):
+    from test_teaching_storage import _seed_plan
+
+    repository = container.repository
+    now = utcnow().isoformat()
+    with repository.connection() as connection:
+        _seed_plan(connection, "browser-course", "browser-lesson-item")
+        connection.execute(
+            """INSERT INTO knowledge_points(id, space_id, name, norm_name, kind, summary, importance,
+                                            difficulty, ord, created_at, updated_at)
+               VALUES ('kp1', 'browser-course', '关系判断', 'relation', 'concept', '关系判断', 'core', 1, 1, ?, ?)""",
+            (now, now),
+        )
+        connection.execute(
+            """INSERT INTO item_bank(id, space_id, kp_id, origin, purpose, type, item_json, verify_status, created_at)
+               VALUES ('browser-item', 'browser-course', 'kp1', 'generated', 'check', 'choice', '{}', 'verified', ?)""",
+            (now,),
+        )
+    teacher = next(character for character in container.tutors.list_characters() if character.appearance.kind == "portrait")
+    plan = {
+        "title": "关系判断", "est_minutes": 10,
+        "segments": [{
+            "id": "seg1", "kp_id": "kp1", "keypoints": ["先确认条件"], "checks": ["q1"],
+            "approaches": [{"kind": "visual", "keypoint": "all", "outline": "先写条件"}],
+        }],
+        "items": {
+            "q1": {
+                "type": "choice", "kp_id": "kp1", "bank_id": "browser-item", "keypoints": [0],
+                "stem": "如果条件成立，应选择哪一项？", "answer": "A", "verify": {"status": "verified"},
+                "options": [{"key": "A", "text": "按条件推导"}, {"key": "B", "text": "忽略条件"}],
+            },
+        },
+    }
+    ready = repository.save_lesson_plan("browser-course", "browser-lesson-item", plan=plan)
+    lesson = repository.create_or_resume_lesson(
+        "browser-course", "browser-lesson-item", lesson_plan_id=ready["id"],
+        state={"stage": "opening"}, character_id=teacher.id,
+    )
+    with repository.connection() as connection:
+        connection.execute("UPDATE lessons SET id = 'browser-lesson' WHERE id = ?", (lesson["id"],))
+        connection.execute("UPDATE plan_items SET lesson_id = 'browser-lesson' WHERE id = 'browser-lesson-item'")
 
 
 class BrowserHarnessGateway(LLMGateway):
@@ -40,11 +84,16 @@ class BrowserHarnessGateway(LLMGateway):
             raw = ""
         elif prompt_name == "analysis/course_brief":
             raw = "<brief><summary>资料已整理为可核对的知识地图与真题索引。</summary><top_point>条件关系</top_point></brief>"
+        elif prompt_name == "analysis/lesson_recap":
+            raw = "<recap>本节课复习了如何从条件出发。</recap>"
         else:
             raise AssertionError(f"Unexpected tagged prompt: {prompt_name}")
         return parse(raw)
 
     async def stream_text(self, role, system, messages, **options):
+        if "recent_board" in str(messages[-1].content):
+            yield "<board type=text>先确认已知条件。</board><say>开始吧。</say>"
+            return
         if role not in self.registry.get_roles():
             raise MissingRoleError(provider="fixture", public_detail="Connect this model role first")
         if role == "vision":

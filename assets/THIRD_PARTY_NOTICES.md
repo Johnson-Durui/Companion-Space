@@ -20,6 +20,14 @@ by their respective license terms. Keep this notice with redistributed copies.
 - Distribution: model weights are downloaded on first use and are not bundled
   with Companion Space release archives.
 
+## Browser voice activity detection
+
+- Bundled dependency: `@ricky0123/vad-web` 0.0.31, including its AudioWorklet and Silero V5 ONNX model.
+- Upstream: [ricky0123/vad](https://github.com/ricky0123/vad)
+- License: ISC.
+- Runtime dependency: `onnxruntime-web` 1.31.1, MIT License.
+- The model, AudioWorklet, and WASM runtime are copied from the pinned packages into the built application so voice detection never loads code or model data from a CDN.
+
 ## py-fsrs
 
 - Bundled dependency: `fsrs` 6.3.2

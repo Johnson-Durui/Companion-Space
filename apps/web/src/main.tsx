@@ -13,6 +13,7 @@ const Settings = lazy(() => import("./features/settings/settings"));
 const Diagnostics = lazy(() => import("./features/settings/diagnostics"));
 const Courses = lazy(() => import("./features/courses/courses"));
 const CourseWorkspace = lazy(() => import("./features/courses/course"));
+const Classroom = lazy(() => import("./features/classroom/classroom"));
 const queries = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000, refetchOnWindowFocus: false } } });
 const navigation = [
   ["/courses", t.app.courses],
@@ -49,6 +50,7 @@ function App() {
               <Route path="/welcome" element={<Welcome />} />
               <Route path="/courses" element={<Courses />} />
               <Route path="/courses/:courseId" element={<CourseWorkspace />} />
+              <Route path="/lessons/:lessonId" element={<Classroom />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/diagnostics" element={<Diagnostics />} />
               <Route path="*" element={<Navigate to="/courses" replace />} />

@@ -315,6 +315,23 @@ export interface paths {
         patch: operations["revise_point_api_v2_courses__course_id__kps__kp_id__patch"];
         trace?: never;
     };
+    "/api/v2/courses/{course_id}/lessons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Prepare Lesson */
+        post: operations["prepare_lesson_api_v2_courses__course_id__lessons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/courses/{course_id}/map": {
         parameters: {
             query?: never;
@@ -414,6 +431,57 @@ export interface paths {
         /** Put Learner Profile */
         put: operations["put_learner_profile_api_v2_learner_profile_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/lessons/{lesson_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Lesson */
+        get: operations["get_lesson_api_v2_lessons__lesson_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/lessons/{lesson_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Events */
+        get: operations["get_events_api_v2_lessons__lesson_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/lessons/{lesson_id}/ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue Ticket */
+        post: operations["issue_ticket_api_v2_lessons__lesson_id__ticket_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -706,6 +774,75 @@ export interface paths {
         };
         /** Get Usage */
         get: operations["get_usage_api_v2_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/voice/microphone-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Microphone Test */
+        post: operations["microphone_test_api_v2_voice_microphone_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/voice/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Voice */
+        post: operations["preview_voice_api_v2_voice_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/voice/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Voice Settings */
+        get: operations["get_voice_settings_api_v2_voice_settings_get"];
+        /** Update Voice Settings */
+        put: operations["update_voice_settings_api_v2_voice_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/voice/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Voice Status */
+        get: operations["get_voice_status_api_v2_voice_status_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1382,6 +1519,58 @@ export interface components {
              */
             preferred_style_id: "guided" | "direct" | "analogy" | "exam" | "rigorous";
         };
+        /** LessonEvent */
+        LessonEvent: {
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+            /** Gen */
+            gen: number;
+            /** Lesson Id */
+            lesson_id: string;
+            /** Seq */
+            seq: number;
+            /** T Ms */
+            t_ms: number;
+            /** Type */
+            type: string;
+        };
+        /** LessonView */
+        LessonView: {
+            /** Course Id */
+            course_id: string;
+            /** Gen */
+            gen: number;
+            /** Id */
+            id: string;
+            /** Playback After Seq */
+            playback_after_seq?: number | null;
+            /** Recap */
+            recap: {
+                [key: string]: unknown;
+            } | null;
+            /** Seq */
+            seq: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "paused" | "done" | "abandoned";
+            teacher: components["schemas"]["Character"] | null;
+            /** Title */
+            title: string;
+        };
+        /** LiveTicket */
+        LiveTicket: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Ticket */
+            ticket: string;
+        };
         /** LocalSessionStatus */
         LocalSessionStatus: {
             /**
@@ -1409,6 +1598,18 @@ export interface components {
             role?: ("textbook" | "slides" | "notes" | "exam" | "exercise" | "syllabus") | null;
             /** Year */
             year?: number | null;
+        };
+        /** MicrophoneTestResult */
+        MicrophoneTestResult: {
+            /** Accepted */
+            accepted: boolean;
+            /** Discard Reason */
+            discard_reason?: ("too_short" | "silence" | "empty" | "echo") | null;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
         };
         /** ModelList */
         ModelList: {
@@ -1451,6 +1652,11 @@ export interface components {
             relationship: string;
             /** Traits */
             traits: string[];
+        };
+        /** PointLessonRequest */
+        PointLessonRequest: {
+            /** Kp Id */
+            kp_id: string;
         };
         /** PointUpdate */
         PointUpdate: {
@@ -1689,6 +1895,89 @@ export interface components {
             rate: number;
             /** Voice Id */
             voice_id: string;
+        };
+        /** VoicePreviewRequest */
+        VoicePreviewRequest: {
+            /** Character Id */
+            character_id: string;
+            /** Text */
+            text?: string | null;
+        };
+        /** VoicePreviewResult */
+        VoicePreviewResult: {
+            /** Audio B64 */
+            audio_b64?: string | null;
+            /** Engine */
+            engine: string;
+            /** Format */
+            format?: ("pcm_s16le" | "mp3") | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "audio" | "browser";
+            /** Sample Rate Hz */
+            sample_rate_hz?: number | null;
+            /** Text */
+            text: string;
+            /** Warning */
+            warning?: string | null;
+        };
+        /** VoiceSetting */
+        VoiceSetting: {
+            /**
+             * Engine
+             * @default edge
+             * @enum {string}
+             */
+            engine: "edge" | "openai_compat" | "elevenlabs" | "local_neural" | "gpt_sovits" | "browser";
+            /**
+             * Model
+             * @default
+             */
+            model: string;
+            /** Options */
+            options?: {
+                [key: string]: string | number | boolean;
+            };
+            /**
+             * Pitch
+             * @default 0
+             */
+            pitch: number;
+            /**
+             * Rate
+             * @default 1
+             */
+            rate: number;
+            /**
+             * Voice Id
+             * @default
+             */
+            voice_id: string;
+        };
+        /** VoiceSettings */
+        VoiceSettings: {
+            /** Characters */
+            characters?: {
+                [key: string]: components["schemas"]["VoiceSetting"];
+            };
+            default?: components["schemas"]["VoiceSetting"];
+        };
+        /** VoiceStatus */
+        VoiceStatus: {
+            /** Input Modes */
+            input_modes: ("push_to_talk" | "hands_free")[];
+            /**
+             * Sample Rate Hz
+             * @default 16000
+             * @constant
+             */
+            sample_rate_hz: 16000;
+            /** Stt Configured */
+            stt_configured: boolean;
+            /** Tts Configured */
+            tts_configured: boolean;
         };
         Weekday: number;
     };
@@ -2623,6 +2912,43 @@ export interface operations {
             };
         };
     };
+    prepare_lesson_api_v2_courses__course_id__lessons_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PointLessonRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     course_map_api_v2_courses__course_id__map_get: {
         parameters: {
             query?: never;
@@ -2925,6 +3251,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LearnerProfile"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lesson_api_v2_lessons__lesson_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_events_api_v2_lessons__lesson_id__events_get: {
+        parameters: {
+            query?: {
+                after?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonEvent"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_ticket_api_v2_lessons__lesson_id__ticket_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveTicket"];
                 };
             };
             /** @description Validation Error */
@@ -3633,6 +4060,170 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsageRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    microphone_test_api_v2_voice_microphone_test_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "content-length"?: number | null;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MicrophoneTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_voice_api_v2_voice_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoicePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoicePreviewResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_voice_settings_api_v2_voice_settings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_voice_settings_api_v2_voice_settings_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_voice_status_api_v2_voice_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceStatus"];
                 };
             };
             /** @description Validation Error */

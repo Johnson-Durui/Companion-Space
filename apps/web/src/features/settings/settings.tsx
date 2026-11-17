@@ -1,12 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { api, bodyOf, charactersKey, fetchCharacters, fetchSettings, settingsKey } from "../../app/api";
+import { api, bodyOf, fetchSettings, settingsKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
-import { VoicePreview } from "../onboarding/voice-preview";
 import { ModelSettings } from "./models";
 import { SecuritySettings } from "./security";
+import { VoiceSettingsPanel } from "./voice-settings";
 
 const sections = [
   ["models", t.settings.models],
@@ -15,27 +15,6 @@ const sections = [
   ["data", t.settings.data],
   ["usage", t.settings.usage],
 ] as const;
-
-function Voices() {
-  const characters = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
-  const defaults = useQuery({ queryKey: settingsKey, queryFn: fetchSettings });
-  const [chosen, choose] = useState("");
-  if (characters.isPending || defaults.isPending) return <Loading />;
-  if (characters.isError) return <Problem error={characters.error} onRetry={() => void characters.refetch()} />;
-  if (defaults.isError) return <Problem error={defaults.error} onRetry={() => void defaults.refetch()} />;
-  const selected = characters.data.find((entry) => entry.id === (chosen || defaults.data.default_character_id)) ?? characters.data[0];
-  if (!selected) return <p className="hint">{t.welcome.empty}</p>;
-  return (
-    <div className="fields">
-      <label>{t.settings.speaker}
-        <select value={selected.id} onChange={(event) => choose(event.target.value)}>
-          {characters.data.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-        </select>
-      </label>
-      <VoicePreview key={selected.id} id={selected.id} />
-    </div>
-  );
-}
 
 function DataSettings() {
   const queries = useQueryClient();
@@ -105,7 +84,7 @@ export default function Settings() {
         </nav>
         <div className="settings-sections">
           <section className="settings-section" id="models" aria-label={t.settings.models}><ModelSettings /></section>
-          <section className="settings-section" id="voice" aria-label={t.settings.voices}><h2>{t.settings.voices}</h2><Voices /></section>
+          <section className="settings-section" id="voice" aria-label={t.settings.voices}><h2>{t.settings.voices}</h2><VoiceSettingsPanel /></section>
           <section className="settings-section" id="security" aria-label={t.security.title}><h2>{t.security.title}</h2><SecuritySettings /></section>
           <section className="settings-section" id="data" aria-label={t.settings.data}><h2>{t.settings.data}</h2><DataSettings /></section>
           <section className="settings-section" id="usage" aria-label={t.settings.usage}><h2>{t.settings.usage}</h2><Usage /></section>

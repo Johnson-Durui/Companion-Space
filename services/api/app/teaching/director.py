@@ -63,7 +63,7 @@ def decide(state: State, event: Event, learner: Mapping[str, Any], plan: LessonP
             return Decision(None, {"finish": current.get("stage") == "done"}, None, {})
         if active_item:
             return Decision(None, {}, deepcopy(active_ask), {"wrap_pending": True})
-        return _move("WRAP", patch={"stage": "wrap", "wrap_pending": False})
+        return _move("WRAP", patch={"stage": "wrap", "wrap_pending": False, "active_ask": None, "queued": []})
 
     action = _quick_action(event)
     if action in {"slower", "faster"} or action.startswith("style:"):
