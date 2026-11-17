@@ -4,15 +4,12 @@ import json
 
 import pytest
 
-from app.api.deps import get_container
-
-
 def _auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_v1_resources_require_an_owner_session(client) -> None:
-    response = client.get("/api/v1/spaces")
+def test_course_resources_require_an_owner_session(client) -> None:
+    response = client.get("/api/v2/courses")
 
     assert response.status_code == 401
     assert "owner session" in response.json()["detail"].lower()
@@ -36,62 +33,59 @@ def test_legacy_routes_are_removed(client, method: str, path: str) -> None:
 def test_space_detail_and_delete_are_scoped(client, owner_token: str) -> None:
     headers = _auth_headers(owner_token)
     created = client.post(
-        "/api/v1/spaces",
+        "/api/v2/courses",
         headers=headers,
-        json={"name": "Disposable", "topic": "scope", "goal": "exercise CRUD"},
+        json={"name": "Disposable", "goal": "exercise CRUD"},
     )
     assert created.status_code == 201
     space_id = created.json()["id"]
 
-    detail = client.get(f"/api/v1/spaces/{space_id}", headers=headers)
+    detail = client.get(f"/api/v2/courses/{space_id}", headers=headers)
     assert detail.status_code == 200
-    assert detail.json()["space"]["id"] == space_id
-    assert detail.json()["materials"] == []
-    assert detail.json()["assignments"] == []
+    assert detail.json()["id"] == space_id
 
-    deleted = client.delete(f"/api/v1/spaces/{space_id}", headers=headers)
+    deleted = client.delete(f"/api/v2/courses/{space_id}", headers=headers)
     assert deleted.status_code == 204
-    assert client.get(f"/api/v1/spaces/{space_id}", headers=headers).status_code == 404
+    assert client.get(f"/api/v2/courses/{space_id}", headers=headers).status_code == 404
 
 
 def test_material_delete_requires_the_parent_space(client, owner_token: str) -> None:
     headers = _auth_headers(owner_token)
     space_a = client.post(
-        "/api/v1/spaces",
+        "/api/v2/courses",
         headers=headers,
-        json={"name": "A", "topic": "", "goal": ""},
+        json={"name": "A", "goal": ""},
     ).json()
     space_b = client.post(
-        "/api/v1/spaces",
+        "/api/v2/courses",
         headers=headers,
-        json={"name": "B", "topic": "", "goal": ""},
+        json={"name": "B", "goal": ""},
     ).json()
     created = client.post(
-        f"/api/v1/spaces/{space_a['id']}/materials/note",
+        f"/api/v2/courses/{space_a['id']}/materials/note",
         headers=headers,
         json={"title": "Scoped note", "content": "This belongs only to space A."},
     )
     assert created.status_code == 201
-    material = created.json()["material"]
-    get_container().spaces.wait_for_ingestion(created.json()["job"]["id"], timeout_seconds=2.0)
+    material = created.json()
 
     wrong_space = client.delete(
-        f"/api/v1/spaces/{space_b['id']}/materials/{material['id']}",
+        f"/api/v2/courses/{space_b['id']}/materials/{material['id']}",
         headers=headers,
     )
     assert wrong_space.status_code == 404
     assert client.get(
-        f"/api/v1/spaces/{space_a['id']}/materials",
+        f"/api/v2/courses/{space_a['id']}/materials",
         headers=headers,
     ).json()
 
     deleted = client.delete(
-        f"/api/v1/spaces/{space_a['id']}/materials/{material['id']}",
+        f"/api/v2/courses/{space_a['id']}/materials/{material['id']}",
         headers=headers,
     )
     assert deleted.status_code == 204
     assert client.get(
-        f"/api/v1/spaces/{space_a['id']}/materials",
+        f"/api/v2/courses/{space_a['id']}/materials",
         headers=headers,
     ).json() == []
 

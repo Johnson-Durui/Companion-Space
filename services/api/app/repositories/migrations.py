@@ -4,7 +4,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CURRENT_SCHEMA_VERSION = 6
+CURRENT_SCHEMA_VERSION = 7
 
 
 @dataclass(frozen=True)
@@ -153,12 +153,126 @@ def migrate_v5_to_v6(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA user_version = 6")
 
 
+def migrate_v6_to_v7(conn: sqlite3.Connection) -> None:
+    _execute(conn, (
+        "ALTER TABLE study_spaces ADD COLUMN brief_json TEXT",
+        "ALTER TABLE materials ADD COLUMN role TEXT NOT NULL DEFAULT 'textbook'",
+        "UPDATE materials SET role = 'notes' WHERE kind = 'note'",
+        "ALTER TABLE materials ADD COLUMN meta_json TEXT",
+        "ALTER TABLE materials ADD COLUMN parse_status TEXT NOT NULL DEFAULT 'pending'",
+        "ALTER TABLE chunks ADD COLUMN section_id TEXT",
+        "ALTER TABLE chunks ADD COLUMN page_no INTEGER",
+        "ALTER TABLE chunks ADD COLUMN embedding BLOB",
+        "ALTER TABLE chunks ADD COLUMN embedding_model TEXT",
+        """CREATE TABLE material_pages (
+            material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+            page_no INTEGER NOT NULL, space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            markdown TEXT NOT NULL, source TEXT NOT NULL, quality REAL NOT NULL DEFAULT 1,
+            image_path TEXT, PRIMARY KEY (material_id, page_no)
+        )""",
+        """CREATE TABLE material_sections (
+            id TEXT PRIMARY KEY, material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+            space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            parent_id TEXT REFERENCES material_sections(id) ON DELETE CASCADE,
+            level INTEGER NOT NULL, title TEXT NOT NULL, page_start INTEGER NOT NULL,
+            page_end INTEGER NOT NULL, ord INTEGER NOT NULL
+        )""",
+        """CREATE TABLE units (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            title TEXT NOT NULL, ord INTEGER NOT NULL
+        )""",
+        """CREATE TABLE knowledge_points (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            unit_id TEXT REFERENCES units(id) ON DELETE SET NULL, name TEXT NOT NULL, norm_name TEXT NOT NULL,
+            kind TEXT NOT NULL, summary TEXT NOT NULL, must_know_json TEXT, formula TEXT,
+            pitfalls_json TEXT, question_types_json TEXT, importance TEXT NOT NULL, difficulty INTEGER NOT NULL,
+            assumed INTEGER NOT NULL DEFAULT 0, ord INTEGER NOT NULL, source_refs_json TEXT,
+            locked_fields_json TEXT, status TEXT NOT NULL DEFAULT 'active', merged_into TEXT,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE kp_edges (
+            space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            from_kp TEXT NOT NULL REFERENCES knowledge_points(id) ON DELETE CASCADE,
+            to_kp TEXT NOT NULL REFERENCES knowledge_points(id) ON DELETE CASCADE,
+            source TEXT NOT NULL, PRIMARY KEY (from_kp, to_kp)
+        )""",
+        """CREATE TABLE exam_papers (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            material_id TEXT NOT NULL UNIQUE REFERENCES materials(id) ON DELETE CASCADE,
+            name TEXT, year INTEGER, term TEXT, full_score REAL, reserved_for_mock INTEGER NOT NULL DEFAULT 0
+        )""",
+        """CREATE TABLE exam_items (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            paper_id TEXT REFERENCES exam_papers(id) ON DELETE CASCADE,
+            material_id TEXT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+            parent_item_id TEXT REFERENCES exam_items(id) ON DELETE CASCADE, no TEXT,
+            type TEXT NOT NULL, stem TEXT NOT NULL, options_json TEXT, answer TEXT, solution TEXT,
+            score REAL, difficulty INTEGER, answer_status TEXT NOT NULL, page_refs_json TEXT,
+            created_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE item_kp (
+            item_id TEXT NOT NULL REFERENCES exam_items(id) ON DELETE CASCADE,
+            kp_id TEXT NOT NULL REFERENCES knowledge_points(id) ON DELETE CASCADE,
+            confidence TEXT NOT NULL, PRIMARY KEY (item_id, kp_id)
+        )""",
+        """CREATE TABLE kp_exam_stats (
+            kp_id TEXT PRIMARY KEY REFERENCES knowledge_points(id) ON DELETE CASCADE,
+            space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            n_items INTEGER NOT NULL, score_share REAL NOT NULL, recency_weight REAL NOT NULL,
+            trend TEXT NOT NULL, types_json TEXT, novel_json TEXT, weight REAL NOT NULL, updated_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE item_bank (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            kp_id TEXT NOT NULL REFERENCES knowledge_points(id) ON DELETE CASCADE,
+            origin TEXT NOT NULL, exam_item_id TEXT REFERENCES exam_items(id) ON DELETE CASCADE,
+            purpose TEXT NOT NULL, type TEXT NOT NULL, difficulty INTEGER, variant_of TEXT,
+            item_json TEXT NOT NULL, verify_status TEXT NOT NULL, reserved INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX idx_kps_space ON knowledge_points(space_id, status, ord)",
+        "CREATE INDEX idx_units_space ON units(space_id, ord)",
+        "CREATE INDEX idx_exam_items_space ON exam_items(space_id, paper_id)",
+        "CREATE INDEX idx_item_kp_kp ON item_kp(kp_id)",
+        "CREATE INDEX idx_item_bank_space ON item_bank(space_id, kp_id, purpose, reserved)",
+        "CREATE INDEX idx_sections_material ON material_sections(material_id, ord)",
+        "CREATE INDEX idx_chunk_page ON chunks(space_id, material_id, page_no)",
+        """INSERT INTO jobs(id, space_id, material_id, kind, status, created_at, updated_at)
+           SELECT id, space_id, material_id, 'parse', 'queued', created_at, updated_at
+           FROM ingestion_jobs WHERE status IN ('queued', 'processing')""",
+        "DROP TABLE ingestion_jobs",
+        "DROP TRIGGER IF EXISTS chunks_fts_after_insert",
+        "DROP TRIGGER IF EXISTS chunks_fts_after_update",
+        "DROP TRIGGER IF EXISTS chunks_fts_after_delete",
+        "DROP TABLE IF EXISTS chunks_fts",
+        """CREATE VIRTUAL TABLE chunks_fts USING fts5(
+            chunk_id UNINDEXED, space_id UNINDEXED, material_id UNINDEXED,
+            title, locator, search_terms, content, tokenize='trigram'
+        )""",
+        """CREATE TRIGGER chunks_fts_after_insert AFTER INSERT ON chunks BEGIN
+            INSERT INTO chunks_fts VALUES (new.id, new.space_id, new.material_id, new.title,
+                new.locator, new.sparse_terms, new.content);
+        END""",
+        """CREATE TRIGGER chunks_fts_after_update AFTER UPDATE ON chunks BEGIN
+            DELETE FROM chunks_fts WHERE chunk_id = old.id;
+            INSERT INTO chunks_fts VALUES (new.id, new.space_id, new.material_id, new.title,
+                new.locator, new.sparse_terms, new.content);
+        END""",
+        """CREATE TRIGGER chunks_fts_after_delete AFTER DELETE ON chunks BEGIN
+            DELETE FROM chunks_fts WHERE chunk_id = old.id;
+        END""",
+        """INSERT INTO chunks_fts SELECT id, space_id, material_id, title, locator,
+            sparse_terms, content FROM chunks""",
+    ))
+    conn.execute("PRAGMA user_version = 7")
+
+
 MIGRATIONS = (
     Migration(1, 2, migrate_v1_to_v2),
     Migration(2, 3, migrate_v2_to_v3),
     Migration(3, 4, migrate_v3_to_v4),
     Migration(4, 5, migrate_v4_to_v5),
     Migration(5, 6, migrate_v5_to_v6),
+    Migration(6, 7, migrate_v6_to_v7),
 )
 
 

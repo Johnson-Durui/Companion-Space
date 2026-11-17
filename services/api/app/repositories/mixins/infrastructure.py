@@ -17,7 +17,6 @@ from app.models.domain import (
     CharacterPack,
     Chunk,
     CompanionTurn,
-    IngestionJob,
     LearningArtifactsStatus,
     Material,
     MaterialKind,

@@ -48,7 +48,7 @@ def _schema(path: Path) -> list[tuple]:
         ).fetchall()
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 4, 5])
+@pytest.mark.parametrize("version", [1, 2, 3, 4, 5, 6])
 def test_can_upgrade_from_each_published_schema_and_reopen(tmp_path: Path, version: int) -> None:
     settings = _settings(tmp_path)
     _build_old_database(settings.metadata_db_path, version=version)
@@ -95,6 +95,34 @@ def test_v5_and_fresh_schema_match_and_migration_drops_old_mobile_auth(tmp_path:
     assert upgraded.get_owner_session("existing-browser-token") is not None
     fresh = SQLiteRepository(_settings(tmp_path / "fresh"))
     assert _schema(upgraded.settings.metadata_db_path) == _schema(fresh.settings.metadata_db_path)
+
+
+def test_v7_keeps_in_progress_ingestion_and_original_material_metadata(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    _build_old_database(settings.metadata_db_path, version=6)
+    now = "2026-11-17T00:00:00+00:00"
+    with closing(sqlite3.connect(settings.metadata_db_path)) as conn, conn:
+        conn.execute(
+            "INSERT INTO study_spaces(id, name, topic, goal, created_at, updated_at) VALUES ('s', 'Course', '', '', ?, ?)",
+            (now, now),
+        )
+        conn.execute(
+            """INSERT INTO materials(id, space_id, title, kind, filename, storage_path, created_at, updated_at)
+               VALUES ('m', 's', 'My note', 'note', 'note.md', 'spaces/s/materials/m.md', ?, ?)""",
+            (now, now),
+        )
+        conn.execute(
+            """INSERT INTO ingestion_jobs(id, space_id, material_id, status, created_at, updated_at)
+               VALUES ('j', 's', 'm', 'processing', ?, ?)""",
+            (now, now),
+        )
+    repository = SQLiteRepository(settings)
+    with repository.connection() as conn:
+        material = conn.execute("SELECT filename, storage_path, role, parse_status FROM materials").fetchone()
+        assert tuple(material) == ("note.md", "spaces/s/materials/m.md", "notes", "pending")
+        job = conn.execute("SELECT id, space_id, material_id, kind, status FROM jobs").fetchone()
+        assert tuple(job) == ("j", "s", "m", "parse", "queued")
+        assert not conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'ingestion_jobs'").fetchone()
 
 
 def test_backup_includes_committed_wal_and_is_never_replaced(tmp_path: Path) -> None:

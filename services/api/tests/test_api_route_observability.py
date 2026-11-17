@@ -39,9 +39,9 @@ def test_voice_preview_timeout_returns_gateway_timeout(
 ) -> None:
     headers = _auth_headers(owner_token)
     space = client.post(
-        "/api/v1/spaces",
+        "/api/v2/courses",
         headers=headers,
-        json={"name": "Observability Space", "topic": "", "goal": ""},
+        json={"name": "Observability Space", "goal": ""},
     )
     character = client.post(
         "/api/v1/characters",

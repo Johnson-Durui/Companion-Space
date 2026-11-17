@@ -52,6 +52,10 @@ ReportProgress = Callable[[JobProgress], Awaitable[None]]
 JobHandler = Callable[[Job, ReportProgress], Awaitable[None]]
 
 
+class JobFailure(Exception):
+    """A safe, actionable failure message intended for the owner."""
+
+
 def _job(row) -> Job:
     record = dict(row)
     record["payload"] = json.loads(record.pop("payload_json") or "{}")
@@ -61,6 +65,16 @@ def _job(row) -> Job:
 def get_job(repository: SQLiteRepository, job_id: str) -> Job | None:
     with repository.connection() as conn:
         row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    return _job(row) if row is not None else None
+
+
+def latest_analysis_job(repository: SQLiteRepository, space_id: str) -> Job | None:
+    with repository.connection() as conn:
+        row = conn.execute(
+            """SELECT * FROM jobs WHERE space_id = ? AND kind = 'parse' AND material_id IS NULL
+               ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+            (space_id,),
+        ).fetchone()
     return _job(row) if row is not None else None
 
 
@@ -126,6 +140,37 @@ class JobRunner:
             self._enqueue(job.id)
         return job
 
+    async def retry_analysis(self, job_id: str, space_id: str, stage: str) -> Job | None:
+        def retry():
+            with self.repository.connection() as conn:
+                row = conn.execute(
+                    """UPDATE jobs SET status = 'queued', error = NULL, updated_at = ?
+                       WHERE id = ? AND space_id = ? AND stage = ? AND status = 'failed'
+                       RETURNING *""",
+                    (_to_db(utcnow()), job_id, space_id, stage),
+                ).fetchone()
+            return _job(row) if row is not None else None
+
+        job = await asyncio.to_thread(retry)
+        if job and self._started:
+            self._enqueue(job.id)
+        return job
+
+    def checkpoint(self, job: Job) -> None:
+        with self.repository.connection() as conn:
+            conn.execute(
+                "UPDATE jobs SET payload_json = ? WHERE id = ? AND space_id = ? AND status = 'running'",
+                (json.dumps(job.payload, ensure_ascii=False), job.id, job.space_id),
+            )
+
+    def record_tokens(self, job_id: str, input_tokens: int, output_tokens: int) -> None:
+        with self.repository.connection() as conn:
+            conn.execute(
+                """UPDATE jobs SET tokens_in = tokens_in + ?, tokens_out = tokens_out + ?, updated_at = ?
+                   WHERE id = ? AND status = 'running'""",
+                (input_tokens, output_tokens, _to_db(utcnow()), job_id),
+            )
+
     def _enqueue(self, job_id: str) -> None:
         if job_id in self._tasks:
             return
@@ -163,7 +208,8 @@ class JobRunner:
                     "Background job failed",
                     extra={"job_id": job.id, "error_type": type(exc).__name__},
                 )
-                await asyncio.to_thread(self._finish, job.id, "failed", "Job processing failed")
+                error = str(exc) if isinstance(exc, JobFailure) else "Job processing failed"
+                await asyncio.to_thread(self._finish, job.id, "failed", error)
             else:
                 await asyncio.to_thread(self._finish, job.id, "completed", None)
         finally:

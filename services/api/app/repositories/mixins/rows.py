@@ -14,7 +14,6 @@ from app.models.domain import (
     CharacterPack,
     Chunk,
     CompanionTurn,
-    IngestionJob,
     LearningArtifactsStatus,
     Material,
     MaterialKind,
@@ -69,17 +68,6 @@ class RowMixin:
             filename=row["filename"],
             storage_path=row["storage_path"],
             chunk_count=row["chunk_count"],
-            created_at=_from_db(row["created_at"]) or utcnow(),
-            updated_at=_from_db(row["updated_at"]) or utcnow(),
-        )
-
-    def _row_to_ingestion_job(self, row: sqlite3.Row) -> IngestionJob:
-        return IngestionJob(
-            id=row["id"],
-            space_id=row["space_id"],
-            material_id=row["material_id"],
-            status=row["status"],
-            error_message=row["error_message"],
             created_at=_from_db(row["created_at"]) or utcnow(),
             updated_at=_from_db(row["updated_at"]) or utcnow(),
         )

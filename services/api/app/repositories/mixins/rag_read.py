@@ -14,7 +14,6 @@ from app.models.domain import (
     CharacterPack,
     Chunk,
     CompanionTurn,
-    IngestionJob,
     LearningArtifactsStatus,
     Material,
     MaterialKind,
@@ -69,7 +68,6 @@ class RagReadMixin:
                 (space_id,),
             ).fetchall()
         return [self._row_to_chunk(row) for row in rows]
-
     def search_chunks_fts(self, *, space_id: str, query: str, limit: int) -> list[Chunk]:
         fts_query = self._build_fts_query(query)
         if not fts_query or limit <= 0:
@@ -89,42 +87,3 @@ class RagReadMixin:
                 (space_id, fts_query, space_id, limit),
             ).fetchall()
         return [self._row_to_chunk(row) for row in rows]
-
-    def get_ingestion_job(self, job_id: str) -> IngestionJob | None:
-        with self.connection() as conn:
-            row = conn.execute("SELECT * FROM ingestion_jobs WHERE id = ?", (job_id,)).fetchone()
-        return self._row_to_ingestion_job(row) if row else None
-
-    def list_ingestion_jobs(self, space_id: str) -> list[IngestionJob]:
-        with self.connection() as conn:
-            rows = conn.execute(
-                "SELECT * FROM ingestion_jobs WHERE space_id = ? ORDER BY updated_at DESC, created_at DESC",
-                (space_id,),
-            ).fetchall()
-        return [self._row_to_ingestion_job(row) for row in rows]
-
-    def list_pending_ingestion_jobs(
-        self,
-        *,
-        limit: int | None = None,
-    ) -> list[IngestionJob]:
-        with self.connection() as conn:
-            if limit is None:
-                rows = conn.execute(
-                    """
-                    SELECT * FROM ingestion_jobs
-                    WHERE status = 'queued'
-                    ORDER BY updated_at ASC, created_at ASC
-                    """
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    """
-                    SELECT * FROM ingestion_jobs
-                    WHERE status = 'queued'
-                    ORDER BY updated_at ASC, created_at ASC
-                    LIMIT ?
-                    """,
-                    (limit,),
-                ).fetchall()
-        return [self._row_to_ingestion_job(row) for row in rows]

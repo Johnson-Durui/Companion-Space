@@ -1,0 +1,273 @@
+from __future__ import annotations
+
+import asyncio
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi.responses import FileResponse, Response
+from pydantic import TypeAdapter, ValidationError
+from starlette.datastructures import UploadFile
+from starlette.formparsers import MultiPartException, MultiPartParser
+
+from app.analysis.documents import validate_upload
+from app.analysis.models import (
+    Course, CourseInput, CourseMap, CourseMaterial, ExamItem, KnowledgePoint, MaterialMetadata,
+    NoteInput, PageData, PointUpdate, RequestModel,
+)
+from app.analysis.results import CourseResults
+from app.api.deps import ServiceContainer, get_container, require_owner
+from app.api.job_events import job_progress_response
+from app.services.jobs import Job, latest_analysis_job
+
+router = APIRouter(dependencies=[Depends(require_owner)])
+Container = Annotated[ServiceContainer, Depends(get_container)]
+PageNumber = Annotated[int, Path(ge=1)]
+_METADATA = TypeAdapter(list[MaterialMetadata])
+_LARGE_ANALYSIS = 300_000
+
+
+class StartAnalysis(RequestModel):
+    confirmed: bool = False
+    estimate_only: bool = False
+    refresh: bool = False
+
+
+class RetryAnalysis(RequestModel):
+    stage: str
+
+
+class AnalysisStart(RequestModel):
+    estimated_tokens: int
+    requires_confirmation: bool
+    job: Job | None
+
+
+def public_job(job: Job | None) -> Job | None:
+    return job.model_copy(update={"payload": {}}) if job else None
+
+
+@router.get("/courses")
+def list_courses(container: Container) -> list[Course]:
+    return container.analysis.data.courses()
+
+
+@router.post("/courses", status_code=201)
+def create_course(payload: CourseInput, container: Container) -> Course:
+    return container.analysis.data.create_course(payload)
+
+
+@router.get("/courses/{course_id}")
+def get_course(course_id: str, container: Container) -> Course:
+    return container.analysis.data.course(course_id)
+
+
+@router.get("/courses/{course_id}/materials")
+def list_materials(course_id: str, container: Container) -> list[CourseMaterial]:
+    return container.analysis.data.materials(course_id)
+
+
+async def _ensure_editable(container: Container, course_id: str) -> None:
+    job = await asyncio.to_thread(latest_analysis_job, container.repository, course_id)
+    if job and job.status in {"queued", "running"}:
+        raise HTTPException(409, detail={"code": "analysis_active", "message": "Analysis is already running."})
+
+
+async def _read_uploads(request: Request, container: ServiceContainer):
+    if not request.headers.get("content-type", "").lower().startswith("multipart/form-data"):
+        raise HTTPException(415, "Use multipart/form-data to upload materials.")
+    file_limit = container.settings.max_document_size_bytes
+    total_limit = file_limit * 2 + 64 * 1024
+    too_large = False
+
+    async def bounded_stream():
+        size = 0
+        nonlocal too_large
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > total_limit:
+                too_large = True
+                raise MultiPartException("Upload batch exceeds the size limit.")
+            yield chunk
+
+    try:
+        form = await MultiPartParser(
+            request.headers, bounded_stream(), max_files=12, max_fields=1, max_part_size=32 * 1024,
+        ).parse()
+    except (MultiPartException, ValueError) as exc:
+        raise HTTPException(413 if too_large else 400, "Upload exceeds limits or is malformed.") from exc
+    try:
+        files = form.getlist("files")
+        if not files or not all(isinstance(file, UploadFile) for file in files):
+            raise HTTPException(400, "Select at least one material.")
+        raw = form.get("metadata")
+        try:
+            metadata = _METADATA.validate_json(raw) if isinstance(raw, str) else []
+        except ValidationError:
+            raise HTTPException(422, "Invalid material metadata.") from None
+        if metadata and len(metadata) != len(files):
+            raise HTTPException(422, "Provide one metadata entry per file.")
+        uploads = []
+        for index, file in enumerate(files):
+            filename = file.filename or ""
+            data = await file.read(file_limit + 1)
+            if len(data) > file_limit:
+                raise HTTPException(413, "The material exceeds the file size limit.")
+            sample, page_count = await asyncio.to_thread(
+                validate_upload, filename, data, file_limit, container.settings.max_pdf_pages,
+            )
+            uploads.append((filename, data, metadata[index] if metadata else MaterialMetadata(), sample, page_count))
+        return uploads
+    finally:
+        await form.close()
+
+
+@router.post(
+    "/courses/{course_id}/materials", status_code=201,
+    openapi_extra={"requestBody": {"required": True, "content": {"multipart/form-data": {"schema": {
+        "type": "object", "required": ["files"], "properties": {
+            "files": {"type": "array", "items": {"type": "string", "format": "binary"}},
+            "metadata": {"type": "string", "description": "JSON array indexed by file order."},
+        },
+    }}}}},
+)
+async def upload_materials(course_id: str, request: Request, container: Container) -> list[CourseMaterial]:
+    uploads = await _read_uploads(request, container)
+    async with container.analysis.mutation_lock:
+        await _ensure_editable(container, course_id)
+        return await asyncio.to_thread(container.analysis.data.store_uploads, course_id, uploads)
+
+
+@router.post("/courses/{course_id}/materials/note", status_code=201)
+async def paste_material(course_id: str, payload: NoteInput, container: Container) -> CourseMaterial:
+    metadata = MaterialMetadata.model_validate(payload.model_dump(exclude={"title", "content"}))
+    if metadata.role is None:
+        metadata.role = "notes"
+    data = payload.content.encode()
+    if len(data) > container.settings.max_document_size_bytes:
+        raise HTTPException(413, "The material exceeds the file size limit.")
+    pages = max(1, (len(payload.content) + 1599) // 1600)
+    async with container.analysis.mutation_lock:
+        await _ensure_editable(container, course_id)
+        records = await asyncio.to_thread(
+            container.analysis.data.store_uploads, course_id,
+            [("note.md", data, metadata, payload.content[:300], pages)], note_title=payload.title,
+        )
+    return records[0]
+
+
+@router.patch("/courses/{course_id}/materials/{material_id}")
+async def patch_material(
+    course_id: str, material_id: str, payload: MaterialMetadata, container: Container,
+) -> CourseMaterial:
+    async with container.analysis.mutation_lock:
+        await _ensure_editable(container, course_id)
+        return await asyncio.to_thread(container.analysis.data.update_material, course_id, material_id, payload)
+
+
+@router.put("/courses/{course_id}")
+async def update_course(course_id: str, payload: CourseInput, container: Container) -> Course:
+    async with container.analysis.mutation_lock:
+        await _ensure_editable(container, course_id)
+        return await asyncio.to_thread(container.analysis.data.update_course, course_id, payload)
+
+
+@router.delete("/courses/{course_id}", status_code=204)
+async def delete_course(course_id: str, container: Container) -> Response:
+    async with container.analysis.mutation_lock:
+        await _ensure_editable(container, course_id)
+        await asyncio.to_thread(container.analysis.data.delete_course, course_id)
+    return Response(status_code=204)
+
+
+@router.delete("/courses/{course_id}/materials/{material_id}", status_code=204)
+async def delete_material(course_id: str, material_id: str, container: Container) -> Response:
+    async with container.analysis.mutation_lock:
+        await _ensure_editable(container, course_id)
+        await asyncio.to_thread(container.analysis.data.delete_material, course_id, material_id)
+    return Response(status_code=204)
+
+
+@router.post("/courses/{course_id}/analysis/start")
+async def start_analysis(course_id: str, payload: StartAnalysis, container: Container) -> AnalysisStart:
+    analysis = container.analysis
+    async with analysis.mutation_lock:
+        await asyncio.to_thread(analysis.data.course, course_id)
+        materials = await asyncio.to_thread(analysis.data.material_rows, course_id)
+        if not materials:
+            raise HTTPException(400, "Import course material first.")
+        pages = sum(row.get("page_count") or row.get("estimated_pages") or 1 for row in materials)
+        estimate = pages * 1800
+        needs_confirmation = estimate > _LARGE_ANALYSIS and not payload.confirmed
+        current = await asyncio.to_thread(latest_analysis_job, container.repository, course_id)
+        job = current if current and current.status in {"queued", "running"} else None
+        if not payload.estimate_only and not job and not needs_confirmation:
+            job = await container.jobs.submit("parse", space_id=course_id, payload={"refresh": payload.refresh})
+    return AnalysisStart(
+        estimated_tokens=estimate, requires_confirmation=needs_confirmation, job=public_job(job),
+    )
+
+
+@router.get("/courses/{course_id}/analysis/status")
+async def analysis_status(course_id: str, container: Container) -> Job | None:
+    await asyncio.to_thread(container.analysis.data.course, course_id)
+    job = await asyncio.to_thread(latest_analysis_job, container.repository, course_id)
+    return public_job(job)
+
+
+@router.post("/courses/{course_id}/analysis/retry")
+async def retry_analysis(course_id: str, payload: RetryAnalysis, container: Container) -> Job:
+    async with container.analysis.mutation_lock:
+        await _ensure_editable(container, course_id)
+        current = await asyncio.to_thread(latest_analysis_job, container.repository, course_id)
+        job = await container.jobs.retry_analysis(current.id, course_id, payload.stage) if current else None
+    if not job:
+        raise HTTPException(409, "The requested stage is no longer eligible for retry.")
+    return public_job(job)
+
+
+@router.get("/courses/{course_id}/analysis/events", responses={200: {"content": {"text/event-stream": {}}}})
+async def analysis_events(course_id: str, container: Container):
+    job = await analysis_status(course_id, container)
+    if job is None:
+        raise HTTPException(404, "Start analysis first.")
+    return await job_progress_response(container.repository, job.id, space_id=course_id)
+
+
+@router.get("/courses/{course_id}/map")
+def course_map(course_id: str, container: Container) -> CourseMap:
+    return CourseResults(container.analysis.data).course_map(course_id)
+
+
+@router.patch("/courses/{course_id}/kps/{kp_id}")
+async def revise_point(
+    course_id: str, kp_id: str, payload: PointUpdate, container: Container,
+) -> KnowledgePoint:
+    async with container.analysis.mutation_lock:
+        await _ensure_editable(container, course_id)
+        results = CourseResults(container.analysis.data)
+        return await asyncio.to_thread(results.revise_point, course_id, kp_id, payload)
+
+
+@router.get("/courses/{course_id}/exam-items")
+def exam_items(
+    course_id: str, container: Container, kp_id: str | None = None, unmapped: bool = False,
+) -> list[ExamItem]:
+    return CourseResults(container.analysis.data).exam_items(course_id, kp_id=kp_id, unmapped=unmapped)
+
+
+@router.get("/materials/{material_id}/pages/{number}")
+def page_details(material_id: str, number: PageNumber, container: Container) -> PageData:
+    row = container.analysis.data.get_page(material_id, number)
+    return PageData(**row, has_image=bool(row["image_path"]))
+
+
+@router.get("/materials/{material_id}/pages/{number}/image", response_class=FileResponse)
+def page_image(material_id: str, number: PageNumber, container: Container):
+    data = container.analysis.data
+    row = data.get_page(material_id, number)
+    if not row["image_path"]:
+        raise HTTPException(404, "No original page image is available.")
+    image = data.safe_path(row["image_path"])
+    if not image.is_relative_to(data.images_dir(row["space_id"], material_id)) or not image.is_file():
+        raise HTTPException(404, "No original page image is available.")
+    return FileResponse(image, headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})

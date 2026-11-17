@@ -141,197 +141,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/spaces": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Spaces */
-        get: operations["list_spaces_api_v1_spaces_get"];
-        put?: never;
-        /** Create Space */
-        post: operations["create_space_api_v1_spaces_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Space Detail */
-        get: operations["get_space_detail_api_v1_spaces__space_id__get"];
-        /** Update Space */
-        put: operations["update_space_api_v1_spaces__space_id__put"];
-        post?: never;
-        /** Delete Space */
-        delete: operations["delete_space_api_v1_spaces__space_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/assignments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Assignments */
-        get: operations["list_assignments_api_v1_spaces__space_id__assignments_get"];
-        put?: never;
-        /** Save Assignment */
-        post: operations["save_assignment_api_v1_spaces__space_id__assignments_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/assignments/{capability}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Assignment */
-        delete: operations["delete_assignment_api_v1_spaces__space_id__assignments__capability__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/default-character": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update Space Default Character */
-        put: operations["update_space_default_character_api_v1_spaces__space_id__default_character_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/ingestion-jobs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Ingestion Jobs */
-        get: operations["list_ingestion_jobs_api_v1_spaces__space_id__ingestion_jobs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/materials": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Materials */
-        get: operations["list_materials_api_v1_spaces__space_id__materials_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/materials/note": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Note Material */
-        post: operations["create_note_material_api_v1_spaces__space_id__materials_note_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/materials/upload": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Upload Material */
-        post: operations["upload_material_api_v1_spaces__space_id__materials_upload_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/materials/{material_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Delete Material */
-        delete: operations["delete_material_api_v1_spaces__space_id__materials__material_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/materials/{material_id}/retry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Retry Material Ingestion */
-        post: operations["retry_material_ingestion_api_v1_spaces__space_id__materials__material_id__retry_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v2/characters": {
         parameters: {
             query?: never;
@@ -349,6 +158,215 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/courses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Courses */
+        get: operations["list_courses_api_v2_courses_get"];
+        put?: never;
+        /** Create Course */
+        post: operations["create_course_api_v2_courses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Course */
+        get: operations["get_course_api_v2_courses__course_id__get"];
+        /** Update Course */
+        put: operations["update_course_api_v2_courses__course_id__put"];
+        post?: never;
+        /** Delete Course */
+        delete: operations["delete_course_api_v2_courses__course_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/analysis/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analysis Events */
+        get: operations["analysis_events_api_v2_courses__course_id__analysis_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/analysis/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Analysis */
+        post: operations["retry_analysis_api_v2_courses__course_id__analysis_retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/analysis/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Analysis */
+        post: operations["start_analysis_api_v2_courses__course_id__analysis_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/analysis/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Analysis Status */
+        get: operations["analysis_status_api_v2_courses__course_id__analysis_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/exam-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Exam Items */
+        get: operations["exam_items_api_v2_courses__course_id__exam_items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/kps/{kp_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Revise Point */
+        patch: operations["revise_point_api_v2_courses__course_id__kps__kp_id__patch"];
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Course Map */
+        get: operations["course_map_api_v2_courses__course_id__map_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Materials */
+        get: operations["list_materials_api_v2_courses__course_id__materials_get"];
+        put?: never;
+        /** Upload Materials */
+        post: operations["upload_materials_api_v2_courses__course_id__materials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/materials/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Paste Material */
+        post: operations["paste_material_api_v2_courses__course_id__materials_note_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/courses/{course_id}/materials/{material_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Material */
+        delete: operations["delete_material_api_v2_courses__course_id__materials__material_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Material */
+        patch: operations["patch_material_api_v2_courses__course_id__materials__material_id__patch"];
+        trace?: never;
+    };
     "/api/v2/diagnostics/chat": {
         parameters: {
             query?: never;
@@ -360,6 +378,40 @@ export interface paths {
         put?: never;
         /** Diagnostic Chat */
         post: operations["diagnostic_chat_api_v2_diagnostics_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/materials/{material_id}/pages/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Page Details */
+        get: operations["page_details_api_v2_materials__material_id__pages__number__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/materials/{material_id}/pages/{number}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Page Image */
+        get: operations["page_image_api_v2_materials__material_id__pages__number__image_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -647,6 +699,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AnalysisStart */
+        AnalysisStart: {
+            /** Estimated Tokens */
+            estimated_tokens: number;
+            job: components["schemas"]["Job"] | null;
+            /** Requires Confirmation */
+            requires_confirmation: boolean;
+        };
         /** Appearance */
         Appearance: {
             /** Framing */
@@ -899,6 +959,88 @@ export interface components {
              */
             updated_at: string;
         };
+        /** Course */
+        Course: {
+            /** Brief */
+            brief?: {
+                [key: string]: unknown;
+            } | null;
+            /** Goal */
+            goal: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** CourseInput */
+        CourseInput: {
+            /**
+             * Goal
+             * @default
+             */
+            goal: string;
+            /** Name */
+            name: string;
+        };
+        /** CourseMap */
+        CourseMap: {
+            /** Brief */
+            brief: {
+                [key: string]: unknown;
+            } | null;
+            /** Has Exams */
+            has_exams: boolean;
+            /** Units */
+            units: components["schemas"]["CourseUnit"][];
+            /** Warnings */
+            warnings: string[];
+        };
+        /** CourseMaterial */
+        CourseMaterial: {
+            /** Error */
+            error?: string | null;
+            /** Exam Name */
+            exam_name?: string | null;
+            /** Filename */
+            filename: string;
+            /** Has Answers */
+            has_answers?: boolean | null;
+            /** Id */
+            id: string;
+            /**
+             * Page Count
+             * @default 0
+             */
+            page_count: number;
+            /**
+             * Parse Status
+             * @enum {string}
+             */
+            parse_status: "pending" | "parsed" | "needs_vision" | "failed";
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "textbook" | "slides" | "notes" | "exam" | "exercise" | "syllabus";
+            /**
+             * Scanned Pages
+             * @default 0
+             */
+            scanned_pages: number;
+            /** Title */
+            title: string;
+            /** Year */
+            year?: number | null;
+        };
+        /** CourseUnit */
+        CourseUnit: {
+            /** Id */
+            id: string;
+            /** Knowledge Points */
+            knowledge_points: components["schemas"]["KnowledgePoint"][];
+            /** Title */
+            title: string;
+        };
         /** DefaultCharacterRequest */
         DefaultCharacterRequest: {
             /** Character Id */
@@ -916,6 +1058,56 @@ export interface components {
             image?: components["schemas"]["ImageInput"] | null;
             /** Message */
             message: string;
+        };
+        /** ExamItem */
+        ExamItem: {
+            /** Answer */
+            answer?: string | null;
+            /** Answer Status */
+            answer_status: string;
+            /** Exam Name */
+            exam_name?: string | null;
+            /** Id */
+            id: string;
+            /** Kp Ids */
+            kp_ids: string[];
+            /** No */
+            no: string;
+            /** Options */
+            options: {
+                [key: string]: string;
+            };
+            /** Page Refs */
+            page_refs: components["schemas"]["SourceRef"][];
+            /** Score */
+            score?: number | null;
+            /** Solution */
+            solution?: string | null;
+            /** Stem */
+            stem: string;
+            /** Type */
+            type: string;
+            /** Year */
+            year?: number | null;
+        };
+        /** ExamStats */
+        ExamStats: {
+            /** N Items */
+            n_items: number;
+            /** Novel Flags */
+            novel_flags: string[];
+            /** Recency Weight */
+            recency_weight: number;
+            /** Score Share */
+            score_share: number;
+            /** Trend */
+            trend: string;
+            /** Types */
+            types: {
+                [key: string]: number;
+            };
+            /** Weight */
+            weight: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -942,23 +1134,45 @@ export interface components {
              */
             mime: "image/png" | "image/jpeg" | "image/webp";
         };
-        /** IngestionJob */
-        IngestionJob: {
+        /** Job */
+        Job: {
             /**
              * Created At
              * Format: date-time
              */
             created_at: string;
-            /** Error Message */
-            error_message?: string | null;
+            /** Detail */
+            detail: string | null;
+            /** Error */
+            error: string | null;
             /** Id */
             id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "parse" | "structure" | "index" | "kp_extract" | "kp_reduce" | "exam_extract" | "item_verify" | "exam_stats" | "diag_pool" | "brief" | "lesson_prepare" | "more_items" | "recap" | "replan";
             /** Material Id */
-            material_id: string;
+            material_id: string | null;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Progress */
+            progress: number;
             /** Space Id */
-            space_id: string;
-            /** Status */
-            status: string;
+            space_id: string | null;
+            /** Stage */
+            stage: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "completed" | "failed";
+            /** Tokens In */
+            tokens_in: number;
+            /** Tokens Out */
+            tokens_out: number;
             /**
              * Updated At
              * Format: date-time
@@ -966,6 +1180,36 @@ export interface components {
             updated_at: string;
         };
         JsonValue: unknown;
+        /** KnowledgePoint */
+        KnowledgePoint: {
+            /**
+             * Assumed
+             * @default false
+             */
+            assumed: boolean;
+            /** Difficulty */
+            difficulty: number;
+            /** Formula */
+            formula?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Importance
+             * @enum {string}
+             */
+            importance: "core" | "important" | "peripheral";
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Prerequisite Ids */
+            prerequisite_ids?: string[];
+            /** Source Refs */
+            source_refs?: components["schemas"]["SourceRef"][];
+            stats?: components["schemas"]["ExamStats"] | null;
+            /** Summary */
+            summary: string;
+        };
         /** LocalSessionStatus */
         LocalSessionStatus: {
             /**
@@ -983,81 +1227,47 @@ export interface components {
             /** Warning */
             warning: string | null;
         };
-        /** MaterialIngestionResponse */
-        MaterialIngestionResponse: {
-            job: components["schemas"]["IngestionJob"];
-            material: components["schemas"]["MaterialResponse"];
-        };
-        /**
-         * MaterialKind
-         * @enum {string}
-         */
-        MaterialKind: "pdf" | "markdown" | "text" | "note";
-        /** MaterialNoteRequest */
-        MaterialNoteRequest: {
-            /** Content */
-            content: string;
-            /** Title */
-            title: string;
-        };
-        /** MaterialResponse */
-        MaterialResponse: {
-            /** Chunk Count */
-            chunk_count: number;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Filename */
-            filename: string;
-            /** Id */
-            id: string;
-            kind: components["schemas"]["MaterialKind"];
-            /** Space Id */
-            space_id: string;
-            /** Title */
-            title: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** ModelAssignment */
-        ModelAssignment: {
-            capability: components["schemas"]["ProviderCapability"];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Id */
-            id: string;
-            /** Model Name */
-            model_name: string;
-            /** Provider Connection Id */
-            provider_connection_id: string;
-            /** Space Id */
-            space_id: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** ModelAssignmentRequest */
-        ModelAssignmentRequest: {
-            capability: components["schemas"]["ProviderCapability"];
-            /** Model Name */
-            model_name: string;
-            /** Provider Connection Id */
-            provider_connection_id: string;
+        /** MaterialMetadata */
+        MaterialMetadata: {
+            /** Exam Name */
+            exam_name?: string | null;
+            /** Has Answers */
+            has_answers?: boolean | null;
+            /** Role */
+            role?: ("textbook" | "slides" | "notes" | "exam" | "exercise" | "syllabus") | null;
+            /** Year */
+            year?: number | null;
         };
         /** ModelList */
         ModelList: {
             /** Models */
             models: string[];
+        };
+        /** NoteInput */
+        NoteInput: {
+            /** Content */
+            content: string;
+            /** Exam Name */
+            exam_name?: string | null;
+            /** Has Answers */
+            has_answers?: boolean | null;
+            /** Role */
+            role?: ("textbook" | "slides" | "notes" | "exam" | "exercise" | "syllabus") | null;
+            /** Title */
+            title: string;
+            /** Year */
+            year?: number | null;
+        };
+        /** PageData */
+        PageData: {
+            /** Has Image */
+            has_image: boolean;
+            /** Markdown */
+            markdown: string;
+            /** Quality */
+            quality: number;
+            /** Source */
+            source: string;
         };
         /** Persona */
         Persona: {
@@ -1069,6 +1279,22 @@ export interface components {
             relationship: string;
             /** Traits */
             traits: string[];
+        };
+        /** PointUpdate */
+        PointUpdate: {
+            /**
+             * Deleted
+             * @default false
+             */
+            deleted: boolean;
+            /** Importance */
+            importance?: ("core" | "important" | "peripheral") | null;
+            /** Merge Into */
+            merge_into?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Prerequisite Ids */
+            prerequisite_ids?: string[] | null;
         };
         /** PresetSupport */
         PresetSupport: {
@@ -1113,11 +1339,6 @@ export interface components {
             /** Warning */
             warning?: string | null;
         };
-        /**
-         * ProviderCapability
-         * @enum {string}
-         */
-        ProviderCapability: "chat_llm" | "analysis_llm" | "embedding" | "stt" | "tts";
         /** ProviderPreset */
         ProviderPreset: {
             /** Adapter */
@@ -1159,6 +1380,11 @@ export interface components {
             /** Sources */
             sources?: string[];
             supports?: components["schemas"]["PresetSupport"];
+        };
+        /** RetryAnalysis */
+        RetryAnalysis: {
+            /** Stage */
+            stage: string;
         };
         /** RoleAssignment */
         RoleAssignment: {
@@ -1208,79 +1434,30 @@ export interface components {
             /** Default Character Id */
             default_character_id: string | null;
         };
-        /** SpaceDetailResponse */
-        SpaceDetailResponse: {
-            /** Assignments */
-            assignments: components["schemas"]["ModelAssignment"][];
-            /** Jobs */
-            jobs: components["schemas"]["IngestionJob"][];
-            /** Materials */
-            materials: components["schemas"]["MaterialResponse"][];
-            space: components["schemas"]["StudySpace"];
+        /** SourceRef */
+        SourceRef: {
+            /** Material Id */
+            material_id: string;
+            /** Page No */
+            page_no: number;
         };
-        /** StudySpace */
-        StudySpace: {
+        /** StartAnalysis */
+        StartAnalysis: {
             /**
-             * Created At
-             * Format: date-time
+             * Confirmed
+             * @default false
              */
-            created_at: string;
-            /** Default Character Pack Id */
-            default_character_pack_id?: string | null;
+            confirmed: boolean;
             /**
-             * Goal
-             * @default
+             * Estimate Only
+             * @default false
              */
-            goal: string;
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
+            estimate_only: boolean;
             /**
-             * Topic
-             * @default
+             * Refresh
+             * @default false
              */
-            topic: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /** StudySpaceCreateRequest */
-        StudySpaceCreateRequest: {
-            /**
-             * Goal
-             * @default
-             */
-            goal: string;
-            /** Name */
-            name: string;
-            /**
-             * Topic
-             * @default
-             */
-            topic: string;
-        };
-        /** StudySpaceDefaultCharacterRequest */
-        StudySpaceDefaultCharacterRequest: {
-            /** Character Pack Id */
-            character_pack_id: string | null;
-        };
-        /** StudySpaceUpdateRequest */
-        StudySpaceUpdateRequest: {
-            /**
-             * Goal
-             * @default
-             */
-            goal: string;
-            /** Name */
-            name: string;
-            /**
-             * Topic
-             * @default
-             */
-            topic: string;
+            refresh: boolean;
         };
         /** UnlockRequest */
         UnlockRequest: {
@@ -1790,514 +1967,6 @@ export interface operations {
             };
         };
     };
-    list_spaces_api_v1_spaces_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_space_api_v1_spaces_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StudySpaceCreateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_space_detail_api_v1_spaces__space_id__get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SpaceDetailResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_space_api_v1_spaces__space_id__put: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StudySpaceUpdateRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_space_api_v1_spaces__space_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_assignments_api_v1_spaces__space_id__assignments_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_assignment_api_v1_spaces__space_id__assignments_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ModelAssignmentRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelAssignment"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_assignment_api_v1_spaces__space_id__assignments__capability__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-                capability: components["schemas"]["ProviderCapability"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_space_default_character_api_v1_spaces__space_id__default_character_put: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StudySpaceDefaultCharacterRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudySpace"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_ingestion_jobs_api_v1_spaces__space_id__ingestion_jobs_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_materials_api_v1_spaces__space_id__materials_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaterialResponse"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_note_material_api_v1_spaces__space_id__materials_note_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MaterialNoteRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaterialIngestionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upload_material_api_v1_spaces__space_id__materials_upload_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaterialIngestionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_material_api_v1_spaces__space_id__materials__material_id__delete: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-                material_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    retry_material_ingestion_api_v1_spaces__space_id__materials__material_id__retry_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-                material_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MaterialIngestionResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     get_characters_api_v2_characters_get: {
         parameters: {
             query?: never;
@@ -2316,6 +1985,602 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Character"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_courses_api_v2_courses_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Course"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_course_api_v2_courses_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CourseInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Course"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_course_api_v2_courses__course_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Course"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_course_api_v2_courses__course_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CourseInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Course"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_course_api_v2_courses__course_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analysis_events_api_v2_courses__course_id__analysis_events_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_analysis_api_v2_courses__course_id__analysis_retry_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetryAnalysis"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_analysis_api_v2_courses__course_id__analysis_start_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartAnalysis"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisStart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    analysis_status_api_v2_courses__course_id__analysis_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Job"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exam_items_api_v2_courses__course_id__exam_items_get: {
+        parameters: {
+            query?: {
+                kp_id?: string | null;
+                unmapped?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revise_point_api_v2_courses__course_id__kps__kp_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+                kp_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PointUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgePoint"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    course_map_api_v2_courses__course_id__map_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseMap"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_materials_api_v2_courses__course_id__materials_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseMaterial"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_materials_api_v2_courses__course_id__materials_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    files: string[];
+                    /** @description JSON array indexed by file order. */
+                    metadata?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseMaterial"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    paste_material_api_v2_courses__course_id__materials_note_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseMaterial"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_material_api_v2_courses__course_id__materials__material_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+                material_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_material_api_v2_courses__course_id__materials__material_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+                material_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialMetadata"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseMaterial"];
                 };
             };
             /** @description Validation Error */
@@ -2352,6 +2617,72 @@ export interface operations {
                 content: {
                     "application/x-ndjson": string;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    page_details_api_v2_materials__material_id__pages__number__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                material_id: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageData"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    page_image_api_v2_materials__material_id__pages__number__image_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                material_id: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

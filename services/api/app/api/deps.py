@@ -7,6 +7,8 @@ from functools import lru_cache
 
 from fastapi import Depends, Header, HTTPException, Request, status
 
+from app.analysis.course_data import CourseData
+from app.analysis.pipeline import AnalysisPipeline
 from app.core.config import Settings, get_settings
 from app.llm.gateway import LLMGateway
 from app.services.browser_session import OWNER_COOKIE_NAME, require_cookie_csrf
@@ -15,7 +17,6 @@ from app.services.jobs import JobRunner
 from app.services.provider_registry import ProviderRegistryService
 from app.services.repository import SQLiteRepository
 from app.services.settings_store import get_setting
-from app.services.spaces import StudySpaceService
 from app.services.tutor_catalog import TutorCatalog
 from app.services.vault import OwnerTokenState, VaultService
 
@@ -30,7 +31,7 @@ class ServiceContainer:
     settings: Settings
     repository: SQLiteRepository
     vault: VaultService
-    spaces: StudySpaceService
+    analysis: AnalysisPipeline
     characters: CharacterService
     tutors: TutorCatalog
     providers: ProviderRegistryService
@@ -42,13 +43,9 @@ class ServiceContainer:
         try:
             await self.jobs.aclose()
         finally:
-            try:
-                await asyncio.to_thread(self.spaces.close)
-            finally:
-                await self.providers.aclose()
+            await self.providers.aclose()
 
     def close(self) -> None:
-        self.spaces.close()
         self.providers.close()
 
 
@@ -56,21 +53,19 @@ def build_container(settings: Settings, gateway_factory: GatewayFactory = LLMGat
     repository = SQLiteRepository(settings)
     vault = VaultService(settings, repository)
     providers = ProviderRegistryService(repository, vault)
-    spaces = StudySpaceService(settings, repository)
-    spaces.set_provider_registry(providers)
     tutors = TutorCatalog(repository)
     tutors.seed()
     jobs = JobRunner(repository, concurrency=get_setting(repository, "analysis_concurrency", 4))
-    spaces.start_ingestion_worker()
+    gateway = gateway_factory(providers)
     return ServiceContainer(
         settings=settings,
         repository=repository,
         vault=vault,
-        spaces=spaces,
+        analysis=AnalysisPipeline(CourseData(repository), jobs, gateway),
         characters=CharacterService(repository),
         tutors=tutors,
         providers=providers,
-        gateway=gateway_factory(providers),
+        gateway=gateway,
         jobs=jobs,
     )
 

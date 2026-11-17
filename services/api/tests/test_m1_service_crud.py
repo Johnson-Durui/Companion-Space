@@ -13,7 +13,6 @@ from app.models.domain import (
     MemoryItem,
     ModelAssignment,
     ProviderCapability,
-    ProviderConnection,
     ReviewItem,
     SessionRecord,
     TurnRole,
@@ -21,7 +20,6 @@ from app.models.domain import (
 from app.services.characters import CharacterService
 from app.services.provider_registry import ProviderRegistryService
 from app.services.repository import SQLiteRepository
-from app.services.spaces import StudySpaceService
 from app.services.vault import VaultService
 
 
@@ -86,94 +84,6 @@ def _seed_space_dependents(repository: SQLiteRepository, *, space_id: str, provi
             updated_at=now,
         )
     )
-
-
-def test_space_detail_and_delete_cascade_stay_scoped(isolated_settings) -> None:
-    settings = _local_settings(isolated_settings)
-    repository = SQLiteRepository(settings)
-    service = StudySpaceService(settings, repository)
-    target = service.create_space(name="Target", topic="scope", goal="delete")
-    survivor = service.create_space(name="Survivor", topic="scope", goal="keep")
-    target_material, target_job = service.ingest_note(space_id=target.id, title="Target note", content="target-only material")
-    survivor_material, survivor_job = service.ingest_note(
-        space_id=survivor.id,
-        title="Survivor note",
-        content="survivor-only material",
-    )
-    service.wait_for_ingestion(target_job.id, timeout_seconds=2.0)
-    service.wait_for_ingestion(survivor_job.id, timeout_seconds=2.0)
-
-    now = datetime.now(timezone.utc)
-    connection = ProviderConnection(
-        id="shared-provider",
-        provider="mock",
-        label="Shared",
-        capabilities=[ProviderCapability.chat_llm],
-        created_at=now,
-        updated_at=now,
-    )
-    repository.upsert_provider_connection(connection)
-    _seed_space_dependents(repository, space_id=target.id, provider_connection_id=connection.id)
-    _seed_space_dependents(repository, space_id=survivor.id, provider_connection_id=connection.id)
-
-    detail = service.get_space_detail(target.id)
-    assert detail["space"].id == target.id
-    assert [item.id for item in detail["materials"]] == [target_material.id]
-    assert [item.provider_connection_id for item in detail["assignments"]] == [connection.id]
-
-    assert service.delete_space(target.id) is True
-    assert service.get_space(target.id) is None
-    assert service.get_space(survivor.id) is not None
-    assert not (settings.spaces_root / target.id).exists()
-    assert (settings.spaces_root / survivor.id).exists()
-    assert not service.resolve_material_path(target_material).exists()
-    assert service.resolve_material_path(survivor_material).exists()
-
-    with repository.connection() as conn:
-        for table in (
-            "materials",
-            "chunks",
-            "ingestion_jobs",
-            "sessions",
-            "turns",
-            "memory_items",
-            "review_items",
-            "model_assignments",
-        ):
-            assert conn.execute(f"SELECT COUNT(*) FROM {table} WHERE space_id = ?", (target.id,)).fetchone()[0] == 0
-            assert conn.execute(f"SELECT COUNT(*) FROM {table} WHERE space_id = ?", (survivor.id,)).fetchone()[0] >= 1
-
-
-def test_material_delete_requires_matching_space_and_contained_path(isolated_settings, tmp_path) -> None:
-    settings = _local_settings(isolated_settings)
-    repository = SQLiteRepository(settings)
-    service = StudySpaceService(settings, repository)
-    first = service.create_space(name="First")
-    second = service.create_space(name="Second")
-    first_material, first_job = service.ingest_note(space_id=first.id, title="First", content="first material")
-    second_material, second_job = service.ingest_note(space_id=second.id, title="Second", content="second material")
-    service.wait_for_ingestion(first_job.id, timeout_seconds=2.0)
-    service.wait_for_ingestion(second_job.id, timeout_seconds=2.0)
-
-    with pytest.raises(ValueError, match="Material not found"):
-        service.delete_material(space_id=first.id, material_id=second_material.id)
-    assert repository.get_material(second_material.id) is not None
-
-    assert service.delete_material(space_id=first.id, material_id=first_material.id) is True
-    assert repository.get_material(first_material.id) is None
-    assert not service.resolve_material_path(first_material).exists()
-    assert repository.list_chunks(first.id) == []
-
-    outside = tmp_path / "must-survive.txt"
-    outside.write_text("outside", encoding="utf-8")
-    escaped = service.ingest_note(space_id=first.id, title="Escaped", content="temporary")
-    service.wait_for_ingestion(escaped[1].id, timeout_seconds=2.0)
-    escaped_material = escaped[0].model_copy(update={"storage_path": str(outside)})
-    repository.upsert_material(escaped_material)
-    with pytest.raises(ValueError, match="outside"):
-        service.delete_material(space_id=first.id, material_id=escaped_material.id)
-    assert outside.read_text(encoding="utf-8") == "outside"
-    assert repository.get_material(escaped_material.id) is not None
 
 
 def test_character_crud_and_asset_path_containment(isolated_settings, tmp_path) -> None:

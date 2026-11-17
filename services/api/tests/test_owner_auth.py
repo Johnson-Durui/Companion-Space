@@ -27,7 +27,7 @@ def test_owner_token_is_stored_only_as_a_hash(client, owner_token: str) -> None:
 
 
 def test_missing_owner_token_has_a_stable_401_detail(client) -> None:
-    response = client.get("/api/v1/spaces")
+    response = client.get("/api/v2/courses")
 
     assert response.status_code == 401
     assert response.json()["code"] == "owner_session_required"
@@ -35,7 +35,7 @@ def test_missing_owner_token_has_a_stable_401_detail(client) -> None:
 
 def test_invalid_owner_token_has_a_stable_401_detail(client) -> None:
     get_container().vault.bootstrap()
-    response = client.get("/api/v1/spaces", headers=_auth_headers("not-a-real-owner-token"))
+    response = client.get("/api/v2/courses", headers=_auth_headers("not-a-real-owner-token"))
 
     assert response.status_code == 401
     assert response.json()["code"] == "owner_session_invalid"
@@ -44,7 +44,7 @@ def test_invalid_owner_token_has_a_stable_401_detail(client) -> None:
 def test_invalid_owner_token_is_not_reflected_in_response_or_logs(client, caplog) -> None:
     raw_token = "owner-token-that-must-never-be-logged"
 
-    response = client.get("/api/v1/spaces", headers=_auth_headers(raw_token))
+    response = client.get("/api/v2/courses", headers=_auth_headers(raw_token))
 
     assert raw_token not in response.text
     assert raw_token not in caplog.text

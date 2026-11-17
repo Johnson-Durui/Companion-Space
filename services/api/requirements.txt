@@ -7,6 +7,11 @@ argon2-cffi==25.1.0
 cryptography==50.0.0
 google-genai==2.13.0
 pypdf==6.21.4
+pypdfium2==5.15.2
+python-pptx==1.0.2
+python-docx==1.2.0
+Pillow==13.0.0
+python-multipart==0.0.34
 pydantic-settings==2.10.1
 uvicorn[standard]==0.35.0
 keyring==25.7.0

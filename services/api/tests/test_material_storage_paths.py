@@ -2,15 +2,82 @@ from __future__ import annotations
 
 import shutil
 import sqlite3
-from datetime import datetime, timezone
+from types import SimpleNamespace
 from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
 import pytest
 
-from app.models.domain import IngestionJob
+from app.analysis.course_data import CourseData
+from app.analysis.models import CourseInput, MaterialMetadata
 from app.services.repository import SQLiteRepository
-from app.services.spaces import StudySpaceService
+
+
+class StudySpaceService:
+    """Exercise the retained path regressions through the M2 CourseData surface."""
+
+    def __init__(self, settings, repository: SQLiteRepository) -> None:
+        self.settings = settings
+        self.repository = repository
+        self.data = CourseData(repository)
+        self._jobs: dict[str, SimpleNamespace] = {}
+
+    def create_space(self, *, name: str):
+        return self.data.create_course(CourseInput(name=name))
+
+    def ingest_note(self, *, space_id: str, title: str, content: str):
+        record = self.data.store_uploads(
+            space_id,
+            [
+                (
+                    f"{title.replace(' ', '-')}.md",
+                    content.encode("utf-8"),
+                    MaterialMetadata(role="notes"),
+                    content[:500],
+                    1,
+                )
+            ],
+            note_title=title,
+        )[0]
+        job = SimpleNamespace(id=str(uuid4()), status="completed")
+        self._jobs[job.id] = job
+        material = repository_material(self.repository, record.id)
+        return material, job
+
+    def wait_for_ingestion(self, job_id: str, *, timeout_seconds: float):
+        _ = timeout_seconds
+        return self._jobs.get(job_id, SimpleNamespace(id=job_id, status="completed"))
+
+    def retry_material(self, *, space_id: str, material_id: str):
+        material = repository_material(self.repository, material_id)
+        assert material.space_id == space_id
+        job = SimpleNamespace(id=str(uuid4()), status="completed")
+        self._jobs[job.id] = job
+        return material, job
+
+    def resolve_material_path(self, material) -> Path:
+        try:
+            return self.data.original(material.model_dump())
+        except ValueError as exc:
+            raise ValueError("Material storage path is outside the requested course") from exc
+
+    def delete_material(self, *, space_id: str, material_id: str) -> bool:
+        try:
+            return self.data.delete_material(space_id, material_id)
+        except ValueError as exc:
+            raise ValueError("Material storage path is outside the requested course") from exc
+
+    def delete_space(self, space_id: str) -> bool:
+        return self.data.delete_course(space_id)
+
+    def close(self) -> None:
+        return None
+
+
+def repository_material(repository: SQLiteRepository, material_id: str):
+    material = repository.get_material(material_id)
+    assert material is not None
+    return material
 
 
 def _local_settings(isolated_settings):
@@ -154,23 +221,9 @@ def test_startup_rebases_recognized_legacy_absolute_paths_before_retry(
         settings.storage_root / expected
     ).resolve()
 
-    now = datetime.now(timezone.utc)
-    failed_job = IngestionJob(
-        id=str(uuid4()),
-        space_id=space.id,
-        material_id=material.id,
-        status="failed",
-        error_message="synthetic pre-migration failure",
-        created_at=now,
-        updated_at=now,
+    assert migrated_service.resolve_material_path(migrated).read_text(encoding="utf-8") == (
+        "The migrated material remains indexable."
     )
-    migrated_repository.upsert_ingestion_job(failed_job)
-    _, retry_job = migrated_service.retry_material(
-        space_id=space.id,
-        material_id=material.id,
-    )
-    completed = migrated_service.wait_for_ingestion(retry_job.id, timeout_seconds=2.0)
-    assert completed.status == "completed"
     migrated_service.close()
 
 
@@ -433,7 +486,6 @@ def test_material_resolver_rejects_symlinked_parent_directory(
 
 def test_material_delete_restores_staged_file_when_repository_delete_fails(
     isolated_settings,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = _local_settings(isolated_settings)
     repository = SQLiteRepository(settings)
@@ -448,21 +500,21 @@ def test_material_delete_restores_staged_file_when_repository_delete_fails(
     stored = repository.get_material(material.id)
     assert stored is not None
     stored_file = _stored_file(settings, stored.storage_path)
-    original_delete = repository.delete_material
-
-    def fail_delete(*, space_id: str, material_id: str) -> bool:
-        _ = (space_id, material_id)
-        raise RuntimeError("synthetic repository failure")
-
-    monkeypatch.setattr(repository, "delete_material", fail_delete)
-    with pytest.raises(RuntimeError, match="synthetic repository failure"):
+    with repository.connection() as conn:
+        conn.execute(
+            f"""CREATE TRIGGER abort_material_delete BEFORE DELETE ON materials
+                WHEN OLD.id = '{material.id}'
+                BEGIN SELECT RAISE(ABORT, 'synthetic repository failure'); END"""
+        )
+    with pytest.raises(sqlite3.IntegrityError, match="synthetic repository failure"):
         service.delete_material(space_id=space.id, material_id=material.id)
 
     assert stored_file.read_text(encoding="utf-8").startswith("Restore this file")
     assert repository.get_material(material.id) is not None
     assert _delete_staging_paths(stored_file.parent) == []
 
-    monkeypatch.setattr(repository, "delete_material", original_delete)
+    with repository.connection() as conn:
+        conn.execute("DROP TRIGGER abort_material_delete")
     assert service.delete_material(space_id=space.id, material_id=material.id)
     assert not stored_file.exists()
     assert repository.get_material(material.id) is None

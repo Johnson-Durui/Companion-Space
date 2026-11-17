@@ -60,6 +60,9 @@ class MaterialKind(str, Enum):
     markdown = "markdown"
     text = "text"
     note = "note"
+    pptx = "pptx"
+    docx = "docx"
+    image = "image"
 
 
 class MemoryStatus(str, Enum):
@@ -154,16 +157,6 @@ class Chunk(BaseModel):
     dense_vector: dict[str, float] | list[float] = Field(default_factory=dict)
     metadata: dict[str, str | int | bool | None] = Field(default_factory=dict)
     created_at: datetime
-
-
-class IngestionJob(BaseModel):
-    id: str
-    space_id: str
-    material_id: str
-    status: str
-    error_message: str | None = None
-    created_at: datetime
-    updated_at: datetime
 
 
 class CharacterRecipe(BaseModel):
