@@ -1,3 +1,16 @@
 {
-  "formula": "Formula supplied to the tagged-text round-trip connection check."
+  "candidate_answer": "A proposed answer supplied as an untrusted data block.",
+  "course_context": "Course, material, section, or unit metadata supplied as an untrusted data block.",
+  "exam_items": "Exam items supplied as an untrusted data block.",
+  "existing_items": "Existing questions supplied as an untrusted data block.",
+  "formula": "Formula supplied to the tagged-text round-trip connection check.",
+  "generation_count": "Requested number of generated items per knowledge point.",
+  "item_options": "Choice options supplied as an untrusted data block.",
+  "item_context": "Question, solution, or related context supplied as an untrusted data block.",
+  "item_rubric": "Required scoring points supplied as an untrusted data block.",
+  "item_stem": "Question type and stem supplied as an untrusted data block.",
+  "knowledge_candidates": "Knowledge point candidates supplied as an untrusted data block.",
+  "page_content": "Source pages supplied as an untrusted data block.",
+  "reference_answer": "A reference answer supplied as an untrusted data block.",
+  "solve_attempt": "Independent solver attempt identifier used to keep cached calls separate."
 }
