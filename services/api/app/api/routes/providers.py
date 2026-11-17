@@ -190,11 +190,6 @@ async def test_provider_connection(
     container: ServiceContainer = Depends(get_container),
 ) -> dict:
     result = await container.providers.test_connection(connection_id)
-    container.metrics.record_event_safe(
-        "provider_connected_or_mock",
-        {"provider_kind": str(result["provider"])},
-        once=True,
-    )
     return result
 
 

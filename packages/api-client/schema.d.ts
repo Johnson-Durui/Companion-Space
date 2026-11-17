@@ -210,57 +210,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/metrics/local/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Local Metric Events */
-        get: operations["get_local_metric_events_api_v1_metrics_local_events_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/metrics/local/signals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Record Local Metric Signal */
-        post: operations["record_local_metric_signal_api_v1_metrics_local_signals_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/metrics/local/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Local Metrics Summary */
-        get: operations["get_local_metrics_summary_api_v1_metrics_local_summary_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/providers/connections": {
         parameters: {
             query?: never;
@@ -1163,19 +1112,6 @@ export interface components {
          * @enum {string}
          */
         LearningArtifactsStatus: "idle" | "pending" | "running" | "ready" | "error";
-        /** LocalMetricSignalRequest */
-        LocalMetricSignalRequest: {
-            /** Code */
-            code?: ("realtime_url_missing" | "owner_token_missing" | "realtime_url_invalid" | "realtime_disconnected" | "microphone_denied" | "realtime_connect_failed" | "realtime_server_error") | null;
-            /** Event */
-            event: string;
-            /** Residue Found */
-            residue_found?: boolean | null;
-            /** Session Id */
-            session_id: string;
-            /** Value */
-            value?: number | null;
-        };
         /** MaterialIngestionResponse */
         MaterialIngestionResponse: {
             job: components["schemas"]["IngestionJob"];
@@ -2275,107 +2211,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryItem"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_local_metric_events_api_v1_metrics_local_events_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    record_local_metric_signal_api_v1_metrics_local_signals_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LocalMetricSignalRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_local_metrics_summary_api_v1_metrics_local_summary_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
             /** @description Validation Error */

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from contextlib import suppress
 from urllib.parse import urlsplit
 
@@ -24,8 +25,6 @@ from app.models.domain import (
 from app.providers.errors import (
     ProviderError,
     ProviderProtocolError,
-    ProviderTimeoutError,
-    provider_error_code,
     provider_error_payload,
 )
 from app.services.companion import (
@@ -46,6 +45,7 @@ from app.services.realtime import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 REALTIME_PROTOCOL = "companion-v1"
 REALTIME_TICKET_PREFIX = "ticket."
@@ -198,22 +198,10 @@ def _resolve_realtime_audio_assignments(
 @router.websocket("/sessions/{session_id}/realtime")
 async def realtime_session(websocket: WebSocket, session_id: str) -> None:
     container = get_container()
-    container.metrics.record_event_safe(
-        "ws_attempt",
-        {"session_id": session_id},
-    )
     if websocket.query_params.get("token") or websocket.query_params.get("owner_token"):
-        container.metrics.record_event_safe(
-            "ws_error",
-            {"session_id": session_id, "code": "query_token_rejected"},
-        )
         await websocket.close(code=4401, reason="Owner session required")
         return
     if not _origin_allowed(websocket.headers.get("origin"), websocket, container):
-        container.metrics.record_event_safe(
-            "ws_error",
-            {"session_id": session_id, "code": "origin_rejected"},
-        )
         await websocket.close(code=4403, reason="Origin not allowed")
         return
     ticket = _extract_realtime_ticket(websocket.headers.get("sec-websocket-protocol"))
@@ -223,10 +211,6 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
         else None
     )
     if owner_session_id is None:
-        container.metrics.record_event_safe(
-            "ws_error",
-            {"session_id": session_id, "code": "owner_session_required"},
-        )
         await websocket.close(code=4401, reason="Owner session required")
         return
 
@@ -242,26 +226,14 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
             session=session,
         )
     except SessionNotFoundError:
-        container.metrics.record_event_safe(
-            "ws_error",
-            {"session_id": session_id, "code": "session_not_found"},
-        )
         await websocket.accept(subprotocol=REALTIME_PROTOCOL)
         await websocket.close(code=4404, reason="Session not found")
         return
     except CharacterNotFoundError:
-        container.metrics.record_event_safe(
-            "ws_error",
-            {"session_id": session_id, "code": "session_character_unavailable"},
-        )
         await websocket.accept(subprotocol=REALTIME_PROTOCOL)
         await websocket.close(code=4409, reason="Session character is unavailable")
         return
-    except ProviderError as error:
-        container.metrics.record_event_safe(
-            "ws_error",
-            {"session_id": session_id, "code": provider_error_code(error)},
-        )
+    except ProviderError:
         await websocket.accept(subprotocol=REALTIME_PROTOCOL)
         await websocket.close(
             code=1011, reason="Realtime audio provider is unavailable"
@@ -269,61 +241,27 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
         return
 
     await websocket.accept(subprotocol=REALTIME_PROTOCOL)
-    container.metrics.record_event_safe(
-        "ws_connection",
-        {"session_id": session_id},
-    )
     runtime = RealtimeConnectionState()
     cleanup_tasks: set[asyncio.Task[object]] = set()
-
-    def record_ws_error(code: str) -> None:
-        container.metrics.record_event_safe(
-            "ws_error",
-            {"session_id": session_id, "code": code},
-        )
 
     def track_turn_cleanup(task: asyncio.Task[object]) -> None:
         cleanup_tasks.add(task)
 
         def observe(completed: asyncio.Task[object]) -> None:
             cleanup_tasks.discard(completed)
-            if completed.cancelled():
-                return
-            if completed.exception() is not None:
-                record_ws_error("turn_cleanup_failed")
+            if not completed.cancelled() and completed.exception() is not None:
+                logger.warning("Realtime turn cleanup failed")
 
         task.add_done_callback(observe)
 
-    def transition_state(
-        target: SessionState,
-        *,
-        code: str,
-    ) -> SessionState:
+    def transition_state(target: SessionState) -> SessionState:
         try:
             return container.companion.set_state(
                 session_id,
                 target,
-                reason_code=code,
             ).state
         except ValueError:
             return container.companion.get_session(session_id).state
-
-    def record_provider_failure(
-        error: ProviderError,
-        *,
-        capability: ProviderCapability,
-    ) -> None:
-        code = provider_error_code(error)
-        record_ws_error(code)
-        if isinstance(error, ProviderTimeoutError):
-            container.metrics.record_event_safe(
-                "model_timeout",
-                {
-                    "capability": capability.value,
-                    "provider_kind": error.provider,
-                    "code": code,
-                },
-            )
 
     async def send_json_event(event: dict, *, generation: int | None = None) -> bool:
         if generation is not None and not runtime.is_generation_current(generation):
@@ -381,7 +319,7 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                 return
 
             if tts_playback_policy == "browser-compat":
-                transition_state(SessionState.idle, code="tts_browser_compat")
+                transition_state(SessionState.idle)
                 await send_json_event(
                     _realtime_event(
                         session_id,
@@ -416,10 +354,7 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                 if not chunk:
                     continue
                 if not started_speaking:
-                    transition_state(
-                        SessionState.speaking,
-                        code="tts_started",
-                    )
+                    transition_state(SessionState.speaking)
                     started_speaking = True
                 if not await send_json_event(
                     _realtime_event(
@@ -445,7 +380,7 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
 
             if not runtime.is_generation_current(generation):
                 return
-            transition_state(SessionState.idle, code="tts_completed")
+            transition_state(SessionState.idle)
             await send_json_event(
                 _realtime_event(
                     session_id,
@@ -462,15 +397,8 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
         except asyncio.CancelledError:
             raise
         except ProviderError as error:
-            record_provider_failure(
-                error,
-                capability=ProviderCapability.tts,
-            )
             if runtime.is_generation_current(generation):
-                transition_state(
-                    SessionState.error,
-                    code="tts_provider_error",
-                )
+                transition_state(SessionState.error)
                 await send_json_event(
                     _serialize_provider_error_event(session_id, error),
                     generation=generation,
@@ -516,15 +444,8 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
         except asyncio.CancelledError:
             raise
         except ProviderError as error:
-            record_provider_failure(
-                error,
-                capability=ProviderCapability.stt,
-            )
             if runtime.is_generation_current(generation):
-                transition_state(
-                    SessionState.error,
-                    code="commit_provider_error",
-                )
+                transition_state(SessionState.error)
                 await send_json_event(
                     _serialize_provider_error_event(session_id, error),
                     generation=generation,
@@ -532,7 +453,6 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
         except SessionNotFoundError:
             if not runtime.is_generation_current(generation):
                 return
-            record_ws_error("session_not_found")
             async with runtime.send_lock:
                 if runtime.is_generation_current(generation):
                     with suppress(RuntimeError):
@@ -543,7 +463,6 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
         except CharacterNotFoundError:
             if not runtime.is_generation_current(generation):
                 return
-            record_ws_error("session_character_unavailable")
             async with runtime.send_lock:
                 if runtime.is_generation_current(generation):
                     with suppress(RuntimeError):
@@ -554,7 +473,6 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
         except ValueError:
             if not runtime.is_generation_current(generation):
                 return
-            record_ws_error("invalid_session_state")
             async with runtime.send_lock:
                 if runtime.is_generation_current(generation):
                     with suppress(RuntimeError):
@@ -592,11 +510,7 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                 try:
                     buffered_audio_bytes = runtime.append_audio_frame(message["bytes"])
                 except ValueError as error:
-                    record_ws_error("invalid_audio_frame")
-                    transition_state(
-                        SessionState.error,
-                        code="invalid_audio_frame",
-                    )
+                    transition_state(SessionState.error)
                     await send_json_event(_error_event(session_id, detail=str(error)))
                     continue
                 if runtime.has_active_turn():
@@ -608,10 +522,7 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                         partial_state = SessionState.thinking
                 else:
                     partial_state = SessionState.listening
-                    transition_state(
-                        SessionState.listening,
-                        code="audio_frame_received",
-                    )
+                    transition_state(SessionState.listening)
                 await send_json_event(
                     _realtime_event(
                         session_id,
@@ -630,20 +541,12 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                     session_id=session_id,
                 )
             except ValueError as error:
-                record_ws_error("invalid_event_payload")
-                transition_state(
-                    SessionState.error,
-                    code="invalid_event_payload",
-                )
+                transition_state(SessionState.error)
                 await send_json_event(_error_event(session_id, detail=str(error)))
                 continue
             event_type = payload.get("type")
             if not isinstance(event_type, str) or not event_type:
-                record_ws_error("missing_event_type")
-                transition_state(
-                    SessionState.error,
-                    code="missing_event_type",
-                )
+                transition_state(SessionState.error)
                 await send_json_event(
                     _error_event(session_id, detail="Realtime event type is required.")
                 )
@@ -652,11 +555,7 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
             if event_payload is None:
                 event_payload = {}
             if not isinstance(event_payload, dict):
-                record_ws_error("invalid_event_body")
-                transition_state(
-                    SessionState.error,
-                    code="invalid_event_body",
-                )
+                transition_state(SessionState.error)
                 await send_json_event(
                     _error_event(
                         session_id, detail="Realtime payload.payload must be an object."
@@ -680,10 +579,7 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                 if pending_task is None:
                     current_state = container.companion.get_session(session_id).state
                     if current_state == SessionState.listening:
-                        current_state = transition_state(
-                            SessionState.idle,
-                            code="audio_buffer_cleared",
-                        )
+                        current_state = transition_state(SessionState.idle)
                     await send_json_event(
                         _realtime_event(
                             session_id,
@@ -707,15 +603,10 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                 await asyncio.to_thread(
                     transition_state,
                     SessionState.interrupted,
-                    code="turn_interrupted",
                 )
                 continue
             if event_type != "user.commit":
-                record_ws_error("unsupported_event")
-                transition_state(
-                    SessionState.error,
-                    code="unsupported_event",
-                )
+                transition_state(SessionState.error)
                 await send_json_event(
                     _error_event(session_id, detail="Unsupported realtime event.")
                 )
@@ -726,16 +617,7 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
                 SessionState.thinking,
                 SessionState.speaking,
             }:
-                record_ws_error("active_turn_conflict")
-                container.companion.record_illegal_state_transition(
-                    session_id,
-                    SessionState.thinking,
-                    reason_code="active_turn_conflict",
-                )
-                transition_state(
-                    SessionState.error,
-                    code="active_turn_conflict_error",
-                )
+                transition_state(SessionState.error)
                 await send_json_event(
                     _error_event(
                         session_id,
@@ -760,17 +642,15 @@ async def realtime_session(websocket: WebSocket, session_id: str) -> None:
     except WebSocketDisconnect:
         return
     except SessionNotFoundError:
-        record_ws_error("session_not_found")
         with suppress(RuntimeError):
             await websocket.close(code=4404, reason="Session not found")
         return
     except CharacterNotFoundError:
-        record_ws_error("session_character_unavailable")
         with suppress(RuntimeError):
             await websocket.close(code=4409, reason="Session character is unavailable")
         return
     except RuntimeError:
-        record_ws_error("runtime_error")
+        logger.warning("Realtime connection failed")
         return
     finally:
         pending_task = runtime.interrupt_active_turn()

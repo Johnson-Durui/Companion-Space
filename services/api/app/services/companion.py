@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from app.core.config import Settings
@@ -19,8 +18,6 @@ from app.services.provider_registry import ProviderRegistryService
 from app.services.repository import SQLiteRepository
 from app.services.spaces import StudySpaceService
 
-if TYPE_CHECKING:
-    from app.services.metrics import MetricsService
 from app.services.companion_contract import (
     DEFAULT_CHARACTER_PACK_ID as DEFAULT_CHARACTER_PACK_ID,
     SessionNotFoundError as SessionNotFoundError,
@@ -44,14 +41,11 @@ class CompanionService(CompanionTurns, CompanionTurnContext, CompanionLearningJo
         repository: SQLiteRepository,
         spaces: StudySpaceService,
         providers: ProviderRegistryService,
-        *,
-        metrics: MetricsService | None = None,
     ) -> None:
         self.settings = settings
         self.repository = repository
         self.spaces = spaces
         self.providers = providers
-        self.metrics = metrics
         self.characters = CharacterService(repository)
         self.prompt_loader = PromptLoader(settings)
         self._artifact_tasks: dict[str, asyncio.Task[None]] = {}
@@ -115,53 +109,21 @@ class CompanionService(CompanionTurns, CompanionTurnContext, CompanionLearningJo
         self,
         session_id: str,
         state: SessionState,
-        *,
-        reason_code: str,
     ) -> SessionRecord:
         session = self.get_session(session_id)
         if session.state is state:
             return session
         if session.ended_at is not None or session.state is SessionState.closed:
-            self.record_illegal_state_transition(
-                session_id,
-                state,
-                reason_code=reason_code,
-            )
             raise ValueError("Illegal session state transition")
         allowed_states = ALLOWED_SESSION_STATE_TRANSITIONS.get(
             session.state,
             frozenset(),
         )
         if state not in allowed_states:
-            self.record_illegal_state_transition(
-                session_id,
-                state,
-                reason_code=reason_code,
-            )
             raise ValueError("Illegal session state transition")
         updated = session.model_copy(update={"state": state, "updated_at": datetime.now(timezone.utc)})
         self.repository.upsert_session(updated)
         return updated
-
-    def record_illegal_state_transition(
-        self,
-        session_id: str,
-        state: SessionState,
-        *,
-        reason_code: str,
-    ) -> None:
-        session = self.get_session(session_id)
-        if self.metrics is None:
-            return
-        self.metrics.record_event_safe(
-            "illegal_state_transition",
-            {
-                "session_id": session_id,
-                "state_from": session.state.value,
-                "state_to": state.value,
-                "code": reason_code,
-            },
-        )
 
     def end_session(self, session_id: str, summary: str = "") -> SessionRecord:
         session = self.get_session(session_id)

@@ -63,7 +63,6 @@ def vault_init(
             settings=container.settings,
             protected_token=container.vault.protect_browser_token(token),
         )
-    container.metrics.record_event_safe("vault_initialized", {}, once=True)
     return VaultUnlockResponse(
         initialized=True,
         unlocked=True,

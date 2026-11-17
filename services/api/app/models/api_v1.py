@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -47,24 +47,6 @@ class VaultUnlockResponse(BaseModel):
     initialized: bool
     unlocked: bool
     owner_token: str | None = None
-
-
-class LocalMetricSignalRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    event: str = Field(min_length=1, max_length=80)
-    session_id: str = Field(min_length=1, max_length=128)
-    value: float | None = None
-    residue_found: bool | None = None
-    code: Literal[
-        "realtime_url_missing",
-        "owner_token_missing",
-        "realtime_url_invalid",
-        "realtime_disconnected",
-        "microphone_denied",
-        "realtime_connect_failed",
-        "realtime_server_error",
-    ] | None = None
 
 
 class RealtimeTicketResponse(BaseModel):

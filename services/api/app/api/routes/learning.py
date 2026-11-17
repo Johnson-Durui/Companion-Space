@@ -76,18 +76,6 @@ def update_memory(
         }
     )
     saved = container.repository.upsert_memory_item(item)
-    if next_status is MemoryStatus.confirmed:
-        container.metrics.record_event_safe(
-            "memory_candidate_confirmed",
-            {"space_id": space_id, "memory_id": memory_id},
-            once=True,
-        )
-    elif next_status is MemoryStatus.discarded:
-        container.metrics.record_event_safe(
-            "memory_candidate_rejected",
-            {"space_id": space_id, "memory_id": memory_id},
-            once=True,
-        )
     return saved
 
 
@@ -115,11 +103,6 @@ def confirm_memory(
         }
     )
     saved = container.repository.upsert_memory_item(confirmed)
-    container.metrics.record_event_safe(
-        "memory_candidate_confirmed",
-        {"space_id": space_id, "memory_id": memory_id},
-        once=True,
-    )
     return saved
 
 
@@ -133,25 +116,11 @@ def delete_memory(
     _: str = Depends(require_owner),
     container: ServiceContainer = Depends(get_container),
 ) -> Response:
-    existing = next(
-        (
-            item
-            for item in container.repository.list_memory_items(space_id)
-            if item.id == memory_id
-        ),
-        None,
-    )
     if not container.repository.delete_memory_item(
         space_id=space_id,
         memory_id=memory_id,
     ):
         raise HTTPException(status_code=404, detail="Memory item not found")
-    if existing is not None and existing.status is MemoryStatus.candidate:
-        container.metrics.record_event_safe(
-            "memory_candidate_rejected",
-            {"space_id": space_id, "memory_id": memory_id},
-            once=True,
-        )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -195,10 +164,6 @@ def update_review(
         changes["status"] = payload.status
     item = existing.model_copy(update=changes)
     saved = container.repository.upsert_review_item(item)
-    container.metrics.record_event_safe(
-        "review_item_updated",
-        {"space_id": space_id, "review_id": review_id},
-    )
     return saved
 
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from app.models.domain import (
@@ -9,7 +8,6 @@ from app.models.domain import (
     Citation,
     CompanionTurn,
     MemoryStatus,
-    RetrievalResult,
     ReviewStatus,
     SessionRecord,
     TurnRole,
@@ -18,8 +16,6 @@ from app.models.domain import (
 from app.providers.base import ProviderMessage, ProviderReply
 from app.services.companion_parsing import parse_provider_payload, sanitize_board_actions
 
-if TYPE_CHECKING:
-    pass
 from app.services.companion_contract import (
     MEMORY_CONTEXT_LIMIT,
     MEMORY_CONTEXT_CONTENT_LIMIT,
@@ -73,34 +69,6 @@ class CompanionTurnContext:
             ),
             created_at=datetime.now(timezone.utc),
         )
-
-    def _record_citation_metrics(
-        self,
-        *,
-        session: SessionRecord,
-        citations: list[Citation],
-        retrieval: RetrievalResult,
-    ) -> None:
-        if self.metrics is None:
-            return
-        valid_hits = {
-            (hit.chunk.id, hit.chunk.material_id, hit.chunk.locator)
-            for hit in retrieval.hits
-            if hit.chunk.space_id == session.space_id
-        }
-        for citation in citations:
-            self.metrics.record_event_safe(
-                "citation_verified",
-                {
-                    "session_id": session.id,
-                    "matched": (
-                        citation.chunk_id,
-                        citation.material_id,
-                        citation.locator,
-                    )
-                    in valid_hits,
-                },
-            )
 
     @staticmethod
     def _parse_provider_payload(raw_text: str) -> dict:

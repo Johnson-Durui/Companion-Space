@@ -55,11 +55,6 @@ def create_space(
         topic=payload.topic,
         goal=payload.goal,
     )
-    container.metrics.record_event_safe(
-        "space_created",
-        {"space_id": space.id},
-        once=True,
-    )
     return space
 
 

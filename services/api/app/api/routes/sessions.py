@@ -50,11 +50,6 @@ def create_session(
         space_id=payload.space_id,
         character_pack_id=payload.character_pack_id,
     )
-    container.metrics.record_event_safe(
-        "session_started",
-        {"space_id": session.space_id, "session_id": session.id},
-        once=True,
-    )
     return session
 
 
@@ -75,12 +70,6 @@ def get_session_transcript(
 ) -> SessionTranscriptResponse:
     session = container.companion.get_session(session_id)
     turns = container.repository.list_turns(session_id)
-    if session.ended_at is not None:
-        container.metrics.record_event_safe(
-            "recap_viewed",
-            {"space_id": session.space_id, "session_id": session.id},
-            once=True,
-        )
     return SessionTranscriptResponse(
         session=session,
         turns=turns,
@@ -108,20 +97,7 @@ def issue_realtime_ticket(
             status_code=409,
             detail="Session character is unavailable",
         ) from error
-    try:
-        _resolve_realtime_audio_assignments(
-            container=container,
-            session=session,
-        )
-    except (ProviderError, ValueError):
-        container.metrics.record_event_safe(
-            "text_fallback_used",
-            {
-                "session_id": session_id,
-                "code": "missing_realtime_audio",
-            },
-        )
-        raise
+    _resolve_realtime_audio_assignments(container=container, session=session)
     ticket, expires_at = container.vault.issue_realtime_ticket(
         owner_token, session_id=session_id
     )
@@ -207,21 +183,6 @@ async def end_session(
         session_id=session_id,
         include_candidates=True,
     )
-    duration_ms = 0
-    if session.ended_at is not None:
-        duration_ms = max(
-            int((session.ended_at - session.created_at).total_seconds() * 1000),
-            0,
-        )
-    container.metrics.record_event_safe(
-        "session_ended",
-        {
-            "space_id": session.space_id,
-            "session_id": session.id,
-            "duration_ms": duration_ms,
-        },
-        once=True,
-    )
     return session
 
 
@@ -236,11 +197,6 @@ def update_session_recap(
         session_id=session_id,
         summary=payload.summary,
         notes=payload.notes,
-    )
-    container.metrics.record_event_safe(
-        "recap_edited",
-        {"session_id": session.id},
-        once=True,
     )
     return SessionTranscriptResponse(
         session=session,

@@ -11,7 +11,7 @@ from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import Any, Iterator
 from uuid import uuid4
 
 from pypdf import PdfReader
@@ -51,10 +51,6 @@ from app.services.provider_registry import (
 )
 from app.services.repository import SQLiteRepository
 
-if TYPE_CHECKING:
-    from app.services.metrics import MetricsService
-
-
 HEADING_PATTERN = re.compile(r"^(#{1,3}\s+.+|[0-9]+\.\s+.+|第[一二三四五六七八九十百千0-9]+[章节部分].+)$", re.MULTILINE)
 INGESTION_TERMINAL_STATUSES = frozenset({"completed", "failed"})
 INGESTION_ACTIVE_STATUSES = frozenset({"queued", "processing"})
@@ -89,7 +85,6 @@ class StudySpaceService:
         self.embedding_provider = build_embedding_provider(settings)
         self.reranker = build_reranker_provider(settings)
         self.provider_registry: ProviderRegistryService | None = None
-        self.metrics: MetricsService | None = None
         self._ingestion_queue: queue.Queue[str | object] = queue.Queue()
         self._queued_job_ids: set[str] = set()
         self._worker_lock = threading.Lock()
@@ -98,9 +93,6 @@ class StudySpaceService:
 
     def set_provider_registry(self, provider_registry: ProviderRegistryService) -> None:
         self.provider_registry = provider_registry
-
-    def set_metrics(self, metrics: MetricsService) -> None:
-        self.metrics = metrics
 
     def start_ingestion_worker(self) -> None:
         with self._worker_lock:
@@ -193,15 +185,6 @@ class StudySpaceService:
                     job=completed_job,
                     chunks=chunks,
                 )
-            if self.metrics is not None:
-                self.metrics.record_event_safe(
-                    "material_ready",
-                    {
-                        "space_id": job.space_id,
-                        "material_id": job.material_id,
-                    },
-                    once=True,
-                )
         except Exception as exc:
             self.repository.fail_ingestion_job(
                 job_id=job.id,
@@ -217,15 +200,6 @@ class StudySpaceService:
                     }
                 },
             )
-            if self.metrics is not None:
-                self.metrics.record_event_safe(
-                    "ingestion_failed",
-                    {
-                        "space_id": job.space_id,
-                        "material_id": job.material_id,
-                        "code": type(exc).__name__.casefold(),
-                    },
-                )
 
     @staticmethod
     def _safe_ingestion_error(exc: Exception) -> str:

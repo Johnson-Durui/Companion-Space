@@ -60,11 +60,6 @@ def create_character(
         description=payload.description,
         recipe=payload.recipe,
     )
-    container.metrics.record_event_safe(
-        "character_saved",
-        {"character_id": character.id},
-        once=True,
-    )
     return character
 
 
@@ -85,11 +80,6 @@ async def import_character(
     character = container.characters.import_character_upload(
         filename=filename,
         data=data,
-    )
-    container.metrics.record_event_safe(
-        "character_saved",
-        {"character_id": character.id},
-        once=True,
     )
     return character
 
@@ -123,11 +113,6 @@ async def replace_character_avatar(
         filename=filename,
         data=data,
     )
-    container.metrics.record_event_safe(
-        "character_saved",
-        {"character_id": character.id},
-        once=True,
-    )
     return character
 
 
@@ -138,11 +123,6 @@ def remove_character_avatar(
     container: ServiceContainer = Depends(get_container),
 ):
     character = container.characters.remove_character_avatar(character_id)
-    container.metrics.record_event_safe(
-        "character_saved",
-        {"character_id": character.id},
-        once=True,
-    )
     return character
 
 
@@ -192,11 +172,6 @@ def update_character(
         description=payload.description,
         recipe=payload.recipe,
     )
-    container.metrics.record_event_safe(
-        "character_saved",
-        {"character_id": character.id},
-        once=True,
-    )
     return character
 
 
@@ -213,11 +188,6 @@ def duplicate_character(
     character = container.characters.duplicate_character(
         character_id,
         name=payload.name if payload else None,
-    )
-    container.metrics.record_event_safe(
-        "character_saved",
-        {"character_id": character.id},
-        once=True,
     )
     return character
 

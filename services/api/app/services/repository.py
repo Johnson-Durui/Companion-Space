@@ -14,7 +14,7 @@ from app.repositories.mixins.common import (
 )
 from app.repositories.mixins.infrastructure import InfrastructureMixin
 from app.repositories.mixins.owner_sessions import OwnerSessionMixin
-from app.repositories.mixins.metrics_tickets import MetricsTicketMixin
+from app.repositories.mixins.tickets import TicketMixin
 from app.repositories.mixins.course import CourseMixin
 from app.repositories.mixins.rag_read import RagReadMixin
 from app.repositories.mixins.rag_write import RagWriteMixin
@@ -28,7 +28,7 @@ from app.repositories.mixins.rows import RowMixin
 class SQLiteRepository(
     InfrastructureMixin,
     OwnerSessionMixin,
-    MetricsTicketMixin,
+    TicketMixin,
     CourseMixin,
     RagReadMixin,
     RagWriteMixin,

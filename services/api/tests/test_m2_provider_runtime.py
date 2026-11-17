@@ -266,23 +266,6 @@ def test_provider_failures_are_safely_mapped_to_http_errors(
     assert response.status_code == expected_status
     assert leaked_key not in response.text
     assert "anthropic" in response.text.lower() or "provider" in response.text.lower()
-    if isinstance(exc, ProviderTimeoutError):
-        metric_events = local_client.get(
-            "/api/v1/metrics/local/events?limit=20",
-            headers=_auth_headers(owner_token),
-        )
-        assert metric_events.status_code == 200
-        timeout_event = next(
-            item
-            for item in metric_events.json()["items"]
-            if item["event"] == "model_timeout"
-        )
-        assert timeout_event["payload"] == {
-            "capability": "chat_llm",
-            "provider_kind": "anthropic",
-            "code": "provider_timeout",
-        }
-
 
 def test_locked_vault_blocks_real_provider_usage_without_echoing_api_key(
     client: TestClient,

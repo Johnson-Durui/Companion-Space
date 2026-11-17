@@ -59,11 +59,6 @@ class CompanionTurns:
                 or existing_session.state is SessionState.closed
             ):
                 raise ValueError("Session is closed")
-            self.record_illegal_state_transition(
-                session_id,
-                SessionState.thinking,
-                reason_code="active_turn_conflict",
-            )
             raise ValueError("Session already has an active turn")
         space = self.spaces.require_space(session.space_id)
         retrieval = await self.spaces.retrieve_async(
@@ -144,11 +139,7 @@ class CompanionTurns:
                 if not emitted_display_text:
                     self._assert_session_open_after_generation(session_id)
                     if not defer_speaking:
-                        self.set_state(
-                            session_id,
-                            SessionState.speaking,
-                            reason_code="llm_first_delta",
-                        )
+                        self.set_state(session_id, SessionState.speaking)
                     emitted_display_text = True
                 yield CompanionStreamEvent(
                     type="llm.delta",
@@ -180,11 +171,7 @@ class CompanionTurns:
             )
             if not emitted_display_text:
                 if not defer_speaking:
-                    self.set_state(
-                        session_id,
-                        SessionState.speaking,
-                        reason_code="llm_final_without_delta",
-                    )
+                    self.set_state(session_id, SessionState.speaking)
                 yield CompanionStreamEvent(
                     type="llm.delta",
                     state=(
@@ -195,24 +182,6 @@ class CompanionTurns:
                     text=assistant_turn.display_text,
                 )
             self.repository.add_turn(assistant_turn)
-            if self.metrics is not None:
-                self.metrics.record_event_safe(
-                    "model_completed",
-                    {
-                        "session_id": session.id,
-                        "provider_kind": result.provider,
-                    },
-                )
-                self.metrics.record_event_safe(
-                    "provider_connected_or_mock",
-                    {"provider_kind": result.provider},
-                    once=True,
-                )
-                self._record_citation_metrics(
-                    session=session,
-                    citations=assistant_turn.citations,
-                    retrieval=retrieval,
-                )
             self.schedule_learning_artifacts(
                 session_id=session.id,
                 include_candidates=False,
@@ -240,15 +209,7 @@ class CompanionTurns:
             final_state = (
                 SessionState.thinking if defer_speaking else SessionState.idle
             )
-            self.set_state(
-                session_id,
-                final_state,
-                reason_code=(
-                    "llm_final_deferred"
-                    if defer_speaking
-                    else "llm_completed"
-                ),
-            )
+            self.set_state(session_id, final_state)
             completed = True
             yield CompanionStreamEvent(
                 type="llm.final",
@@ -270,11 +231,7 @@ class CompanionTurns:
             or session.state is SessionState.closed
         ):
             return
-        self.set_state(
-            session_id,
-            SessionState.error,
-            reason_code="stream_failed",
-        )
+        self.set_state(session_id, SessionState.error)
 
     def _assert_session_open_after_generation(self, session_id: str) -> None:
         session = self.get_session(session_id)

@@ -9,7 +9,6 @@ from app.core.config import Settings, get_settings
 from app.services.characters import CharacterService
 from app.services.browser_session import OWNER_COOKIE_NAME, require_cookie_csrf
 from app.services.companion import CompanionService
-from app.services.metrics import MetricsService
 from app.services.provider_registry import ProviderRegistryService
 from app.services.repository import SQLiteRepository
 from app.services.spaces import StudySpaceService
@@ -25,7 +24,6 @@ class ServiceContainer:
     settings: Settings
     repository: SQLiteRepository
     vault: VaultService
-    metrics: MetricsService
     spaces: StudySpaceService
     characters: CharacterService
     providers: ProviderRegistryService
@@ -47,25 +45,21 @@ def get_container() -> ServiceContainer:
     settings = get_settings()
     repository = SQLiteRepository(settings)
     vault = VaultService(settings, repository)
-    metrics = MetricsService(repository)
     spaces = StudySpaceService(settings, repository)
     characters = CharacterService(repository)
     providers = ProviderRegistryService(repository, vault)
     spaces.set_provider_registry(providers)
-    spaces.set_metrics(metrics)
     spaces.start_ingestion_worker()
     companion = CompanionService(
         settings,
         repository,
         spaces,
         providers,
-        metrics=metrics,
     )
     return ServiceContainer(
         settings=settings,
         repository=repository,
         vault=vault,
-        metrics=metrics,
         spaces=spaces,
         characters=characters,
         providers=providers,
