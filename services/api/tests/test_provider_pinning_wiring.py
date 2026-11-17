@@ -9,13 +9,10 @@ import app.providers.anthropic_provider as anthropic_module
 import app.providers.elevenlabs_provider as elevenlabs_module
 import app.providers.local_neural_tts as local_neural_module
 import app.providers.openai_compatible as openai_module
-import app.providers.tts_elevenlabs as legacy_elevenlabs_module
-from app.models.voice import VoiceSynthesisRequest
 from app.providers.anthropic_provider import AnthropicLLMProvider
 from app.providers.elevenlabs_provider import ElevenLabsProviderAdapter
 from app.providers.local_neural_tts import LocalNeuralTTSProvider
 from app.providers.openai_compatible import OpenAICompatibleProvider
-from app.providers.tts_elevenlabs import ElevenLabsTTSProvider
 
 
 def test_openai_and_ollama_use_pinned_transport_by_default(
@@ -89,11 +86,10 @@ def test_anthropic_uses_pinned_transport_by_default(
     assert calls == [("https://api.anthropic.com", "anthropic")]
 
 
-def test_elevenlabs_paths_use_pinned_transport_by_default(
+def test_elevenlabs_uses_pinned_transport_by_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     adapter_calls: list[tuple[str, str]] = []
-    legacy_calls: list[tuple[str, str]] = []
 
     def build_adapter_transport(
         base_url: str,
@@ -105,41 +101,16 @@ def test_elevenlabs_paths_use_pinned_transport_by_default(
             lambda request: httpx.Response(200, request=request, json={"models": []})
         )
 
-    def build_legacy_transport(
-        base_url: str,
-        *,
-        provider: str,
-    ) -> httpx.AsyncBaseTransport:
-        legacy_calls.append((base_url, provider))
-        return httpx.MockTransport(
-            lambda request: httpx.Response(200, request=request, content=b"audio")
-        )
-
     monkeypatch.setattr(
         elevenlabs_module,
         "build_pinned_http_transport",
         build_adapter_transport,
     )
-    monkeypatch.setattr(
-        legacy_elevenlabs_module,
-        "build_pinned_http_transport",
-        build_legacy_transport,
-    )
 
     adapter = ElevenLabsProviderAdapter(api_key="test-elevenlabs-key")
     assert asyncio.run(adapter.discover_models()) == []
 
-    legacy = ElevenLabsTTSProvider(
-        api_key="test-elevenlabs-key",
-        voice_id="voice-123",
-    )
-    response = asyncio.run(
-        legacy.synthesize(VoiceSynthesisRequest(text="hello"))
-    )
-
-    assert response.audio_base64 == "YXVkaW8="
     assert adapter_calls == [("https://api.elevenlabs.io/v1", "elevenlabs")]
-    assert legacy_calls == [("https://api.elevenlabs.io", "elevenlabs")]
 
 
 def test_explicit_transports_bypass_pinned_resolution(
@@ -153,11 +124,6 @@ def test_explicit_transports_bypass_pinned_resolution(
     monkeypatch.setattr(anthropic_module, "build_pinned_http_transport", fail_if_called)
     monkeypatch.setattr(elevenlabs_module, "build_pinned_http_transport", fail_if_called)
     monkeypatch.setattr(local_neural_module, "build_pinned_http_transport", fail_if_called)
-    monkeypatch.setattr(
-        legacy_elevenlabs_module,
-        "build_pinned_http_transport",
-        fail_if_called,
-    )
 
     openai = OpenAICompatibleProvider(
         api_key="test-key",
@@ -180,13 +146,6 @@ def test_explicit_transports_bypass_pinned_resolution(
             lambda request: httpx.Response(200, request=request, json={"models": []})
         ),
     )
-    legacy = ElevenLabsTTSProvider(
-        api_key="test-key",
-        voice_id="voice-123",
-        transport=httpx.MockTransport(
-            lambda request: httpx.Response(200, request=request, content=b"audio")
-        ),
-    )
     local_neural = LocalNeuralTTSProvider(
         transport=httpx.MockTransport(
             lambda request: httpx.Response(
@@ -200,5 +159,4 @@ def test_explicit_transports_bypass_pinned_resolution(
     assert asyncio.run(openai.discover_models()) == []
     assert asyncio.run(anthropic.discover_models()) == []
     assert asyncio.run(elevenlabs.discover_models()) == []
-    assert asyncio.run(legacy.synthesize(VoiceSynthesisRequest(text="hello"))).audio_base64
     assert asyncio.run(local_neural.discover_models()) == ["qwen3-tts-0.6b-customvoice"]
