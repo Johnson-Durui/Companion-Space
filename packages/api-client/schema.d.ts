@@ -158,23 +158,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/legacy-knowledge-base": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Legacy Knowledge */
-        get: operations["list_legacy_knowledge_api_v1_legacy_knowledge_base_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/memory/{space_id}": {
         parameters: {
             query?: never;
@@ -654,23 +637,6 @@ export interface paths {
         get: operations["list_ingestion_jobs_api_v1_spaces__space_id__ingestion_jobs_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/spaces/{space_id}/legacy-knowledge-base/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import Legacy Knowledge */
-        post: operations["import_legacy_knowledge_api_v1_spaces__space_id__legacy_knowledge_base_import_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1197,11 +1163,6 @@ export interface components {
          * @enum {string}
          */
         LearningArtifactsStatus: "idle" | "pending" | "running" | "ready" | "error";
-        /** LegacyKnowledgeImportRequest */
-        LegacyKnowledgeImportRequest: {
-            /** Document Id */
-            document_id: string;
-        };
         /** LocalMetricSignalRequest */
         LocalMetricSignalRequest: {
             /** Code */
@@ -2177,39 +2138,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_legacy_knowledge_api_v1_legacy_knowledge_base_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
             /** @description Validation Error */
@@ -3489,45 +3417,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    import_legacy_knowledge_api_v1_spaces__space_id__legacy_knowledge_base_import_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                space_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LegacyKnowledgeImportRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
                 };
             };
             /** @description Validation Error */

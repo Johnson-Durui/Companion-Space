@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 from urllib.parse import unquote
 
 from fastapi import (
@@ -18,7 +17,6 @@ from app.api.deps import (
     require_owner,
 )
 from app.models.api_v1 import (
-    LegacyKnowledgeImportRequest,
     MaterialIngestionResponse,
     MaterialNoteRequest,
     MaterialResponse,
@@ -278,34 +276,3 @@ def delete_assignment(
     if not deleted:
         raise HTTPException(status_code=404, detail="Model assignment not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.get("/legacy-knowledge-base")
-def list_legacy_knowledge(
-    _: str = Depends(require_owner),
-    container: ServiceContainer = Depends(get_container),
-) -> dict:
-    return {
-        "items": [
-            asdict(candidate)
-            for candidate in container.legacy_importer.list_candidates()
-        ]
-    }
-
-
-@router.post(
-    "/spaces/{space_id}/legacy-knowledge-base/import",
-    status_code=status.HTTP_201_CREATED,
-)
-def import_legacy_knowledge(
-    space_id: str,
-    payload: LegacyKnowledgeImportRequest,
-    _: str = Depends(require_owner),
-    container: ServiceContainer = Depends(get_container),
-) -> dict:
-    return asdict(
-        container.legacy_importer.import_document(
-            space_id=space_id,
-            document_id=payload.document_id,
-        )
-    )

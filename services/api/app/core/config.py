@@ -91,22 +91,6 @@ class Settings(BaseSettings):
         return self.storage_root / "characters"
 
     @property
-    def knowledge_base_root(self) -> Path:
-        return self.storage_root / "knowledge_base"
-
-    @property
-    def knowledge_base_documents_dir(self) -> Path:
-        return self.knowledge_base_root / "documents"
-
-    @property
-    def knowledge_base_manifests_dir(self) -> Path:
-        return self.knowledge_base_root / "manifests"
-
-    @property
-    def knowledge_base_registry_path(self) -> Path:
-        return self.knowledge_base_manifests_dir / "documents.json"
-
-    @property
     def model_cache_dir(self) -> Path:
         return self.storage_root / "model_cache"
 

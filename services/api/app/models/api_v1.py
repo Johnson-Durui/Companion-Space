@@ -148,10 +148,6 @@ class CharacterVoicePreviewRequest(BaseModel):
     speaking_rate: float | None = Field(default=None, ge=0.5, le=2.0)
 
 
-class LegacyKnowledgeImportRequest(BaseModel):
-    document_id: str
-
-
 class SessionCreateRequest(BaseModel):
     space_id: str
     character_pack_id: str | None = None
