@@ -32,14 +32,17 @@ question, also provide its full stem, type, answer, solution, kp_id and any opti
 for its type. Every question in items, including a bank reference, needs fallback_hints with two
 non-empty strings at keys "1" and "2". The second hint gives more direction without revealing the answer.
 The application independently solves every new question and worked example before accepting it.
+Write every stem so it can be solved without seeing its answer, solution, options, or other questions;
+prefer numeric questions when the source makes that appropriate.
 
 Each segment has two or three keypoints. Start with four different approach entries with keypoint
 exactly "all", as shown above, and give each a substantive outline that covers the segment. Optional
 entries for a specific keypoint use its zero-based integer index. Allowed kinds are intuition, visual,
 example, formal, analogy, and contrast.
 
-Provide at least two solved worked examples. Supply at least one distinct check per keypoint. Each check
-must be answerable using the content up to that keypoint. Provide at least one extra check and include
+Provide at least two solved worked examples. Supply at least one distinct check per keypoint. For the
+check assigned to keypoint index N, keypoints must include N and may contain only indices 0 through N.
+The question must actually require keypoint N and must be answerable without later keypoints. Provide at least one extra check and include
 at least two variants. For a variant, set variant_of to the lesson-local ID of its base question.
 For an independent new base question, use variant_of: null. Both keep the same verification requirements.
 Include an objective check among them. Use only supplied source pages and knowledge point identifiers.

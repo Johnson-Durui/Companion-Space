@@ -20,8 +20,19 @@ class QueuedGateway:
 
     async def complete_tagged(self, role, prompt_name, variables, *, parse, **options):
         self.calls.append((role, prompt_name, variables, options))
-        value = self.plans.pop(0)
-        tag = "items" if prompt_name == "analysis/more_items" else "lesson_plan"
+        if prompt_name == "analysis/lesson_check_scope" and not (
+            self.plans
+            and isinstance(self.plans[0], dict)
+            and set(self.plans[0]) == {"requires_target", "uses_later"}
+        ):
+            value = {"requires_target": True, "uses_later": False}
+        else:
+            value = self.plans.pop(0)
+        tag = {
+            "analysis/more_items": "items",
+            "analysis/lesson_checks": "items",
+            "analysis/lesson_check_scope": "check_scope",
+        }.get(prompt_name, "lesson_plan")
         return parse(f"<{tag}>{json.dumps(value, ensure_ascii=False)}</{tag}>")
 
 
@@ -191,9 +202,10 @@ def test_prepare_supplements_then_verifies_persists_and_scopes(
 
     saved = asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
 
-    assert [call[1] for call in gateway.calls] == ["analysis/lesson_plan", "analysis/lesson_plan"]
+    plan_calls = [call for call in gateway.calls if call[1] == "analysis/lesson_plan"]
+    assert len(plan_calls) == 2
     assert not gateway.calls[0][2]["lesson_feedback"]
-    assert gateway.calls[1][2]["lesson_feedback"].startswith('<data name="validation">')
+    assert plan_calls[1][2]["lesson_feedback"].startswith('<data name="validation">')
     supplied = gateway.calls[0][2]["existing_items"]
     assert "bank-base-course" in supplied and "bank-reserved-course" not in supplied
     assert "bank-base-other" not in supplied
@@ -240,15 +252,16 @@ def test_checker_format_error_uses_remaining_preparation_attempt(isolated_settin
     gateway = QueuedGateway(_valid_plan(), _valid_plan())
 
     async def verify(_self, _item):
-        if len(gateway.calls) == 1:
+        if len([call for call in gateway.calls if call[1] == "analysis/lesson_plan"]) == 1:
             raise LLMOutputError(public_detail="Invalid checker output.")
         return {"status": "verified"}
 
     monkeypatch.setattr("app.teaching.planner.ItemVerifier.verify", verify)
     saved = asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
     assert saved["status"] == "ready"
-    assert len(gateway.calls) == 2
-    assert gateway.calls[1][2]["lesson_feedback"]
+    plan_calls = [call for call in gateway.calls if call[1] == "analysis/lesson_plan"]
+    assert len(plan_calls) == 2
+    assert plan_calls[1][2]["lesson_feedback"]
 
 
 def test_prepare_allows_a_new_base_and_normalizes_variant_bank_reference(isolated_settings, monkeypatch):
@@ -272,6 +285,92 @@ def test_prepare_allows_a_new_base_and_normalizes_variant_bank_reference(isolate
         assert conn.execute(
             "SELECT variant_of FROM item_bank WHERE id = ?", (items["c4"]["bank_id"],),
         ).fetchone()[0] is None
+
+
+def test_prepare_generates_and_semantically_checks_only_the_missing_progressive_check(
+    isolated_settings, monkeypatch,
+):
+    repository = SQLiteRepository(isolated_settings)
+    _seed(repository)
+    plan = _valid_plan()
+    plan["items"]["c1"]["keypoints"] = [0, 1]
+    supplement = {
+        "slot": "s1:0",
+        "kp_id": "kp-course",
+        "type": "short",
+        "difficulty": 1,
+        "variant_of": None,
+        "keypoints": [0],
+        "stem": "State the first point.",
+        "answer": "first",
+        "solution": "The first point is first.",
+        "fallback_hints": {"1": "Recall the opening idea.", "2": "Use the introductory definition."},
+    }
+    gateway = QueuedGateway(
+        plan,
+        [supplement],
+        {"requires_target": True, "uses_later": False},
+    )
+    RecordingVerifier.seen = []
+    RecordingVerifier.results = [{"status": "verified"} for _ in range(4)]
+    monkeypatch.setattr("app.teaching.planner.ItemVerifier", RecordingVerifier)
+
+    saved = asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
+
+    call_names = [call[1] for call in gateway.calls]
+    assert call_names[0] == "analysis/lesson_plan"
+    assert "analysis/lesson_checks" in call_names
+    supplement_call = next(call for call in gateway.calls if call[1] == "analysis/lesson_checks")
+    slots = supplement_call[2]["check_slots"]
+    assert '"target_index":0' in slots
+    assert '"taught":["First point"]' in slots
+    scope_calls = [call for call in gateway.calls if call[1] == "analysis/lesson_check_scope"]
+    scope_question = scope_calls[-1][2]["item_context"]
+    assert '"answer"' not in scope_question and '"solution"' not in scope_question
+    generated_id = saved["plan"]["segments"][0]["checks"][-1]
+    assert saved["plan"]["items"][generated_id]["keypoints"] == [0]
+    assert saved["plan"]["items"][generated_id]["verify"]["status"] == "verified"
+
+
+@pytest.mark.parametrize(
+    ("dependencies", "scope"),
+    [
+        ([0, 1], {"requires_target": True, "uses_later": False}),
+        ([0], {"requires_target": False, "uses_later": False}),
+        ([0], {"requires_target": True, "uses_later": True}),
+    ],
+)
+def test_prepare_fails_closed_when_supplement_scope_is_unsafe(
+    isolated_settings, monkeypatch, dependencies, scope,
+):
+    repository = SQLiteRepository(isolated_settings)
+    _seed(repository)
+    plan = _valid_plan()
+    plan["items"]["c1"]["keypoints"] = [0, 1]
+    unsafe = {
+        "slot": "s1:0",
+        "kp_id": "kp-course",
+        "type": "short",
+        "difficulty": 1,
+        "variant_of": None,
+        "keypoints": dependencies,
+        "stem": "Combine both points.",
+        "answer": "combined",
+        "solution": "Use both points.",
+        "fallback_hints": {"1": "Recall the ideas.", "2": "Apply the definition."},
+    }
+    sequence = [plan, [unsafe]]
+    if dependencies == [0]:
+        sequence.append(scope)
+    gateway = QueuedGateway(*sequence, *sequence)
+    RecordingVerifier.seen = []
+    RecordingVerifier.results = [{"status": "verified"} for _ in range(6)]
+    monkeypatch.setattr("app.teaching.planner.ItemVerifier", RecordingVerifier)
+
+    with pytest.raises(LessonPlanError, match="after one supplement attempt"):
+        asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
+
+    assert repository.get_lesson_plan("course", "plan-item-course") is None
 
 
 def test_more_items_generates_verifies_and_excludes_other_course_context(

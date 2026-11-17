@@ -47,6 +47,16 @@ def _parse_items(raw: str) -> list[dict[str, Any]]:
     return value
 
 
+def _parse_check_scope(raw: str) -> dict[str, Any]:
+    roots = [node for node in parse_blocks(raw) if node.tag == "check_scope"]
+    if len(roots) != 1 or roots[0].children:
+        raise ValueError("Expected one plain check_scope JSON block.")
+    value = json.loads(roots[0].text)
+    if not isinstance(value, dict):
+        raise ValueError("Check scope must be an object.")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class _Inputs:
     row: dict[str, Any]
@@ -359,6 +369,8 @@ class LessonPlanner:
             item["_variant_bank_id"] = base["bank_id"]
         plan["items"] = hydrated
 
+        await self._supplement_missing_checks(plan, hydrated, new_items, inputs, verifier)
+
         check_refs: set[str] = set()
         for segment in plan["segments"]:
             self._validate_segment(segment, hydrated, inputs)
@@ -410,6 +422,189 @@ class LessonPlanner:
         plan.setdefault("wrap", {"summary_points": [], "cards": []})
         return plan, new_items
 
+    async def _supplement_missing_checks(
+        self,
+        plan: dict[str, Any],
+        items: dict[str, dict[str, Any]],
+        new_items: list[dict[str, Any]],
+        inputs: _Inputs,
+        verifier: ItemVerifier,
+    ) -> None:
+        slots: list[dict[str, Any]] = []
+        segments: dict[str, dict[str, Any]] = {}
+        rejected_items: set[str] = set()
+        for segment in plan["segments"]:
+            checks = segment.get("checks")
+            if not isinstance(checks, list) or len(checks) != len(set(checks)) or any(ref not in items for ref in checks):
+                raise LessonPlanError("A segment has too few or invalid check items.")
+            segments[segment["id"]] = segment
+            for index, keypoint in enumerate(segment["keypoints"]):
+                slot = {
+                    "slot": f'{segment["id"]}:{index}',
+                    "segment_id": segment["id"],
+                    "kp_id": segment["kp_id"],
+                    "target_index": index,
+                    "target": keypoint,
+                    "taught": segment["keypoints"][:index + 1],
+                    "later": segment["keypoints"][index + 1:],
+                }
+                covered = False
+                rejected: set[str] = set()
+                for local_id in checks:
+                    item = items[local_id]
+                    if not self._covers_keypoint(item, index):
+                        continue
+                    if await self._scope_accepts(slot, item):
+                        covered = True
+                    else:
+                        rejected.add(local_id)
+                if rejected:
+                    rejected_items.update(rejected)
+                    checks[:] = [local_id for local_id in checks if local_id not in rejected]
+                if covered:
+                    continue
+                reusable = None
+                for local_id, item in items.items():
+                    if (
+                        local_id not in checks
+                        and local_id not in rejected_items
+                        and item.get("kp_id") == segment["kp_id"]
+                        and self._covers_keypoint(item, index)
+                        and await self._scope_accepts(slot, item)
+                    ):
+                        reusable = local_id
+                        break
+                if reusable is not None:
+                    checks.append(reusable)
+                    continue
+                slots.append(slot)
+        if rejected_items:
+            while True:
+                dependents = {
+                    local_id for local_id, item in items.items()
+                    if item.get("variant_of") in rejected_items
+                }
+                if dependents <= rejected_items:
+                    break
+                rejected_items.update(dependents)
+            for segment in plan["segments"]:
+                segment["checks"] = [ref for ref in segment["checks"] if ref not in rejected_items]
+            plan["practice"] = [ref for ref in plan.get("practice", []) if ref not in rejected_items]
+            for segment in plan["segments"]:
+                segment["backfills"] = [
+                    entry for entry in segment.get("backfills", [])
+                    if not isinstance(entry, dict) or entry.get("check") not in rejected_items
+                ]
+            for local_id in rejected_items:
+                rejected = items.pop(local_id, None)
+                if rejected in new_items:
+                    new_items.remove(rejected)
+        if not slots:
+            return
+
+        candidates = await self.gateway.complete_tagged(
+            "analysis",
+            "analysis/lesson_checks",
+            {
+                "check_slots": _json_block("check_slots", slots),
+                "page_content": _json_block("sources", {
+                    kp_id: [
+                        {"material_id": chunk.material_id, "page": chunk.page_no, "content": chunk.content}
+                        for chunk in inputs.chunks[kp_id]
+                    ]
+                    for kp_id in {slot["kp_id"] for slot in slots}
+                }),
+                "existing_items": _json_block("lesson_items", [
+                    {
+                        "local_id": local_id,
+                        "kp_id": item.get("kp_id"),
+                        "type": item.get("type"),
+                        "stem": item.get("stem"),
+                        "keypoints": item.get("keypoints"),
+                    }
+                    for local_id, item in items.items()
+                ]),
+            },
+            parse=_parse_items,
+            cache=False,
+            max_tokens=4096,
+        )
+        by_slot = {
+            candidate.get("slot"): candidate
+            for candidate in candidates
+            if isinstance(candidate.get("slot"), str)
+        }
+        for slot in slots:
+            candidate = by_slot.get(slot["slot"])
+            if candidate is None:
+                raise LessonPlanError(f'Missing generated check for {slot["slot"]}.')
+            item = dict(candidate)
+            index = slot["target_index"]
+            if item.get("kp_id") != slot["kp_id"] or not self._covers_keypoint(item, index):
+                raise LessonPlanError(f'Generated check for {slot["slot"]} exceeds taught content.')
+            if item.get("type") not in _OBJECTIVE_TYPES or not item.get("stem") or not item.get("answer") or not item.get("solution"):
+                raise LessonPlanError(f'Generated check for {slot["slot"]} is incomplete.')
+            if not self._canonicalize_objective(item):
+                raise LessonPlanError(f'Generated check for {slot["slot"]} cannot be graded deterministically.')
+            hints = item.get("fallback_hints") or {}
+            if not all(isinstance(hints.get(level), str) and hints[level].strip() for level in ("1", "2")):
+                raise LessonPlanError(f'Generated check for {slot["slot"]} needs two fallback hints.')
+            if not await self._scope_accepts(slot, item):
+                raise LessonPlanError(f'Generated check for {slot["slot"]} failed the dependency check.')
+            result = await verifier.verify(self._verification_item(item))
+            if result.get("status") != "verified":
+                raise LessonPlanError(f'Generated check for {slot["slot"]} failed independent verification.')
+            item["bank_id"] = str(uuid4())
+            item["origin"] = {"kind": "generated"}
+            item["verify"] = result
+            item["forbidden"] = build_forbidden(item)
+            if any(answer_leaks(hints[level], item["forbidden"]) for level in ("1", "2")):
+                raise LessonPlanError(f'An answer leaks through fallback hints for {slot["slot"]}.')
+            local_id = f'check-{slot["segment_id"]}-{index}'
+            suffix = 2
+            while local_id in items:
+                local_id = f'check-{slot["segment_id"]}-{index}-{suffix}'
+                suffix += 1
+            item["_local_id"] = local_id
+            item.pop("slot", None)
+            items[local_id] = item
+            new_items.append(item)
+            segments[slot["segment_id"]]["checks"].append(local_id)
+
+    async def _scope_accepts(self, slot: dict[str, Any], item: dict[str, Any]) -> bool:
+        scope = await self.gateway.complete_tagged(
+            "checker",
+            "analysis/lesson_check_scope",
+            {
+                "check_slot": _json_block("check_slot", slot),
+                "item_context": _json_block("question", {
+                    key: item.get(key)
+                    for key in ("type", "stem", "options", "rubric")
+                    if item.get(key) is not None
+                }),
+            },
+            parse=_parse_check_scope,
+            cache=False,
+            max_tokens=256,
+        )
+        return scope == {"requires_target": True, "uses_later": False}
+
+    @classmethod
+    def _has_progressive_check(cls, items: list[dict[str, Any]], index: int) -> bool:
+        return any(cls._covers_keypoint(item, index) for item in items)
+
+    @staticmethod
+    def _covers_keypoint(item: dict[str, Any], index: int) -> bool:
+        dependencies = item.get("keypoints")
+        return (
+            isinstance(dependencies, list)
+            and bool(dependencies)
+            and all(isinstance(value, int) and not isinstance(value, bool) for value in dependencies)
+            and index in dependencies
+            and min(dependencies) >= 0
+            and max(dependencies) <= index
+        )
+
     @staticmethod
     def _validate_approaches(segment: dict[str, Any]) -> None:
         keypoints = segment.get("keypoints")
@@ -444,11 +639,7 @@ class LessonPlanner:
             raise LessonPlanError("A segment has too few or invalid check items.")
         selected = [items[ref] for ref in checks]
         for index in range(len(keypoints)):
-            if not any(
-                index in item.get("keypoints", [])
-                and max(item["keypoints"], default=index + 1) <= index
-                for item in selected
-            ):
+            if not LessonPlanner._has_progressive_check(selected, index):
                 raise LessonPlanError("Every keypoint needs a check that depends on content taught so far.")
         if sum(item.get("variant_of") in items for item in selected) < 2:
             raise LessonPlanError("Each segment needs at least two isomorphic variants.")

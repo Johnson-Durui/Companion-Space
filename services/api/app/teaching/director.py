@@ -368,7 +368,12 @@ def _teaching_next(current: dict[str, Any], learner: Mapping[str, Any], plan: Le
         return _move("WRAP", patch={**patch, "stage": "wrap"})
     segment = segments[seg_idx]
     if int(current.get("explains_since_check", 0)) >= 1:
-        item_id = _select_check(current, plan)
+        latest_keypoint = int(current.get("kp_cursor", 0)) - 1
+        item_id = _select_check(
+            current,
+            plan,
+            prefer_keypoint=latest_keypoint if latest_keypoint >= 0 else None,
+        )
         if item_id:
             ask = _item_ask(item_id, "check")
             return _move("CHECK", args={"item_id": item_id}, ask=ask, patch={**patch, "explains_since_check": 0, **_ask_patch(ask)})
@@ -447,7 +452,11 @@ def _show_solution(current: dict[str, Any], plan: LessonPlan, active_item: Mappi
             "failed_items": int(current.get("failed_items", 0)) + 1,
         }
     )
-    variant = None if current.get("wrap_pending") else _variant_for(item_id, current, plan)
+    variant = (
+        None
+        if current.get("wrap_pending") or active_item.get("purpose") in {"backfill", "prereq"}
+        else _variant_for(item_id, current, plan)
+    )
     failed_items = int(patch["failed_items"])
     if failed_items >= 2 and not current.get("wrap_pending"):
         break_ask = {"kind": "ack", "purpose": "break"}
@@ -524,6 +533,7 @@ def _select_check(
     objective_only: bool = False,
     highest: bool = False,
     exclude: set[str] | None = None,
+    prefer_keypoint: int | None = None,
 ) -> str | None:
     segment = _segment(current, plan)
     taught = set(range(len(segment.get("keypoints", [])))) if allow_all_keypoints else set(range(int(current.get("kp_cursor", 0))))
@@ -542,6 +552,10 @@ def _select_check(
             candidates.append((int(item.get("difficulty", 1)), str(item_id)))
     if not candidates:
         return None
+    if prefer_keypoint is not None:
+        preferred = [candidate for candidate in candidates if prefer_keypoint in set(_item(plan, candidate[1]).get("keypoints", []))]
+        if preferred:
+            candidates = preferred
     candidates.sort(reverse=highest)
     return candidates[0][1]
 
@@ -571,8 +585,27 @@ def _unused_example(current: Mapping[str, Any], plan: LessonPlan) -> dict[str, A
 
 
 def _variant_for(item_id: str, current: Mapping[str, Any], plan: LessonPlan) -> str | None:
+    taught = set(range(int(current.get("kp_cursor", 0))))
+    allowed: set[str] | None = None
+    if current.get("stage") == "teaching":
+        checks = _segment(current, plan).get("checks")
+        if isinstance(checks, list) and checks:
+            allowed = {str(check_id) for check_id in checks}
     for candidate_id, candidate in plan.get("items", {}).items():
-        if candidate.get("variant_of") == item_id and candidate_id not in current.get("items_done", {}) and candidate.get("verify", {}).get("status") == "verified":
+        candidate_taught = taught
+        if current.get("stage") == "practice":
+            candidate_segment = next(
+                (segment for segment in plan.get("segments", []) if segment.get("kp_id") == candidate.get("kp_id")),
+                {},
+            )
+            candidate_taught = set(range(len(candidate_segment.get("keypoints", []))))
+        if (
+            candidate.get("variant_of") == item_id
+            and candidate_id not in current.get("items_done", {})
+            and (allowed is None or str(candidate_id) in allowed)
+            and candidate.get("verify", {}).get("status") == "verified"
+            and set(candidate.get("keypoints", [])) <= candidate_taught
+        ):
             return str(candidate_id)
     return None
 

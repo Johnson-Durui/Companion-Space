@@ -101,6 +101,33 @@ def test_teaching_commits_pending_explanation_then_checks(plan: dict[str, object
     assert result.state_patch["explains_since_check"] == 0
 
 
+def test_teaching_checks_the_just_explained_keypoint_before_older_unused_checks(plan: dict[str, object]) -> None:
+    state = _state(
+        stage="teaching",
+        kp_cursor=1,
+        pending_beat={"move": "EXPLAIN", "kind": "formal", "keypoint": 1},
+    )
+
+    result = decide(state, {"type": "beat_done"}, {"mastery": {"kp1": 0.3}}, plan)
+
+    assert result.move == "CHECK"
+    assert result.ask == {"kind": "item", "item_id": "c3", "purpose": "check"}
+
+
+def test_teaching_falls_back_to_an_older_eligible_check_when_latest_has_none(plan: dict[str, object]) -> None:
+    plan["segments"][0]["checks"] = ["c1", "c2"]
+    state = _state(
+        stage="teaching",
+        kp_cursor=1,
+        pending_beat={"move": "EXPLAIN", "kind": "formal", "keypoint": 1},
+    )
+
+    result = decide(state, {"type": "beat_done"}, {"mastery": {"kp1": 0.3}}, plan)
+
+    assert result.move == "CHECK"
+    assert result.ask == {"kind": "item", "item_id": "c1", "purpose": "check"}
+
+
 def test_confusion_uses_distinct_approach_then_backfills_on_third_confusion(plan: dict[str, object]) -> None:
     state = _state(stage="teaching", approaches_used=["intuition"], confusion_streak=0)
     first = decide(state, {"type": "quick_action", "kind": "confused"}, {}, plan)
@@ -120,7 +147,7 @@ def test_confusion_uses_distinct_approach_then_backfills_on_third_confusion(plan
 
 def test_hint_staircase_show_answer_and_variant_queue(plan: dict[str, object]) -> None:
     active = {"kind": "item", "item_id": "c1", "purpose": "check", "nudged": False}
-    state = _state(stage="teaching", active_ask=active, item={"id": "c1", "hint_level": 0, "attempts": 0, "first_verdict": None, "evidence_deferred": False})
+    state = _state(stage="teaching", kp_cursor=1, active_ask=active, item={"id": "c1", "hint_level": 0, "attempts": 0, "first_verdict": None, "evidence_deferred": False})
 
     hint = decide(state, {"type": "quick_action", "kind": "hint"}, {}, plan)
     assert hint.move == "HINT"
@@ -140,6 +167,96 @@ def test_hint_staircase_show_answer_and_variant_queue(plan: dict[str, object]) -
     assert reveal.state_patch["items_done"]["c1"] == "revealed"
     assert reveal.state_patch["queued"][0]["move"] == "CHECK"
     assert reveal.state_patch["queued"][0]["ask"]["item_id"] == "c2"
+
+
+def test_reveal_does_not_queue_a_variant_that_depends_on_an_untaught_keypoint(plan: dict[str, object]) -> None:
+    plan["items"]["c2"]["keypoints"] = [0, 1]
+    active = {"kind": "item", "item_id": "c1", "purpose": "check", "nudged": False}
+
+    reveal = decide(
+        _state(stage="teaching", kp_cursor=1, active_ask=active),
+        {"type": "quick_action", "kind": "show_answer"},
+        {},
+        plan,
+    )
+
+    assert reveal.move == "SHOW_SOLUTION"
+    assert "queued" not in reveal.state_patch
+
+
+def test_teaching_reveal_does_not_reintroduce_a_variant_removed_from_segment_checks(plan: dict[str, object]) -> None:
+    plan["segments"][0]["checks"] = ["c1", "c3"]
+    active = {"kind": "item", "item_id": "c1", "purpose": "check", "nudged": False}
+
+    reveal = decide(
+        _state(stage="teaching", kp_cursor=1, active_ask=active),
+        {"type": "quick_action", "kind": "show_answer"},
+        {},
+        plan,
+    )
+
+    assert reveal.move == "SHOW_SOLUTION"
+    assert "queued" not in reveal.state_patch
+
+
+def test_legacy_teaching_plan_without_segment_checks_can_still_use_variant_graph(plan: dict[str, object]) -> None:
+    plan["segments"][0]["checks"] = []
+    active = {"kind": "item", "item_id": "c1", "purpose": "check", "nudged": False}
+
+    reveal = decide(
+        _state(stage="teaching", kp_cursor=1, active_ask=active),
+        {"type": "quick_action", "kind": "show_answer"},
+        {},
+        plan,
+    )
+
+    assert reveal.move == "SHOW_SOLUTION"
+    assert reveal.state_patch["queued"][0]["ask"]["item_id"] == "c2"
+
+
+def test_practice_reveal_still_queues_a_variant_after_all_segment_keypoints_are_taught(plan: dict[str, object]) -> None:
+    plan["items"]["p2"] = {
+        "kp_id": "kp1",
+        "keypoints": [0, 1],
+        "type": "numeric",
+        "difficulty": 2,
+        "variant_of": "p1",
+        "verify": {"status": "verified"},
+    }
+    active = {"kind": "item", "item_id": "p1", "purpose": "practice", "nudged": False}
+
+    reveal = decide(
+        _state(stage="practice", active_ask=active),
+        {"type": "quick_action", "kind": "show_answer"},
+        {},
+        plan,
+    )
+
+    assert reveal.move == "SHOW_SOLUTION"
+    assert reveal.state_patch["queued"][0]["ask"]["item_id"] == "p2"
+
+
+def test_backfill_reveal_preserves_resume_queue_instead_of_inserting_a_variant(plan: dict[str, object]) -> None:
+    plan["items"]["b2"] = {
+        "kp_id": "pre",
+        "keypoints": [],
+        "type": "choice",
+        "difficulty": 1,
+        "variant_of": "b1",
+        "verify": {"status": "verified"},
+    }
+    active = {"kind": "item", "item_id": "b1", "purpose": "backfill", "nudged": False}
+    resume = {"move": "RESUME", "args": {}, "ask": {"kind": "item", "item_id": "c1", "purpose": "check"}, "state_patch": {}}
+
+    reveal = decide(
+        _state(stage="teaching", kp_cursor=1, active_ask=active, queued=[resume]),
+        {"type": "quick_action", "kind": "show_answer"},
+        {},
+        plan,
+    )
+
+    assert reveal.move == "SHOW_SOLUTION"
+    assert "queued" not in reveal.state_patch
 
 
 def test_incorrect_answers_climb_hints_without_replacing_first_verdict(plan: dict[str, object]) -> None:
@@ -340,6 +457,7 @@ def test_second_failed_item_forces_break_before_the_variant(plan: dict[str, obje
     revealed = decide(
         _state(
             stage="teaching",
+            kp_cursor=1,
             failed_items=1,
             active_ask=active,
             item={"id": "c1", "hint_level": 2, "attempts": 2, "first_verdict": "incorrect", "evidence_deferred": False},
