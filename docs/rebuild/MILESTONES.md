@@ -77,7 +77,7 @@ M0 新建 `scripts/gate.ps1`：按顺序执行下列命令，任何一步失败�
 
 1. **环境确认**：当前目录应为 `E:\Codex\Projects\虚拟形象\Companion-Space-v2`，分支 `rebuild/tutor`，工作区干净。运行 `git rev-parse --git-common-dir`、`git status`、`git tag -l "pre-rebuild*"` 与 `git update-index --refresh` 确认（git 可写、标签存在）。**若实际情况不是这样（不在该分支、工作区不干净、标签不存在），停下汇报，不要自行处理。** 新建 `docs/rebuild/PROGRESS.md`，记录 HEAD、Python 与 Node 版本。
 2. **快照提交——已于 2026-11-17 完成，无需再做**：提交 `c72370f`（分支 `refactor/teaching-v2`，标签 `pre-rebuild-20261116`）原样保存了重塑前全部未提交的 v2 改动（287 个文件：新增 112、修改 69、删除 106——删除的是 `apps/mobile/`）；`rebuild/tutor` 自它切出，其上的第一个提交加入了本方案。需要查看重塑前的任何文件时，用 `git show pre-rebuild-20261116:<路径>`。
-3. **行尾与忽略规则**（单独提交 `chore: normalize line endings`）：`.gitattributes` 改为 `* text=auto eol=lf`，加 `*.bat text eol=crlf`、`*.cmd text eol=crlf`，以及二进制规则（`*.vrm *.vrma *.glb *.png *.jpg *.jpeg *.gif *.webp *.ico *.woff2 *.ttf *.otf *.onnx *.wasm *.pdf *.pptx *.docx *.mp3 *.wav *.ogg *.zip *.db binary`）；执行 `git add --renormalize .`。`.gitignore` 增加 `evals/out/`、`docs/rebuild/review/`；确认 `.env.eval` 已被忽略（`git check-ignore -v .env.eval`）。
+3. **行尾与忽略规则**（单独提交 `chore: normalize line endings`）：`.gitattributes` 改为 `* text=auto eol=lf`，加 `*.bat text eol=crlf`、`*.cmd text eol=crlf`，以及二进制规则（`*.vrm *.vrma *.glb *.png *.jpg *.jpeg *.gif *.webp *.ico *.woff2 *.ttf *.otf *.onnx *.wasm *.pdf *.pptx *.docx *.mp3 *.wav *.ogg *.zip *.db binary`）；执行 `git add --renormalize .`。`.gitignore` 增加 `evals/out/`、`docs/rebuild/review/`、`assets-src/`；确认 `.env.eval` 已被忽略（`git check-ignore -v .env.eval`）。
 4. **基线**：运行 ruff 与 pytest，如实记录通过与失败数（不要引用旧文档里的数字）。基线失败项只记录，不修。新建 `scripts/gate.ps1` 与 npm 脚本 `generate:api:check`。
 5. **替换约定**：旧 `AGENTS.md` 移到 `docs/archive/AGENTS.v0.1.md`；把 `docs/rebuild/AGENTS.new.md` 复制为根目录 `AGENTS.md`。新建 `docs/rebuild/DECISIONS.md`，把 `KICKOFF.md` §2 的"已定决策"与"定位"抄入作为起始内容。
 6. **先删钉常量的测试**（否则后面每一步都会让门变红）：见 `spec/architecture-and-data.md` §9.3 第一行。之后的规则：**每个分组提交后后端门必须全绿；若因后面才删的东西而变红，调整分组顺序，不要去修将被删除的测试。**
@@ -340,7 +340,7 @@ M0 新建 `scripts/gate.ps1`：按顺序执行下列命令，任何一步失败�
 4. 口型：先音量驱动，再接入 `wlipsync`；说话时的表情权重上限。
 5. 时间线接线：`cue / point / say.emotion / judge` → 形象命令。
 6. 性能与降级：像素比上限、隐藏暂停、上下文丢失恢复、低帧率回退；2D 分层立绘回退与离屏渲染脚本。
-7. 角色库页面、VRM 导入（校验、许可展示、自动取景、缺失表情报告）、音色与人设编辑、默认讲课风格；欢迎页的 3D 老师换成真实预览；删除 v1 的 characters 路由。
+7. 角色库页面、VRM 导入（校验、许可展示、自动取景、缺失表情报告）、音色与人设编辑、默认讲课风格；欢迎页的 3D 老师换成真实预览；删除 v1 的 characters 路由。把角色支线里**已通过所有者验收**的模型接成对应老师的 3D 形象（没有通过验收的角色继续用立绘）。
 8. 资产：`assets/avatars/LICENSES.md` 定稿、许可单测（规则见 F.5）；可选的贴图压缩脚本。
 
 **自动化验收**：姿态数学（VRM 0.x 与 1.0 的归一化骨骼各一例）；手势队列与混合权重；口型映射（合成音频输入）；许可单测；回退路由。视觉效果不做断言——用截图脚本把以下画面存到 `docs/rebuild/review/M6/` 供目视：待机、讲解、指向白板、答对反应、答错安慰、三位 3D 老师、2D 回退、手机布局。
@@ -406,6 +406,27 @@ M0 新建 `scripts/gate.ps1`：按顺序执行下列命令，任何一步失败�
 - [ ] 录制演示视频、决定何时推送与发布（见 `HUMAN-TASKS.md`）。
 
 **停止点**：v1.0 候选完成。
+
+---
+
+## 支线 C · 角色制作（与主线并行，不阻塞任何里程碑）
+
+**目标**：为 6 位立绘老师做出好看的 3D 模型。规格与操作手册：`spec/character-pipeline.md`（开工前通读）。
+
+**前置**：M0 已完成；所有者已装好 VRoid Studio 与 Codex 的桌面操作插件，并填好 `assets-src/characters/author.json`（见 `HUMAN-TASKS.md` D）。
+
+**会话安排**：单独的会话；**不与主线会话同时进行**（桌面操作占用整台电脑，且两者往同一分支提交）。界面操作期间所有者不使用这台电脑。
+
+**任务**
+1. **C1 后处理工具**（纯代码，可在所有者装好 VRoid Studio 之前就做）：`packages/character-tools` 的 `inspect / validate / optimize / retexture / preview / sheet / install` 与测试（`character-pipeline.md` §6）。用仓库里的 3 个示例 VRM 跑通 `inspect → validate → preview`。
+2. **C2 试验门**：只选 1 个角色完整走一遍 P1–P8，并按 `character-pipeline.md` §8 报告耗时、动作数、点错次数、对比图与卡住的地方。**到这里停下，等所有者三选一**：继续由代理做 / 界面部分改由所有者手动做 / 暂缓。
+3. **C3 批量**（仅当所有者选择继续）：其余角色逐个进行；每个角色有两个停止点——挑选候选（P3）与最终验收（P8）。
+
+**自动化验收**：`packages/character-tools` 的测试通过；每个定稿模型 `validate` 全部通过；`assets/avatars/` 的许可单测通过（该单测在 M6 之前不存在时，先用 `validate` 里的许可项代替）。
+
+**所有者验收清单**：`character-pipeline.md` §7（逐个角色）。达不到"整体观感不低于自带的 3D 示例角色"就不安装，继续用立绘。
+
+**不做**：用代码从零造角色形体；登录、购买、上传；使用许可不明的第三方部件；把这条流水线做进产品。
 
 ---
 

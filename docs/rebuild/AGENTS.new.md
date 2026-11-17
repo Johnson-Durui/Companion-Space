@@ -7,7 +7,7 @@
 
 Companion Space：本地运行、单用户、开源（Apache-2.0）的"专属 AI 家教"。学生导入自己的教材、课件和真题 → 系统分析成课程地图与考情 → 访谈与诊断 → 个性化计划 → 由学生喜欢的角色用语音和白板进行一对一教学 → 复习与错题闭环。
 
-目标结构：`apps/web`（Vite + React 单页应用）· `services/api`（FastAPI + SQLite，单进程，同时托管前端与素材）· `packages/{avatar-engine,board,api-client}` · `libs/prompts/v3` · `assets/avatars` · `content/` · `evals/` · `docs/rebuild/`。目录的权威说明见 `docs/rebuild/spec/architecture-and-data.md` §2。
+目标结构：`apps/web`（Vite + React 单页应用）· `services/api`（FastAPI + SQLite，单进程，同时托管前端与素材）· `packages/{avatar-engine,board,api-client}` · `packages/character-tools`（角色支线的后处理工具，开发用）· `libs/prompts/v3` · `assets/avatars` · `content/` · `evals/` · `docs/rebuild/`。目录的权威说明见 `docs/rebuild/spec/architecture-and-data.md` §2。
 
 ## 环境与命令（Windows / PowerShell；仓库路径含中文）
 
@@ -81,7 +81,13 @@ $env:PYTHONPATH = "services/api"; .venv\Scripts\python.exe -m uvicorn app.main:a
 - 代码 Apache-2.0。第三方代码只可复用 MIT/BSD/Apache 许可的，并保留版权声明、登记到 `assets/THIRD_PARTY_NOTICES.md`。
 - 3D 模型、动作、音色、字体各有独立许可：只分发许可明确允许再分发的文件；`assets/avatars/LICENSES.md` 逐个登记；许可单测的规则见 `spec/classroom-voice-avatar.md` F.5。
 - 不得提交：Mixamo 动画、pixiv 官方 VRMA、任何 Live2D 素材、他人的音色模型、受版权保护的教材或试卷（示例、留出与测试内容必须原创）。
-- 不得用脚本"生成" 3D 角色模型；不得提供基于 VRoid 预设数据的模型编辑/导出功能。
+- **不得用代码从零拼出 3D 角色的形体**（旧版 6 个模型的教训）。官方角色只能按 `docs/rebuild/spec/character-pipeline.md` 制作：在 VRoid Studio 里出底模，再用代码对导出的 VRM 做后处理——这条支线是被允许的，不属于"生成模型"。产品本身不得提供基于 VRoid 预设数据的模型编辑/导出功能。
+
+## 桌面操作（Computer Use）
+
+- 只在角色制作支线里使用，且只操作 VRoid Studio 及其文件对话框；规则见 `docs/rebuild/spec/character-pipeline.md` §2、§5。
+- 不登录、不购买、不上传、不代所有者接受条款、不改系统设置；遇到登录墙、付费提示或系统弹窗一律停下汇报。
+- 桌面操作在前台运行：支线会话与主线会话不同时进行。
 
 ## Git 规则
 

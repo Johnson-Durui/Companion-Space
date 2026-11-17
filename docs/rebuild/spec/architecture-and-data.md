@@ -37,6 +37,7 @@ legacy/                    旧 Next.js 前端、旧 E2E、旧启动脚本——�
 packages/avatar-engine/    保留并在 M6 重构为分层动画引擎
 packages/board/            白板：块注册表 + 纯 reducer（M3 先做作答控件，M4 补齐；取代 packages/lesson-board）
 packages/api-client/       OpenAPI 生成的类型化客户端（沿用）
+packages/character-tools/  角色制作支线的后处理工具（开发用，不属于产品；见 character-pipeline.md）
 services/api/app/
   api/v2/                  新路由
   api/routes/              旧 v1 路由：其 v2 替代品落地的同一里程碑删除（见 §9.3）
@@ -47,8 +48,9 @@ services/api/tests/        后端测试；测试替身只放 services/api/tests/
 services/tts/              可选的本地神经语音 sidecar（保留，默认关闭）
 tests/e2e/                 M1 重建的最小 Playwright 工程（截图脚本与薄冒烟）；其测试服务器在 services/api/tests/e2e_server.py
 libs/prompts/v3/           新提示词
-assets/avatars/            随仓库分发的角色素材（models/ portraits/ backgrounds/）+ LICENSES.md；由后端以 /static/avatars 提供
+assets/avatars/            随仓库分发的角色素材（models/ portraits/ backgrounds/ previews/ recipes/）+ LICENSES.md；由后端以 /static/avatars 提供
 assets-archive/            下线但不删除的素材（脚本生成的 VRM、动作、宠物精灵图及其生成脚本）
+assets-src/                角色制作支线的工作目录（VRoid 工程文件、候选、中间贴图）；已忽略，不提交
 content/characters/        默认老师的人设与默认音色（内容包，JSON）
 content/speech/            数学读法表等朗读数据
 content/sample-course/     原创示例课程（教材、试卷；M8 加入预生成的回放）
@@ -280,7 +282,7 @@ WS 鉴权沿用"一次性票据 + Origin 校验"的现有实现（M1 抽成独�
 ## 10. 依赖策略（取代旧的"白名单"）
 
 - 新增依赖必须：许可为 MIT/BSD/Apache/MPL/ISC（LGPL 仅限未修改的包依赖）；在 `DECISIONS.md` 记录用途、许可、替代方案；锁定版本；先查官方文档确认当前版本与用法。
-- 预期新增：后端 `python-pptx`、`python-docx`、`pypdfium2`、`Pillow`、`keyring`、`edge-tts`、`numpy`、`json-repair`；可选扩展 `rapidocr`、`sherpa-onnx`、`sympy`。前端 `vite`、`react-router`、`@tanstack/react-query`、`zustand`、`tailwindcss`、`katex`、`mermaid`、`react-markdown` + `remark-math` + `rehype-katex`、`function-plot`、`mathjs`、`vitest`；语音与形象阶段 `@ricky0123/vad-web`、`wlipsync`。
+- 预期新增：后端 `python-pptx`、`python-docx`、`pypdfium2`、`Pillow`、`keyring`、`edge-tts`、`numpy`、`json-repair`；可选扩展 `rapidocr`、`sherpa-onnx`、`sympy`。前端 `vite`、`react-router`、`@tanstack/react-query`、`zustand`、`tailwindcss`、`katex`、`mermaid`、`react-markdown` + `remark-math` + `rehype-katex`、`function-plot`、`mathjs`、`vitest`；语音与形象阶段 `@ricky0123/vad-web`、`wlipsync`。角色支线的工具：`sharp`、`three`、`@pixiv/three-vrm`、Playwright（**不要用会丢弃未注册扩展的通用 glTF 库整体读写 VRM**）。
 - 仍然禁止：Live2D/Cubism、GPL/AGPL 代码或依赖（含 PyMuPDF）、PostgreSQL/Redis/Celery、Electron。
 
 ## 11. 安全（与单机单用户相称）

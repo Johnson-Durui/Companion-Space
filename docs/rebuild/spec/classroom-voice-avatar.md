@@ -212,4 +212,4 @@ handle.stop()
 - 随仓库分发的角色素材放 `assets/avatars/`（`models/`、`portraits/`、`backgrounds/`），由后端以 `/static/avatars` 提供；目录内的 `LICENSES.md` 写明"本目录文件不适用 Apache-2.0"及每个文件的来源与许可。
 - **许可单测规则**：VRM 1.0（`extensions.VRMC_vrm.meta`）要求 `allowRedistribution === true`；VRM 0.x（`extensions.VRM.meta`）要求 `licenseName` 是允许再分发的取值，或 `licenseName == "Other"` 且 `otherPermissionUrl` 的查询参数含 `redistribution=allow`；此外文件名必须登记在 `LICENSES.md` 中，且不在拒绝清单（`Seed-san.vrm`）里。
 - **导入你自己的 VRM** 是一等功能：拖入文件 → 校验 → 显示作者与许可 → 自动取景 → 报告缺失的表情/口型（缺则降级）→ 选声音。应用不提供任何"编辑/导出模型"的功能（VRoid 预设条款禁止基于其数据做角色创建服务）。
-- 真正贴合项目立绘的专属 3D 角色需要所有者用 VRoid Studio 制作（免费、有简体中文界面，1–2 小时一个；导出 VRM 1.0，目标 ≤8 MB、≤4 万面、贴图 ≤2048），见 `HUMAN-TASKS.md`。
+- 6 位立绘老师的专属 3D 模型由并行的**角色制作支线**产出（`character-pipeline.md`：代理操作 VRoid Studio 出底模，所有者挑选，代码做后处理；目标 VRM 1.0、≤8 MB、≤4 万面、贴图 ≤2048）。通过所有者验收的模型放在 `assets/avatars/models/`，预览图在 `previews/`，配方在 `recipes/`；M6 把它们接成对应老师的 3D 形象，没有通过验收的角色继续用立绘。
