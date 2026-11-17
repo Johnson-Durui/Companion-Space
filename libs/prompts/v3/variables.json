@@ -12,6 +12,7 @@
   "item_rubric": "Required scoring points supplied as an untrusted data block.",
   "item_stem": "Question type and stem supplied as an untrusted data block.",
   "knowledge_candidates": "Knowledge point candidates supplied as an untrusted data block.",
+  "lesson_feedback": "The previous preparation failure supplied as an untrusted diagnostic data block.",
   "page_content": "Source pages supplied as an untrusted data block.",
   "reference_answer": "A reference answer supplied as an untrusted data block.",
   "solve_attempt": "Independent solver attempt identifier used to keep cached calls separate."

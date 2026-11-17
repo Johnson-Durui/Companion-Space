@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from app.analysis.item_verifier import ItemVerifier, numeric_value
 from app.analysis.retrieval import RetrievedChunk, retrieve_for_kp
+from app.llm.errors import LLMOutputError
 from app.llm.prompts import data_block
 from app.llm.tagged import parse_blocks
 from app.repositories.mixins.common import utcnow
@@ -62,31 +63,31 @@ class LessonPlanner:
     async def prepare(self, space_id: str, plan_item_id: str) -> dict[str, Any]:
         inputs = await asyncio.to_thread(self._load_inputs, space_id, plan_item_id)
         failure: Exception | None = None
-        for attempt in range(2):
-            candidate = await self.gateway.complete_tagged(
-                "analysis",
-                "analysis/lesson_plan",
-                {
-                    "course_context": _json_block("course", {
-                        "title": inputs.row["title"],
-                        "minutes": inputs.row["est_minutes"],
-                        "knowledge_points": list(inputs.points.values()),
-                    }),
-                    "page_content": _json_block("sources", {
-                        kp_id: [
-                            {"material_id": chunk.material_id, "page": chunk.page_no, "content": chunk.content}
-                            for chunk in inputs.chunks[kp_id]
-                        ]
-                        for kp_id in inputs.points
-                    }),
-                    "existing_items": _json_block("verified_items", list(inputs.bank.values())),
-                    "generation_count": str(attempt),
-                },
-                parse=_parse_plan,
-                cache=False,
-                max_tokens=8192,
-            )
+        for _ in range(2):
             try:
+                candidate = await self.gateway.complete_tagged(
+                    "analysis",
+                    "analysis/lesson_plan",
+                    {
+                        "course_context": _json_block("course", {
+                            "title": inputs.row["title"],
+                            "minutes": inputs.row["est_minutes"],
+                            "knowledge_points": list(inputs.points.values()),
+                        }),
+                        "page_content": _json_block("sources", {
+                            kp_id: [
+                                {"material_id": chunk.material_id, "page": chunk.page_no, "content": chunk.content}
+                                for chunk in inputs.chunks[kp_id]
+                            ]
+                            for kp_id in inputs.points
+                        }),
+                        "existing_items": _json_block("verified_items", list(inputs.bank.values())),
+                        "lesson_feedback": _json_block("validation", str(failure)) if failure else "",
+                    },
+                    parse=_parse_plan,
+                    cache=False,
+                    max_tokens=8192,
+                )
                 plan, new_items = await self._validate_and_hydrate(candidate, inputs)
                 generated_entries = [self._generated_entry(item) for item in new_items]
                 for item in new_items:
@@ -106,7 +107,7 @@ class LessonPlanner:
                 if saved is None:
                     raise LessonPlanError("The lesson plan item no longer exists.")
                 return saved
-            except (KeyError, TypeError, ValueError) as error:
+            except (KeyError, TypeError, ValueError, LLMOutputError) as error:
                 failure = error
         raise LessonPlanError(f"Lesson preparation failed after one supplement attempt: {failure}")
 
@@ -294,6 +295,10 @@ class LessonPlanner:
         requested = set(inputs.points)
         if {objective.get("kp_id") for objective in plan.get("objectives", [])} != requested:
             raise LessonPlanError("The lesson objectives do not cover exactly the requested knowledge points.")
+        if {segment.get("kp_id") for segment in plan["segments"]} != requested:
+            raise LessonPlanError("Lesson segments do not cover exactly the requested knowledge points.")
+        for segment in plan["segments"]:
+            self._validate_approaches(segment)
 
         verifier = ItemVerifier(self.gateway)
         new_items: list[dict[str, Any]] = []
@@ -340,17 +345,20 @@ class LessonPlanner:
             hydrated[local_id] = item
         local_by_bank = {item["bank_id"]: local_id for local_id, item in hydrated.items()}
         for item in hydrated.values():
-            if item.get("origin", {}).get("kind") != "generated":
+            if "_local_id" not in item:
                 item["variant_of"] = local_by_bank.get(item.get("variant_of"))
         for item in new_items:
             variant = item.get("variant_of")
-            if variant not in hydrated:
-                raise LessonPlanError("A generated variant must reference a lesson-local base item.")
-            item["_variant_bank_id"] = hydrated[variant]["bank_id"]
+            if variant is None:
+                continue
+            local_id = variant if variant in hydrated else local_by_bank.get(variant)
+            base = hydrated.get(local_id)
+            if base is None or base is item or base["kp_id"] != item["kp_id"]:
+                raise LessonPlanError("A generated variant must reference another lesson item for the same knowledge point.")
+            item["variant_of"] = local_id
+            item["_variant_bank_id"] = base["bank_id"]
         plan["items"] = hydrated
 
-        if not plan["segments"] or {segment.get("kp_id") for segment in plan["segments"]} != requested:
-            raise LessonPlanError("Lesson segments do not cover exactly the requested knowledge points.")
         check_refs: set[str] = set()
         for segment in plan["segments"]:
             self._validate_segment(segment, hydrated, inputs)
@@ -403,9 +411,7 @@ class LessonPlanner:
         return plan, new_items
 
     @staticmethod
-    def _validate_segment(
-        segment: dict[str, Any], items: dict[str, dict[str, Any]], inputs: _Inputs,
-    ) -> None:
+    def _validate_approaches(segment: dict[str, Any]) -> None:
         keypoints = segment.get("keypoints")
         if not isinstance(keypoints, list) or not 2 <= len(keypoints) <= 3 or not all(keypoints):
             raise LessonPlanError("Each segment needs two or three non-empty keypoints.")
@@ -416,10 +422,18 @@ class LessonPlanner:
             kinds = {
                 approach.get("kind")
                 for approach in approaches
-                if approach.get("keypoint") in {"all", index}
+                if isinstance(approach, dict)
+                and approach.get("keypoint") in ("all", index)
+                and isinstance(approach.get("outline"), str) and approach["outline"].strip()
             }
             if len(kinds.intersection(_APPROACH_KINDS)) < 4:
                 raise LessonPlanError("Each keypoint needs at least four distinct teaching approaches.")
+
+    @staticmethod
+    def _validate_segment(
+        segment: dict[str, Any], items: dict[str, dict[str, Any]], inputs: _Inputs,
+    ) -> None:
+        keypoints = segment["keypoints"]
         checks = segment.get("checks")
         if (
             not isinstance(checks, list)

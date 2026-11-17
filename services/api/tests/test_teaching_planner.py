@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.llm.errors import LLMOutputError
 from app.models.domain import StudySpace
 from app.services.repository import SQLiteRepository
 from app.teaching.planner import LessonPlanError, LessonPlanner
@@ -181,7 +182,8 @@ def test_prepare_supplements_then_verifies_persists_and_scopes(
     repository = SQLiteRepository(isolated_settings)
     _seed(repository)
     _seed(repository, "other")
-    invalid = {"title": "bad", "est_minutes": 25, "objectives": [], "segments": [], "items": {}}
+    invalid = _valid_plan()
+    invalid["segments"][0]["approaches"] = invalid["segments"][0]["approaches"][:1]
     gateway = QueuedGateway(invalid, _valid_plan())
     RecordingVerifier.seen = []
     RecordingVerifier.results = [{"status": "verified"} for _ in range(3)]
@@ -190,6 +192,8 @@ def test_prepare_supplements_then_verifies_persists_and_scopes(
     saved = asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
 
     assert [call[1] for call in gateway.calls] == ["analysis/lesson_plan", "analysis/lesson_plan"]
+    assert not gateway.calls[0][2]["lesson_feedback"]
+    assert gateway.calls[1][2]["lesson_feedback"].startswith('<data name="validation">')
     supplied = gateway.calls[0][2]["existing_items"]
     assert "bank-base-course" in supplied and "bank-reserved-course" not in supplied
     assert "bank-base-other" not in supplied
@@ -228,6 +232,46 @@ def test_prepare_fails_closed_after_generated_item_verification_rejected(
         assert conn.execute(
             "SELECT COUNT(*) FROM item_bank WHERE space_id = 'course' AND origin = 'generated'"
         ).fetchone()[0] == 0
+
+
+def test_checker_format_error_uses_remaining_preparation_attempt(isolated_settings, monkeypatch):
+    repository = SQLiteRepository(isolated_settings)
+    _seed(repository)
+    gateway = QueuedGateway(_valid_plan(), _valid_plan())
+
+    async def verify(_self, _item):
+        if len(gateway.calls) == 1:
+            raise LLMOutputError(public_detail="Invalid checker output.")
+        return {"status": "verified"}
+
+    monkeypatch.setattr("app.teaching.planner.ItemVerifier.verify", verify)
+    saved = asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
+    assert saved["status"] == "ready"
+    assert len(gateway.calls) == 2
+    assert gateway.calls[1][2]["lesson_feedback"]
+
+
+def test_prepare_allows_a_new_base_and_normalizes_variant_bank_reference(isolated_settings, monkeypatch):
+    repository = SQLiteRepository(isolated_settings)
+    _seed(repository)
+    plan = _valid_plan()
+    plan["items"]["c3"]["variant_of"] = "bank-base-course"
+    plan["items"]["c4"] = {**_question("kp-course"), "variant_of": None}
+    plan["segments"][0]["checks"].append("c4")
+    gateway = QueuedGateway(plan)
+
+    async def verify(_self, _item):
+        return {"status": "verified"}
+
+    monkeypatch.setattr("app.teaching.planner.ItemVerifier.verify", verify)
+    saved = asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
+    items = saved["plan"]["items"]
+    assert items["c3"]["variant_of"] == "c1"
+    assert items["c4"]["variant_of"] is None
+    with repository.connection() as conn:
+        assert conn.execute(
+            "SELECT variant_of FROM item_bank WHERE id = ?", (items["c4"]["bank_id"],),
+        ).fetchone()[0] is None
 
 
 def test_more_items_generates_verifies_and_excludes_other_course_context(
