@@ -12,16 +12,7 @@ from app.api.deps import get_container
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_BUNDLED_VRMA_PATH = (
-    _REPO_ROOT
-    / "apps"
-    / "web"
-    / "public"
-    / "assets"
-    / "characters"
-    / "motions"
-    / "companion-idle.vrma"
-)
+_BUNDLED_VRMA_PATH = _REPO_ROOT / "assets-archive" / "motions" / "companion-idle.vrma"
 _PNG_1X1 = bytes.fromhex(
     "89504e470d0a1a0a0000000d4948445200000001000000010804000000b51c0c02"
     "0000000b4944415478da6364f80f00010501012718e3660000000049454e44ae426082"
