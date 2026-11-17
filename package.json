@@ -32,7 +32,8 @@
     "test:e2e:realtime-soak": "node scripts/run-realtime-check.mjs soak",
     "test:e2e:realtime-soak:smoke": "node scripts/run-realtime-check.mjs soak-smoke",
     "test:windows-startup": "node --test scripts/start-local-windows.test.mjs",
-    "generate:api": "node scripts/generate-api-client.mjs"
+    "generate:api": "node scripts/generate-api-client.mjs",
+    "generate:api:check": "node scripts/generate-api-client.mjs --check"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
