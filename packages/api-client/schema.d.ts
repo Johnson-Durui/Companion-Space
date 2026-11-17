@@ -263,6 +263,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/courses/{course_id}/enrollment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Course Enrollment */
+        get: operations["get_course_enrollment_api_v2_courses__course_id__enrollment_get"];
+        /** Put Course Enrollment */
+        put: operations["put_course_enrollment_api_v2_courses__course_id__enrollment_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/courses/{course_id}/exam-items": {
         parameters: {
             query?: never;
@@ -378,6 +396,24 @@ export interface paths {
         put?: never;
         /** Diagnostic Chat */
         post: operations["diagnostic_chat_api_v2_diagnostics_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/learner/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Learner Profile */
+        get: operations["get_learner_profile_api_v2_learner_profile_get"];
+        /** Put Learner Profile */
+        put: operations["put_learner_profile_api_v2_learner_profile_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -721,6 +757,8 @@ export interface components {
             /** Src */
             src: string;
         };
+        /** @enum {string} */
+        Approach: "example" | "intuition" | "visual" | "formal" | "analogy" | "contrast";
         /** Character */
         Character: {
             appearance: components["schemas"]["Appearance"];
@@ -972,6 +1010,63 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** CourseEnrollment */
+        CourseEnrollment: {
+            /** Course Id */
+            course_id: string;
+            /** Exam Date */
+            exam_date?: string | null;
+            /**
+             * Exam Name
+             * @default
+             */
+            exam_name: string;
+            /**
+             * Full Score
+             * @default 100
+             */
+            full_score: number;
+            /**
+             * Goal Type
+             * @default interest
+             * @enum {string}
+             */
+            goal_type: "exam" | "homework" | "interest";
+            /** Hard Units */
+            hard_units?: string[];
+            /**
+             * Interview Status
+             * @default todo
+             * @enum {string}
+             */
+            interview_status: "todo" | "active" | "done" | "skipped";
+            /**
+             * Placement Status
+             * @default todo
+             * @enum {string}
+             */
+            placement_status: "todo" | "active" | "done" | "skipped";
+            /**
+             * Self Level
+             * @default never
+             * @enum {string}
+             */
+            self_level: "never" | "attended_but_lost" | "basic" | "strong";
+            /**
+             * Session Minutes
+             * @default 30
+             */
+            session_minutes: number;
+            /** Target Score */
+            target_score?: number | null;
+            /**
+             * Teacher Hints
+             * @default
+             */
+            teacher_hints: string;
+            /** Weekly Days */
+            weekly_days?: components["schemas"]["Weekday"][];
+        };
         /** CourseInput */
         CourseInput: {
             /**
@@ -1058,6 +1153,49 @@ export interface components {
             image?: components["schemas"]["ImageInput"] | null;
             /** Message */
             message: string;
+        };
+        /** EnrollmentSettings */
+        EnrollmentSettings: {
+            /** Exam Date */
+            exam_date?: string | null;
+            /**
+             * Exam Name
+             * @default
+             */
+            exam_name: string;
+            /**
+             * Full Score
+             * @default 100
+             */
+            full_score: number;
+            /**
+             * Goal Type
+             * @default interest
+             * @enum {string}
+             */
+            goal_type: "exam" | "homework" | "interest";
+            /** Hard Units */
+            hard_units?: string[];
+            /**
+             * Self Level
+             * @default never
+             * @enum {string}
+             */
+            self_level: "never" | "attended_but_lost" | "basic" | "strong";
+            /**
+             * Session Minutes
+             * @default 30
+             */
+            session_minutes: number;
+            /** Target Score */
+            target_score?: number | null;
+            /**
+             * Teacher Hints
+             * @default
+             */
+            teacher_hints: string;
+            /** Weekly Days */
+            weekly_days?: components["schemas"]["Weekday"][];
         };
         /** ExamItem */
         ExamItem: {
@@ -1209,6 +1347,40 @@ export interface components {
             stats?: components["schemas"]["ExamStats"] | null;
             /** Summary */
             summary: string;
+        };
+        /** @enum {string} */
+        LearnerLevel: "junior" | "senior" | "undergrad" | "postgrad_exam" | "self_study";
+        /** LearnerProfile */
+        LearnerProfile: {
+            /** Approach Order */
+            approach_order?: components["schemas"]["Approach"][];
+            /**
+             * Encouragement
+             * @default normal
+             * @enum {string}
+             */
+            encouragement: "more" | "normal" | "direct";
+            /** Interests */
+            interests?: string[];
+            /** @default self_study */
+            level: components["schemas"]["LearnerLevel"];
+            /**
+             * Nickname
+             * @default
+             */
+            nickname: string;
+            /**
+             * Pace
+             * @default normal
+             * @enum {string}
+             */
+            pace: "slow" | "normal" | "fast";
+            /**
+             * Preferred Style Id
+             * @default guided
+             * @enum {string}
+             */
+            preferred_style_id: "guided" | "direct" | "analogy" | "exam" | "rigorous";
         };
         /** LocalSessionStatus */
         LocalSessionStatus: {
@@ -1518,6 +1690,7 @@ export interface components {
             /** Voice Id */
             voice_id: string;
         };
+        Weekday: number;
     };
     responses: never;
     parameters: never;
@@ -2306,6 +2479,76 @@ export interface operations {
             };
         };
     };
+    get_course_enrollment_api_v2_courses__course_id__enrollment_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseEnrollment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_course_enrollment_api_v2_courses__course_id__enrollment_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseEnrollment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     exam_items_api_v2_courses__course_id__exam_items_get: {
         parameters: {
             query?: {
@@ -2616,6 +2859,72 @@ export interface operations {
                 };
                 content: {
                     "application/x-ndjson": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_learner_profile_api_v2_learner_profile_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerProfile"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_learner_profile_api_v2_learner_profile_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LearnerProfile"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearnerProfile"];
                 };
             };
             /** @description Validation Error */

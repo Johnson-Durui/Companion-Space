@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { inferMaterial } from "./materials";
 import type { AnalysisStart, ExamItem, Job, KnowledgePoint, Material, MaterialRole } from "./types";
+import { LearnerSetup } from "../learner/setup";
 
 const roles = Object.keys(t.courses.roles) as MaterialRole[];
 const stages = ["parse", "structure", "index", "kp_extract", "kp_reduce", "exam_extract", "item_verify", "exam_stats", "diag_pool", "brief"];
@@ -260,6 +261,7 @@ export default function CourseWorkspace() {
     <div className="course-workspace">
       <div className="course-breadcrumb"><Link to="/courses">{t.courses.heading}</Link><span aria-hidden="true">/</span><span>{course.data.name}</span></div>
       <div className="page-title course-title"><div><p className="eyebrow">{t.courses.workspace}</p><h1>{course.data.name}</h1><p>{course.data.goal || t.courses.goalEmpty}</p></div>{course.data.brief?.overview || course.data.brief?.summary ? <p className="course-overview">{course.data.brief.overview || course.data.brief.summary}</p> : null}</div>
+      <LearnerSetup key={courseId} courseId={courseId} />
       <UploadPanel courseId={courseId} />
       <Materials courseId={courseId} />
       <AnalysisPanel courseId={courseId} />

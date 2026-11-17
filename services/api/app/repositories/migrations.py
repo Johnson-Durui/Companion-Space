@@ -4,7 +4,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CURRENT_SCHEMA_VERSION = 7
+CURRENT_SCHEMA_VERSION = 8
 
 
 @dataclass(frozen=True)
@@ -266,6 +266,68 @@ def migrate_v6_to_v7(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA user_version = 7")
 
 
+def migrate_v7_to_v8(conn: sqlite3.Connection) -> None:
+    _execute(conn, (
+        """CREATE TABLE learner_profile (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            profile_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
+        """CREATE TABLE course_enrollment (
+            space_id TEXT PRIMARY KEY,
+            enrollment_json TEXT NOT NULL,
+            interview_status TEXT NOT NULL DEFAULT 'todo',
+            placement_status TEXT NOT NULL DEFAULT 'todo',
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(space_id) REFERENCES study_spaces(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE kp_mastery (
+            space_id TEXT NOT NULL, kp_id TEXT NOT NULL, p REAL NOT NULL,
+            status TEXT NOT NULL, evidence_count INTEGER NOT NULL DEFAULT 0,
+            clean_correct_count INTEGER NOT NULL DEFAULT 0, clean_days INTEGER NOT NULL DEFAULT 0,
+            last_clean_day TEXT, objective_clean INTEGER NOT NULL DEFAULT 0,
+            inferred INTEGER NOT NULL DEFAULT 0, taught_at TEXT, last_evidence_at TEXT,
+            PRIMARY KEY (space_id, kp_id),
+            FOREIGN KEY(space_id) REFERENCES study_spaces(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE evidence (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL, kp_id TEXT NOT NULL,
+            lesson_id TEXT, item_ref TEXT, source TEXT NOT NULL, verdict TEXT NOT NULL,
+            hint_level INTEGER NOT NULL DEFAULT 0, item_type TEXT, n_options INTEGER,
+            judged_by TEXT, via TEXT, retry INTEGER NOT NULL DEFAULT 0,
+            p_before REAL NOT NULL, p_after REAL NOT NULL, detail_json TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(space_id) REFERENCES study_spaces(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE misconceptions (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL, kp_id TEXT NOT NULL,
+            text TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 1,
+            first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, resolved_at TEXT,
+            FOREIGN KEY(space_id) REFERENCES study_spaces(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE approach_stats (
+            kind TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0,
+            success INTEGER NOT NULL DEFAULT 0
+        )""",
+        """CREATE TABLE study_plans (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL, version INTEGER NOT NULL,
+            status TEXT NOT NULL, reason TEXT, params_json TEXT, deferred_json TEXT,
+            created_at TEXT NOT NULL,
+            UNIQUE (space_id, id),
+            FOREIGN KEY(space_id) REFERENCES study_spaces(id) ON DELETE CASCADE
+        )""",
+        """CREATE TABLE plan_items (
+            id TEXT PRIMARY KEY, plan_id TEXT NOT NULL, space_id TEXT NOT NULL,
+            ord INTEGER NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL,
+            kp_ids_json TEXT NOT NULL, est_minutes INTEGER NOT NULL,
+            scheduled_date TEXT, why_text TEXT, pinned INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'todo', lesson_id TEXT,
+            FOREIGN KEY(space_id, plan_id) REFERENCES study_plans(space_id, id) ON DELETE CASCADE
+        )""",
+    ))
+    conn.execute("PRAGMA user_version = 8")
+
+
 MIGRATIONS = (
     Migration(1, 2, migrate_v1_to_v2),
     Migration(2, 3, migrate_v2_to_v3),
@@ -273,6 +335,7 @@ MIGRATIONS = (
     Migration(4, 5, migrate_v4_to_v5),
     Migration(5, 6, migrate_v5_to_v6),
     Migration(6, 7, migrate_v6_to_v7),
+    Migration(7, 8, migrate_v7_to_v8),
 )
 
 

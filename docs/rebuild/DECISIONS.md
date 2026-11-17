@@ -58,3 +58,9 @@
 ## M2 执行决定
 
 - 资料解析锁定 `pypdfium2==5.15.2`（BSD-3-Clause / Apache-2.0，PDF 页面渲染）、`python-pptx==1.0.2`（MIT，PPTX 文本、备注、表格与图片）、`python-docx==1.2.0`（MIT，DOCX 标题、段落与表格）、`Pillow==13.0.0`（MIT-CMU，图片校验和 JPEG 输出）与 `python-multipart==0.0.34`（Apache-2.0，FastAPI 文件上传）。现有 `pypdf` 继续负责 PDF 文字层与书签。所有直接依赖及其 `lxml`、`XlsxWriter` 传递依赖均已用 Windows CPython 3.14 二进制解析验证。PDFium 的支持层 API 可能在大版本变化，代码使用 5.x 的逐页 `PdfPage.render()`，不使用已移除的文档批量渲染接口。[pypdfium2](https://pypi.org/project/pypdfium2/5.15.2/) [python-pptx](https://pypi.org/project/python-pptx/1.0.2/) [python-docx](https://pypi.org/project/python-docx/1.2.0/) [Pillow](https://pypi.org/project/pillow/13.0.0/) [python-multipart](https://pypi.org/project/python-multipart/0.0.34/) [FastAPI 文件上传](https://fastapi.tiangolo.com/tutorial/request-files/)
+
+## M3 执行决定
+
+- 所有者要求开启 M3。M2 待办保留在进度记录，M3 先实现可独立验证的画像、课程报名和掌握度计算。
+- `PUT /api/v2/courses/{course_id}/enrollment` 支持手动编辑课程设置。访谈与诊断状态取自数据库，保存设置时保留已有状态。
+- 掌握度更新以学习者规格 §2.2 的不变量为准，获得三级提示后的错误与重试也保持原概率。客观单选至少需要两个选项。

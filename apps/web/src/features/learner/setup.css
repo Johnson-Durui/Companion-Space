@@ -1,0 +1,9 @@
+.learner-setup > summary { cursor: pointer; padding-inline-start: 4px; }
+.learner-setup > summary > span { font: 650 clamp(1.15rem, 2vw, 1.45rem)/1.25 var(--serif); }
+.learner-setup > summary > small { display: block; margin-block-start: 5px; color: var(--muted); font-size: .875rem; }
+.learner-setup > summary::marker { color: var(--accent); }
+.learner-setup .fields + .fields { margin-block-start: 8px; padding-block-start: 24px; border-top: 1px solid var(--line); }
+.weekday-options { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0; padding: 0; border: 0; }
+.weekday-options legend { width: 100%; margin-bottom: 6px; font-size: .875rem; font-weight: 650; }
+.fields .weekday-options label { display: inline-flex; grid-template-columns: none; align-items: center; gap: 7px; font-weight: 500; }
+.fields .weekday-options input { width: 18px; min-height: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
