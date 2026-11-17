@@ -1,0 +1,17 @@
+{
+  "course": "probability-basics",
+  "edges": [
+    {"prerequisite": "sample-space-event", "dependent": "event-operations"},
+    {"prerequisite": "sample-space-event", "dependent": "classical-probability"},
+    {"prerequisite": "event-operations", "dependent": "probability-properties"},
+    {"prerequisite": "probability-properties", "dependent": "addition-rule"},
+    {"prerequisite": "event-operations", "dependent": "addition-rule"},
+    {"prerequisite": "classical-probability", "dependent": "conditional-probability"},
+    {"prerequisite": "event-operations", "dependent": "conditional-probability"},
+    {"prerequisite": "conditional-probability", "dependent": "multiplication-rule"},
+    {"prerequisite": "multiplication-rule", "dependent": "independence"},
+    {"prerequisite": "conditional-probability", "dependent": "total-probability"},
+    {"prerequisite": "total-probability", "dependent": "bayes-rule"},
+    {"prerequisite": "conditional-probability", "dependent": "bayes-rule"}
+  ]
+}

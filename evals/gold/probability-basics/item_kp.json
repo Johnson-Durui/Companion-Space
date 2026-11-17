@@ -1,0 +1,29 @@
+{
+  "course": "probability-basics",
+  "mappings": {
+    "2023-1": ["classical-probability"],
+    "2023-2": ["addition-rule"],
+    "2023-3": ["classical-probability"],
+    "2023-4": ["addition-rule"],
+    "2023-5": ["conditional-probability"],
+    "2023-6": ["independence", "event-operations"],
+    "2023-7": ["total-probability"],
+    "2023-8": ["bayes-rule"],
+    "2024-1": ["classical-probability"],
+    "2024-2": ["probability-properties"],
+    "2024-3": ["conditional-probability"],
+    "2024-4": ["probability-properties", "independence"],
+    "2024-5": ["independence"],
+    "2024-6": ["total-probability"],
+    "2024-7": ["bayes-rule"],
+    "2024-8": ["independence", "event-operations"],
+    "2025-1": ["classical-probability"],
+    "2025-2": ["addition-rule"],
+    "2025-3": ["independence", "probability-properties"],
+    "2025-4": ["multiplication-rule"],
+    "2025-5": ["bayes-rule", "total-probability"],
+    "2025-6": ["bayes-rule"],
+    "2025-7": ["probability-properties", "independence"],
+    "2025-8": ["total-probability"]
+  }
+}

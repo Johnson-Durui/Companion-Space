@@ -1,0 +1,20 @@
+{
+  "course": "history-1911",
+  "papers": [
+    {
+      "paper_id": "exam-1911",
+      "year": null,
+      "total_score": 50,
+      "items": [
+        {"id": "history-1", "no": "1", "type": "choice", "score": 5, "answer": "B"},
+        {"id": "history-2", "no": "2", "type": "choice", "score": 5, "answer": "C"},
+        {"id": "history-3", "no": "3", "type": "choice", "score": 5, "answer": "A"},
+        {"id": "history-4", "no": "4", "type": "choice", "score": 5, "answer": "B"},
+        {"id": "history-5", "no": "5", "type": "choice", "score": 5, "answer": "C"},
+        {"id": "history-6", "no": "6", "type": "choice", "score": 5, "answer": "C"},
+        {"id": "history-7", "no": "7", "type": "essay", "score": 10, "answer": "长期统治危机、组织条件、革命动员与近因三个层次"},
+        {"id": "history-8", "no": "8", "type": "essay", "score": 10, "answer": "革命有制度与思想突破，但未解决全部深层问题"}
+      ]
+    }
+  ]
+}

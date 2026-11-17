@@ -1,0 +1,13 @@
+{
+  "course": "history-1911",
+  "mappings": {
+    "history-1": ["revolutionary-organizations"],
+    "history-2": ["late-qing-new-policies"],
+    "history-3": ["railway-protection", "wuchang-uprising"],
+    "history-4": ["provincial-response"],
+    "history-5": ["republic-founding"],
+    "history-6": ["historical-evaluation"],
+    "history-7": ["late-qing-crisis", "late-qing-new-policies", "revolutionary-organizations"],
+    "history-8": ["republic-founding", "historical-evaluation"]
+  }
+}
