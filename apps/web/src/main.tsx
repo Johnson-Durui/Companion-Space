@@ -11,8 +11,11 @@ import "./styles/tokens.css";
 
 const Settings = lazy(() => import("./features/settings/settings"));
 const Diagnostics = lazy(() => import("./features/settings/diagnostics"));
+const Courses = lazy(() => import("./features/courses/courses"));
+const CourseWorkspace = lazy(() => import("./features/courses/course"));
 const queries = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000, refetchOnWindowFocus: false } } });
 const navigation = [
+  ["/courses", t.app.courses],
   ["/welcome", t.app.teachers],
   ["/settings", t.app.settings],
   ["/settings/diagnostics", t.app.diagnostics],
@@ -44,9 +47,11 @@ function App() {
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/welcome" element={<Welcome />} />
+              <Route path="/courses" element={<Courses />} />
+              <Route path="/courses/:courseId" element={<CourseWorkspace />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/settings/diagnostics" element={<Diagnostics />} />
-              <Route path="*" element={<Navigate to="/welcome" replace />} />
+              <Route path="*" element={<Navigate to="/courses" replace />} />
             </Routes>
           </Suspense>
         ) : null}
