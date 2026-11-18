@@ -1,0 +1,12 @@
+{
+  "course": "kinematics",
+  "edges": [
+    {"prerequisite": "reference-frame-position", "dependent": "displacement-distance"},
+    {"prerequisite": "displacement-distance", "dependent": "average-instant-velocity"},
+    {"prerequisite": "average-instant-velocity", "dependent": "position-time-graph"},
+    {"prerequisite": "average-instant-velocity", "dependent": "acceleration"},
+    {"prerequisite": "acceleration", "dependent": "uniform-acceleration-velocity"},
+    {"prerequisite": "uniform-acceleration-velocity", "dependent": "uniform-acceleration-displacement"},
+    {"prerequisite": "uniform-acceleration-displacement", "dependent": "free-fall"}
+  ]
+}

@@ -1,25 +1,31 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import asyncio
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from functools import lru_cache
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 
+from app.analysis.course_data import CourseData
+from app.analysis.pipeline import AnalysisPipeline
 from app.core.config import Settings, get_settings
+from app.llm.gateway import LLMGateway
+from app.services.browser_session import OWNER_COOKIE_NAME, require_cookie_csrf
 from app.services.characters import CharacterService
-from app.services.companion import CompanionService
-from app.services.demos import DemoService
-from app.services.legacy_import import LegacyKnowledgeImporter
-from app.services.metrics import MetricsService
+from app.services.jobs import JobRunner
 from app.services.provider_registry import ProviderRegistryService
 from app.services.repository import SQLiteRepository
-from app.services.spaces import StudySpaceService
+from app.services.settings_store import get_setting
+from app.services.tutor_catalog import TutorCatalog
 from app.services.vault import OwnerTokenState, VaultService
+from app.voice.sherpa import LocalSpeechRecognizer
+from app.teaching.preparation import register_preparation_jobs
 
 OWNER_SESSION_REQUIRED = "Owner session required"
 OWNER_SESSION_INVALID = "Invalid owner session"
 VAULT_LOCKED = "Vault is locked"
-LOCAL_OWNER_SESSION_REQUIRED = "Local owner session required"
+type GatewayFactory = Callable[[ProviderRegistryService], LLMGateway]
 
 
 @dataclass
@@ -27,95 +33,93 @@ class ServiceContainer:
     settings: Settings
     repository: SQLiteRepository
     vault: VaultService
-    metrics: MetricsService
-    spaces: StudySpaceService
+    analysis: AnalysisPipeline
     characters: CharacterService
+    tutors: TutorCatalog
     providers: ProviderRegistryService
-    companion: CompanionService
-    demos: DemoService
-    legacy_importer: LegacyKnowledgeImporter
+    gateway: LLMGateway
+    jobs: JobRunner
+    local_stt: LocalSpeechRecognizer
+    settings_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    preparing_lessons: set[str] = field(default_factory=set)
+    live_lessons: set[str] = field(default_factory=set)
 
     async def aclose(self) -> None:
-        await self.companion.aclose()
-        await self.providers.aclose()
-        self.spaces.close()
+        try:
+            await self.jobs.aclose()
+        finally:
+            await self.providers.aclose()
 
     def close(self) -> None:
-        self.companion.close()
         self.providers.close()
-        self.spaces.close()
 
 
-@lru_cache
-def get_container() -> ServiceContainer:
-    settings = get_settings()
+def build_container(settings: Settings, gateway_factory: GatewayFactory = LLMGateway) -> ServiceContainer:
     repository = SQLiteRepository(settings)
     vault = VaultService(settings, repository)
-    metrics = MetricsService(repository)
-    spaces = StudySpaceService(settings, repository)
-    characters = CharacterService(repository)
     providers = ProviderRegistryService(repository, vault)
-    spaces.set_provider_registry(providers)
-    spaces.set_metrics(metrics)
-    spaces.start_ingestion_worker()
-    companion = CompanionService(
-        settings,
-        repository,
-        spaces,
-        providers,
-        metrics=metrics,
-    )
-    demos = DemoService(settings, repository, spaces, providers, companion)
-    legacy_importer = LegacyKnowledgeImporter(settings, spaces)
+    tutors = TutorCatalog(repository)
+    tutors.seed()
+    jobs = JobRunner(repository, concurrency=get_setting(repository, "analysis_concurrency", 4))
+    gateway = gateway_factory(providers)
+    preparing_lessons: set[str] = set()
+    register_preparation_jobs(jobs, repository, gateway, preparing_lessons)
     return ServiceContainer(
         settings=settings,
         repository=repository,
         vault=vault,
-        metrics=metrics,
-        spaces=spaces,
-        characters=characters,
+        analysis=AnalysisPipeline(CourseData(repository), jobs, gateway),
+        characters=CharacterService(repository),
+        tutors=tutors,
         providers=providers,
-        companion=companion,
-        demos=demos,
-        legacy_importer=legacy_importer,
+        gateway=gateway,
+        jobs=jobs,
+        local_stt=LocalSpeechRecognizer(settings.model_cache_dir),
+        preparing_lessons=preparing_lessons,
     )
 
 
+@lru_cache
+def get_container() -> ServiceContainer:
+    return build_container(get_settings())
+
+
+def _owner_token(request: Request, authorization: str | None, container: ServiceContainer) -> tuple[str | None, bool]:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip(), False
+    protected = request.cookies.get(OWNER_COOKIE_NAME)
+    return (container.vault.unprotect_browser_token(protected), True) if protected else (None, False)
+
+
 def require_owner(
+    request: Request,
     authorization: str | None = Header(default=None),
     container: ServiceContainer = Depends(get_container),
 ) -> str:
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=OWNER_SESSION_REQUIRED,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    token = authorization.split(" ", 1)[1].strip()
-    owner_state = container.vault.owner_token_state(token)
-    if owner_state is OwnerTokenState.vault_locked:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=VAULT_LOCKED,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    if owner_state is OwnerTokenState.invalid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=OWNER_SESSION_INVALID,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return token
+    token, from_cookie = _owner_token(request, authorization, container)
+    if not token:
+        detail, code = OWNER_SESSION_REQUIRED, "owner_session_required"
+    else:
+        owner_state = container.vault.owner_token_state(token)
+        if owner_state is OwnerTokenState.valid:
+            if from_cookie:
+                require_cookie_csrf(request, container.settings)
+            return token
+        if owner_state is OwnerTokenState.vault_locked:
+            detail, code = VAULT_LOCKED, "vault_locked"
+        else:
+            detail, code = OWNER_SESSION_INVALID, "owner_session_invalid"
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail={"code": code, "message": detail},
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
-def require_local_owner(
-    token: str = Depends(require_owner),
+def optional_owner(
+    request: Request,
+    authorization: str | None = Header(default=None),
     container: ServiceContainer = Depends(get_container),
-) -> str:
-    owner_session = container.repository.get_owner_session(token)
-    if owner_session is None or owner_session.device_id is not None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=LOCAL_OWNER_SESSION_REQUIRED,
-        )
-    return token
+) -> str | None:
+    token, _ = _owner_token(request, authorization, container)
+    return token if token and container.vault.owner_token_state(token) is OwnerTokenState.valid else None

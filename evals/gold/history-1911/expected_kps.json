@@ -1,0 +1,53 @@
+{
+  "course": "history-1911",
+  "knowledge_points": [
+    {
+      "id": "late-qing-crisis",
+      "name": "清末统治危机",
+      "aliases": ["清末危机", "辛亥革命的时代背景"],
+      "acceptable_extra": ["列强侵略与社会矛盾"]
+    },
+    {
+      "id": "late-qing-new-policies",
+      "name": "清末新政的双重影响",
+      "aliases": ["清末新政", "新政的客观影响"],
+      "acceptable_extra": ["新军与新知识群体"]
+    },
+    {
+      "id": "revolutionary-organizations",
+      "name": "革命团体与同盟会",
+      "aliases": ["兴中会与同盟会", "革命派的组织与宣传"],
+      "acceptable_extra": ["三民主义", "立宪派"]
+    },
+    {
+      "id": "railway-protection",
+      "name": "保路运动",
+      "aliases": ["四川保路运动", "铁路国有风潮"],
+      "acceptable_extra": []
+    },
+    {
+      "id": "wuchang-uprising",
+      "name": "武昌起义",
+      "aliases": ["武昌首义", "武汉三镇起义"],
+      "acceptable_extra": ["湖北军政府"]
+    },
+    {
+      "id": "provincial-response",
+      "name": "各省响应与清政府瓦解",
+      "aliases": ["各省独立", "革命形势扩展"],
+      "acceptable_extra": ["地方政治力量的多样性"]
+    },
+    {
+      "id": "republic-founding",
+      "name": "中华民国临时政府成立",
+      "aliases": ["南京临时政府", "共和建立", "清帝退位"],
+      "acceptable_extra": ["南北妥协", "袁世凯就任"]
+    },
+    {
+      "id": "historical-evaluation",
+      "name": "辛亥革命的功绩与局限",
+      "aliases": ["辛亥革命的历史意义", "辛亥革命的局限性", "历史评价"],
+      "acceptable_extra": ["民主共和观念", "君主专制政体终结"]
+    }
+  ]
+}

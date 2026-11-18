@@ -23,9 +23,6 @@ CompanionEmotion = Literal[
     "concerned",
 ]
 TtsPlaybackPolicy = Literal["browser-compat", "server-neural", "server"]
-LessonTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
-LessonCaption = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=400)]
-LessonNarration = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1200)]
 
 
 def _load_character_recipe_defaults(filename: str) -> dict[str, Any]:
@@ -63,6 +60,9 @@ class MaterialKind(str, Enum):
     markdown = "markdown"
     text = "text"
     note = "note"
+    pptx = "pptx"
+    docx = "docx"
+    image = "image"
 
 
 class MemoryStatus(str, Enum):
@@ -159,16 +159,6 @@ class Chunk(BaseModel):
     created_at: datetime
 
 
-class IngestionJob(BaseModel):
-    id: str
-    space_id: str
-    material_id: str
-    status: str
-    error_message: str | None = None
-    created_at: datetime
-    updated_at: datetime
-
-
 class CharacterRecipe(BaseModel):
     avatar_model: RecipeToken = DEFAULT_CHARACTER_RECIPE_DATA["avatar_model"]
     avatar_framing: Literal["full_body", "portrait"] = DEFAULT_CHARACTER_RECIPE_DATA["avatar_framing"]
@@ -233,7 +223,6 @@ class ModelAssignment(BaseModel):
     capability: ProviderCapability
     provider_connection_id: str
     model_name: str
-    is_bootstrap_default: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -270,21 +259,6 @@ class CompanionTurn(BaseModel):
     suggested_actions: list[str] = Field(default_factory=list)
     usage: UsageRecord = Field(default_factory=UsageRecord)
     created_at: datetime
-
-
-class LessonStep(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    board: BoardAction
-    caption: LessonCaption
-    narration: LessonNarration
-
-
-class LessonScript(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    title: LessonTitle
-    steps: list[LessonStep] = Field(min_length=3, max_length=8)
 
 
 class MemoryItem(BaseModel):
@@ -335,20 +309,3 @@ class RealtimeEvent(BaseModel):
     session_id: str
     state: SessionState | None = None
     payload: dict = Field(default_factory=dict)
-
-
-class PairingChallenge(BaseModel):
-    id: str
-    code_hash: str
-    attempts_remaining: int
-    expires_at: datetime
-    created_at: datetime
-
-
-class TrustedDevice(BaseModel):
-    id: str
-    name: str
-    refresh_token_hash: str
-    refresh_expires_at: datetime
-    created_at: datetime
-    last_seen_at: datetime

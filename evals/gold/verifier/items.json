@@ -1,0 +1,246 @@
+{
+  "description": "原创答案复核器评测集。30 题中 10 题的 reference_answer 被故意改错；correct_answer 仅供评测器计分，产品不得读取。",
+  "items": [
+    {
+      "id": "verify-01",
+      "type": "numeric",
+      "stem": "计算 12+17。",
+      "correct_answer": "29",
+      "reference_answer": "29",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-02",
+      "type": "numeric",
+      "stem": "计算 9×8。",
+      "correct_answer": "72",
+      "reference_answer": "72",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-03",
+      "type": "numeric",
+      "stem": "144 的算术平方根是多少？",
+      "correct_answer": "12",
+      "reference_answer": "12",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-04",
+      "type": "numeric",
+      "stem": "解方程 3x+5=20。",
+      "correct_answer": "x=5",
+      "reference_answer": "x=5",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-05",
+      "type": "numeric",
+      "stem": "计算 3/4+1/8，结果写成最简分数。",
+      "correct_answer": "7/8",
+      "reference_answer": "7/8",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-06",
+      "type": "numeric",
+      "stem": "求 4、7、10 的算术平均数。",
+      "correct_answer": "7",
+      "reference_answer": "7",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-07",
+      "type": "numeric",
+      "stem": "一个三角形的两个内角分别为 50° 和 60°，第三个内角是多少度？",
+      "correct_answer": "70°",
+      "reference_answer": "70°",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-08",
+      "type": "numeric",
+      "stem": "长方形的长为 9，宽为 6，面积是多少？",
+      "correct_answer": "54",
+      "reference_answer": "54",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-09",
+      "type": "numeric",
+      "stem": "计算 2 的 5 次方。",
+      "correct_answer": "32",
+      "reference_answer": "32",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-10",
+      "type": "numeric",
+      "stem": "求 18 与 24 的最大公约数。",
+      "correct_answer": "6",
+      "reference_answer": "6",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-11",
+      "type": "numeric",
+      "stem": "掷一枚均匀六面骰子，出现偶数点的概率是多少？",
+      "correct_answer": "1/2",
+      "reference_answer": "1/2",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-12",
+      "type": "short",
+      "stem": "函数 f(x)=x² 的导函数是什么？",
+      "correct_answer": "f'(x)=2x",
+      "reference_answer": "f'(x)=2x",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-13",
+      "type": "numeric",
+      "stem": "计算定积分 ∫₀¹ 2x dx。",
+      "correct_answer": "1",
+      "reference_answer": "1",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-14",
+      "type": "short",
+      "stem": "解方程 x²−9=0，写出全部实数解。",
+      "correct_answer": "x=3 或 x=-3",
+      "reference_answer": "x=3 或 x=-3",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-15",
+      "type": "numeric",
+      "stem": "在标准大气压下，水的摄氏冰点是多少？",
+      "correct_answer": "0°C",
+      "reference_answer": "0°C",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-16",
+      "type": "short",
+      "stem": "法国的首都是哪座城市？",
+      "correct_answer": "巴黎",
+      "reference_answer": "巴黎",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-17",
+      "type": "short",
+      "stem": "绿色植物进行光合作用时释放的主要气体是什么？",
+      "correct_answer": "氧气",
+      "reference_answer": "氧气",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-18",
+      "type": "short",
+      "stem": "太阳系中体积最大的行星是哪一颗？",
+      "correct_answer": "木星",
+      "reference_answer": "木星",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-19",
+      "type": "choice",
+      "stem": "公历 2000 年是闰年吗？",
+      "options": {"A": "是", "B": "否"},
+      "correct_answer": "A",
+      "reference_answer": "A",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-20",
+      "type": "numeric",
+      "stem": "二进制数 1010 等于十进制的多少？",
+      "correct_answer": "10",
+      "reference_answer": "10",
+      "reference_is_intentionally_wrong": false
+    },
+    {
+      "id": "verify-21",
+      "type": "numeric",
+      "stem": "计算 6×7。",
+      "correct_answer": "42",
+      "reference_answer": "41",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-22",
+      "type": "numeric",
+      "stem": "200 的 15% 是多少？",
+      "correct_answer": "30",
+      "reference_answer": "25",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-23",
+      "type": "numeric",
+      "stem": "计算 7²。",
+      "correct_answer": "49",
+      "reference_answer": "56",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-24",
+      "type": "numeric",
+      "stem": "正方形边长为 8，周长是多少？",
+      "correct_answer": "32",
+      "reference_answer": "64",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-25",
+      "type": "short",
+      "stem": "水的化学式是什么？",
+      "correct_answer": "H2O",
+      "reference_answer": "CO2",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-26",
+      "type": "short",
+      "stem": "地球唯一的天然卫星是什么？",
+      "correct_answer": "月球",
+      "reference_answer": "火星",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-27",
+      "type": "short",
+      "stem": "戏剧《罗密欧与朱丽叶》的作者是谁？",
+      "correct_answer": "威廉·莎士比亚",
+      "reference_answer": "查尔斯·狄更斯",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-28",
+      "type": "numeric",
+      "stem": "把分数 3/5 写成小数。",
+      "correct_answer": "0.6",
+      "reference_answer": "0.35",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-29",
+      "type": "numeric",
+      "stem": "汽车 2 小时行驶 120 千米，平均速度是多少千米每小时？",
+      "correct_answer": "60 千米/小时",
+      "reference_answer": "240 千米/小时",
+      "reference_is_intentionally_wrong": true
+    },
+    {
+      "id": "verify-30",
+      "type": "numeric",
+      "stem": "大于 11 的最小质数是多少？",
+      "correct_answer": "13",
+      "reference_answer": "15",
+      "reference_is_intentionally_wrong": true
+    }
+  ]
+}

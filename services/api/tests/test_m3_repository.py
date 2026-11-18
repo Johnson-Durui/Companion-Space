@@ -1,16 +1,15 @@
 from __future__ import annotations
 
+from support_legacy_records import seed_session, seed_memory, seed_review
+
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-import pytest
-
 from app.core.config import Settings
 from app.models.domain import (
     Chunk,
-    IngestionJob,
     MemoryItem,
     MemoryStatus,
     Material,
@@ -54,18 +53,6 @@ def _material(space_id: str, *, material_id: str | None = None) -> Material:
         filename="repo.md",
         storage_path=f"/tmp/{material_id or 'repo'}.md",
         chunk_count=0,
-        created_at=now,
-        updated_at=now,
-    )
-
-
-def _job(space_id: str, material_id: str, *, status: str = "queued", job_id: str | None = None) -> IngestionJob:
-    now = _now()
-    return IngestionJob(
-        id=job_id or str(uuid4()),
-        space_id=space_id,
-        material_id=material_id,
-        status=status,
         created_at=now,
         updated_at=now,
     )
@@ -196,80 +183,6 @@ def test_repository_fts_is_space_scoped_and_cleans_up_on_delete(isolated_setting
     assert repository.search_chunks_fts(space_id=first_space.id, query="discriminant roots", limit=5) == []
 
 
-def test_ingestion_job_claim_complete_fail_retry_and_requeue(isolated_settings) -> None:
-    repository = SQLiteRepository(isolated_settings)
-    space = _space()
-    repository.upsert_space(space)
-    material = _material(space.id)
-    queued_job = _job(space.id, material.id, status="queued")
-
-    repository.create_material_with_job(material=material, job=queued_job)
-    assert repository.list_pending_ingestion_jobs(limit=5)[0].id == queued_job.id
-
-    claimed = repository.claim_ingestion_job(queued_job.id)
-    assert claimed is not None
-    assert claimed.status == "processing"
-    assert repository.claim_ingestion_job(queued_job.id) is None
-
-    chunk = _chunk(space.id, material.id, "Bayes formula updates beliefs from new evidence.")
-    completed_material = material.model_copy(update={"chunk_count": 1, "updated_at": _now()})
-    stored_material, completed_job = repository.complete_ingestion(
-        material=completed_material,
-        job=claimed,
-        chunks=[chunk],
-    )
-
-    assert stored_material.chunk_count == 1
-    assert completed_job.status == "completed"
-    assert repository.get_ingestion_job(queued_job.id).status == "completed"
-    assert repository.search_chunks_fts(space_id=space.id, query="bayes evidence", limit=5)[0].id == chunk.id
-
-    failed_job = _job(space.id, material.id, status="processing")
-    repository.upsert_ingestion_job(failed_job)
-    failed = repository.fail_ingestion_job(job_id=failed_job.id, error_message="parser boom")
-    assert failed is not None
-    assert failed.status == "failed"
-    assert failed.error_message == "parser boom"
-
-    retry_job = _job(space.id, material.id, status="processing")
-    retried = repository.create_retry_ingestion_job(failed_job_id=failed_job.id, retry_job=retry_job)
-    assert retried.status == "queued"
-    with pytest.raises(
-        ValueError,
-        match="Material already has an active ingestion job",
-    ):
-        repository.create_retry_ingestion_job(
-            failed_job_id=failed_job.id,
-            retry_job=_job(space.id, material.id),
-        )
-
-    stale_processing = _job(space.id, material.id, status="processing")
-    repository.upsert_ingestion_job(stale_processing)
-    assert repository.requeue_processing_ingestion_jobs() >= 1
-    pending_ids = {job.id for job in repository.list_pending_ingestion_jobs(limit=10)}
-    assert retry_job.id in pending_ids
-    assert stale_processing.id in pending_ids
-
-
-def test_pending_job_recovery_is_not_silently_capped_at_twenty(
-    isolated_settings,
-) -> None:
-    repository = SQLiteRepository(isolated_settings)
-    space = _space()
-    repository.upsert_space(space)
-    expected_ids: set[str] = set()
-    for _ in range(25):
-        material = _material(space.id, material_id=str(uuid4()))
-        job = _job(space.id, material.id)
-        repository.create_material_with_job(material=material, job=job)
-        expected_ids.add(job.id)
-
-    recovered = repository.list_pending_ingestion_jobs()
-
-    assert {job.id for job in recovered} == expected_ids
-    assert len(repository.list_pending_ingestion_jobs(limit=5)) == 5
-
-
 def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_settings) -> None:
     repository = SQLiteRepository(isolated_settings)
     now = _now()
@@ -284,8 +197,7 @@ def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_setti
     repository.upsert_space(space)
 
     material = _material(space.id)
-    job = _job(space.id, material.id)
-    repository.create_material_with_job(material=material, job=job)
+    repository.upsert_material(material)
 
     connection = repository.upsert_provider_connection(
         ProviderConnection(
@@ -308,7 +220,8 @@ def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_setti
             updated_at=now,
         )
     )
-    session = repository.upsert_session(
+    session = seed_session(
+        repository,
         SessionRecord(
             id=str(uuid4()),
             space_id=space.id,
@@ -318,7 +231,8 @@ def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_setti
             updated_at=now,
         )
     )
-    repository.upsert_memory_item(
+    seed_memory(
+        repository,
         MemoryItem(
             id=str(uuid4()),
             space_id=space.id,
@@ -329,7 +243,8 @@ def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_setti
             updated_at=now,
         )
     )
-    repository.upsert_review_item(
+    seed_review(
+        repository,
         ReviewItem(
             id=str(uuid4()),
             space_id=space.id,
@@ -355,7 +270,6 @@ def test_upsert_space_does_not_delete_space_scoped_data_on_update(isolated_setti
     assert updated_space.name == "Updated Space"
     assert repository.get_space(space.id).default_character_pack_id == "character-1"
     assert len(repository.list_materials(space.id)) == 1
-    assert len(repository.list_ingestion_jobs(space.id)) == 1
     assert len(repository.list_model_assignments(space.id)) == 1
     assert len(repository.list_sessions(space.id)) == 1
     assert len(repository.list_memory_items(space.id)) == 1

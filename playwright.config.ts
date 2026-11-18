@@ -1,58 +1,28 @@
-import { defineConfig, devices } from "@playwright/test";
+import { defineConfig } from "@playwright/test";
+import { existsSync } from "node:fs";
 
-const WEB_PORT = 3100;
-const API_PORT = 8100;
-const baseURL = `http://127.0.0.1:${WEB_PORT}`;
-const apiBaseURL = `http://127.0.0.1:${API_PORT}`;
-const wsBaseURL = `ws://127.0.0.1:${API_PORT}/api/v1/sessions/:sessionId/realtime`;
-const storageRoot = ".playwright/mock-storage";
-const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === "1";
-const useHeadlessBrowser = process.env.E2E_HEADED !== "1";
-const browserChannel = process.env.E2E_BROWSER_CHANNEL;
-const webMode = process.env.E2E_WEB_MODE === "production" ? "production" : "dev";
-const captureVideo = Boolean(process.env.CI) || process.env.E2E_VIDEO === "1";
-// The launchers forward SIGTERM to their independently managed child processes.
-const gracefulShutdown = { signal: "SIGTERM", timeout: 5_000 } as const;
+const port = process.env.E2E_API_PORT ?? "8731";
+const baseURL = `http://127.0.0.1:${port}`;
+const venv = process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python";
+const python = existsSync(venv) ? venv : "python";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: "**/*.spec.ts",
-  fullyParallel: false,
-  forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  testMatch: "*.spec.ts",
+  timeout: 45_000,
   workers: 1,
-  reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL,
+    viewport: { width: 1440, height: 900 },
+    browserName: "chromium",
+    channel: process.env.PLAYWRIGHT_CHANNEL,
     trace: "retain-on-failure",
-    screenshot: "only-on-failure",
-    video: captureVideo ? "retain-on-failure" : "off",
   },
-  projects: [
-    {
-      name: "chromium",
-      use: {
-        ...devices["Desktop Chrome"],
-        headless: useHeadlessBrowser,
-        ...(browserChannel ? { channel: browserChannel } : {}),
-      },
-    },
-  ],
-  webServer: [
-    {
-      command: `node tests/e2e/start-api.mjs ${API_PORT} ${WEB_PORT} ${storageRoot}`,
-      port: API_PORT,
-      timeout: 120_000,
-      gracefulShutdown,
-      reuseExistingServer,
-    },
-    {
-      command: `node tests/e2e/start-web.mjs ${webMode} ${WEB_PORT} ${apiBaseURL} ${wsBaseURL}`,
-      env: { NEXT_DIST_DIR: process.env.NEXT_DIST_DIR ?? ".next-e2e" },
-      port: WEB_PORT,
-      timeout: 120_000,
-      gracefulShutdown,
-      reuseExistingServer,
-    },
-  ],
+  webServer: {
+    command: `"${python}" services/api/tests/e2e_server.py`,
+    env: { PYTHONPATH: "services/api", E2E_API_PORT: port },
+    url: `${baseURL}/healthz`,
+    timeout: 60_000,
+    reuseExistingServer: false,
+  },
 });

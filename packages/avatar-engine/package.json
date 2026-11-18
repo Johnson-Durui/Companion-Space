@@ -1,0 +1,36 @@
+{
+  "name": "@companion-space/avatar-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "peerDependencies": {
+    "@pixiv/three-vrm": "^3.5.5",
+    "@pixiv/three-vrm-animation": "^3.5.5",
+    "@react-three/fiber": "^9.6.1",
+    "react": "^19.1.0",
+    "three": "^0.180.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./appearance": "./src/vrm-appearance.ts",
+    "./audio-lip-sync": "./src/audio-lip-sync.ts",
+    "./emotion-profile": "./src/emotion-profile.ts",
+    "./pet-registry": "./src/pet-registry.ts",
+    "./portrait-registry": "./src/portrait-registry.ts",
+    "./recipe": "./src/vrm-recipe.ts",
+    "./runtime-health": "./src/runtime-health.ts",
+    "./speech-controller": "./src/vrm-speech-controller.ts",
+    "./teaching-cue": "./src/teaching-cue.ts",
+    "./viseme": "./src/viseme.ts",
+    "./vrm-stage": "./src/vrm-stage.tsx",
+    "./runtime-types": "./src/runtime-types.ts"
+  },
+  "types": "./src/index.ts",
+  "devDependencies": {
+    "@types/three": "0.180.0"
+  },
+  "dependencies": {
+    "three-vrm-lip-sync": "0.1.0",
+    "wlipsync": "1.3.1"
+  }
+}

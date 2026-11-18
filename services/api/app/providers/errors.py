@@ -2,6 +2,8 @@ from __future__ import annotations
 
 
 class ProviderError(RuntimeError):
+    public_code: str | None = None
+
     def __init__(
         self,
         *,
@@ -41,7 +43,13 @@ class ProviderConfigurationError(ProviderError):
     pass
 
 
+class MissingRoleError(ProviderConfigurationError):
+    public_code = "model_role_missing"
+
+
 def provider_error_code(error: ProviderError) -> str:
+    if error.public_code:
+        return error.public_code
     if isinstance(error, ProviderAuthenticationError):
         return "provider_authentication_failed"
     if isinstance(error, ProviderRateLimitError):

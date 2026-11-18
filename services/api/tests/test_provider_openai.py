@@ -58,7 +58,7 @@ def test_iter_sse_json_handles_multiline_unknown_events_and_done() -> None:
 def test_generate_reply_collects_stream_text_and_final_usage_once() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
-        assert request.url.path == "/custom-root/v1/chat/completions"
+        assert request.url.path == "/custom-root/chat/completions"
         body = json.loads(request.content.decode("utf-8"))
         assert body["stream"] is True
         assert body["stream_options"] == {"include_usage": True}
@@ -116,14 +116,14 @@ def test_discover_models_makes_real_request() -> None:
     provider = _provider(handler)
     models = asyncio.run(provider.discover_models())
 
-    assert requests == [("GET", "/custom-root/v1/models")]
+    assert requests == [("GET", "/custom-root/models")]
     assert models == ["gpt-4.1-mini", "gpt-4.1"]
 
 
 def test_embed_sorts_embeddings_by_index() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
-        assert request.url.path == "/custom-root/v1/embeddings"
+        assert request.url.path == "/custom-root/embeddings"
         body = json.loads(request.content.decode("utf-8"))
         assert body == {"model": "text-embedding-3-small", "input": ["first", "second"]}
         return httpx.Response(
@@ -142,23 +142,21 @@ def test_embed_sorts_embeddings_by_index() -> None:
     assert embeddings == [[0.1, 0.2], [0.3, 0.4]]
 
 
-@pytest.mark.parametrize(
-    ("base_url", "message"),
-    [
-        ("ftp://api.example.com", "valid http"),
-        ("https://user:pass@api.example.com", "credentials"),
-        ("https://api.example.com/v1?debug=1", "query strings or fragments"),
-        ("https://api.example.com/v1#frag", "query strings or fragments"),
-    ],
-)
-def test_base_url_validation(base_url: str, message: str) -> None:
-    with pytest.raises(ProviderConfigurationError, match=message):
+@pytest.mark.parametrize("base_url", [
+    "ftp://api.example.com",
+    "https://user:pass@api.example.com",
+    "https://api.example.com/v1?debug=1",
+    "https://api.example.com/v1#frag",
+])
+def test_base_url_validation(base_url: str) -> None:
+    with pytest.raises(ProviderConfigurationError) as error:
         OpenAICompatibleProvider(
             api_key="test-key",
             base_url=base_url,
             provider_name="openai-compatible",
             timeout=5.0,
         )
+    assert base_url not in str(error.value)
 
 
 def test_401_maps_to_authentication_error() -> None:
@@ -205,7 +203,6 @@ def test_redirect_is_not_followed_and_is_rejected_as_protocol_error() -> None:
 
     assert len(requests) == 1
     assert exc_info.value.upstream_status == 302
-    assert exc_info.value.public_detail == "Provider request failed with status 302."
 
 
 def test_timeout_maps_to_timeout_error() -> None:

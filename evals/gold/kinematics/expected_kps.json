@@ -1,0 +1,53 @@
+{
+  "course": "kinematics",
+  "knowledge_points": [
+    {
+      "id": "reference-frame-position",
+      "name": "参考系与位置",
+      "aliases": ["参考系", "一维位置坐标"],
+      "acceptable_extra": ["正方向选择"]
+    },
+    {
+      "id": "displacement-distance",
+      "name": "位移与路程",
+      "aliases": ["位移", "路程和位移的区别"],
+      "acceptable_extra": ["位置变化量"]
+    },
+    {
+      "id": "average-instant-velocity",
+      "name": "平均速度与瞬时速度",
+      "aliases": ["平均速度", "瞬时速度"],
+      "acceptable_extra": ["平均速率"]
+    },
+    {
+      "id": "position-time-graph",
+      "name": "位置—时间图像",
+      "aliases": ["位置时间图像", "x-t图像"],
+      "acceptable_extra": ["位置图像斜率"]
+    },
+    {
+      "id": "acceleration",
+      "name": "加速度",
+      "aliases": ["速度变化率", "加速度方向"],
+      "acceptable_extra": ["加速与减速的判断"]
+    },
+    {
+      "id": "uniform-acceleration-velocity",
+      "name": "匀变速速度公式",
+      "aliases": ["匀变速直线运动", "速度时间公式"],
+      "acceptable_extra": ["速度—时间图像", "速度图像斜率与面积"]
+    },
+    {
+      "id": "uniform-acceleration-displacement",
+      "name": "匀变速位移公式",
+      "aliases": ["位移时间公式", "速度位移公式"],
+      "acceptable_extra": ["匀变速公式选择"]
+    },
+    {
+      "id": "free-fall",
+      "name": "自由落体运动",
+      "aliases": ["自由落体", "重力加速度"],
+      "acceptable_extra": ["自由落体公式"]
+    }
+  ]
+}

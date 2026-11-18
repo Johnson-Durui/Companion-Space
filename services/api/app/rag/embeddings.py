@@ -79,6 +79,8 @@ def build_embedding_provider(settings: Settings) -> EmbeddingProvider:
         if find_spec("FlagEmbedding") is None and settings.allow_ml_fallback:
             logger.warning("FlagEmbedding not installed; falling back to LocalHybridEmbeddingProvider")
             return LocalHybridEmbeddingProvider()
+        if not settings.embedding_model_name:
+            raise ValueError("EMBEDDING_MODEL_NAME is required when using BGE embedding")
         return BGEM3EmbeddingProvider(settings)
     raise RuntimeError(f"Unsupported embedding provider: {settings.embedding_provider}")
 

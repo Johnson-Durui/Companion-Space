@@ -9,7 +9,7 @@ from app.models.domain import Material
 MATERIAL_STORAGE_PATH_ERROR = (
     "Material storage path is outside the requested study space"
 )
-SUPPORTED_MATERIAL_SUFFIXES = frozenset({".md", ".pdf", ".txt"})
+SUPPORTED_MATERIAL_SUFFIXES = frozenset({".md", ".pdf", ".txt", ".pptx", ".docx", ".png", ".jpg", ".jpeg", ".webp"})
 
 
 def build_material_storage_key(

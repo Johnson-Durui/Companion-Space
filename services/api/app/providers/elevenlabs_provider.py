@@ -14,7 +14,7 @@ from app.providers.errors import (
     ProviderTimeoutError,
     ProviderUnavailableError,
 )
-from app.providers.pinned_http import build_pinned_http_transport
+from app.providers.url_policy import validate
 
 
 class ElevenLabsProviderAdapter(ProviderAdapter):
@@ -31,7 +31,7 @@ class ElevenLabsProviderAdapter(ProviderAdapter):
         if not api_key.strip():
             raise ValueError("ElevenLabs API key is required")
         self._api_key = api_key
-        self._base_url = base_url.rstrip("/")
+        self._base_url = validate(base_url, provider=self.name)
         self._timeout = timeout
         self._transport = transport
 
@@ -140,18 +140,11 @@ class ElevenLabsProviderAdapter(ProviderAdapter):
                 ) from exc
 
     def _client(self) -> httpx.AsyncClient:
-        transport = self._transport
-        if transport is None:
-            transport = build_pinned_http_transport(
-                self._base_url,
-                provider=self.name,
-            )
         return httpx.AsyncClient(
             base_url=f"{self._base_url}/",
             headers={"xi-api-key": self._api_key},
             timeout=self._timeout,
-            transport=transport,
-            trust_env=False,
+            transport=self._transport,
             follow_redirects=False,
         )
 

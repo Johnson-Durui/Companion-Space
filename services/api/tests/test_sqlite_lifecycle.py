@@ -32,8 +32,8 @@ def test_fresh_database_sets_schema_version_and_wal_mode(tmp_path: Path) -> None
             for row in conn.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table'"
             )
-        } >= {"pairing_challenges", "trusted_devices"}
-        assert "device_id" in {
+        } >= {"jobs", "llm_cache", "llm_usage", "app_settings"}
+        assert "device_id" not in {
             row[1] for row in conn.execute("PRAGMA table_info(owner_sessions)")
         }
 
@@ -104,107 +104,6 @@ def test_schema_version_is_rechecked_under_the_migration_lock(
 
     with sqlite3.connect(settings.metadata_db_path) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_SCHEMA_VERSION + 1
-
-
-def test_schema_v1_migrates_explicitly_to_current_without_losing_owner_sessions(
-    tmp_path: Path,
-) -> None:
-    settings = _settings(tmp_path)
-    repository = SQLiteRepository(settings)
-    repository.put_owner_session(session_id="preserved", token="owner-token")
-    with sqlite3.connect(settings.metadata_db_path) as conn:
-        conn.executescript(
-            """
-            DROP INDEX idx_owner_sessions_device_id;
-            DROP TABLE pairing_challenges;
-            DROP TABLE trusted_devices;
-            ALTER TABLE owner_sessions RENAME TO owner_sessions_v2;
-            CREATE TABLE owner_sessions (
-                id TEXT PRIMARY KEY,
-                token_hash TEXT NOT NULL UNIQUE,
-                expires_at TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-            INSERT INTO owner_sessions(id, token_hash, expires_at, created_at)
-            SELECT id, token_hash, expires_at, created_at FROM owner_sessions_v2;
-            DROP TABLE owner_sessions_v2;
-            PRAGMA user_version = 1;
-            """
-        )
-
-    migrated = SQLiteRepository(settings)
-
-    with sqlite3.connect(settings.metadata_db_path) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_SCHEMA_VERSION
-        assert conn.execute(
-            "SELECT id FROM owner_sessions WHERE id = 'preserved'"
-        ).fetchone() == ("preserved",)
-        assert {
-            row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table'"
-            )
-        } >= {"pairing_challenges", "trusted_devices"}
-    assert migrated.get_owner_session("owner-token") is not None
-
-
-def test_schema_v2_migrates_refresh_recovery_columns_without_losing_devices(
-    tmp_path: Path,
-) -> None:
-    settings = _settings(tmp_path)
-    repository = SQLiteRepository(settings)
-    device = repository.create_trusted_device(
-        device_id="preserved-device",
-        name="Preserved phone",
-        refresh_token="preserved-refresh-token",
-        ttl_seconds=600,
-    )
-    with sqlite3.connect(settings.metadata_db_path) as conn:
-        conn.executescript(
-            """
-            DROP INDEX idx_trusted_devices_previous_refresh_token_hash;
-            DROP INDEX idx_trusted_devices_refresh_expires_at;
-            ALTER TABLE trusted_devices RENAME TO trusted_devices_v3;
-            CREATE TABLE trusted_devices (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                refresh_token_hash TEXT NOT NULL UNIQUE,
-                refresh_expires_at TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                last_seen_at TEXT NOT NULL
-            );
-            INSERT INTO trusted_devices(
-                id, name, refresh_token_hash, refresh_expires_at,
-                created_at, last_seen_at
-            )
-            SELECT id, name, refresh_token_hash, refresh_expires_at,
-                   created_at, last_seen_at
-            FROM trusted_devices_v3;
-            DROP TABLE trusted_devices_v3;
-            CREATE INDEX idx_trusted_devices_refresh_expires_at
-                ON trusted_devices(refresh_expires_at);
-            PRAGMA user_version = 2;
-            """
-        )
-
-    migrated = SQLiteRepository(settings)
-
-    with sqlite3.connect(settings.metadata_db_path) as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == CURRENT_SCHEMA_VERSION
-        columns = {
-            row[1] for row in conn.execute("PRAGMA table_info(trusted_devices)")
-        }
-        stored_hash = conn.execute(
-            "SELECT refresh_token_hash FROM trusted_devices WHERE id = ?",
-            (device.id,),
-        ).fetchone()
-    assert {
-        "previous_refresh_token_hash",
-        "previous_refresh_expires_at",
-        "previous_refresh_uses_remaining",
-    } <= columns
-    assert stored_hash == (device.refresh_token_hash,)
-    assert migrated.list_trusted_devices()[0].id == device.id
 
 
 def test_failed_schema_migration_rolls_back_every_schema_change(

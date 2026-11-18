@@ -21,9 +21,8 @@ Every bundled asset pack should ship a manifest with:
   (`mira`, `kite`, `cael`, `lyra`, `nova`, `echo`). MIRA/KITE/CAEL/LYRA are
   painted-blender bodies; NOVA/ECHO are procedural `original-vrm` prototypes.
   They are not the bundled licensed samples.
-- Sendagaya Shino, Seed-san, Sakurada Fumiriya, and Constraint Twist remain
-  optional samples. Credit Seed-san to VirtualCast, Inc. Do not strip
-  embedded metadata.
+- The public release includes Sendagaya Shino, Sakurada Fumiriya, and
+  Constraint Twist. Keep their embedded metadata.
 - Respect embedded VRM metadata and license tags.
 - Do not export or redistribute assets whose metadata forbids redistribution.
 - Do not strip attribution or usage restrictions from imported assets.

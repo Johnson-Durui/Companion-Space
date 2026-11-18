@@ -1,2 +1,25 @@
-*.sh text eol=lf
-*.ps1 text eol=lf
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.vrm binary
+*.vrma binary
+*.glb binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.onnx binary
+*.wasm binary
+*.pdf binary
+*.pptx binary
+*.docx binary
+*.mp3 binary
+*.wav binary
+*.ogg binary
+*.zip binary
+*.db binary

@@ -70,3 +70,6 @@ apps/mobile/android/local.properties
 **/handoff/
 * 2
 * 2.*
+evals/out/
+docs/rebuild/review/
+assets-src/

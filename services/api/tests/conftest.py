@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import keyring
+from keyring.backends.fail import Keyring
 import pytest
 from fastapi.testclient import TestClient
 
@@ -11,31 +13,30 @@ from app.main import app
 
 
 @pytest.fixture()
-def isolated_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
-    # Tests opt into neural TTS explicitly; a developer's local .env must not
-    # change the baseline assignment contract for the whole suite.
+def isolated_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     settings = Settings(
-        object_storage_path=str(tmp_path / "storage"),
+        COMPANION_DATA_DIR=str(tmp_path / "storage"),
         builtin_neural_tts_enabled=False,
+        _env_file=None,
     )
+    monkeypatch.setattr(keyring, "get_keyring", Keyring)
     get_settings.cache_clear()
     get_container.cache_clear()
     monkeypatch.setattr("app.api.deps.get_settings", lambda: settings)
-    monkeypatch.setattr("app.main.get_container", get_container)
     yield settings
-    get_container().close()
+    if get_container.cache_info().currsize:
+        get_container().close()
     get_container.cache_clear()
     get_settings.cache_clear()
 
 
 @pytest.fixture()
 def client(isolated_settings: Settings) -> TestClient:
-    _ = isolated_settings
-    return TestClient(app)
+    return TestClient(app, base_url="http://127.0.0.1:8000", client=("127.0.0.1", 51000))
 
 
 @pytest.fixture()
 def owner_token(client: TestClient) -> str:
-    response = client.post("/api/v1/vault/init", json={"password": "super-secret-pass"})
-    assert response.status_code == 200
-    return response.json()["owner_token"]
+    vault = get_container().vault
+    vault.bootstrap()
+    return vault.issue_owner_token()

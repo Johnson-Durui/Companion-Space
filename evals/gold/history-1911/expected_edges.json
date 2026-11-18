@@ -1,0 +1,14 @@
+{
+  "course": "history-1911",
+  "edges": [
+    {"prerequisite": "late-qing-crisis", "dependent": "late-qing-new-policies"},
+    {"prerequisite": "late-qing-crisis", "dependent": "revolutionary-organizations"},
+    {"prerequisite": "late-qing-new-policies", "dependent": "wuchang-uprising"},
+    {"prerequisite": "revolutionary-organizations", "dependent": "wuchang-uprising"},
+    {"prerequisite": "railway-protection", "dependent": "wuchang-uprising"},
+    {"prerequisite": "wuchang-uprising", "dependent": "provincial-response"},
+    {"prerequisite": "provincial-response", "dependent": "republic-founding"},
+    {"prerequisite": "republic-founding", "dependent": "historical-evaluation"},
+    {"prerequisite": "late-qing-crisis", "dependent": "historical-evaluation"}
+  ]
+}

@@ -1,0 +1,8 @@
+services/api/app/repositories/schema_compat.py Frozen pre-v6 schema baseline whose historical provider cleanup cannot be edited.
+services/api/app/repositories/migrations.py v6 removes persisted rows from the retired built-in provider.
+services/api/app/learning/planner.py Implements the specified practice-exam plan item type.
+services/api/app/api/routes/learner.py Reads the existing reserved practice-exam schema field.
+services/api/app/learning/practice.py Implements the real reserved practice-exam plan item flow.
+apps/web/src/features/practice/practice.tsx Renders the real reserved practice-exam category.
+apps/web/src/locales/zh-CN.json Labels the real reserved practice-exam category.
+apps/web/src/features/learner/setup.tsx Links real reserved practice-exam plan items to timed runs.

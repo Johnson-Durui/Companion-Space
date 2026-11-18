@@ -1,0 +1,65 @@
+{
+  "course": "probability-basics",
+  "knowledge_points": [
+    {
+      "id": "sample-space-event",
+      "name": "样本空间与随机事件",
+      "aliases": ["样本空间", "随机事件", "样本点"],
+      "acceptable_extra": ["必然事件与不可能事件"]
+    },
+    {
+      "id": "event-operations",
+      "name": "事件的关系与运算",
+      "aliases": ["事件运算", "并事件与交事件", "补事件", "德摩根律"],
+      "acceptable_extra": ["互斥事件"]
+    },
+    {
+      "id": "classical-probability",
+      "name": "古典概型",
+      "aliases": ["等可能概型", "古典概率"],
+      "acceptable_extra": ["组合计数", "等可能性判断"]
+    },
+    {
+      "id": "probability-properties",
+      "name": "概率的基本性质",
+      "aliases": ["概率性质", "补事件公式"],
+      "acceptable_extra": []
+    },
+    {
+      "id": "addition-rule",
+      "name": "概率加法公式",
+      "aliases": ["加法公式", "并集概率公式"],
+      "acceptable_extra": ["互斥事件的加法公式"]
+    },
+    {
+      "id": "conditional-probability",
+      "name": "条件概率",
+      "aliases": ["条件概率定义"],
+      "acceptable_extra": []
+    },
+    {
+      "id": "multiplication-rule",
+      "name": "概率乘法公式",
+      "aliases": ["乘法公式", "链式乘法公式"],
+      "acceptable_extra": []
+    },
+    {
+      "id": "independence",
+      "name": "事件独立性",
+      "aliases": ["独立事件", "相互独立"],
+      "acceptable_extra": ["独立与互斥的区别"]
+    },
+    {
+      "id": "total-probability",
+      "name": "全概率公式",
+      "aliases": ["全概率定理"],
+      "acceptable_extra": ["样本空间划分"]
+    },
+    {
+      "id": "bayes-rule",
+      "name": "贝叶斯公式",
+      "aliases": ["贝叶斯定理", "后验概率"],
+      "acceptable_extra": ["先验概率与后验概率", "似然"]
+    }
+  ]
+}

@@ -1,227 +1,179 @@
+from __future__ import annotations
+
+import asyncio
+import re
 from contextlib import asynccontextmanager
-from time import perf_counter
+from functools import lru_cache
+from pathlib import Path
 
-from fastapi import FastAPI, Request, status
+from fastapi import APIRouter, FastAPI, Request
+from fastapi.routing import APIRoute
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
+from starlette.routing import Match
 
-from app.api.deps import get_container
-from app.api.v1 import router as v1_router
-from app.core.config import get_settings
+from app.api.deps import GatewayFactory, ServiceContainer, build_container, get_container
+from app.api.v2 import router as v2_router
+from app.core.config import Settings, get_settings
+from app.core.errors import ResourceNotFoundError
 from app.core.logging import configure_logging
 from app.core.tracing import trace_id_middleware
-from app.models.domain import ProviderCapability
-from app.providers.errors import (
-    ProviderError,
-    ProviderTimeoutError,
-    provider_error_code,
-    provider_error_payload,
-    provider_error_status,
-)
+from app.llm.gateway import LLMGateway
+from app.providers.errors import ProviderError, provider_error_payload, provider_error_status
 from app.services.repository import CharacterInUseError
-from app.services.vault import VaultError
-
-
-def _cors_origins() -> list[str]:
-    return get_settings().cors_origins
-
-
-def _json_error(status_code: int, detail: str, code: str) -> JSONResponse:
-    return JSONResponse(status_code=status_code, content={"detail": detail, "code": code})
-
-
-def _canonical_route_template(request: Request) -> str:
-    fastapi_scope = request.scope.get("fastapi")
-    if isinstance(fastapi_scope, dict):
-        effective_context = fastapi_scope.get("effective_route_context")
-        effective_path = getattr(effective_context, "path", None)
-        if isinstance(effective_path, str) and effective_path:
-            return effective_path
-    route = request.scope.get("route")
-    route_path = getattr(route, "path", None)
-    if isinstance(route_path, str) and route_path:
-        return route_path
-    return "/api/v1/{unmatched}"
-
-
-def _provider_timeout_capability(
-    request: Request,
-    exc: ProviderTimeoutError,
-) -> ProviderCapability:
-    capability = getattr(exc, "capability", None)
-    if isinstance(capability, ProviderCapability):
-        return capability
-    if isinstance(capability, str):
-        try:
-            return ProviderCapability(capability)
-        except ValueError:
-            pass
-
-    query_capability = request.query_params.get("capability")
-    if query_capability is not None:
-        try:
-            return ProviderCapability(query_capability)
-        except ValueError:
-            pass
-
-    route_path = _canonical_route_template(request)
-    capability_by_route = {
-        "/api/v1/providers/connections/{connection_id}/models": ProviderCapability.chat_llm,
-        "/api/v1/characters/{character_id}/voice-preview": ProviderCapability.tts,
-        "/api/v1/sessions/{session_id}/turns": ProviderCapability.chat_llm,
-        "/api/v1/sessions/{session_id}/turns/stream": ProviderCapability.chat_llm,
-        "/api/v1/sessions/{session_id}/demos": ProviderCapability.analysis_llm,
-    }
-    return capability_by_route.get(route_path, ProviderCapability.chat_llm)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    _ = app
-    configure_logging()
-    container = get_container()
-    try:
-        container.providers.start_builtin_neural_tts_activation()
-        container.companion.start_learning_artifact_recovery()
-        yield
-    finally:
-        await container.aclose()
-
-
-app = FastAPI(
-    title="Companion Space API",
-    version="0.1.0",
-    lifespan=lifespan,
+from app.services.vault import (
+    InvalidVaultPasswordError,
+    VaultAlreadyInitializedError,
+    VaultDependencyError,
+    VaultError,
+    VaultLockedError,
+    VaultNotInitializedError,
+    VaultPayloadError,
+    VaultStateError,
 )
 
-
-async def local_metrics_middleware(request: Request, call_next):
-    started_at = perf_counter()
-    response = None
-    try:
-        response = await call_next(request)
-        return response
-    finally:
-        if request.url.path.startswith("/api/v1/"):
-            route_path = _canonical_route_template(request)
-            status_code = response.status_code if response is not None else 500
-            duration_ms = round((perf_counter() - started_at) * 1000, 3)
-            metrics = get_container().metrics
-            metrics.record_event_safe(
-                "api_request",
-                {
-                    "route": route_path,
-                    "status_code": status_code,
-                    "duration_ms": duration_ms,
-                },
-            )
-            if status_code >= 400:
-                metrics.record_event_safe(
-                    "api_error",
-                    {"route": route_path, "status_code": status_code},
-                )
+_HTTP_CODES = {400: "invalid_request", 401: "unauthorized", 403: "forbidden", 404: "not_found",
+               405: "method_not_allowed", 409: "conflict", 413: "payload_too_large", 415: "unsupported_media"}
+_VAULT_ERRORS = {
+    VaultAlreadyInitializedError: (409, "vault_already_initialized", "Vault already initialized"),
+    VaultNotInitializedError: (409, "vault_not_initialized", "Vault is not initialized"),
+    InvalidVaultPasswordError: (401, "vault_invalid_password", "Invalid vault password"),
+    VaultLockedError: (423, "vault_locked", "Vault is locked"),
+    VaultPayloadError: (409, "vault_payload_error", "Could not open encrypted credentials"),
+    VaultStateError: (409, "vault_invalid_operation", "Check the current credential storage mode and password"),
+    VaultDependencyError: (503, "vault_dependency_error", "Credential encryption is unavailable"),
+}
+_HASHED_ASSET = re.compile(r"^assets/.+-[A-Za-z0-9_-]{8,}\.[^/]+$")
 
 
-app.middleware("http")(local_metrics_middleware)
-app.middleware("http")(trace_id_middleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_cors_origins(),
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Audio-Sample-Rate", "X-Audio-Channels"],
-    allow_credentials=True,
-)
-
-app.include_router(v1_router)
-
-
-@app.exception_handler(RequestValidationError)
-async def handle_request_validation_error(
-    _: Request,
-    exc: RequestValidationError,
-) -> JSONResponse:
-    errors = [
-        {
-            "loc": list(item.get("loc", ())),
-            "msg": str(item.get("msg", "Invalid value")),
-            "type": str(item.get("type", "value_error")),
-        }
-        for item in exc.errors()
-    ]
+def _error(status: int, code: str, message: str, *, headers=None, **extra) -> JSONResponse:
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "detail": "Request validation failed",
-            "code": "validation_error",
-            "errors": errors,
-        },
+        status_code=status,
+        content={"code": code, "message": message, "detail": message, **extra},
+        headers=headers,
     )
 
 
-@app.exception_handler(ProviderError)
-async def handle_provider_error(request: Request, exc: ProviderError) -> JSONResponse:
-    if isinstance(exc, ProviderTimeoutError):
-        get_container().metrics.record_event_safe(
-            "model_timeout",
-            {
-                "capability": _provider_timeout_capability(
-                    request,
-                    exc,
-                ).value,
-                "provider_kind": exc.provider,
-                "code": provider_error_code(exc),
-            },
-        )
-    return JSONResponse(
-        status_code=provider_error_status(exc),
-        content=provider_error_payload(exc),
+async def http_error(_: Request, exc: HTTPException) -> JSONResponse:
+    if isinstance(exc.detail, dict) and {"code", "message"} <= exc.detail.keys():
+        code, message = exc.detail["code"], exc.detail["message"]
+    else:
+        code, message = _HTTP_CODES.get(exc.status_code, "request_error"), str(exc.detail)
+    return _error(exc.status_code, code, message, headers=exc.headers)
+
+
+async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+    errors = [{"loc": list(item["loc"]), "type": item["type"]} for item in exc.errors()]
+    return _error(422, "validation_error", "Request validation failed", errors=errors)
+
+
+async def provider_error(_: Request, exc: ProviderError) -> JSONResponse:
+    payload = provider_error_payload(exc)
+    return _error(provider_error_status(exc), payload["code"], payload.get("message") or payload["detail"])
+
+
+async def vault_error(_: Request, exc: VaultError) -> JSONResponse:
+    for kind, details in _VAULT_ERRORS.items():
+        if isinstance(exc, kind):
+            return _error(*details)
+    return _error(400, "vault_error", "Credential operation failed")
+
+
+async def character_in_use(_: Request, exc: CharacterInUseError) -> JSONResponse:
+    return _error(409, "character_in_use", str(exc))
+
+
+async def invalid_request(_: Request, exc: ValueError) -> JSONResponse:
+    return _error(400, "invalid_request", str(exc))
+
+
+class _WebRoute(APIRoute):
+    def matches(self, scope):
+        prefix = scope.get("path", "").lstrip("/").split("/", 1)[0]
+        if prefix in {"api", "static", "healthz"}:
+            return Match.NONE, {}
+        return super().matches(scope)
+
+
+async def missing_resource(_: Request, exc: ResourceNotFoundError) -> JSONResponse:
+    return _error(404, "not_found", str(exc))
+
+
+def _serve_web(app: FastAPI, root: Path) -> None:
+    avatars = root / "assets/avatars"
+    dist = (root / "apps/web/dist").resolve()
+    app.mount("/static/avatars", StaticFiles(directory=avatars, check_dir=False), name="avatars")
+
+    router = APIRouter(route_class=_WebRoute)
+
+    @router.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+    def web(path: str):
+        file = (dist / path).resolve()
+        if file.is_relative_to(dist) and file.is_file():
+            cache = "public, max-age=31536000, immutable" if _HASHED_ASSET.fullmatch(path) else "no-cache"
+            return FileResponse(file, headers={"Cache-Control": cache})
+        index = (dist / "index.html").resolve()
+        if (
+            not file.is_relative_to(dist) or not index.is_relative_to(dist) or not index.is_file()
+            or path.split("/", 1)[0] == "assets" or Path(path).suffix
+        ):
+            raise HTTPException(404, "Not found")
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
+
+    app.include_router(router)
+
+
+def create_app(gateway_factory: GatewayFactory | None = None, *, settings: Settings | None = None) -> FastAPI:
+    app_settings = settings or get_settings()
+    if gateway_factory is None and settings is None:
+        container_factory = get_container
+    else:
+        @lru_cache
+        def container_factory() -> ServiceContainer:
+            return build_container(app_settings, gateway_factory or LLMGateway)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        configure_logging()
+        container = await asyncio.to_thread(container_factory)
+        try:
+            await container.jobs.start()
+            yield
+        finally:
+            await container.aclose()
+            container_factory.cache_clear()
+
+    application = FastAPI(title="Companion Space API", version="1.0.0-rc.1", lifespan=lifespan)
+    if container_factory is not get_container:
+        application.dependency_overrides[get_container] = container_factory
+
+    application.middleware("http")(trace_id_middleware)
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=app_settings.cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Audio-Sample-Rate", "X-Audio-Channels"],
+        allow_credentials=True,
     )
+    application.add_exception_handler(HTTPException, http_error)
+    application.add_exception_handler(RequestValidationError, validation_error)
+    application.add_exception_handler(ProviderError, provider_error)
+    application.add_exception_handler(VaultError, vault_error)
+    application.add_exception_handler(CharacterInUseError, character_in_use)
+    application.add_exception_handler(ResourceNotFoundError, missing_resource)
+    application.add_exception_handler(ValueError, invalid_request)
+    application.include_router(v2_router)
+
+    @application.get("/healthz")
+    async def healthz() -> dict[str, bool]:
+        return {"ok": True}
+
+    _serve_web(application, app_settings.repo_root)
+    return application
 
 
-@app.exception_handler(VaultError)
-async def handle_vault_error(_: Request, exc: VaultError) -> JSONResponse:
-    message = str(exc)
-    lowered = message.lower()
-    if "already initialized" in lowered:
-        return _json_error(status.HTTP_409_CONFLICT, "Vault already initialized", "vault_already_initialized")
-    if "not initialized" in lowered:
-        return _json_error(status.HTTP_404_NOT_FOUND, "Vault is not initialized", "vault_not_initialized")
-    if "invalid vault password" in lowered or "unable to decrypt vault payload" in lowered:
-        return _json_error(status.HTTP_401_UNAUTHORIZED, "Invalid vault password", "vault_invalid_password")
-    if "locked" in lowered:
-        return _json_error(status.HTTP_423_LOCKED, "Vault is locked", "vault_locked")
-    return _json_error(status.HTTP_400_BAD_REQUEST, "Vault request failed", "vault_error")
-
-
-@app.exception_handler(CharacterInUseError)
-async def handle_character_in_use_error(
-    _: Request,
-    exc: CharacterInUseError,
-) -> JSONResponse:
-    return _json_error(
-        status.HTTP_409_CONFLICT,
-        str(exc),
-        "character_in_use",
-    )
-
-
-@app.exception_handler(ValueError)
-async def handle_value_error(_: Request, exc: ValueError) -> JSONResponse:
-    message = str(exc)
-    lowered = message.lower()
-    if "not found" in lowered:
-        return _json_error(status.HTTP_404_NOT_FOUND, message, "not_found")
-    if "already has an active turn" in lowered:
-        return _json_error(
-            status.HTTP_409_CONFLICT,
-            message,
-            "session_busy",
-        )
-    return _json_error(status.HTTP_400_BAD_REQUEST, message, "invalid_request")
-
-
-@app.get("/healthz")
-async def healthz() -> dict[str, bool]:
-    return {"ok": True}
+app = create_app()
