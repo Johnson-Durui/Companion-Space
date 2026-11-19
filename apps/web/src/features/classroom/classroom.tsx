@@ -1,13 +1,19 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { LessonText } from "@companion-space/board";
-import { createAvatarSpeechController } from "@companion-space/avatar-engine/speech-controller";
-import type { CharacterPreviewState } from "@companion-space/avatar-engine/runtime-types";
+import {
+  IDLE_COMPANION_MS,
+  quickActionToInstantAction,
+  verdictToInstantAction,
+} from "@companion-space/avatar-engine/choreographer";
+import type { DecodedSpeechChunk, InstantAction, TutorPose } from "@companion-space/avatar-engine/types";
+import { TutorVideoBox, type TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import { api, bodyOf } from "../../app/api";
 import { Loading } from "../../app/ui";
 import { MicrophoneCapture, Pcm16Framer, type HandsFreeVad } from "../../audio";
 import t from "../../locales/zh-CN.json";
+import { toVideoAvatarConfig, videoBoxLabels } from "../characters/video-config";
 import { BoardBlock } from "./board-block";
 import type { Ask, Prefill } from "./lesson-state";
 import { useClassroom } from "./use-classroom";
@@ -16,11 +22,24 @@ import "./classroom.css";
 const copy = t.classroom;
 const quick = ["confused", "example", "hint", "show_answer"] as const;
 const more = ["repeat", "slower", "faster", "skip", "break"] as const;
-const ClassroomAvatar = lazy(() => import("./classroom-avatar"));
 
-function Question({ ask, prefill, submit }: {
-  ask: Ask; prefill?: Prefill;
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return reduced;
+}
+
+function Question({ ask, prefill, submit, onActivity }: {
+  ask: Ask;
+  prefill?: Prefill;
   submit: (value: string | string[], via: "text" | "voice" | "control", unknown?: boolean) => void;
+  onActivity: () => void;
 }) {
   const widget = ask.widget!;
   const [edited, setEdited] = useState<string | string[]>();
@@ -28,6 +47,7 @@ function Question({ ask, prefill, submit }: {
   const value = edited ?? prefill?.value ?? (widget.type === "multi" ? [] : "");
   const via = edited === undefined && prefill ? prefill.via : "control";
   const choose = (key: string) => {
+    onActivity();
     const selected = Array.isArray(value) ? value : [];
     setEdited(widget.type !== "multi" ? key : selected.includes(key) ? selected.filter((item) => item !== key) : [...selected, key]);
   };
@@ -43,7 +63,7 @@ function Question({ ask, prefill, submit }: {
           <span><strong>{option.key}</strong> {option.text}</span>
         </label>)}
       </div> : <label className="lesson-answer-label">{copy.answer}
-        <textarea rows={2} value={String(value)} maxLength={3000} onChange={(event) => setEdited(event.target.value)} />
+        <textarea rows={2} value={String(value)} maxLength={3000} onFocus={onActivity} onChange={(event) => { onActivity(); setEdited(event.target.value); }} />
       </label>}
       <div className="actions">
         <button className="button primary" disabled={!value.length}>{copy.submitAnswer}</button>
@@ -54,8 +74,32 @@ function Question({ ask, prefill, submit }: {
 }
 
 function Lesson({ id }: { id: string }) {
-  const speechController = useMemo(() => createAvatarSpeechController(), []);
-  const live = useClassroom(id, speechController.publishLevel, speechController.publishVisemes);
+  const videoRef = useRef<TutorVideoBoxHandle>(null);
+  const reducedMotion = useReducedMotion();
+  const [quietCompanion, setQuietCompanion] = useState(false);
+  const [instantOverride, setInstantOverride] = useState<{ action: InstantAction; until: number } | null>(null);
+  const lastActivityRef = useRef<number>(0);
+  const previewJudgeGenRef = useRef<number>(-1);
+
+  const onSpeechLevel = useCallback((level: number) => {
+    videoRef.current?.pushSpeechLevel(level);
+  }, []);
+  const onSpeechChunk = useCallback((chunk: DecodedSpeechChunk) => {
+    videoRef.current?.pushSpeechChunk(chunk);
+  }, []);
+  const triggerFastAction = useCallback((action: InstantAction, gen: number) => {
+    previewJudgeGenRef.current = gen;
+    lastActivityRef.current = Date.now();
+    setQuietCompanion(false);
+    setInstantOverride({ action, until: Date.now() + 2600 });
+    videoRef.current?.triggerInstantAction(action, gen);
+  }, []);
+  const onJudgePreview = useCallback((verdict: string, gen: number) => {
+    const action = verdictToInstantAction(verdict);
+    if (action) triggerFastAction(action, gen);
+  }, [triggerFastAction]);
+
+  const live = useClassroom(id, onSpeechLevel, onSpeechChunk, onJudgePreview);
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
   const [handsFree, setHandsFree] = useState(false);
@@ -72,9 +116,43 @@ function Lesson({ id }: { id: string }) {
     queryFn: async () => bodyOf(await api.GET("/api/v2/voice/status")),
   });
 
+  const markLearnerActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    setQuietCompanion(false);
+  }, []);
+
   useEffect(() => {
     echoProtected.current = live.echoProtected;
   }, [live.echoProtected]);
+
+  useEffect(() => {
+    if (!instantOverride) return;
+    const delay = Math.max(0, instantOverride.until - Date.now());
+    const timer = window.setTimeout(() => setInstantOverride(null), delay);
+    return () => window.clearTimeout(timer);
+  }, [instantOverride]);
+
+  useEffect(() => {
+    const waitingForStudent = live.started && !live.speaking && !recording && Boolean(live.classroom.ask);
+    if (!waitingForStudent) return;
+    lastActivityRef.current = Date.now();
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastActivityRef.current >= IDLE_COMPANION_MS) {
+        setQuietCompanion(true);
+      }
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+      setQuietCompanion(false);
+    };
+  }, [live.started, live.speaking, recording, live.classroom.ask, live.classroom.askSeq]);
+
+  useEffect(() => {
+    const action = live.classroom.avatar.instantAction;
+    if (!action) return;
+    if (live.classroom.avatar.gen === previewJudgeGenRef.current && live.classroom.judge) return;
+    videoRef.current?.triggerInstantAction(action, live.classroom.avatar.gen);
+  }, [live.classroom.avatar.gestureSequence, live.classroom.avatar.instantAction, live.classroom.avatar.gen, live.classroom.judge]);
 
   useEffect(() => {
     const release = () => {
@@ -99,10 +177,18 @@ function Lesson({ id }: { id: string }) {
     };
   }, []);
 
+  const currentGen = live.classroom.avatar.gen;
+  const interruptAll = useCallback(() => {
+    markLearnerActivity();
+    setInstantOverride(null);
+    videoRef.current?.interrupt(currentGen);
+    return live.interrupt();
+  }, [currentGen, live, markLearnerActivity]);
+
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!text.trim()) return;
-    live.interrupt();
+    interruptAll();
     const ask = live.classroom.ask;
     const sent = ask && !ask.widget
       ? live.send("student.reply", { purpose: ask.purpose, value: text.trim() })
@@ -110,14 +196,19 @@ function Lesson({ id }: { id: string }) {
     if (sent) setText("");
   }
   function action(kind: string) {
+    markLearnerActivity();
     live.interrupt();
-    live.send("student.quick", { kind });
+    const instant = quickActionToInstantAction(kind);
+    if (instant) {
+      triggerFastAction(instant, currentGen);
+    }
+    live.send("student.quick", instant ? { kind, recent_avatar_action: instant } : { kind });
   }
   async function startMic() {
     if (down.current || !live.connected || handsFree) return;
     down.current = true;
     setMicMessage("");
-    const interrupted = live.interrupt();
+    const interrupted = interruptAll();
     setRecording(true);
     const mic = new MicrophoneCapture();
     capture.current = mic;
@@ -167,7 +258,10 @@ function Lesson({ id }: { id: string }) {
     live.send("microphone.cancel");
   }
   async function toggleVad() {
-    if (handsFree) { await stopVad(); return; }
+    if (handsFree) {
+      await stopVad();
+      return;
+    }
     const request = ++vadRequest.current;
     setHandsFree(true);
     setMicMessage("");
@@ -178,6 +272,7 @@ function Lesson({ id }: { id: string }) {
       const instance = new HandsFreeVad({
         onSpeechStart: () => {
           if (document.hidden || vad.current !== instance) return;
+          markLearnerActivity();
           framer = new Pcm16Framer(16_000);
           setRecording(true);
           live.send("microphone.start");
@@ -190,7 +285,7 @@ function Lesson({ id }: { id: string }) {
           }
         },
         onInterrupt: () => {
-          if (vad.current === instance && !document.hidden && !echoProtected.current && live.interrupt()) {
+          if (vad.current === instance && !document.hidden && !echoProtected.current && interruptAll()) {
             live.send("microphone.interrupted");
           }
         },
@@ -216,7 +311,14 @@ function Lesson({ id }: { id: string }) {
     }
   }
 
+  const labels = useMemo(() => videoBoxLabels(), []);
   const { room, classroom, started, connected, recap, speaking, error } = live;
+  const teacher = room?.teacher;
+  const teacherConfig = useMemo(
+    () => (teacher ? toVideoAvatarConfig(teacher, reducedMotion) : null),
+    [teacher, reducedMotion],
+  );
+
   if (!room) return error ? <div className="notice danger" role="alert">{error}</div> : <Loading />;
   if (recap || room.status === "done" || room.status === "abandoned") return <section className="lesson-recap">
     <Link className="text-link" to={`/courses/${room.course_id}`}>{copy.back}</Link>
@@ -228,12 +330,34 @@ function Lesson({ id }: { id: string }) {
       {classroom.board.map((block) => <BoardBlock key={block.id} block={block} />)}
     </details>
   </section>;
+
   const ask = classroom.ask;
   const ready = started && connected && !live.resuming;
   const enabled = ready && voice.data?.stt_configured;
-  const status = !connected ? copy.connecting : !started ? copy.paused : recording ? copy.listening : speaking ? copy.speaking : ask ? copy.waiting : copy.thinking;
-  const avatarState: CharacterPreviewState = recording ? "listening" : speaking ? "speaking" : ask ? "listening" : started ? "thinking" : "idle";
-  const avatarFallback = room.teacher?.appearance.kind === "portrait" ? <img alt="" src={room.teacher.appearance.src} /> : null;
+  const status = !connected
+    ? copy.connecting
+    : !started
+      ? copy.paused
+      : recording
+        ? copy.listening
+        : speaking
+          ? copy.speaking
+          : ask
+            ? (quietCompanion ? copy.quietCompanion : copy.waiting)
+            : copy.thinking;
+
+  const resolvedPose: TutorPose = !started
+    ? "idle_companion"
+    : recording
+      ? "listening_empathy"
+      : instantOverride
+        ? (instantOverride.action === "board_point" ? "board_guiding" : "feedback_reaction")
+        : speaking
+          ? (classroom.avatar.pose === "board_guiding" ? "board_guiding" : classroom.stage === "opening" && classroom.avatar.seg <= 1 ? "greeting" : "lecturing")
+          : ask
+            ? (quietCompanion ? "idle_companion" : "listening_empathy")
+            : classroom.avatar.pose;
+
   return <section className="lesson-room">
     <header className="lesson-header">
       <div><Link className="text-link" to={`/courses/${room.course_id}`}>{copy.back}</Link><h1>{room.title}</h1></div>
@@ -246,7 +370,7 @@ function Lesson({ id }: { id: string }) {
         <button className="button quiet" disabled={!ready} onClick={() => { finishMic(); void stopVad(); live.pause(); }}>{copy.pause}</button>
         <button className="button quiet" disabled={!ready} onClick={() => {
           if (window.confirm(copy.endConfirm)) {
-            finishMic(); void stopVad(); live.interrupt(); live.send("lesson.control", { action: "end" });
+            finishMic(); void stopVad(); interruptAll(); live.send("lesson.control", { action: "end" });
           }
         }}>{copy.end}</button>
       </div>
@@ -256,22 +380,23 @@ function Lesson({ id }: { id: string }) {
     {live.fallback ? <div className="notice" role="status">{live.fallback}<Link className="text-link" to="/settings#voice">{copy.voiceSettings}</Link></div> : null}
     <div className="lesson-surface">
       <aside className="lesson-stage">
-        <Suspense fallback={avatarFallback}>
-          <ClassroomAvatar
-            appearance={room.teacher?.appearance}
+        {teacherConfig ? (
+          <TutorVideoBox
+            ref={videoRef}
+            config={teacherConfig}
+            pose={resolvedPose}
             emotion={classroom.avatar.emotion}
-            gaze={classroom.avatar.gaze}
-            gestureSequence={classroom.avatar.gestureSequence}
-            name={room.teacher?.name ?? copy.teacher}
-            reactionKey={classroom.avatar.reactionKey}
-            speechController={speechController}
-            state={avatarState}
+            gen={classroom.avatar.gen}
+            statusLabel={status}
+            caption={classroom.caption}
+            labels={labels}
           />
-        </Suspense>
-        <div className="lesson-stage-copy">
-          <p className="lesson-caption" aria-live="polite">{classroom.caption}</p>
-          <p className="lesson-speaker">{room.teacher?.name ?? copy.teacher}<span>{status}</span></p>
-        </div>
+        ) : (
+          <div className="lesson-stage-copy">
+            <p className="lesson-caption" aria-live="polite">{classroom.caption}</p>
+            <p className="lesson-speaker">{copy.teacher}<span>{status}</span></p>
+          </div>
+        )}
       </aside>
       <section className="lesson-board" aria-label={copy.board}>
         <header className="lesson-board-title"><h2>{copy.board}</h2><span>{copy.stages[classroom.stage as keyof typeof copy.stages]}</span></header>
@@ -283,10 +408,19 @@ function Lesson({ id }: { id: string }) {
         </div>}
         {classroom.board.map((block) => <BoardBlock key={block.id} block={block} locate={(target) => ready && action(`locate:${target}`)} />)}
         {ready && ask?.widget ? <Question key={classroom.askSeq} ask={ask} prefill={live.prefill?.item_id === ask.item_id ? live.prefill : undefined}
-          submit={(value, via, dont_know) => live.send("student.answer", { item_id: ask.item_id, value, via, dont_know })} /> : null}
+          onActivity={markLearnerActivity}
+          submit={(value, via, dont_know) => {
+            markLearnerActivity();
+            if (dont_know) triggerFastAction("gentle_encourage", currentGen);
+            live.send("student.answer", { item_id: ask.item_id, value, via, dont_know });
+          }} /> : null}
         {ready && ask?.kind === "ack" ? <div className="actions">
           {(["continue", "easier", "end"] as const).map((value) => <button className="button quiet" key={value}
-            onClick={() => live.send("student.reply", { purpose: ask.purpose, value })}>{copy.ack[value]}</button>)}
+            onClick={() => {
+              markLearnerActivity();
+              if (value === "easier") triggerFastAction("gentle_encourage", currentGen);
+              live.send("student.reply", { purpose: ask.purpose, value });
+            }}>{copy.ack[value]}</button>)}
         </div> : null}
         {classroom.judge ? <p className="hint lesson-verdict" role="status">{copy.verdicts[classroom.judge as keyof typeof copy.verdicts]}</p> : null}
       </section>
@@ -300,12 +434,12 @@ function Lesson({ id }: { id: string }) {
           onClick={() => void toggleVad()}>{copy.handsFree}</button>
         <meter ref={meter} min={0} max={0.3} value={0} aria-label={copy.level} />
         {!voice.data?.stt_configured ? <Link className="text-link" to="/settings#voice">{copy.configureMic}</Link> : null}
-        {speaking ? <button className="button quiet" type="button" onClick={live.interrupt}>{copy.interrupt}</button> : null}
+        {speaking ? <button className="button quiet" type="button" onClick={interruptAll}>{copy.interrupt}</button> : null}
       </div>
       {micMessage || live.echoProtected || live.transcript ? <p className="hint" role="status">{micMessage || (live.echoProtected ? copy.echo : live.transcript)}</p> : null}
       <form className="lesson-compose" onSubmit={submit}>
-        <input value={text} onChange={(event) => setText(event.target.value)} maxLength={3000} placeholder={copy.typeHere}
-          aria-label={copy.typeHere} onFocus={() => live.send("student.activity")} disabled={!ready} />
+        <input value={text} onChange={(event) => { markLearnerActivity(); setText(event.target.value); }} maxLength={3000} placeholder={copy.typeHere}
+          aria-label={copy.typeHere} onFocus={() => { markLearnerActivity(); live.send("student.activity"); }} disabled={!ready} />
         <button className="button primary" disabled={!ready || !text.trim()}>{copy.send}</button>
       </form>
       <div className="lesson-quick">

@@ -1,37 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-const { createAudioLipSync, dispose, lipInput } = vi.hoisted(() => {
-  const input = {} as AudioNode;
-  const disposeLipSync = vi.fn();
-  return {
-    lipInput: input,
-    dispose: disposeLipSync,
-    createAudioLipSync: vi.fn(async () => ({
-      input,
-      dispose: disposeLipSync,
-      read: () => ({
-        volume: 0.4,
-        weights: { aa: 0.7, ih: 0.1, ou: 0, ee: 0.2, oh: 0 },
-      }),
-    })),
-  };
-});
-
-vi.mock("@companion-space/avatar-engine/audio-lip-sync", () => ({ createAudioLipSync }));
-
-import { SpeechOutput } from "../src/audio/speech-output";
+import { resampleBufferToPcm16_24k, SpeechOutput } from "../src/audio/speech-output";
 
 class Source {
   buffer: AudioBuffer | null = null;
   onended: (() => void) | null = null;
   connections: AudioNode[] = [];
-  connect(node: AudioNode) { this.connections.push(node); return node; }
+  connect(node: AudioNode) {
+    this.connections.push(node);
+    return node;
+  }
   start() {}
   stop() {}
 }
 
 class Context {
-  audioWorklet = {} as AudioWorklet;
   currentTime = 0;
   destination = {} as AudioDestinationNode;
   state: AudioContextState = "running";
@@ -40,13 +22,17 @@ class Context {
     return {
       connect() {},
       fftSize: 8,
-      getFloatTimeDomainData(values: Float32Array) { values.fill(0.1); },
+      getFloatTimeDomainData(values: Float32Array) {
+        values.fill(0.15);
+      },
     } as unknown as AnalyserNode;
   }
   createBuffer(_channels: number, length: number, sampleRate: number) {
+    const channel = new Float32Array(length);
     return {
       duration: length / sampleRate,
-      getChannelData: () => new Float32Array(length),
+      sampleRate,
+      getChannelData: () => channel,
       length,
     } as unknown as AudioBuffer;
   }
@@ -55,8 +41,13 @@ class Context {
     this.sources.push(source);
     return source as unknown as AudioBufferSourceNode;
   }
-  close() { this.state = "closed"; return Promise.resolve(); }
-  resume() { return Promise.resolve(); }
+  close() {
+    this.state = "closed";
+    return Promise.resolve();
+  }
+  resume() {
+    return Promise.resolve();
+  }
 }
 
 afterEach(() => {
@@ -64,17 +55,25 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("AudioContext lip sync", () => {
-  it("routes decoded audio into wlipsync and publishes its measured visemes", async () => {
+describe("SpeechOutput audio level and 24kHz PCM chunk forwarding", () => {
+  it("emits RMS audio levels and 24kHz mono PCM16 chunks for video avatar drivers", async () => {
     let frame: FrameRequestCallback | undefined;
-    const contexts: Context[] = [];
-    vi.stubGlobal("AudioContext", class extends Context { constructor() { super(); contexts.push(this); } });
-    vi.stubGlobal("isSecureContext", true);
-    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frame = callback; return 1; });
+    vi.stubGlobal("AudioContext", Context);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    vi.stubGlobal("window", { setTimeout: (callback: () => void) => { callback(); return 1; } });
-    const onVisemes = vi.fn();
-    const output = new SpeechOutput({ onVisemes });
+    vi.stubGlobal("window", {
+      setTimeout: (callback: () => void) => {
+        callback();
+        return 1;
+      },
+    });
+
+    const onLevel = vi.fn();
+    const onSpeechChunk = vi.fn();
+    const output = new SpeechOutput({ onLevel, onSpeechChunk });
     await output.prepare();
     output.setGeneration(1);
 
@@ -89,25 +88,23 @@ describe("AudioContext lip sync", () => {
     await Promise.resolve();
     frame?.(0);
 
-    expect(createAudioLipSync).toHaveBeenCalledOnce();
-    expect(contexts[0]?.sources[0]?.connections).toContain(lipInput);
-    expect(onVisemes).toHaveBeenCalledWith({ aa: 0.7, ih: 0.1, ou: 0, ee: 0.2, oh: 0 });
+    expect(onSpeechChunk).toHaveBeenCalledOnce();
+    expect(onSpeechChunk.mock.calls[0]?.[0]).toMatchObject({ gen: 1, seg: 1, sampleRate: 24000 });
+    expect(onLevel).toHaveBeenCalled();
     await output.close();
-    expect(dispose).toHaveBeenCalledOnce();
-    expect(onVisemes).toHaveBeenLastCalledWith(null);
+    expect(onLevel).toHaveBeenLastCalledWith(0);
   });
 
-  it("keeps analyser playback available when AudioWorklet is unavailable", async () => {
-    createAudioLipSync.mockRejectedValueOnce(new Error("AudioWorklet is unavailable."));
-    vi.stubGlobal("AudioContext", class extends Context {
-      audioWorklet = undefined as unknown as AudioWorklet;
-    });
-    vi.stubGlobal("isSecureContext", true);
-    const onVisemes = vi.fn();
-    const output = new SpeechOutput({ onVisemes });
-    await expect(output.prepare()).resolves.toBeUndefined();
-    expect(createAudioLipSync).toHaveBeenCalledOnce();
-    await output.close();
-    expect(onVisemes).toHaveBeenLastCalledWith(null);
+  it("resamples 48kHz buffers down to 24kHz Int16 PCM cleanly", () => {
+    const samples = new Float32Array([0, 0.5, 1, 0.5, 0, -0.5, -1, -0.5]);
+    const buffer = {
+      sampleRate: 48000,
+      length: samples.length,
+      getChannelData: () => samples,
+    } as unknown as AudioBuffer;
+    const pcm = new Int16Array(resampleBufferToPcm16_24k(buffer));
+    expect(pcm.length).toBe(4);
+    expect(pcm[1]).toBeGreaterThan(10_000);
+    expect(pcm[3]).toBeLessThan(-10_000);
   });
 });

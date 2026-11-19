@@ -1,15 +1,8 @@
 # Third-Party Notices
 
 Companion Space source code is licensed under Apache License 2.0. The code and
-character models listed below retain their upstream notices and remain governed
+character assets listed below retain their upstream notices and remain governed
 by their respective license terms. Keep this notice with redistributed copies.
-
-## wLipSync and three-vrm-lip-sync
-
-- Packages: `wlipsync` 1.3.1 and `three-vrm-lip-sync` 0.1.0.
-- Sources: <https://github.com/mrxz/wLipSync> and <https://github.com/vlapky/three-vrm-lip-sync>.
-- License: MIT. These packages provide the AudioWorklet/WASM phoneme analysis
-  used for real-time VRM mouth shapes.
 
 ## Original observatory room background
 
@@ -116,52 +109,12 @@ SOFTWARE.
 - Third-party license: none. These project-owned portrait assets are distributed
   under the same Apache License 2.0 terms as the repository unless a release
   notice says otherwise.
-- Runtime boundary: these are reactive 2D portraits; they do not claim to be
-  Cubism Live2D models and do not introduce a third-party Live2D runtime.
-
-## VRM1 Constraint Twist Sample
-
-- Bundled file: `assets/avatars/models/VRM1_Constraint_Twist_Sample.vrm`
-- SHA-256: `12c2b97e95e700783a6a550dc0eee2d7880aeedccef9ae67bc4c5a2f0f2631a2`
-- Author / licensor: pixiv Inc.
-- Source: [vrm-c/vrm-specification samples](https://github.com/vrm-c/vrm-specification/tree/master/samples/VRM1_Constraint_Twist_Sample)
-- Canonical binary: [VRM1_Constraint_Twist_Sample.vrm](https://github.com/vrm-c/vrm-specification/raw/refs/heads/master/samples/VRM1_Constraint_Twist_Sample/vrm/VRM1_Constraint_Twist_Sample.vrm)
-- License: [VRM Public License 1.0](https://vrm.dev/en/licenses/1.0/)
-- Redistribution: allowed by the model's embedded VRM 1.0 metadata.
-- Modification and modified redistribution: allowed by the embedded metadata.
-- Credit: not required by the embedded metadata. The source is still recorded
-  here for traceability.
-
-## Sendagaya Shino
-
-- Bundled file: `assets/avatars/models/Sendagaya-Shino.vrm`
-- SHA-256: `f11b2648e7e588ae171ad1c32e465f84e5b130b1d1789e3a3702946c0981d2a9`
-- Author / licensor: VRoid Project / pixiv Inc.
-- Official license page: [Sendagaya Shino](https://vroid.pixiv.help/hc/en-us/articles/360013482714-Sendagaya-Shino)
-- Official model page: [VRoid Hub](https://hub.vroid.com/characters/5860098757548846785/models/6567311261748429976)
-- Binary distribution source used for this repository:
-  [OpenGameArt mirror](https://opengameart.org/node/170868)
-- License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
-- Redistribution, modification, and commercial use: allowed.
-- Credit: not required.
-- Embedded format: VRM 0.x. The original embedded metadata records permission to redistribute.
-
-## Sakurada Fumiriya
-
-- Bundled file: `assets/avatars/models/Sakurada-Fumiriya.vrm`
-- SHA-256: `a36e91b81518c59f6da0e3f34a176b79090a8c68cc6bd5fe03c1560744b283f3`
-- Author / licensor: VRoid Project / pixiv Inc.
-- Official license page: [Sakurada Fumiriya](https://vroid.pixiv.help/hc/en-us/articles/360014788554-Sakurada-Fumiriya)
-- Official model page: [VRoid Hub](https://hub.vroid.com/characters/6912965120285194650)
-- Binary distribution source used for this repository:
-  [OpenGameArt mirror](https://opengameart.org/node/170868)
-- License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
-- Redistribution, modification, and commercial use: allowed.
-- Credit: not required.
-- Embedded format: VRM 0.x. The original embedded metadata records permission to redistribute.
+- Runtime boundary: these are reactive 2D anime portraits and anchor images for
+  the pure-video tutor avatar box; they do not claim to be Cubism Live2D models
+  and do not introduce a third-party Live2D runtime.
 
 ## Distribution Rules
 
 - See [Avatar asset licenses](avatars/LICENSES.md) for all retained assets.
-- Preserve embedded VRM metadata, attribution, usage restrictions, and license files.
+- Retired 3D VRM models are archived under `assets-archive/retired-vrm/` and excluded from product distributions.
 - Exclude [archived assets](../assets-archive/README.md) from product distributions.

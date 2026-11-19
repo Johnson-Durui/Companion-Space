@@ -35,9 +35,10 @@ def test_catalog_and_default_character_persist_across_a_fresh_app(isolated_setti
     with browser_client(isolated_settings) as browser:
         headers = authenticate(browser)
         tutors = browser.get("/api/v2/characters").json()
-        assert sum(tutor["appearance"]["kind"] == "portrait" for tutor in tutors) == 6
-        assert sum(tutor["appearance"]["kind"] == "vrm" for tutor in tutors) == 3
-        portrait = next(tutor for tutor in tutors if tutor["appearance"]["kind"] == "portrait")
+        assert len(tutors) == 6
+        assert all(tutor["schema_version"] == 3 for tutor in tutors)
+        assert all(tutor["appearance"]["kind"] in {"portrait", "video_pack"} for tutor in tutors)
+        portrait = next(tutor for tutor in tutors if tutor["id"] == "tutor-echo")
         assert browser.get(portrait["appearance"]["src"]).headers["content-type"] == "image/png"
         legacy_path = f"/api/v1/characters/{portrait['id']}"
         assert browser.delete(legacy_path, headers=headers).status_code == 404

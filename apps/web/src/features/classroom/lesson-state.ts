@@ -1,3 +1,4 @@
+import type { InstantAction, TutorEmotion, TutorPose } from "@companion-space/avatar-engine/types";
 import { applyBoardEvent, type Block } from "./board";
 import type { LessonEvent } from "./timeline";
 
@@ -10,12 +11,16 @@ export type Ask = {
 export type Prefill = { item_id: string; value: string | string[]; via: "voice" | "text" };
 
 const avatarEmotions = new Set(["neutral", "warm", "cheerful", "curious", "focused", "playful", "concerned"]);
-type AvatarEmotion = "neutral" | "warm" | "cheerful" | "curious" | "focused" | "playful" | "concerned";
-type AvatarState = {
-  emotion: AvatarEmotion;
+
+export type AvatarState = {
+  emotion: TutorEmotion;
+  pose: TutorPose;
   gaze: { active: boolean; x: number; y: number };
   gestureSequence: number;
   reactionKey: string | null;
+  instantAction: InstantAction | null;
+  gen: number;
+  seg: number;
 };
 
 export type ClassroomState = {
@@ -30,54 +35,133 @@ export type ClassroomState = {
 };
 
 export const initialClassroom: ClassroomState = {
-  board: [], caption: "", stage: "opening", paused: false,
-  avatar: { emotion: "neutral", gaze: { active: false, x: 0, y: 0 }, gestureSequence: 0, reactionKey: null },
+  board: [],
+  caption: "",
+  stage: "opening",
+  paused: false,
+  avatar: {
+    emotion: "warm",
+    pose: "greeting",
+    gaze: { active: false, x: 0, y: 0 },
+    gestureSequence: 0,
+    reactionKey: null,
+    instantAction: null,
+    gen: 0,
+    seg: 0,
+  },
 };
 
-function emotion(value: unknown, fallback: AvatarEmotion): AvatarEmotion {
-  return typeof value === "string" && avatarEmotions.has(value) ? value as AvatarEmotion : fallback;
+function parseEmotion(value: unknown, fallback: TutorEmotion): TutorEmotion {
+  return typeof value === "string" && avatarEmotions.has(value) ? (value as TutorEmotion) : fallback;
 }
 
 export function advanceClassroom(state: ClassroomState, event: LessonEvent): ClassroomState {
   const { data } = event;
+  const gen = Math.max(state.avatar.gen, event.gen);
   switch (event.type) {
     case "board":
     case "mark":
-      return { ...state, board: applyBoardEvent(state.board, event) };
-    case "say":
-      return { ...state, caption: String(data.text ?? ""), avatar: {
-        ...state.avatar, emotion: emotion(data.emotion, state.avatar.emotion), gaze: { active: false, x: 0, y: 0 },
-      } };
+      return {
+        ...state,
+        board: applyBoardEvent(state.board, event),
+        avatar: {
+          ...state.avatar,
+          gen,
+          pose: "board_guiding",
+          gaze: { active: true, x: 0.72, y: 0.05 },
+        },
+      };
+    case "say": {
+      const seg = typeof data.seg === "number" ? data.seg : state.avatar.seg + 1;
+      const pose: TutorPose = state.stage === "opening" && seg <= 1 ? "greeting" : "lecturing";
+      return {
+        ...state,
+        caption: String(data.text ?? ""),
+        avatar: {
+          ...state.avatar,
+          gen,
+          seg,
+          pose,
+          emotion: parseEmotion(data.emotion, state.avatar.emotion),
+          gaze: { active: false, x: 0, y: 0 },
+          instantAction: null,
+        },
+      };
+    }
     case "point":
-      return { ...state, board: applyBoardEvent(state.board, event), avatar: {
-        ...state.avatar, gaze: { active: true, x: 0.72, y: 0.05 }, gestureSequence: event.seq,
-      } };
+      return {
+        ...state,
+        board: applyBoardEvent(state.board, event),
+        avatar: {
+          ...state.avatar,
+          gen,
+          pose: "board_guiding",
+          emotion: "focused",
+          gaze: { active: true, x: 0.72, y: 0.05 },
+          gestureSequence: event.seq,
+          instantAction: "board_point",
+        },
+      };
     case "cue": {
       const look = String(data.look ?? "");
-      return { ...state, avatar: {
-        ...state.avatar,
-        emotion: emotion(data.emotion, state.avatar.emotion),
-        gaze: look === "board" ? { active: true, x: 0.72, y: 0.05 } : look === "student" ? { active: false, x: 0, y: 0 } : state.avatar.gaze,
-        gestureSequence: data.gesture ? event.seq : state.avatar.gestureSequence,
-      } };
+      const pointingBoard = look === "board";
+      return {
+        ...state,
+        avatar: {
+          ...state.avatar,
+          gen,
+          pose: pointingBoard ? "board_guiding" : state.avatar.pose,
+          emotion: parseEmotion(data.emotion, state.avatar.emotion),
+          gaze: pointingBoard
+            ? { active: true, x: 0.72, y: 0.05 }
+            : look === "student"
+              ? { active: false, x: 0, y: 0 }
+              : state.avatar.gaze,
+          gestureSequence: data.gesture ? event.seq : state.avatar.gestureSequence,
+        },
+      };
     }
     case "beat.start":
-      return { ...state, ask: undefined, caption: "" };
+      return {
+        ...state,
+        ask: undefined,
+        caption: "",
+        avatar: { ...state.avatar, gen, seg: 0, instantAction: null },
+      };
     case "ask":
-      return { ...state, ask: data as Ask, askSeq: state.ask?.item_id === data.item_id && state.ask?.purpose === data.purpose
-        ? state.askSeq : event.seq };
+      return {
+        ...state,
+        ask: data as Ask,
+        askSeq:
+          state.ask?.item_id === data.item_id && state.ask?.purpose === data.purpose
+            ? state.askSeq
+            : event.seq,
+        avatar: { ...state.avatar, gen, pose: "listening_empathy" },
+      };
     case "judge": {
       const verdict = typeof data.verdict === "string" ? data.verdict : undefined;
       const correct = verdict === "correct";
-      return { ...state, judge: verdict, avatar: {
-        ...state.avatar,
-        emotion: correct ? "cheerful" : "concerned",
-        gestureSequence: event.seq,
-        reactionKey: `teaching:${correct ? "correct" : "retry"}:${event.seq}`,
-      } };
+      return {
+        ...state,
+        judge: verdict,
+        avatar: {
+          ...state.avatar,
+          gen,
+          pose: "feedback_reaction",
+          emotion: correct ? "cheerful" : "concerned",
+          gestureSequence: event.seq,
+          reactionKey: `teaching:${correct ? "correct" : "retry"}:${event.seq}`,
+          instantAction: correct ? "praise_thumbs_up" : "gentle_encourage",
+        },
+      };
     }
     case "state":
-      return { ...state, stage: String(data.stage ?? state.stage), paused: data.paused === true };
+      return {
+        ...state,
+        stage: String(data.stage ?? state.stage),
+        paused: data.paused === true,
+        avatar: data.paused === true ? { ...state.avatar, gen, pose: "idle_companion" } : { ...state.avatar, gen },
+      };
     default:
       return state;
   }
@@ -94,9 +178,13 @@ export function restoreClassroom(events: readonly LessonEvent[], through: number
   }
   return events.reduce((state, event) => {
     if (event.seq > through) return state;
-    if (event.type !== "state" && event.type !== "beat.cancelled" && interruptions.get(event.gen)?.some(
-      ({ heard, cancelled }) => event.seq > heard && event.seq < cancelled,
-    )) return state;
+    if (
+      event.type !== "state" &&
+      event.type !== "beat.cancelled" &&
+      interruptions.get(event.gen)?.some(({ heard, cancelled }) => event.seq > heard && event.seq < cancelled)
+    ) {
+      return state;
+    }
     return advanceClassroom(state, event);
   }, initialClassroom);
 }

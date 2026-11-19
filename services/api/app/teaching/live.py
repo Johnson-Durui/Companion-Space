@@ -25,6 +25,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 _QUICK = {"confused", "example", "hint", "show_answer", "repeat", "skip", "slower", "faster", "break", "continue"}
+_AVATAR_ACTIONS = {
+    "greet", "empathy_nod", "think_chin", "praise_thumbs_up",
+    "praise_clap", "gentle_encourage", "board_point", "farewell",
+}
+
+
+def _with_avatar_action(payload: dict, data: dict) -> dict:
+    action = data.get("recent_avatar_action")
+    if isinstance(action, str) and action in _AVATAR_ACTIONS:
+        return {**payload, "recent_avatar_action": action}
+    return payload
 
 
 def _student_event(command: str, data: dict) -> dict:
@@ -32,7 +43,7 @@ def _student_event(command: str, data: dict) -> dict:
         case "student.text":
             value = data.get("text")
             if isinstance(value, str) and 0 < len(value.strip()) <= 3000:
-                return {"type": "student_utterance", "text": value.strip(), "via": "text", "prefill": True}
+                return _with_avatar_action({"type": "student_utterance", "text": value.strip(), "via": "text", "prefill": True}, data)
         case "student.answer":
             value, item_id, via = data.get("value"), data.get("item_id"), data.get("via", "control")
             if isinstance(item_id, str) and 0 < len(item_id) <= 128 and via in ("control", "text", "voice"):
@@ -42,19 +53,22 @@ def _student_event(command: str, data: dict) -> dict:
                     isinstance(key, str) and 0 < len(key) <= 128 for key in value
                 )
                 if unknown or scalar or choices:
-                    return {"type": "student_answer", "item_id": item_id, "via": via,
-                            "value": None if unknown else value, "dont_know": unknown}
+                    return _with_avatar_action(
+                        {"type": "student_answer", "item_id": item_id, "via": via,
+                         "value": None if unknown else value, "dont_know": unknown},
+                        data,
+                    )
         case "student.reply":
             purpose, value = data.get("purpose"), data.get("value")
             if isinstance(purpose, str) and 0 < len(purpose) <= 64 and isinstance(value, str) and 0 < len(value) <= 3000:
-                return {"type": "ask_reply", "purpose": purpose, "value": value}
+                return _with_avatar_action({"type": "ask_reply", "purpose": purpose, "value": value}, data)
         case "student.quick":
             action = data.get("kind")
             if isinstance(action, str) and (
                 action in _QUICK or action.removeprefix("style:") in VALID_STYLES and action.startswith("style:")
                 or action.startswith("locate:") and 0 < len(action.removeprefix("locate:")) <= 128
             ):
-                return {"type": "quick_action", "kind": action}
+                return _with_avatar_action({"type": "quick_action", "kind": action}, data)
         case "lesson.control":
             if data.get("action") in ("pause", "resume", "end"):
                 return {"type": "control", "action": data["action"]}
@@ -149,10 +163,14 @@ class LiveLesson:
         async def preview_visual(event: LspEvent) -> None:
             await self._send("board.preview", {"type": event.type, "event": event.data}, gen=preview_gen)
 
+        async def preview_judge(verdict: str) -> None:
+            await self._send("judge.preview", {"verdict": verdict}, gen=preview_gen)
+
         try:
             rows = await self.runtime.step(
                 event, elapsed_ms=elapsed, split_speech=split_speech, on_say=prefetch if self.audio else None,
                 on_visual=preview_visual if self.audio else None,
+                on_judge=preview_judge,
                 prepared=prepared,
             )
             if rows and rows[0]["type"] == "prefill":

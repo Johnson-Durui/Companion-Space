@@ -61,8 +61,12 @@ def _require_tutor(container: ServiceContainer, identifier: str) -> Character:
 
 def _settings_view(container: ServiceContainer) -> SettingsView:
     repository = container.repository
+    saved_default = get_setting(repository, "default_character_id", None)
+    if saved_default and container.tutors.get_character(saved_default) is None:
+        fallback = container.tutors.resolve_active_character(None)
+        saved_default = fallback.id if fallback else None
     return SettingsView(
-        default_character_id=get_setting(repository, "default_character_id", None),
+        default_character_id=saved_default,
         data_dir=str(container.settings.storage_root),
         analysis_concurrency=get_setting(repository, "analysis_concurrency", 4),
     )

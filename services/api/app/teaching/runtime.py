@@ -82,6 +82,7 @@ class LessonRuntime:
         self, event: dict, *, elapsed_ms: int = 0, split_speech: Callable[[str], list[str]] | None = None,
         on_say: Callable[[int, str], Awaitable[None]] | None = None,
         on_visual: Callable[[LspEvent], Awaitable[None]] | None = None,
+        on_judge: Callable[[str], Awaitable[None]] | None = None,
         prepared: PreparedBeat | None = None,
     ) -> list[dict]:
         lesson = await asyncio.to_thread(self.repository.get_lesson, self.space_id, self.lesson_id)
@@ -166,10 +167,16 @@ class LessonRuntime:
                     await on_say(spoken, text)
 
         stale = decision.args.get("judge")
+        preview_verdict: str | None = None
         if stale:
             add("judge", stale)
+            if isinstance(stale.get("verdict"), str):
+                preview_verdict = stale["verdict"]
         elif event["type"] == "student_answer" and "verdict" in event:
             add("judge", {"item_id": event["item_id"], "verdict": event["verdict"]})
+            preview_verdict = str(event["verdict"])
+        if on_judge is not None and preview_verdict is not None:
+            await on_judge(preview_verdict)
 
         decision_item = plan["items"].get(decision.args.get("item_id"))
         outbound_item = _item_for_ask(decision.ask, plan)
@@ -180,7 +187,12 @@ class LessonRuntime:
                 "approach": approach.get("kind") if isinstance(approach, dict) else None,
                 "item_id": decision.args.get("item_id"),
             })
-            context = await asyncio.to_thread(self._context, lesson, plan, next_state, decision.args)
+            recent_action = event.get("recent_avatar_action")
+            if not isinstance(recent_action, str) and preview_verdict is not None:
+                recent_action = "praise_thumbs_up" if preview_verdict == "correct" else "gentle_encourage"
+            context = await asyncio.to_thread(
+                self._context, lesson, plan, next_state, decision.args, recent_avatar_action=recent_action,
+            )
             cached = prepared is not None and (
                 prepared.expected_seq == lesson["seq"]
                 and prepared.move == decision.move
@@ -349,7 +361,9 @@ class LessonRuntime:
             "approach_stats": {row["kind"]: {"n": row["n"], "success": row["success"]} for row in approaches},
         }
 
-    def _context(self, lesson: dict, plan: dict, state: dict, args: dict) -> dict:
+    def _context(
+        self, lesson: dict, plan: dict, state: dict, args: dict, *, recent_avatar_action: str | None = None,
+    ) -> dict:
         context = {
             "title": plan["title"], "objectives": plan.get("objectives", []),
             "style_id": state.get("style_id", "guided"), "pace": state.get("pace", "normal"),
@@ -357,8 +371,10 @@ class LessonRuntime:
             "resolved_questions": state.get("items_done", {}),
             "recent_board": list((lesson["board"] or {}).values())[-15:],
         }
+        if recent_avatar_action:
+            context["recent_avatar_action"] = recent_avatar_action
         if lesson.get("character_id"):
-            character = TutorCatalog(self.repository).get_character(lesson["character_id"])
+            character = TutorCatalog(self.repository).resolve_active_character(lesson["character_id"])
             if character:
                 context["teacher"] = {"name": character.name, "persona": character.persona.model_dump()}
         segments = plan["segments"]

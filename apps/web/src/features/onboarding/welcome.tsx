@@ -27,9 +27,8 @@ export default function Welcome() {
   const candidate = characters.find((entry) => entry.id === (focused ?? selectedId)) ?? characters[0];
   if (!candidate) return <p className="state-note">{t.welcome.empty}</p>;
 
-  const portraits = characters.filter((entry) => entry.appearance.kind === "portrait");
-  const models = characters.filter((entry) => entry.appearance.kind === "vrm");
   const selected = candidate.id === selectedId;
+  const typeLabel = candidate.appearance.kind === "video_pack" ? t.welcome.videoPack : t.welcome.portrait;
 
   function select(entry: Character) {
     save.reset();
@@ -48,11 +47,11 @@ export default function Welcome() {
         </nav>
       </div>
       <section id="teacher-picker" className="teacher-feature" aria-labelledby="teacher-name">
-        <div className={`teacher-stage ${candidate.appearance.kind === "vrm" ? "stage-model" : ""}`}>
+        <div className="teacher-stage">
           <TeacherPreview key={candidate.id} character={candidate} />
         </div>
         <div className="teacher-detail">
-          <p className="teacher-type">{candidate.appearance.kind === "portrait" ? t.welcome.portrait : t.welcome.sample3d}</p>
+          <p className="teacher-type">{typeLabel}</p>
           <h2 id="teacher-name">{candidate.name}</h2>
           <p className="relationship">{candidate.persona.relationship}</p>
           {candidate.persona.traits.length ? <ul className="teacher-traits">{candidate.persona.traits.map((trait) => <li key={trait}>{trait}</li>)}</ul> : null}
@@ -70,23 +69,13 @@ export default function Welcome() {
       </section>
       <section className="roster" aria-label={t.welcome.label}>
         <div className="portrait-roster">
-          {portraits.map((entry) => (
+          {characters.map((entry) => (
             <button key={entry.id} type="button" className="roster-option" aria-pressed={candidate.id === entry.id} onClick={() => select(entry)}>
               <img src={entry.appearance.src} alt="" decoding="async" loading="lazy" />
               <span>{entry.name}</span>
             </button>
           ))}
         </div>
-        {models.length ? (
-          <div className="model-roster">
-            <h2>{t.welcome.sample3d}</h2>
-            {models.map((entry) => (
-              <button key={entry.id} type="button" className="model-option" aria-pressed={candidate.id === entry.id} onClick={() => select(entry)}>
-                <span>{entry.name}</span><small>{t.welcome.preview3d}</small>
-              </button>
-            ))}
-          </div>
-        ) : null}
       </section>
     </div>
   );

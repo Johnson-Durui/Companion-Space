@@ -76,3 +76,10 @@
 - 开课入口允许从课程地图选择一个知识点，复用已有的备课、复核和课堂存储。该课单独放在按需计划中，便于重复进入同一课并保留断点。
 - 语音客观题答案需要显式确认。播放使用浏览器 AudioContext，后端按合成器返回的采样率发送单声道 PCM。GPT-SoVITS 读取流式 WAV 头确定采样率，避免不同模型输出被固定速率播放。
 - 可选离线语音识别锁定 `sherpa-onnx==2.0.1`（Apache-2.0，针对 CPython 3.14 有 Windows 轮子）。SenseVoice int8 模型由用户接受 FunASR 模型许可后下载并校验上游哈希。在本机运行识别并保存权重缓存，发布包省去运行时和模型。在线识别继续用已配置的模型角色。[Sherpa Python 包](https://pypi.org/project/sherpa-onnx/2.0.1/) [SenseVoice 模型许可](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE)
+
+## 角色子系统纯视频重塑决定（2026-11-19，V1–V3）
+
+- 取代旧决策 #15/#16/#17/#27 与支线 C（VRoid Studio）：**彻底移除 3D VRM 渲染、Three.js / `@pixiv/three-vrm` / `@react-three/fiber` / `wlipsync` 与独立悬浮窗**，统一采用嵌入式竖屏微信视频通话框 `<TutorVideoBox>` 与纯视频驱动架构（规格见 `docs/rebuild/spec/tutor-video-avatar.md`）。
+- 三个历史 VRM 示例模型与角色卡归档至 `assets-archive/retired-vrm/`，旧数据库中的 `schema_version: 2` 角色透明升级，指向退役 VRM 的默认老师或课堂记录自动确定性回退至内置二次元老师（优先沐音 `tutor-echo` / 星澜 `tutor-nova`），绝不删除 `storage/` 或历史行。
+- 画风与模板优先级：**二次元画风优先**（配套 `.tutorpack` 单图/8 片段循环包与 ComfyUI 1→8 工作流模板）；**本地 GPU Sidecar 模板优先**（独立 Apache-2.0 目录 `sidecars/local-gpu-avatar/`，支持 WebRTC + Windows 零编译 `ws_frames` 双传输，主仓严守 Apache-2.0 不引入 GPL/AGPL 代码或 GPU 依赖）。
+- 课堂新增副轨 150ms 抢断微动作与客观题确定性秒判 `judge.preview`（非落库、不泄答案、不改掌握度不变量），以及 15 秒无交互纯视觉安静伴学态 `idle_companion`。

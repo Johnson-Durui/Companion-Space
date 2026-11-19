@@ -1,10 +1,32 @@
 {
   "id": "tutor-echo",
   "name": "沐音",
-  "schema_version": 2,
+  "schema_version": 3,
   "appearance": {
     "kind": "portrait",
     "src": "/static/avatars/portraits/echo.png"
+  },
+  "video_avatar": {
+    "aspect_ratio": "9:16",
+    "preferred_tier": "static",
+    "anchor_image": "/static/avatars/portraits/echo.png",
+    "loop_pack": {
+      "crossfade_ms": 180,
+      "clips": {}
+    },
+    "local_sidecar": {
+      "driver_id": null,
+      "fps": 25,
+      "resolution": "512x896"
+    },
+    "cloud_live": {
+      "connection_id": null,
+      "model": null,
+      "idle_suspend_sec": 30,
+      "max_session_minutes": 10,
+      "max_session_cost_cny": 20.0,
+      "action_prompts": {}
+    }
   },
   "voice": {
     "engine": "edge",
@@ -23,5 +45,12 @@
     "address_user_as": "你"
   },
   "default_style_id": "analogy",
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "pack_metadata": {
+    "author": "Companion Space",
+    "terms": "Apache-2.0",
+    "license_url": null,
+    "allow_redistribution": true,
+    "source_kind": "builtin"
+  }
 }

@@ -117,13 +117,13 @@ Copy-Tree 'docs\images\sample-lesson.png'
 New-Item -ItemType Directory -Path (Join-Path $stage 'data') -Force | Out-Null
 
 # Four retained v0.x portraits still need owner redistribution verification.
-# Keep the release candidate usable with the five independently verified teachers
-# and fail closed instead of silently redistributing assets with unknown terms.
+# Keep the release candidate usable with the independently verified anime teachers
+# (ECHO and NOVA) and fail closed instead of silently redistributing assets with unknown terms.
 foreach ($name in @('mira', 'kite', 'cael', 'lyra')) {
-    Remove-Item -LiteralPath (Join-Path $stage "assets\avatars\portraits\$name.png") -Force
+    Remove-Item -LiteralPath (Join-Path $stage "assets\avatars\portraits\$name.png") -Force -ErrorAction SilentlyContinue
 }
 foreach ($name in @('1-mira.json', '2-kite.json', '3-cael.json', '4-lyra.json')) {
-    Remove-Item -LiteralPath (Join-Path $stage "content\characters\$name") -Force
+    Remove-Item -LiteralPath (Join-Path $stage "content\characters\$name") -Force -ErrorAction SilentlyContinue
 }
 @'
 # Portable asset eligibility
@@ -133,8 +133,9 @@ and LYRA portraits and their catalog entries. Their authorship and redistributio
 terms remain pending owner verification. Do not add those files to a public
 artifact until `assets/avatars/LICENSES.md` records a verified distribution grant.
 
-The included NOVA and ECHO portraits and the three included VRM models are covered
-by the notices shipped with this package.
+The included NOVA and ECHO anime teacher assets (and any verified `.tutorpack`
+clips registered under `assets/avatars/packs/`) are covered by the notices
+shipped with this package. Retired 3D VRM models are no longer distributed.
 '@ | Set-Content -LiteralPath (Join-Path $stage 'PORTABLE-ASSET-STATUS.md') -Encoding utf8
 
 $portableStart = @'

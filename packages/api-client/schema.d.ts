@@ -45,7 +45,8 @@ export interface paths {
         /** Update Tutor */
         put: operations["update_tutor_api_v2_characters__character_id__put"];
         post?: never;
-        delete?: never;
+        /** Delete Tutor */
+        delete: operations["delete_tutor_api_v2_characters__character_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1208,7 +1209,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "vrm" | "portrait";
+            kind: "portrait" | "video_pack";
             /** Src */
             src: string;
         };
@@ -1223,17 +1224,44 @@ export interface components {
             id: string;
             /** License */
             license: string;
-            model_metadata?: components["schemas"]["ModelMetadata"] | null;
             /** Name */
             name: string;
+            pack_metadata?: components["schemas"]["PackMetadata"];
             persona: components["schemas"]["Persona"];
             /**
              * Schema Version
-             * @default 2
+             * @default 3
              * @constant
              */
-            schema_version: 2;
+            schema_version: 3;
+            video_avatar: components["schemas"]["VideoAvatarConfig"];
             voice: components["schemas"]["Voice"];
+        };
+        /** CloudLiveAvatarConfig */
+        CloudLiveAvatarConfig: {
+            /** Action Prompts */
+            action_prompts?: {
+                [key: string]: string;
+            };
+            /** Connection Id */
+            connection_id?: string | null;
+            /**
+             * Idle Suspend Sec
+             * @default 30
+             */
+            idle_suspend_sec: number;
+            /**
+             * Max Session Cost Cny
+             * @default 20
+             */
+            max_session_cost_cny: number;
+            /**
+             * Max Session Minutes
+             * @default 10
+             */
+            max_session_minutes: number;
+            /** Model */
+            model?: string | null;
         };
         /** ConnectionCreate */
         ConnectionCreate: {
@@ -1841,6 +1869,33 @@ export interface components {
             /** Warning */
             warning: string | null;
         };
+        /** LocalSidecarAvatarConfig */
+        LocalSidecarAvatarConfig: {
+            /** Driver Id */
+            driver_id?: string | null;
+            /**
+             * Fps
+             * @default 25
+             */
+            fps: number;
+            /**
+             * Resolution
+             * @default 512x896
+             */
+            resolution: string;
+        };
+        /** LoopPackConfig */
+        LoopPackConfig: {
+            /** Clips */
+            clips?: {
+                [key: string]: string;
+            };
+            /**
+             * Crossfade Ms
+             * @default 180
+             */
+            crossfade_ms: number;
+        };
         /** MaterialMetadata */
         MaterialMetadata: {
             /** Exam Name */
@@ -1869,21 +1924,6 @@ export interface components {
             /** Models */
             models: string[];
         };
-        /** ModelMetadata */
-        ModelMetadata: {
-            /** Authors */
-            authors: string[];
-            /** License Url */
-            license_url: string | null;
-            /** Missing Expressions */
-            missing_expressions: string[];
-            /** Other License Url */
-            other_license_url: string | null;
-            /** Redistribution Allowed */
-            redistribution_allowed: boolean;
-            /** Spec Version */
-            spec_version: string;
-        };
         /** NoteInput */
         NoteInput: {
             /** Content */
@@ -1898,6 +1938,32 @@ export interface components {
             title: string;
             /** Year */
             year?: number | null;
+        };
+        /** PackMetadata */
+        PackMetadata: {
+            /**
+             * Allow Redistribution
+             * @default false
+             */
+            allow_redistribution: boolean;
+            /**
+             * Author
+             * @default Companion Space
+             */
+            author: string;
+            /** License Url */
+            license_url?: string | null;
+            /**
+             * Source Kind
+             * @default builtin
+             * @enum {string}
+             */
+            source_kind: "builtin" | "imported_image" | "imported_pack";
+            /**
+             * Terms
+             * @default
+             */
+            terms: string;
         };
         /** PageData */
         PageData: {
@@ -2261,8 +2327,12 @@ export interface components {
             /** Catchphrases */
             catchphrases: string[];
             default_style_id: components["schemas"]["StyleId"];
+            /** Local Sidecar Driver Id */
+            local_sidecar_driver_id?: string | null;
             /** Name */
             name: string;
+            /** Preferred Tier */
+            preferred_tier?: ("static" | "loop_pack" | "local_sidecar" | "cloud_live") | null;
             /** Relationship */
             relationship: string;
             /** Traits */
@@ -2306,6 +2376,26 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VideoAvatarConfig */
+        VideoAvatarConfig: {
+            /** Anchor Image */
+            anchor_image: string;
+            /**
+             * Aspect Ratio
+             * @default 9:16
+             * @enum {string}
+             */
+            aspect_ratio: "9:16" | "3:4";
+            cloud_live?: components["schemas"]["CloudLiveAvatarConfig"];
+            local_sidecar?: components["schemas"]["LocalSidecarAvatarConfig"];
+            loop_pack?: components["schemas"]["LoopPackConfig"];
+            /**
+             * Preferred Tier
+             * @default static
+             * @enum {string}
+             */
+            preferred_tier: "static" | "loop_pack" | "local_sidecar" | "cloud_live";
         };
         /** Voice */
         Voice: {
@@ -2508,6 +2598,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Character"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_tutor_api_v2_characters__character_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                character_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

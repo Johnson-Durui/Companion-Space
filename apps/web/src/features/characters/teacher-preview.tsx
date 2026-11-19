@@ -1,18 +1,37 @@
-import { lazy, Suspense, useState } from "react";
-import { createAvatarSpeechController } from "@companion-space/avatar-engine/speech-controller";
+import { useMemo, type Ref } from "react";
+import type { TutorEmotion, TutorPose } from "@companion-space/avatar-engine/types";
+import { TutorVideoBox, type TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import type { Character } from "../../app/api";
+import t from "../../locales/zh-CN.json";
+import { toVideoAvatarConfig, videoBoxLabels } from "./video-config";
 import "../classroom/classroom.css";
 
-const Avatar = lazy(() => import("../classroom/classroom-avatar"));
-const gaze = { active: false, x: 0, y: 0 };
-
-export function TeacherPreview({ character }: { character: Character }) {
-  const [speechController] = useState(createAvatarSpeechController);
-  if (character.appearance.kind === "portrait") {
-    return <img src={character.appearance.src} alt={character.name} decoding="async" />;
-  }
-  return <Suspense fallback={<span role="img" aria-label={character.name}>{character.name.slice(0, 1)}</span>}>
-    <Avatar appearance={character.appearance} name={character.name} emotion="neutral" state="idle"
-      gaze={gaze} gestureSequence={0} reactionKey={null} speechController={speechController} />
-  </Suspense>;
+export function TeacherPreview({
+  character,
+  pose = "idle_companion",
+  emotion = "warm",
+  gen = 1,
+  videoRef,
+}: {
+  character: Character;
+  pose?: TutorPose;
+  emotion?: TutorEmotion;
+  gen?: number;
+  videoRef?: Ref<TutorVideoBoxHandle>;
+}) {
+  const config = useMemo(() => toVideoAvatarConfig(character), [character]);
+  const labels = useMemo(() => videoBoxLabels(), []);
+  return (
+    <TutorVideoBox
+      ref={videoRef}
+      config={config}
+      pose={pose}
+      emotion={emotion}
+      gen={gen}
+      statusLabel={t.classroom.waiting}
+      showOverlay={false}
+      compact
+      labels={labels}
+    />
+  );
 }
