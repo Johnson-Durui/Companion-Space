@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api, bodyOf, charactersKey, fetchCharacters, fetchSettings, settingsKey, type Character } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { TeacherPreview } from "../characters/teacher-preview";
+import { fetchSample, sampleKey } from "../replay/sample-api";
 import t from "../../locales/zh-CN.json";
 import { VoicePreview } from "./voice-preview";
 
@@ -10,6 +12,7 @@ export default function Welcome() {
   const [focused, setFocused] = useState<string>();
   const roster = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
   const settings = useQuery({ queryKey: settingsKey, queryFn: fetchSettings });
+  const sample = useQuery({ queryKey: sampleKey, queryFn: fetchSample, staleTime: Infinity });
   const queries = useQueryClient();
   const save = useMutation({
     mutationFn: async (character_id: string) => bodyOf(await api.PUT("/api/v2/settings/default-character", { body: { character_id } })),
@@ -35,12 +38,18 @@ export default function Welcome() {
 
   return (
     <div className="welcome-page">
-      <div className="page-title welcome-title"><h1>{t.welcome.heading}</h1></div>
-      <section className="teacher-feature" aria-labelledby="teacher-name">
+      <div className="page-title welcome-title">
+        <h1>{t.welcome.heading}</h1>
+        <nav aria-label={t.welcome.firstLesson} className="actions">
+          <a className="button quiet" href="#teacher-picker">{t.welcome.heading}</a>
+          <Link className="button quiet" to="/settings#models">{t.welcome.connect}</Link>
+          <Link className="button quiet" to="/courses">{t.welcome.importCourse}</Link>
+          {sample.data ? <Link className="button primary" to="/sample-lesson">{t.sample.open}</Link> : null}
+        </nav>
+      </div>
+      <section id="teacher-picker" className="teacher-feature" aria-labelledby="teacher-name">
         <div className={`teacher-stage ${candidate.appearance.kind === "vrm" ? "stage-model" : ""}`}>
-          {candidate.appearance.kind === "portrait" ? (
-            <img key={candidate.id} src={candidate.appearance.src} alt={candidate.name} decoding="async" fetchPriority="high" />
-          ) : <span>{t.welcome.preview3d}</span>}
+          <TeacherPreview key={candidate.id} character={candidate} />
         </div>
         <div className="teacher-detail">
           <p className="teacher-type">{candidate.appearance.kind === "portrait" ? t.welcome.portrait : t.welcome.sample3d}</p>
@@ -56,7 +65,7 @@ export default function Welcome() {
             <VoicePreview key={candidate.id} id={candidate.id} />
           </div>
           {save.isError ? <Problem error={save.error} /> : null}
-          <Link className="text-link next-link" to="/settings">{t.welcome.connect}<span aria-hidden="true">↗</span></Link>
+          <Link className="text-link" to="/characters">{t.characters.heading}</Link>
         </div>
       </section>
       <section className="roster" aria-label={t.welcome.label}>

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from datetime import date, datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
@@ -42,6 +44,23 @@ class AnalysisStart(RequestModel):
     job: Job | None
 
 
+class TodayLesson(RequestModel):
+    id: str
+    title: str
+    est_minutes: int
+    status: str
+    lesson_id: str | None = None
+
+
+class CourseDashboard(RequestModel):
+    course_id: str
+    due_review_count: int
+    today_lesson: TodayLesson | None = None
+    remaining_days: int | None = None
+    secured_score: float | None = None
+    score_scale: float | None = None
+
+
 def public_job(job: Job | None) -> Job | None:
     return job.model_copy(update={"payload": {}}) if job else None
 
@@ -49,6 +68,67 @@ def public_job(job: Job | None) -> Job | None:
 @router.get("/courses")
 def list_courses(container: Container) -> list[Course]:
     return container.analysis.data.courses()
+
+
+@router.get("/courses/dashboard")
+def course_dashboard(container: Container) -> list[CourseDashboard]:
+    today = date.today()
+    now = datetime.now(timezone.utc).isoformat()
+    with container.repository.connection() as conn:
+        course_ids = [row["id"] for row in conn.execute("SELECT id FROM study_spaces")]
+        lessons = {}
+        for row in conn.execute(
+            """WITH eligible AS (
+                 SELECT p.space_id, p.id, p.title, p.est_minutes, p.status, p.lesson_id, p.ord,
+                        ROW_NUMBER() OVER (
+                          PARTITION BY p.space_id
+                          ORDER BY CASE p.status WHEN 'active' THEN 0 ELSE 1 END,
+                                   COALESCE(p.scheduled_date, ''), p.ord, p.id
+                        ) AS choice
+                 FROM plan_items p JOIN study_plans s ON s.id=p.plan_id AND s.space_id=p.space_id
+                 WHERE s.status='active' AND p.kind='lesson'
+                   AND (p.status='active' OR (p.status='todo' AND p.scheduled_date<=?))
+               ) SELECT space_id,id,title,est_minutes,status,lesson_id FROM eligible WHERE choice=1""",
+            (today.isoformat(),),
+        ):
+            lesson = dict(row)
+            lessons[lesson.pop("space_id")] = lesson
+        reviews = {row["space_id"]: row["n"] for row in conn.execute(
+            """SELECT space_id, COUNT(*) AS n FROM review_cards
+               WHERE state!='archived' AND COALESCE(due_at, '')<=? GROUP BY space_id""",
+            (now,),
+        )}
+        projections = {row["space_id"]: dict(row) for row in conn.execute(
+            """SELECT k.space_id,
+                      SUM(COALESCE(s.score_share,0)*COALESCE(m.p,0)) AS secured_ratio,
+                      SUM(COALESCE(s.score_share,0)) AS score_share
+               FROM knowledge_points k
+               LEFT JOIN kp_exam_stats s ON s.space_id=k.space_id AND s.kp_id=k.id
+               LEFT JOIN kp_mastery m ON m.space_id=k.space_id AND m.kp_id=k.id
+               WHERE k.status='active' GROUP BY k.space_id""",
+        )}
+        enrollments = {row["space_id"]: json.loads(row["enrollment_json"] or "{}") for row in conn.execute(
+            "SELECT space_id,enrollment_json FROM course_enrollment",
+        )}
+
+    result = []
+    for course_id in course_ids:
+        enrollment = enrollments.get(course_id, {})
+        exam_date = date.fromisoformat(enrollment["exam_date"]) if enrollment.get("exam_date") else None
+        remaining_days = (exam_date - today).days if exam_date and exam_date >= today else None
+        projection = projections.get(course_id)
+        score_scale = float(enrollment.get("full_score", 100))
+        has_score = bool(projection and projection["score_share"] > 0)
+        lesson = lessons.get(course_id)
+        result.append(CourseDashboard(
+            course_id=course_id,
+            due_review_count=int(reviews.get(course_id, 0)),
+            today_lesson=TodayLesson(**lesson) if lesson else None,
+            remaining_days=remaining_days,
+            secured_score=round(score_scale * projection["secured_ratio"], 1) if has_score else None,
+            score_scale=round(score_scale, 1) if has_score else None,
+        ))
+    return result
 
 
 @router.post("/courses", status_code=201)

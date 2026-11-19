@@ -3,12 +3,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { Loading, Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
-import { courseKeys, createCourse, listCourses } from "./api";
+import { courseKeys, createCourse, listCourseDashboard, listCourses } from "./api";
 
 export default function Courses() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const courses = useQuery({ queryKey: courseKeys.all, queryFn: listCourses });
+  const dashboard = useQuery({ queryKey: [...courseKeys.all, "dashboard"], queryFn: listCourseDashboard });
+  const summaries = new Map(dashboard.data?.map((summary) => [summary.course_id, summary]));
   const [creating, setCreating] = useState(false);
   const create = useMutation({
     mutationFn: createCourse,
@@ -51,9 +53,12 @@ export default function Courses() {
       ) : null}
       {courses.data?.length ? (
         <ul className="course-list">
-          {courses.data.map((course) => (
+          {courses.data.map((course) => {
+            const summary = summaries.get(course.id);
+            const lesson = summary?.today_lesson;
+            return (
             <li key={course.id}>
-              <Link to={`/courses/${course.id}`}>
+              <Link className="course-main" to={`/courses/${course.id}`}>
                 <div><h2>{course.name}</h2><p>{course.goal || t.courses.goalEmpty}</p></div>
                 <dl>
                   <div><dt>{t.courses.kps}</dt><dd>{course.brief?.knowledge_point_count ?? "—"}</dd></div>
@@ -62,8 +67,28 @@ export default function Courses() {
                 </dl>
                 <span className="course-open">{t.courses.open}<span aria-hidden="true"> →</span></span>
               </Link>
+              {summary ? <aside className="course-today" aria-label={t.courses.today}>
+                <div>
+                  <strong>{lesson ? t.courses.today : t.courses.todayClear}</strong>
+                  {lesson ? <span>{lesson.title} · {lesson.est_minutes} {t.courses.minutes}</span> : null}
+                  <small>{t.courses.dueReviews.replace("{count}", String(summary.due_review_count))}</small>
+                  {summary.remaining_days !== null || summary.secured_score !== null ? <small>
+                    {summary.remaining_days !== null ? t.courses.remainingDays.replace("{count}", String(summary.remaining_days)) : ""}
+                    {summary.remaining_days !== null && summary.secured_score !== null ? " · " : ""}
+                    {summary.secured_score !== null && summary.score_scale !== null
+                      ? t.courses.securedScore.replace("{score}", String(summary.secured_score)).replace("{scale}", String(summary.score_scale))
+                      : ""}
+                  </small> : null}
+                </div>
+                <div className="actions">
+                  {lesson?.status === "active" && lesson.lesson_id
+                    ? <Link className="button primary" to={`/lessons/${lesson.lesson_id}`}>{t.courses.continueLesson}</Link>
+                    : lesson ? <Link className="button primary" to={`/courses/${course.id}/review?plan=${lesson.id}`}>{t.courses.warmup}</Link> : null}
+                  {summary.due_review_count > 0 ? <Link className="button quiet" to={`/courses/${course.id}/review`}>{t.courses.reviewDue}</Link> : null}
+                </div>
+              </aside> : null}
             </li>
-          ))}
+          );})}
         </ul>
       ) : null}
     </div>

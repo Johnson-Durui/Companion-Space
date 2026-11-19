@@ -1,5 +1,6 @@
 """The browser harness injects this gateway. Model traffic stays in process."""
 
+import json
 import re
 
 from app.llm.gateway import LLMGateway
@@ -9,47 +10,54 @@ from app.services.provider_registry import RoleTestResult
 from app.voice.tts.edge import EdgeUnavailableError
 
 
-def seed_classroom(container):
+def seed_classroom(container, scenario: str):
     from test_teaching_storage import _seed_plan
 
+    course_id = f"browser-{scenario}-course"
+    lesson_id = f"browser-{scenario}-lesson"
+    plan_item_id = f"{lesson_id}-item"
+    kp_id = f"{lesson_id}-kp"
+    bank_id = f"{lesson_id}-question"
     repository = container.repository
     now = utcnow().isoformat()
     with repository.connection() as connection:
-        _seed_plan(connection, "browser-course", "browser-lesson-item")
+        _seed_plan(connection, course_id, plan_item_id)
+        connection.execute("UPDATE plan_items SET kp_ids_json = ? WHERE id = ?", (json.dumps([kp_id]), plan_item_id))
         connection.execute(
             """INSERT INTO knowledge_points(id, space_id, name, norm_name, kind, summary, importance,
                                             difficulty, ord, created_at, updated_at)
-               VALUES ('kp1', 'browser-course', '关系判断', 'relation', 'concept', '关系判断', 'core', 1, 1, ?, ?)""",
-            (now, now),
+               VALUES (?, ?, '关系判断', 'relation', 'concept', '关系判断', 'core', 1, 1, ?, ?)""",
+            (kp_id, course_id, now, now),
         )
         connection.execute(
             """INSERT INTO item_bank(id, space_id, kp_id, origin, purpose, type, item_json, verify_status, created_at)
-               VALUES ('browser-item', 'browser-course', 'kp1', 'generated', 'check', 'choice', '{}', 'verified', ?)""",
-            (now,),
+               VALUES (?, ?, ?, 'generated', 'check', 'choice', '{}', 'verified', ?)""",
+            (bank_id, course_id, kp_id, now),
         )
-    teacher = next(character for character in container.tutors.list_characters() if character.appearance.kind == "portrait")
+    appearance = "vrm" if scenario.startswith("avatar") else "portrait"
+    teacher = next(character for character in container.tutors.list_characters() if character.appearance.kind == appearance)
     plan = {
         "title": "关系判断", "est_minutes": 10,
         "segments": [{
-            "id": "seg1", "kp_id": "kp1", "keypoints": ["先确认条件"], "checks": ["q1"],
+            "id": "seg1", "kp_id": kp_id, "keypoints": ["先确认条件"], "checks": ["q1"],
             "approaches": [{"kind": "visual", "keypoint": "all", "outline": "先写条件"}],
         }],
         "items": {
             "q1": {
-                "type": "choice", "kp_id": "kp1", "bank_id": "browser-item", "keypoints": [0],
+                "type": "choice", "kp_id": kp_id, "bank_id": bank_id, "keypoints": [0],
                 "stem": "如果条件成立，应选择哪一项？", "answer": "A", "verify": {"status": "verified"},
                 "options": [{"key": "A", "text": "按条件推导"}, {"key": "B", "text": "忽略条件"}],
             },
         },
     }
-    ready = repository.save_lesson_plan("browser-course", "browser-lesson-item", plan=plan)
+    ready = repository.save_lesson_plan(course_id, plan_item_id, plan=plan)
     lesson = repository.create_or_resume_lesson(
-        "browser-course", "browser-lesson-item", lesson_plan_id=ready["id"],
+        course_id, plan_item_id, lesson_plan_id=ready["id"],
         state={"stage": "opening"}, character_id=teacher.id,
     )
     with repository.connection() as connection:
-        connection.execute("UPDATE lessons SET id = 'browser-lesson' WHERE id = ?", (lesson["id"],))
-        connection.execute("UPDATE plan_items SET lesson_id = 'browser-lesson' WHERE id = 'browser-lesson-item'")
+        connection.execute("UPDATE lessons SET id = ? WHERE id = ?", (lesson_id, lesson["id"]))
+        connection.execute("UPDATE plan_items SET lesson_id = ? WHERE id = ?", (lesson_id, plan_item_id))
 
 
 class BrowserHarnessGateway(LLMGateway):
@@ -82,6 +90,14 @@ class BrowserHarnessGateway(LLMGateway):
             raw = "<comparison><equivalent>true</equivalent></comparison>"
         elif prompt_name == "analysis/diagnostic_generate":
             raw = ""
+        elif prompt_name == "analysis/kp_faithful":
+            raw = "<support>supported</support>"
+        elif prompt_name == "live/interview_ask":
+            if role not in self.registry.get_roles():
+                raise MissingRoleError(provider="fixture", public_detail="Connect this model role first")
+            raw = "<question>你想怎么安排接下来的学习？</question>"
+        elif prompt_name == "analysis/toc_infer":
+            raw = "<none></none>"
         elif prompt_name == "analysis/course_brief":
             raw = "<brief><summary>资料已整理为可核对的知识地图与真题索引。</summary><top_point>条件关系</top_point></brief>"
         elif prompt_name == "analysis/lesson_recap":
@@ -91,8 +107,25 @@ class BrowserHarnessGateway(LLMGateway):
         return parse(raw)
 
     async def stream_text(self, role, system, messages, **options):
-        if "recent_board" in str(messages[-1].content):
-            yield "<board type=text>先确认已知条件。</board><say>开始吧。</say>"
+        prompt = str(messages[-1].content)
+        if "recent_board" in prompt and "browser-avatar" in prompt:
+            yield (
+                '<cue gesture="explain" emotion="focused"/>'
+                '<say emotion="focused">先确认已知条件。</say>'
+                '<pause ms="1200"/>'
+                '<board id="b-text" type="text">先确认已知条件。</board>'
+                '<point target="b-text"/>'
+            )
+            return
+        if "recent_board" in prompt:
+            yield (
+                "<board id=b-text type=text>先确认已知条件。</board>"
+                "<board id=b-math type=math>x^2+1</board>"
+                "<board id=b-table type=table>| x | y |\n|---|---|\n| 1 | 2 |</board>"
+                '<board id=b-plot type=plot>{"fn":["x^2"],"x":[-2,2],"points":[[1,1]]}</board>'
+                "<board id=b-diagram type=diagram>flowchart TD\nA --&gt;</board>"
+                "<say>开始吧。</say>"
+            )
             return
         if role not in self.registry.get_roles():
             raise MissingRoleError(provider="fixture", public_detail="Connect this model role first")

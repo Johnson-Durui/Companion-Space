@@ -22,6 +22,8 @@ def test_course_resources_require_an_owner_session(client) -> None:
         ("GET", "/api/kb/documents"),
         ("GET", "/api/settings"),
         ("POST", "/api/voice/speak"),
+        ("GET", "/api/v1/characters"),
+        ("POST", "/api/v1/characters/import"),
     ],
 )
 def test_legacy_routes_are_removed(client, method: str, path: str) -> None:
@@ -116,47 +118,3 @@ def test_provider_update_rotates_secret_without_returning_it(client, owner_token
     serialized = json.dumps(updated.json())
     assert "secret-first-value" not in serialized
     assert "secret-rotated-value" not in serialized
-
-
-def test_character_crud_and_duplicate(client, owner_token: str) -> None:
-    headers = _auth_headers(owner_token)
-    created = client.post(
-        "/api/v1/characters",
-        headers=headers,
-        json={
-            "name": "Mika",
-            "description": "A cool study companion",
-            "recipe": {"personality": "cool", "relationship_role": "friend"},
-        },
-    )
-    assert created.status_code == 201
-    character_id = created.json()["id"]
-
-    fetched = client.get(f"/api/v1/characters/{character_id}", headers=headers)
-    assert fetched.status_code == 200
-    assert fetched.json()["recipe"]["personality"] == "cool"
-
-    updated_payload = fetched.json()
-    updated_payload["name"] = "Mika 2"
-    updated = client.put(
-        f"/api/v1/characters/{character_id}",
-        headers=headers,
-        json={
-            "name": updated_payload["name"],
-            "description": updated_payload["description"],
-            "recipe": updated_payload["recipe"],
-        },
-    )
-    assert updated.status_code == 200
-    assert updated.json()["name"] == "Mika 2"
-
-    duplicated = client.post(
-        f"/api/v1/characters/{character_id}/duplicate",
-        headers=headers,
-    )
-    assert duplicated.status_code == 201
-    assert duplicated.json()["id"] != character_id
-
-    deleted = client.delete(f"/api/v1/characters/{character_id}", headers=headers)
-    assert deleted.status_code == 204
-    assert client.get(f"/api/v1/characters/{character_id}", headers=headers).status_code == 404

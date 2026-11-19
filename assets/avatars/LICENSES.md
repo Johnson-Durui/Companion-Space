@@ -5,6 +5,9 @@ asset follows the terms recorded for it below. Preserve the embedded terms
 of every VRM model. See [Third-party notices](../THIRD_PARTY_NOTICES.md)
 for canonical source and binary references.
 
+Runtime-generated portrait fallbacks are local derivatives of the corresponding
+VRM file below and remain subject to that model's license; they are not uploaded.
+
 | File | Source and author | License and redistribution |
 | --- | --- | --- |
 | `models/VRM1_Constraint_Twist_Sample.vrm` | [VRM specification sample](https://github.com/vrm-c/vrm-specification/tree/master/samples/VRM1_Constraint_Twist_Sample), pixiv Inc. | [VRM Public License 1.0](https://vrm.dev/en/licenses/1.0/). The embedded VRM 1.0 metadata permits redistribution and modification. It does not require attribution. |

@@ -1,0 +1,1 @@
+Score the classroom transcript from 1 to 5 for correctness, clarity, adaptation to the learner's actual difficulty, respectful tone, and whether checks test understanding rather than recall. Use the JSON fields correctness, clarity, adaptation, tone, and understanding_checks. Include brief, transcript-grounded evidence for every score.

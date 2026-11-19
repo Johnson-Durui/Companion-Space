@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Timeline, type LessonEvent } from "../src/features/classroom/timeline";
 import { advanceClassroom, initialClassroom, restoreClassroom } from "../src/features/classroom/lesson-state";
+import { boardMarkdown } from "../src/features/classroom/board";
 
 function event(seq: number, type = "say", gen = 1, data: Record<string, unknown> = {}): LessonEvent {
   return { lesson_id: "lesson", seq, gen, type, data, t_ms: 0 };
@@ -56,7 +57,9 @@ describe("classroom timeline", () => {
       event(3, "beat.cancelled", 1, { heard_seq: 1 }),
       event(4, "board", 2, { op: "append", target: "visible", content: "next" }),
     ];
-    expect(restoreClassroom(events, 4).board.map(({ content }) => content)).toEqual(["first\nnext"]);
+    const board = restoreClassroom(events, 4).board;
+    expect(board.map(({ content }) => content)).toEqual(["first\nnext"]);
+    expect(boardMarkdown(board)).toBe("first\nnext\n");
   });
 
   it("keeps the same question identity when reconnecting reissues it", () => {
@@ -66,5 +69,22 @@ describe("classroom timeline", () => {
     expect(resumed.askSeq).toBe(3);
     const newBeat = advanceClassroom(resumed, event(5, "beat.start", 2));
     expect(advanceClassroom(newBeat, event(6, "ask", 2, question)).askSeq).toBe(6);
+  });
+
+  it("drives avatar gaze, expression, and answer reactions from lesson events", () => {
+    const speaking = advanceClassroom(initialClassroom, event(1, "say", 1, { emotion: "warm", text: "hello" }));
+    expect(speaking.avatar.emotion).toBe("warm");
+
+    const pointing = advanceClassroom(speaking, event(2, "point", 1, { target: "b1.2" }));
+    expect(pointing.avatar.gaze.active).toBe(true);
+    expect(pointing.avatar.gestureSequence).toBe(2);
+
+    const correct = advanceClassroom(pointing, event(3, "judge", 1, { verdict: "correct" }));
+    expect(correct.avatar.emotion).toBe("cheerful");
+    expect(correct.avatar.reactionKey).toBe("teaching:correct:3");
+
+    const retry = advanceClassroom(correct, event(4, "judge", 1, { verdict: "incorrect" }));
+    expect(retry.avatar.emotion).toBe("concerned");
+    expect(retry.avatar.reactionKey).toBe("teaching:retry:4");
   });
 });

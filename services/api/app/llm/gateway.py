@@ -8,6 +8,7 @@ from collections.abc import AsyncIterator, Callable, Mapping
 from contextvars import ContextVar
 from contextlib import aclosing, asynccontextmanager
 from typing import TypeVar
+from urllib.parse import urlsplit
 
 import numpy as np
 
@@ -260,7 +261,11 @@ class LLMGateway:
         resolved = await asyncio.to_thread(self.registry.resolve_role, role)
         params = resolved.assignment.params
         if temperature is None:
-            temperature = 0.2 if resolved.using_analysis_fallback else params.get("temperature")
+            hostname = urlsplit(getattr(resolved.connection, "base_url", None) or "").hostname
+            default_checker_temperature = resolved.using_analysis_fallback and (
+                hostname != "api.openai.com" or params.get("reasoning_effort") == "none"
+            )
+            temperature = 0.2 if default_checker_temperature else params.get("temperature")
         try:
             return resolved, LLMRequest(
                 model=resolved.assignment.model,

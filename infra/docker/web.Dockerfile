@@ -15,7 +15,7 @@ COPY package.json /app/package.json
 COPY package-lock.json /app/package-lock.json
 COPY apps/web/package.json /app/apps/web/package.json
 COPY packages/avatar-engine/package.json /app/packages/avatar-engine/package.json
-COPY packages/lesson-board/package.json /app/packages/lesson-board/package.json
+COPY packages/board/package.json /app/packages/board/package.json
 COPY packages/api-client/package.json /app/packages/api-client/package.json
 RUN npx --yes npm@11.21.2 ci
 

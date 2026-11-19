@@ -200,3 +200,39 @@ def test_microphone_test_rejects_unbounded_or_wrongly_encoded_input(client, owne
 
     assert wrong_type.status_code == 415
     assert oversized.status_code == 413
+
+
+def test_offline_stt_requires_explicit_download_and_stays_local(client, owner_token, monkeypatch) -> None:
+    from app.api.deps import get_container
+    from app.voice.sherpa import LocalSpeechRecognizer
+
+    headers = {"Authorization": f"Bearer {owner_token}"}
+    endpoint = "/api/v2/voice/stt"
+    installed = False
+
+    def install(self):
+        nonlocal installed
+        installed = True
+
+    monkeypatch.setattr(LocalSpeechRecognizer, "runtime_available", lambda self: True)
+    monkeypatch.setattr(LocalSpeechRecognizer, "model_available", lambda self: installed)
+    monkeypatch.setattr(LocalSpeechRecognizer, "install", install)
+    monkeypatch.setattr(LocalSpeechRecognizer, "recognize", lambda self, audio, rate: "本地识别完成")
+    monkeypatch.setattr(get_container().providers, "resolve_role", lambda role: pytest.fail("voice left this device"))
+
+    assert client.get(endpoint).status_code == 401
+    settings = client.get(endpoint, headers=headers).json()
+    assert settings["engine"] == "openai_compat"
+    assert settings["license_url"].startswith("https://")
+    assert client.put(endpoint, headers=headers, json={"engine": "local_sherpa"}).status_code == 409
+    assert not installed
+    assert client.put(endpoint, headers=headers, json={"engine": "local_sherpa", "download_model": True}).status_code == 200
+    assert installed
+    assert client.get("/api/v2/voice/status", headers=headers).json()["stt_configured"]
+    response = client.post(
+        "/api/v2/voice/microphone-test",
+        headers={**headers, "Content-Type": "audio/pcm"},
+        content=_speech(),
+    )
+    assert response.status_code == 200
+    assert response.json()["text"] == "本地识别完成"

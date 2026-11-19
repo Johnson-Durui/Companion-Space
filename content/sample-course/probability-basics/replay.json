@@ -1,0 +1,1538 @@
+{
+  "schema_version": 1,
+  "model": "gpt-6-luna",
+  "recorded_at": "2026-11-17",
+  "title": "事件及事件发生",
+  "course": "概率入门",
+  "course_map": {
+    "units": [
+      {
+        "id": "e1ddc11e-0801-5a21-96ca-f38be10ca14e",
+        "title": "概率入门",
+        "knowledge_points": [
+          {
+            "id": "87fe014d257d518cbf8d2f132e187c27",
+            "name": "随机试验",
+            "summary": "在相同条件下可以重复进行、结果不止一种且事先不能确定具体结果的试验，称为随机试验。",
+            "importance": "core",
+            "difficulty": 1,
+            "kind": "concept",
+            "formula": null,
+            "source_refs": [
+              {
+                "material_id": "d5996eb7-f734-428a-acb0-579d985240fa",
+                "page_no": 1
+              }
+            ],
+            "prerequisite_ids": [],
+            "assumed": false,
+            "stats": {
+              "n_items": 1,
+              "score_share": 0.3333333333333333,
+              "recency_weight": 1.0,
+              "trend": "unknown",
+              "types": {
+                "choice": 1
+              },
+              "novel_flags": [],
+              "weight": 0.30476190476190473
+            }
+          },
+          {
+            "id": "ce5c67d7acf454f99ab0a9cc24048ddd",
+            "name": "样本空间",
+            "summary": "样本空间是随机试验全部可能结果构成的集合。",
+            "importance": "core",
+            "difficulty": 1,
+            "kind": "concept",
+            "formula": null,
+            "source_refs": [
+              {
+                "material_id": "d5996eb7-f734-428a-acb0-579d985240fa",
+                "page_no": 1
+              }
+            ],
+            "prerequisite_ids": [
+              "87fe014d257d518cbf8d2f132e187c27"
+            ],
+            "assumed": false,
+            "stats": {
+              "n_items": 1,
+              "score_share": 0.3333333333333333,
+              "recency_weight": 1.0,
+              "trend": "unknown",
+              "types": {
+                "choice": 1
+              },
+              "novel_flags": [],
+              "weight": 0.30476190476190473
+            }
+          },
+          {
+            "id": "57210c7497e8589a8f738a988870b88d",
+            "name": "样本点",
+            "summary": "样本空间中的单个结果叫样本点。",
+            "importance": "important",
+            "difficulty": 1,
+            "kind": "concept",
+            "formula": null,
+            "source_refs": [
+              {
+                "material_id": "d5996eb7-f734-428a-acb0-579d985240fa",
+                "page_no": 1
+              }
+            ],
+            "prerequisite_ids": [
+              "ce5c67d7acf454f99ab0a9cc24048ddd"
+            ],
+            "assumed": false,
+            "stats": {
+              "n_items": 0,
+              "score_share": 0.0,
+              "recency_weight": 0.0,
+              "trend": "unknown",
+              "types": {},
+              "novel_flags": [],
+              "weight": 0.04285714285714285
+            }
+          },
+          {
+            "id": "e7eb9340cd8b5f5892ad52494fa1a4c0",
+            "name": "事件及事件发生",
+            "summary": "由若干样本点组成的集合叫事件；试验结果落在该集合中时，事件发生。",
+            "importance": "core",
+            "difficulty": 1,
+            "kind": "concept",
+            "formula": null,
+            "source_refs": [
+              {
+                "material_id": "d5996eb7-f734-428a-acb0-579d985240fa",
+                "page_no": 1
+              }
+            ],
+            "prerequisite_ids": [
+              "57210c7497e8589a8f738a988870b88d"
+            ],
+            "assumed": false,
+            "stats": {
+              "n_items": 1,
+              "score_share": 0.3333333333333333,
+              "recency_weight": 1.0,
+              "trend": "unknown",
+              "types": {
+                "choice": 1
+              },
+              "novel_flags": [],
+              "weight": 0.30476190476190473
+            }
+          },
+          {
+            "id": "cac30cfc64645d729985e356eac51aef",
+            "name": "必然事件与不可能事件",
+            "summary": "全集 Ω 是必然事件，空集 ∅ 是不可能事件。",
+            "importance": "important",
+            "difficulty": 1,
+            "kind": "concept",
+            "formula": null,
+            "source_refs": [
+              {
+                "material_id": "d5996eb7-f734-428a-acb0-579d985240fa",
+                "page_no": 1
+              }
+            ],
+            "prerequisite_ids": [
+              "e7eb9340cd8b5f5892ad52494fa1a4c0"
+            ],
+            "assumed": false,
+            "stats": {
+              "n_items": 0,
+              "score_share": 0.0,
+              "recency_weight": 0.0,
+              "trend": "unknown",
+              "types": {},
+              "novel_flags": [],
+              "weight": 0.04285714285714285
+            }
+          }
+        ]
+      }
+    ],
+    "brief": {
+      "page_count": 2,
+      "section_count": 5,
+      "knowledge_point_count": 5,
+      "item_count": 1,
+      "estimated_hours": 0.8,
+      "summary": "围绕随机试验、样本空间与事件，学习表示结果并判断事件发生。",
+      "top_points": [
+        "随机试验",
+        "样本空间",
+        "事件及事件发生"
+      ],
+      "defer_points": [
+        "样本点",
+        "必然事件与不可能事件"
+      ],
+      "warnings": [
+        "diagnostic_format_failed",
+        "diagnostic_questions_missing",
+        "exam_papers_needed"
+      ],
+      "syllabus_kp_ids": [],
+      "summary_support": {
+        "supported": 5,
+        "checked": 5
+      }
+    },
+    "warnings": [
+      "diagnostic_format_failed",
+      "diagnostic_questions_missing",
+      "exam_papers_needed"
+    ],
+    "has_exams": true
+  },
+  "lesson_plan": {
+    "title": "事件及事件发生",
+    "est_minutes": 25,
+    "objectives": [
+      {
+        "kp_id": "e7eb9340cd8b5f5892ad52494fa1a4c0",
+        "text": "能将文字描述的事件表示为样本点集合，并根据实际结果是否属于该集合判断事件是否发生。"
+      }
+    ],
+    "segments": [
+      {
+        "id": "s1",
+        "kp_id": "e7eb9340cd8b5f5892ad52494fa1a4c0",
+        "kind": "concept",
+        "goal": "理解事件是由样本点组成的集合，并用集合成员关系判断事件是否发生。",
+        "est_minutes": 25,
+        "keypoints": [
+          "由若干样本点组成的集合叫事件；描述事件时，要找出符合描述的所有样本点。",
+          "事件发生当且仅当试验的实际结果属于该事件对应的集合。"
+        ],
+        "approaches": [
+          {
+            "kind": "intuition",
+            "keypoint": "all",
+            "outline": "把事件想成一张收纳符合条件结果的清单：先根据事件描述列出清单，再检查实际结果是否在清单中。"
+          },
+          {
+            "kind": "visual",
+            "keypoint": "all",
+            "outline": "画出样本空间 Ω 的大框，在其中圈出构成事件的样本点；将实际结果标记出来，落在圈内表示事件发生，落在圈外表示不发生。"
+          },
+          {
+            "kind": "example",
+            "keypoint": "all",
+            "outline": "以同时掷两枚可区分的硬币为例，列出 Ω={HH,HT,TH,TT}，再分别圈出“恰有一个正面”和“至少一个正面”的结果，并代入具体结果判断。"
+          },
+          {
+            "kind": "formal",
+            "keypoint": "all",
+            "outline": "设样本空间为 Ω，事件为其子集 A；事件发生的判定条件是实际结果 ω∈A，若 ω∉A，则事件不发生。"
+          }
+        ],
+        "examples": [
+          {
+            "type": "set",
+            "stem": "同时掷两枚可区分的硬币。用样本点集合表示事件“恰有一个正面”。",
+            "answer": "A={HT,TH}",
+            "solution": "两枚硬币的结果分别按顺序记录。恰有一个正面的结果是第一枚正面、第二枚反面（HT），或第一枚反面、第二枚正面（TH），所以事件为 {HT,TH}。",
+            "verify": {
+              "status": "verified",
+              "solved_answer": "{(正面,反面), (反面,正面)}",
+              "reason": "Independent solution agrees with the reference answer."
+            },
+            "origin": {
+              "kind": "generated"
+            }
+          },
+          {
+            "type": "set_membership",
+            "stem": "同时掷两枚可区分的硬币。事件 B 是“至少一个正面”，即 B={HH,HT,TH}。若实际结果为 TT，事件 B 是否发生？",
+            "answer": "不发生",
+            "solution": "判断实际结果是否属于事件集合。TT 不在 B={HH,HT,TH} 中，因此事件 B 不发生。",
+            "verify": {
+              "status": "verified",
+              "solved_answer": "否，事件 B 未发生。",
+              "reason": "Independent solution agrees with the reference answer."
+            },
+            "origin": {
+              "kind": "generated"
+            }
+          }
+        ],
+        "misconceptions": [
+          "把事件误认为单个结果；事件可以由若干样本点组成。",
+          "只凭事件名称判断是否发生，而没有核对实际结果是否属于对应集合。",
+          "混淆可区分硬币的 HT 与 TH；它们是两个不同的样本点。"
+        ],
+        "checks": [
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5"
+        ],
+        "backfills": [],
+        "sources": [
+          {
+            "material_id": "d5996eb7-f734-428a-acb0-579d985240fa",
+            "page_start": 1,
+            "page_end": 1
+          }
+        ]
+      }
+    ],
+    "practice": [],
+    "wrap": {
+      "summary_points": [
+        "事件是由若干样本点组成的集合；把文字条件转成集合时，列出所有符合条件的结果。",
+        "实际结果属于事件集合，事件就发生；不属于该集合，事件就不发生。"
+      ],
+      "cards": [
+        {
+          "front": "怎样表示一个事件？",
+          "back": "把符合事件描述的所有样本点组成集合。"
+        },
+        {
+          "front": "怎样判断事件是否发生？",
+          "back": "检查实际结果是否属于该事件对应的集合。"
+        }
+      ]
+    },
+    "items": {
+      "c1": {
+        "stem": "同时掷两枚可区分的硬币，事件 A={HT,TH}。若实际结果为 TH，以下判断正确的是哪一项？",
+        "options": [
+          {
+            "key": "A",
+            "text": "事件 A 发生，因为 TH 属于 A"
+          },
+          {
+            "key": "B",
+            "text": "事件 A 不发生，因为 A 只包含 HT"
+          },
+          {
+            "key": "C",
+            "text": "事件 A 不发生，因为事件不能由样本点组成"
+          },
+          {
+            "key": "D",
+            "text": "无法判断，因为 TH 不是一个结果"
+          }
+        ],
+        "answer": "A",
+        "solution": "事件发生的条件是实际结果属于该事件对应的集合。TH∈A，因此事件 A 发生。",
+        "rubric": null,
+        "bank_id": "d46cca79-f95f-574e-92e0-c3173ceca823",
+        "kp_id": "e7eb9340cd8b5f5892ad52494fa1a4c0",
+        "origin": {
+          "kind": "generated",
+          "exam_item_id": null
+        },
+        "purpose": "diagnostic",
+        "type": "choice",
+        "difficulty": 2,
+        "variant_of": null,
+        "verify": {
+          "status": "verified"
+        },
+        "keypoints": [
+          0,
+          1
+        ],
+        "fallback_hints": {
+          "1": "先看事件 A 中列出了哪些样本点。",
+          "2": "把实际结果与 A 中的样本点逐一对照。"
+        },
+        "forbidden": {
+          "terms": [
+            "事件 a 发生,因为 th 属于 a"
+          ],
+          "patterns": [
+            "(?:选|答案|答案是|答案为|应该是|应是|就是|正确的是|\\b(?:choose|answer\\s+is)\\s+)\\s*[:：]?\\s*(?:[\\\"'({【]\\s*)?(?:a)(?![a-z0-9_])"
+          ],
+          "number": null
+        }
+      },
+      "c2": {
+        "kp_id": "e7eb9340cd8b5f5892ad52494fa1a4c0",
+        "keypoints": [
+          0
+        ],
+        "type": "short_answer",
+        "stem": "同时掷两枚可区分的硬币。用样本点集合表示事件“恰有一个正面”。",
+        "answer": "{HT,TH}",
+        "solution": "恰有一个正面的结果有两种：第一枚正面、第二枚反面（HT），或第一枚反面、第二枚正面（TH）。因此事件集合是 {HT,TH}。",
+        "variant_of": null,
+        "fallback_hints": {
+          "1": "按两枚硬币的顺序列出可能符合条件的结果。",
+          "2": "分别考虑正面出现在第一枚或第二枚时的结果。"
+        },
+        "bank_id": "dc28658f-0e77-46d0-8aff-2f6fc547316a",
+        "origin": {
+          "kind": "generated"
+        },
+        "verify": {
+          "status": "verified",
+          "solved_answer": "{(正面,反面), (反面,正面)}",
+          "reason": "Independent solution agrees with the reference answer."
+        },
+        "forbidden": {
+          "terms": [],
+          "patterns": [],
+          "number": null
+        },
+        "purpose": "check"
+      },
+      "c3": {
+        "kp_id": "e7eb9340cd8b5f5892ad52494fa1a4c0",
+        "keypoints": [
+          0,
+          1
+        ],
+        "type": "short_answer",
+        "stem": "同时掷两枚可区分的硬币。事件 B 是“至少一个正面”，即 B={HH,HT,TH}。若实际结果为 HH，事件 B 是否发生？",
+        "answer": "发生",
+        "solution": "HH 属于 B={HH,HT,TH}，所以实际结果落在事件对应的集合中，事件 B 发生。",
+        "variant_of": null,
+        "fallback_hints": {
+          "1": "先从题目给出的集合中找出实际结果 HH。",
+          "2": "用实际结果是否属于 B 来判断事件是否发生。"
+        },
+        "bank_id": "27aac805-8e64-4cac-b73d-b7ea535e3709",
+        "origin": {
+          "kind": "generated"
+        },
+        "verify": {
+          "status": "verified",
+          "solved_answer": "是，事件 B 发生了。",
+          "reason": "Independent solution agrees with the reference answer."
+        },
+        "forbidden": {
+          "terms": [],
+          "patterns": [],
+          "number": null
+        },
+        "purpose": "check"
+      },
+      "c4": {
+        "kp_id": "e7eb9340cd8b5f5892ad52494fa1a4c0",
+        "keypoints": [
+          0,
+          1
+        ],
+        "type": "short_answer",
+        "stem": "同时掷两枚可区分的硬币。事件 A 是“恰有一个正面”，即 A={HT,TH}。若实际结果为 TT，事件 A 是否发生？",
+        "answer": "不发生",
+        "solution": "TT 不属于 A={HT,TH}，因此实际结果没有落在事件 A 对应的集合中，事件 A 不发生。",
+        "variant_of": "c3",
+        "fallback_hints": {
+          "1": "将实际结果 TT 与集合 A 中的样本点比较。",
+          "2": "检查 TT 是否等于 HT 或 TH，再据此判断。"
+        },
+        "bank_id": "a7fd5418-1f40-44c1-afdc-9691a569ca1e",
+        "origin": {
+          "kind": "generated"
+        },
+        "verify": {
+          "status": "verified",
+          "solved_answer": "否，事件 A 未发生。",
+          "reason": "Independent solution agrees with the reference answer."
+        },
+        "forbidden": {
+          "terms": [],
+          "patterns": [],
+          "number": null
+        },
+        "purpose": "check"
+      },
+      "c5": {
+        "kp_id": "e7eb9340cd8b5f5892ad52494fa1a4c0",
+        "keypoints": [
+          0,
+          1
+        ],
+        "type": "short_answer",
+        "stem": "同时掷两枚可区分的硬币。事件 B 是“至少一个正面”，即 B={HH,HT,TH}。若实际结果为 TH，事件 B 是否发生？",
+        "answer": "发生",
+        "solution": "TH 属于 B={HH,HT,TH}，因此实际结果落在事件 B 对应的集合中，事件 B 发生。",
+        "variant_of": "c3",
+        "fallback_hints": {
+          "1": "在 B={HH,HT,TH} 中检查是否列有 TH。",
+          "2": "若 TH 属于 B，事件发生；否则事件不发生。"
+        },
+        "bank_id": "77fa965d-68b4-44a7-9d64-d6ef765004fb",
+        "origin": {
+          "kind": "generated"
+        },
+        "verify": {
+          "status": "verified",
+          "solved_answer": "是，事件 B 发生了。",
+          "reason": "Independent solution agrees with the reference answer."
+        },
+        "forbidden": {
+          "terms": [],
+          "patterns": [],
+          "number": null
+        },
+        "purpose": "check"
+      }
+    }
+  },
+  "events": [
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 1,
+      "gen": 1,
+      "type": "beat.start",
+      "t_ms": 1794930948479,
+      "data": {
+        "move": "OPEN",
+        "ask_after": false,
+        "approach": null,
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 2,
+      "gen": 1,
+      "type": "board",
+      "t_ms": 1794930952720,
+      "data": {
+        "op": "add",
+        "id": "b1",
+        "type": "text",
+        "content": "本课目标：把文字描述的事件表示为样本点集合；根据实际结果是否属于该集合，判断事件是否发生。"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 3,
+      "gen": 1,
+      "type": "say",
+      "t_ms": 1794930953057,
+      "data": {
+        "text": "欢迎来学习！",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 4,
+      "gen": 1,
+      "type": "say",
+      "t_ms": 1794930953057,
+      "data": {
+        "text": "这节课我们会弄清事件由哪些样本点组成，",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 5,
+      "gen": 1,
+      "type": "say",
+      "t_ms": 1794930953057,
+      "data": {
+        "text": "以及怎样根据实际结果判断事件是否发生。",
+        "emotion": "warm",
+        "seg": 3
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 6,
+      "gen": 1,
+      "type": "beat.end",
+      "t_ms": 1794930953149,
+      "data": {
+        "ask": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 7,
+      "gen": 1,
+      "type": "state",
+      "t_ms": 1794930953149,
+      "data": {
+        "stage": "opening",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 8,
+      "gen": 2,
+      "type": "beat.start",
+      "t_ms": 1794930953518,
+      "data": {
+        "move": "VERIFY_SKIP",
+        "ask_after": true,
+        "approach": null,
+        "item_id": "c1"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 9,
+      "gen": 2,
+      "type": "board",
+      "t_ms": 1794930958593,
+      "data": {
+        "op": "add",
+        "id": "b2",
+        "type": "text",
+        "content": "事件：由若干样本点组成的集合"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 10,
+      "gen": 2,
+      "type": "say",
+      "t_ms": 1794930958797,
+      "data": {
+        "text": "接下来，我们先看怎样把文字描述的事件表示成样本点集合。",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 11,
+      "gen": 2,
+      "type": "say",
+      "t_ms": 1794930958856,
+      "data": {
+        "text": "同时掷两枚可区分的硬币，事件 A={HT,TH}。若实际结果为 TH，以下判断正确的是哪一项？",
+        "emotion": "neutral",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 12,
+      "gen": 2,
+      "type": "ask",
+      "t_ms": 1794930958856,
+      "data": {
+        "kind": "item",
+        "purpose": "verify_skip",
+        "item_id": "c1",
+        "widget": {
+          "type": "choice",
+          "stem": "同时掷两枚可区分的硬币，事件 A={HT,TH}。若实际结果为 TH，以下判断正确的是哪一项？",
+          "options": [
+            {
+              "key": "A",
+              "text": "事件 A 发生，因为 TH 属于 A"
+            },
+            {
+              "key": "B",
+              "text": "事件 A 不发生，因为 A 只包含 HT"
+            },
+            {
+              "key": "C",
+              "text": "事件 A 不发生，因为事件不能由样本点组成"
+            },
+            {
+              "key": "D",
+              "text": "无法判断，因为 TH 不是一个结果"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 13,
+      "gen": 2,
+      "type": "beat.end",
+      "t_ms": 1794930958856,
+      "data": {
+        "ask": true
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 14,
+      "gen": 2,
+      "type": "state",
+      "t_ms": 1794930958856,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 15,
+      "gen": 3,
+      "type": "judge",
+      "t_ms": 1794930983169,
+      "data": {
+        "item_id": "c1",
+        "verdict": "correct"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 16,
+      "gen": 3,
+      "type": "beat.start",
+      "t_ms": 1794930983169,
+      "data": {
+        "move": "FEEDBACK_CORRECT",
+        "ask_after": false,
+        "approach": null,
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 17,
+      "gen": 3,
+      "type": "board",
+      "t_ms": 1794930988659,
+      "data": {
+        "op": "add",
+        "id": "b3",
+        "type": "math",
+        "content": "A=\\{HT,TH\\},\\quad TH\\in A"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 18,
+      "gen": 3,
+      "type": "say",
+      "t_ms": 1794930988980,
+      "data": {
+        "text": "核对实际结果是否属于事件集合，这一步是关键；",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 19,
+      "gen": 3,
+      "type": "say",
+      "t_ms": 1794930988980,
+      "data": {
+        "text": "TH 属于 A，所以事件 A 发生。",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 20,
+      "gen": 3,
+      "type": "beat.end",
+      "t_ms": 1794930989046,
+      "data": {
+        "ask": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 21,
+      "gen": 3,
+      "type": "state",
+      "t_ms": 1794930989046,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 22,
+      "gen": 4,
+      "type": "beat.start",
+      "t_ms": 1794930989417,
+      "data": {
+        "move": "PREDICT",
+        "ask_after": true,
+        "approach": null,
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 23,
+      "gen": 4,
+      "type": "board",
+      "t_ms": 1794930996837,
+      "data": {
+        "op": "add",
+        "id": "b4",
+        "type": "math",
+        "content": "A=\\{HT,TH\\},\\quad \\text{实际结果 }HH"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 24,
+      "gen": 4,
+      "type": "say",
+      "t_ms": 1794930997098,
+      "data": {
+        "text": "如果实际结果是 HH，你预测事件 A 发生了吗？",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 25,
+      "gen": 4,
+      "type": "say",
+      "t_ms": 1794930997098,
+      "data": {
+        "text": "先看看 HH 是否属于 A。",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 26,
+      "gen": 4,
+      "type": "ask",
+      "t_ms": 1794930997105,
+      "data": {
+        "kind": "open",
+        "purpose": "predict"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 27,
+      "gen": 4,
+      "type": "beat.end",
+      "t_ms": 1794930997105,
+      "data": {
+        "ask": true
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 28,
+      "gen": 4,
+      "type": "state",
+      "t_ms": 1794930997105,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 29,
+      "gen": 5,
+      "type": "beat.start",
+      "t_ms": 1794930997116,
+      "data": {
+        "move": "EXPLAIN",
+        "ask_after": false,
+        "approach": "intuition",
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 30,
+      "gen": 5,
+      "type": "board",
+      "t_ms": 1794931002346,
+      "data": {
+        "op": "append",
+        "target": "b4",
+        "content": ",\\quad HH\\notin A"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 31,
+      "gen": 5,
+      "type": "say",
+      "t_ms": 1794931002552,
+      "data": {
+        "text": "实际结果是 HH，",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 32,
+      "gen": 5,
+      "type": "say",
+      "t_ms": 1794931002552,
+      "data": {
+        "text": "它不在事件 A 的清单里，",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 33,
+      "gen": 5,
+      "type": "say",
+      "t_ms": 1794931002552,
+      "data": {
+        "text": "所以事件 A 没有发生。",
+        "emotion": "warm",
+        "seg": 3
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 34,
+      "gen": 5,
+      "type": "beat.end",
+      "t_ms": 1794931002606,
+      "data": {
+        "ask": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 35,
+      "gen": 5,
+      "type": "state",
+      "t_ms": 1794931002606,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 36,
+      "gen": 6,
+      "type": "beat.start",
+      "t_ms": 1794931002616,
+      "data": {
+        "move": "CHECK",
+        "ask_after": true,
+        "approach": null,
+        "item_id": "c2"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 37,
+      "gen": 6,
+      "type": "board",
+      "t_ms": 1794931006976,
+      "data": {
+        "op": "add",
+        "id": "b5",
+        "type": "text",
+        "content": "事件发生，当且仅当实际结果属于对应的集合。"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 38,
+      "gen": 6,
+      "type": "say",
+      "t_ms": 1794931007239,
+      "data": {
+        "text": "刚才我们用集合表示了事件，",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 39,
+      "gen": 6,
+      "type": "say",
+      "t_ms": 1794931007239,
+      "data": {
+        "text": "接下来就用实际结果是否属于这个集合来判断事件是否发生。",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 40,
+      "gen": 6,
+      "type": "say",
+      "t_ms": 1794931007294,
+      "data": {
+        "text": "同时掷两枚可区分的硬币。用样本点集合表示事件“恰有一个正面”。",
+        "emotion": "neutral",
+        "seg": 3
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 41,
+      "gen": 6,
+      "type": "ask",
+      "t_ms": 1794931007294,
+      "data": {
+        "kind": "item",
+        "purpose": "check",
+        "item_id": "c2",
+        "widget": {
+          "type": "short",
+          "stem": "同时掷两枚可区分的硬币。用样本点集合表示事件“恰有一个正面”。",
+          "options": []
+        }
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 42,
+      "gen": 6,
+      "type": "beat.end",
+      "t_ms": 1794931007294,
+      "data": {
+        "ask": true
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 43,
+      "gen": 6,
+      "type": "state",
+      "t_ms": 1794931007294,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 44,
+      "gen": 7,
+      "type": "judge",
+      "t_ms": 1794931007306,
+      "data": {
+        "item_id": "c2",
+        "verdict": "correct"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 45,
+      "gen": 7,
+      "type": "beat.start",
+      "t_ms": 1794931007306,
+      "data": {
+        "move": "FEEDBACK_CORRECT",
+        "ask_after": false,
+        "approach": null,
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 46,
+      "gen": 7,
+      "type": "board",
+      "t_ms": 1794931011904,
+      "data": {
+        "op": "add",
+        "id": "b6",
+        "type": "text",
+        "content": "正确：恰有一个正面的结果是 HT 或 TH"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 47,
+      "gen": 7,
+      "type": "say",
+      "t_ms": 1794931012216,
+      "data": {
+        "text": "你把两种正反顺序都列出来这一步是对的：HT 和 TH 都恰有一个正面。",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 48,
+      "gen": 7,
+      "type": "beat.end",
+      "t_ms": 1794931012230,
+      "data": {
+        "ask": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 49,
+      "gen": 7,
+      "type": "state",
+      "t_ms": 1794931012230,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 50,
+      "gen": 8,
+      "type": "beat.start",
+      "t_ms": 1794931012241,
+      "data": {
+        "move": "EXPLAIN",
+        "ask_after": false,
+        "approach": "visual",
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 51,
+      "gen": 8,
+      "type": "board",
+      "t_ms": 1794931023245,
+      "data": {
+        "op": "add",
+        "id": "b7",
+        "type": "math",
+        "content": "\\Omega=\\{HH,HT,TH,TT\\},\\quad A=\\{HT,TH\\},\\quad \\text{实际结果 }TH\\in A"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 52,
+      "gen": 8,
+      "type": "say",
+      "t_ms": 1794931023540,
+      "data": {
+        "text": "把事件圈在样本空间里；",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 53,
+      "gen": 8,
+      "type": "say",
+      "t_ms": 1794931023540,
+      "data": {
+        "text": "实际结果是TH，落在事件A中，所以事件A发生。",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 54,
+      "gen": 8,
+      "type": "beat.end",
+      "t_ms": 1794931023551,
+      "data": {
+        "ask": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 55,
+      "gen": 8,
+      "type": "state",
+      "t_ms": 1794931023551,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 56,
+      "gen": 9,
+      "type": "beat.start",
+      "t_ms": 1794931023560,
+      "data": {
+        "move": "CHECK",
+        "ask_after": true,
+        "approach": null,
+        "item_id": "c3"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 57,
+      "gen": 9,
+      "type": "say",
+      "t_ms": 1794931027994,
+      "data": {
+        "text": "很好，",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 58,
+      "gen": 9,
+      "type": "say",
+      "t_ms": 1794931027994,
+      "data": {
+        "text": "实际结果 TH 属于事件 A，",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 59,
+      "gen": 9,
+      "type": "say",
+      "t_ms": 1794931027994,
+      "data": {
+        "text": "所以事件 A 发生了。",
+        "emotion": "warm",
+        "seg": 3
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 60,
+      "gen": 9,
+      "type": "say",
+      "t_ms": 1794931028062,
+      "data": {
+        "text": "同时掷两枚可区分的硬币。事件 B 是“至少一个正面”，即 B={HH,HT,TH}。若实际结果为 HH，事件 B 是否发生？",
+        "emotion": "neutral",
+        "seg": 4
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 61,
+      "gen": 9,
+      "type": "ask",
+      "t_ms": 1794931028062,
+      "data": {
+        "kind": "item",
+        "purpose": "check",
+        "item_id": "c3",
+        "widget": {
+          "type": "short",
+          "stem": "同时掷两枚可区分的硬币。事件 B 是“至少一个正面”，即 B={HH,HT,TH}。若实际结果为 HH，事件 B 是否发生？",
+          "options": []
+        }
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 62,
+      "gen": 9,
+      "type": "beat.end",
+      "t_ms": 1794931028062,
+      "data": {
+        "ask": true
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 63,
+      "gen": 9,
+      "type": "state",
+      "t_ms": 1794931028062,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 64,
+      "gen": 10,
+      "type": "judge",
+      "t_ms": 1794931028075,
+      "data": {
+        "item_id": "c3",
+        "verdict": "correct"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 65,
+      "gen": 10,
+      "type": "beat.start",
+      "t_ms": 1794931028075,
+      "data": {
+        "move": "FEEDBACK_CORRECT",
+        "ask_after": false,
+        "approach": null,
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 66,
+      "gen": 10,
+      "type": "board",
+      "t_ms": 1794931032502,
+      "data": {
+        "op": "add",
+        "id": "b8",
+        "type": "math",
+        "content": "B=\\{HH,HT,TH\\},\\quad HH\\in B"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 67,
+      "gen": 10,
+      "type": "say",
+      "t_ms": 1794931032830,
+      "data": {
+        "text": "你做对了核对这一步：把实际结果 HH 和事件 B 的集合比较，",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 68,
+      "gen": 10,
+      "type": "say",
+      "t_ms": 1794931032830,
+      "data": {
+        "text": "确认 HH 属于 B。",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 69,
+      "gen": 10,
+      "type": "beat.end",
+      "t_ms": 1794931032838,
+      "data": {
+        "ask": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 70,
+      "gen": 10,
+      "type": "state",
+      "t_ms": 1794931032838,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 0,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 71,
+      "gen": 11,
+      "type": "beat.start",
+      "t_ms": 1794931032851,
+      "data": {
+        "move": "TRANSITION",
+        "ask_after": false,
+        "approach": null,
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 72,
+      "gen": 11,
+      "type": "board",
+      "t_ms": 1794931036516,
+      "data": {
+        "op": "add",
+        "id": "b9",
+        "type": "text",
+        "content": "下一步：把文字描述的事件写成样本点集合"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 73,
+      "gen": 11,
+      "type": "say",
+      "t_ms": 1794931037033,
+      "data": {
+        "text": "回顾一下：实际结果属于事件对应的集合，事件就发生。",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 74,
+      "gen": 11,
+      "type": "say",
+      "t_ms": 1794931037033,
+      "data": {
+        "text": "接下来练习把文字描述写成样本点集合。",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 75,
+      "gen": 11,
+      "type": "beat.end",
+      "t_ms": 1794931037202,
+      "data": {
+        "ask": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 76,
+      "gen": 11,
+      "type": "state",
+      "t_ms": 1794931037202,
+      "data": {
+        "stage": "teaching",
+        "seg_idx": 1,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 77,
+      "gen": 12,
+      "type": "beat.start",
+      "t_ms": 1794931037568,
+      "data": {
+        "move": "WRAP",
+        "ask_after": false,
+        "approach": null,
+        "item_id": null
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 78,
+      "gen": 12,
+      "type": "board",
+      "t_ms": 1794931042036,
+      "data": {
+        "op": "add",
+        "id": "b10",
+        "type": "text",
+        "content": "已掌握：用样本点集合表示事件，并判断实际结果是否属于集合。待练习：把文字描述写成样本点集合。"
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 79,
+      "gen": 12,
+      "type": "say",
+      "t_ms": 1794931042272,
+      "data": {
+        "text": "你已经能用集合判断事件是否发生；",
+        "emotion": "warm",
+        "seg": 1
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 80,
+      "gen": 12,
+      "type": "say",
+      "t_ms": 1794931042272,
+      "data": {
+        "text": "接下来继续练习把文字描述写成样本点集合。",
+        "emotion": "warm",
+        "seg": 2
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 81,
+      "gen": 12,
+      "type": "beat.end",
+      "t_ms": 1794931042342,
+      "data": {
+        "ask": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 82,
+      "gen": 12,
+      "type": "state",
+      "t_ms": 1794931042342,
+      "data": {
+        "stage": "wrap",
+        "seg_idx": 1,
+        "paused": false
+      }
+    },
+    {
+      "lesson_id": "844141d2-4a40-406a-ae4c-202fa59ce142",
+      "seq": 83,
+      "gen": 12,
+      "type": "state",
+      "t_ms": 1794931047168,
+      "data": {
+        "stage": "done",
+        "seg_idx": 1,
+        "paused": false
+      }
+    }
+  ],
+  "branches": {
+    "12": {
+      "A": [
+        "把实际结果和事件集合核对这一步是对的：TH 属于 A，",
+        "所以事件 A 发生。"
+      ],
+      "B": [
+        "好，我们一步一步来。",
+        "两枚可区分的硬币中，哪些结果恰有一个正面？"
+      ],
+      "C": [
+        "好，我们一步一步来。",
+        "这个事件包含两个样本点：HT 和 TH。"
+      ],
+      "D": [
+        "好，",
+        "我们先看一个例子：“恰有一个正面”对应事件集合A，",
+        "其中HT和TH是两个不同的样本点。"
+      ]
+    }
+  },
+  "recap": {
+    "items_done": {
+      "c2": "correct",
+      "c3": "correct"
+    },
+    "backfilled": [],
+    "summary": "本课讲了用样本点集合表示事件，并根据实际结果是否属于集合判断事件是否发生；练习了两枚可区分硬币的例子，包括“恰有一个正面”对应 HT、TH，以及判断 TH 或 HH 是否使事件发生。接下来还需继续练习把文字描述准确写成样本点集合。"
+  }
+}

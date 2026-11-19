@@ -4,11 +4,11 @@ import { api, bodyOf } from "../../app/api";
 import { Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
 
-export function VoicePreview({ id }: { id: string }) {
+export function VoicePreview({ id, text }: { id: string; text?: string }) {
   const audio = useRef<HTMLAudioElement>(null);
   const [hint, setHint] = useState("");
   const preview = useMutation({
-    mutationFn: async () => bodyOf(await api.POST("/api/v2/tts/preview", { body: { character_id: id } })),
+    mutationFn: async () => bodyOf(await api.POST("/api/v2/tts/preview", { body: { character_id: id, text } })),
     onSuccess(result) {
       if (result.kind === "audio" && result.audio_b64 && audio.current) {
         audio.current.src = `data:${result.content_type ?? "audio/mpeg"};base64,${result.audio_b64}`;

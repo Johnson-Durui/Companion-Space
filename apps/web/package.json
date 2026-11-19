@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@companion-space/api-client": "*",
+    "@companion-space/board": "*",
     "@ricky0123/vad-web": "0.0.31",
     "@tanstack/react-query": "5.107.1",
     "react": "19.2.9",

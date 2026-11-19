@@ -10,8 +10,9 @@ from pydantic import BaseModel, Field
 from app.api.deps import ServiceContainer, get_container, require_owner
 from app.api.realtime_auth import REALTIME_PROTOCOL, authorize_websocket
 from app.core.errors import ResourceNotFoundError
+from app.learning.styles import STYLE_IDS, initial_lesson_style
 from app.services.settings_store import get_setting
-from app.services.tutor_catalog import Character
+from app.services.tutor_catalog import Character, StyleId
 from app.teaching.live import LiveLesson
 from app.teaching.planner import LessonPlanner
 
@@ -78,6 +79,11 @@ async def prepare_lesson(course_id: str, payload: PointLessonRequest, container:
     )
     if item_id is None:
         raise ResourceNotFoundError("Knowledge point not found")
+    return await _open_plan_item(container, course_id, item_id)
+
+
+async def _open_plan_item(container: ServiceContainer, course_id: str, item_id: str) -> LessonView:
+    repository = container.repository
     if item_id in container.preparing_lessons:
         raise HTTPException(409, "This lesson is already being prepared")
     container.preparing_lessons.add(item_id)
@@ -85,21 +91,39 @@ async def prepare_lesson(course_id: str, payload: PointLessonRequest, container:
         saved = await asyncio.to_thread(repository.get_lesson_plan, course_id, item_id)
         if saved is None:
             saved = await LessonPlanner(repository, container.gateway).prepare(course_id, item_id)
-        profile = await asyncio.to_thread(repository.get_learner_profile) or {}
+        profile = await asyncio.to_thread(repository.get_learner_profile)
         character = await asyncio.to_thread(get_setting, repository, "default_character_id", None)
         if character is None:
             catalog = await asyncio.to_thread(container.tutors.list_characters)
             character = catalog[0].id if catalog else None
+        tutor = await asyncio.to_thread(container.tutors.get_character, character) if character else None
+        explicit_fields = await asyncio.to_thread(
+            get_setting, repository, "learner_profile_explicit_fields", None,
+        )
+        raw_plan_style = saved["plan"].get("style_id")
+        plan_style: StyleId | None = raw_plan_style if isinstance(raw_plan_style, str) and raw_plan_style in STYLE_IDS else None
         lesson = await asyncio.to_thread(
             repository.create_or_resume_lesson, course_id, item_id, lesson_plan_id=saved["id"], character_id=character,
-            state={"stage": "opening", "pace": profile.get("pace", "normal"),
-                   "style_id": profile.get("preferred_style_id", "guided")},
+            state={
+                "stage": "opening", "pace": profile.get("pace", "normal") if profile else "normal",
+                "style_id": initial_lesson_style(
+                    profile=profile, tutor=tutor, explicit_profile_fields=explicit_fields, plan_style=plan_style,
+                ),
+            },
         )
     finally:
         container.preparing_lessons.discard(item_id)
     if lesson is None:
         raise ResourceNotFoundError("Lesson plan is unavailable")
     return await asyncio.to_thread(_view, container, course_id, lesson)
+
+
+@router.post("/plan-items/{plan_item_id}/lesson", name="open_plan_item_lesson")
+async def open_plan_item_lesson(plan_item_id: str, container: Container, _: Owner) -> LessonView:
+    item = await asyncio.to_thread(container.repository.locate_plan_item, plan_item_id)
+    if item is None or item["kind"] != "lesson":
+        raise ResourceNotFoundError("Lesson plan item not found")
+    return await _open_plan_item(container, item["space_id"], plan_item_id)
 
 
 @router.get("/lessons/{lesson_id}")

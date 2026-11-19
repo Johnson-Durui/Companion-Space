@@ -1,4 +1,6 @@
 import { CSA1_FLAG_LAST, OrderedGenerationQueue, parseCsa1Frame } from "./protocol";
+import { createAudioLipSync, type AudioLipSync } from "@companion-space/avatar-engine/audio-lip-sync";
+import type { VisemeWeights } from "@companion-space/avatar-engine/viseme";
 
 export type SpeechFormat = "mp3" | "pcm_s16le";
 
@@ -22,6 +24,8 @@ export interface PlayOptions {
 
 export interface SpeechOutputCallbacks {
   onError?: (error: Error) => void;
+  onLevel?: (level: number) => void;
+  onVisemes?: (weights: VisemeWeights | null) => void;
   onSegmentEnd?: (gen: number, seg: number) => void;
   onSegmentStart?: (gen: number, seg: number) => void;
 }
@@ -73,6 +77,10 @@ export class SpeechOutput {
   private readonly sources = new Set<AudioBufferSourceNode>();
   private utterance: SpeechSynthesisUtterance | null = null;
   private playbackToken = 0;
+  private levelFrame = 0;
+  private levelSamples: Float32Array<ArrayBuffer> | null = null;
+  private lipSync: AudioLipSync | null = null;
+  private lipSyncPromise: Promise<AudioLipSync | null> | null = null;
 
   analyser: AnalyserNode | null = null;
 
@@ -81,6 +89,7 @@ export class SpeechOutput {
   async prepare() {
     const context = this.getContext();
     if (context.state === "suspended") await context.resume();
+    await this.prepareLipSync();
   }
 
   setGeneration(gen: number, firstSeg = 1) {
@@ -187,6 +196,7 @@ export class SpeechOutput {
     this.mp3.clear();
     if (this.context) this.scheduledUntil = this.context.currentTime;
     this.order.reset(this.generation);
+    this.stopLevelMeter();
     this.cancelBrowserSpeech();
     const active = this.active;
     this.active = null;
@@ -200,6 +210,9 @@ export class SpeechOutput {
     const context = this.context;
     this.context = null;
     this.analyser = null;
+    this.lipSync?.dispose();
+    this.lipSync = null;
+    this.lipSyncPromise = null;
     if (context && context.state !== "closed") await context.close();
   }
 
@@ -207,10 +220,22 @@ export class SpeechOutput {
     if (!this.context) {
       this.context = new AudioContext();
       this.analyser = this.context.createAnalyser();
+      this.analyser.fftSize = 256;
       this.analyser.connect(this.context.destination);
       this.scheduledUntil = this.context.currentTime;
     }
     return this.context;
+  }
+
+  private prepareLipSync() {
+    if (this.lipSync) return Promise.resolve(this.lipSync);
+    if (!this.callbacks.onVisemes || !this.context || globalThis.isSecureContext === false) {
+      return Promise.resolve(null);
+    }
+    this.lipSyncPromise ??= createAudioLipSync(this.context)
+      .then((lipSync) => (this.lipSync = lipSync))
+      .catch(() => null);
+    return this.lipSyncPromise;
   }
 
   private async consume(packet: AudioPacket) {
@@ -286,6 +311,7 @@ export class SpeechOutput {
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(this.analyser!);
+    if (this.lipSync) source.connect(this.lipSync.input);
     const startAt = Math.max(context.currentTime + 0.01, this.scheduledUntil);
     const token = this.playbackToken;
     this.scheduledUntil = startAt + buffer.duration;
@@ -294,10 +320,12 @@ export class SpeechOutput {
     this.segments.set(packet.seg, state);
     source.onended = () => {
       this.sources.delete(source);
+      if (!this.sources.size) this.stopLevelMeter();
       state.pending -= 1;
       if (state.ended && state.pending === 0) this.completeSegment(packet.seg, state);
     };
     this.sources.add(source);
+    this.startLevelMeter();
     source.start(startAt);
     window.setTimeout(() => {
       if (token === this.playbackToken && packet.gen === this.generation && !state.started) {
@@ -386,5 +414,30 @@ export class SpeechOutput {
     active?.cleanup?.();
     active?.reject(error);
     this.callbacks.onError?.(error);
+  }
+
+  private startLevelMeter() {
+    if ((!this.callbacks.onLevel && !this.callbacks.onVisemes) || this.levelFrame || !this.analyser) return;
+    this.levelSamples ??= new Float32Array(this.analyser.fftSize);
+    const sample = () => {
+      if (!this.sources.size || !this.analyser || !this.levelSamples) {
+        this.stopLevelMeter();
+        return;
+      }
+      this.analyser.getFloatTimeDomainData(this.levelSamples);
+      let energy = 0;
+      for (const value of this.levelSamples) energy += value * value;
+      this.callbacks.onLevel?.(Math.min(1, Math.sqrt(energy / this.levelSamples.length) * 4));
+      this.callbacks.onVisemes?.(this.lipSync?.read().weights ?? null);
+      this.levelFrame = requestAnimationFrame(sample);
+    };
+    this.levelFrame = requestAnimationFrame(sample);
+  }
+
+  private stopLevelMeter() {
+    if (this.levelFrame) cancelAnimationFrame(this.levelFrame);
+    this.levelFrame = 0;
+    this.callbacks.onLevel?.(0);
+    this.callbacks.onVisemes?.(null);
   }
 }

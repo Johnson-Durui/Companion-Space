@@ -8,11 +8,14 @@ from time import monotonic
 
 from app.api.deps import build_container
 from app.core.config import get_settings
+from app.learning.styles import STYLE_IDS, initial_lesson_style
 from app.providers.errors import ProviderError
 from app.services.settings_store import get_setting
+from app.services.tutor_catalog import StyleId
 from app.services.vault import VaultError
 from app.teaching.planner import LessonPlanner
 from app.teaching.runtime import LessonRuntime
+from app.teaching.sim_student import PERSONAS, SimulatedStudent
 from app.teaching.timers import due_timer_event, lesson_time_limit_ms, silence_delay_ms
 from app.teaching.understanding import InvalidAnswer
 
@@ -127,30 +130,44 @@ async def _run(args: argparse.Namespace) -> None:
             ready = await asyncio.to_thread(repository.get_lesson_plan, course_id, reference)
             if ready is None:
                 ready = await LessonPlanner(repository, container.gateway).prepare(course_id, reference)
-            profile = await asyncio.to_thread(repository.get_learner_profile) or {}
+            profile = await asyncio.to_thread(repository.get_learner_profile)
             character = await asyncio.to_thread(get_setting, repository, "default_character_id", None)
+            tutor = await asyncio.to_thread(container.tutors.get_character, character) if character else None
+            explicit_fields = await asyncio.to_thread(
+                get_setting, repository, "learner_profile_explicit_fields", None,
+            )
+            raw_plan_style = ready["plan"].get("style_id")
+            plan_style: StyleId | None = (
+                raw_plan_style if isinstance(raw_plan_style, str) and raw_plan_style in STYLE_IDS else None
+            )
             found = await asyncio.to_thread(
                 repository.create_or_resume_lesson, course_id, reference, lesson_plan_id=ready["id"],
-                state={"stage": "opening", "pace": profile.get("pace", "normal"),
-                       "style_id": profile.get("preferred_style_id", "guided")},
+                state={
+                    "stage": "opening", "pace": profile.get("pace", "normal") if profile else "normal",
+                    "style_id": initial_lesson_style(
+                        profile=profile, tutor=tutor, explicit_profile_fields=explicit_fields, plan_style=plan_style,
+                    ),
+                },
                 character_id=character,
             )
             if found is None:
                 raise ValueError("A prepared plan is required before class can begin.")
 
         lesson_id = found["id"]
-        runtime = LessonRuntime(repository, container.gateway, course_id, lesson_id)
+        runtime = LessonRuntime(repository, container.gateway, course_id, lesson_id, jobs=container.jobs)
         saved = await asyncio.to_thread(
             repository.get_lesson_plan, course_id, found["plan_item_id"], lesson_plan_id=found["lesson_plan_id"],
         )
         if saved is None:
             raise ValueError("The verified plan for this classroom is unavailable.")
         plan = saved["plan"]
+        simulator = SimulatedStudent(args.student.removeprefix("sim:")) if args.student.startswith("sim:") else None
         enrollment = await asyncio.to_thread(repository.get_course_enrollment, course_id) or {}
         limit_ms = lesson_time_limit_ms(enrollment.get("session_minutes", 30), plan["est_minutes"])
         print(f"Lesson {lesson_id} · :help for commands")
         event = {"type": "lesson_resume" if found["seq"] or found["status"] == "paused" else "lesson_start"}
         elapsed_ms = 0
+        turns = 0
         while True:
             if event:
                 try:
@@ -163,6 +180,14 @@ async def _run(args: argparse.Namespace) -> None:
                 if found["recap"]:
                     print(found["recap"]["summary"])
                 return
+            if simulator is not None:
+                turns += 1
+                if turns > args.max_turns:
+                    await runtime.step({"type": "control", "action": "pause"})
+                    raise ValueError("The simulated student exceeded the turn limit.")
+                event = simulator.next_event(found["state"], plan)
+                elapsed_ms = 1_000
+                continue
             try:
                 line, elapsed_ms = await _wait_for_line(runtime, found, plan, limit_ms)
             except EOFError:
@@ -194,9 +219,19 @@ def main() -> int:
     target.add_argument("--lesson", help="Resume a lesson by ID")
     target.add_argument("--prepare", metavar="PLAN_ITEM", help="Prepare and open an existing lesson plan item")
     parser.add_argument("--course", help="Limit the lookup to this course ID")
-    parser.add_argument("--student", choices=("human",), default="human")
+    parser.add_argument("--student", default="human", help="human or sim:<strong|weak|confused|guesser|answer_seeker>")
+    parser.add_argument("--max-turns", type=int, default=200)
+    args = parser.parse_args()
+    if args.student != "human" and args.student not in {f"sim:{persona}" for persona in PERSONAS}:
+        parser.error("--student must be human or sim:<strong|weak|confused|guesser|answer_seeker>")
+    if args.student.startswith("sim:"):
+        root = get_settings().repo_root.resolve()
+        data = get_settings().storage_root.resolve()
+        evaluation_root = (root / "evals/out/data").resolve()
+        if not data.is_relative_to(evaluation_root):
+            parser.error("simulated students require COMPANION_DATA_DIR under evals/out/data/<run>/<persona>")
     try:
-        asyncio.run(_run(parser.parse_args()))
+        asyncio.run(_run(args))
     except ProviderError as exc:
         print(exc.public_detail, file=stderr)
         return 1

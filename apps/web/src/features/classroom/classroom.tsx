@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
-import { LessonText, MathBlock } from "@companion-space/lesson-board";
+import { LessonText } from "@companion-space/board";
+import { createAvatarSpeechController } from "@companion-space/avatar-engine/speech-controller";
+import type { CharacterPreviewState } from "@companion-space/avatar-engine/runtime-types";
 import { api, bodyOf } from "../../app/api";
 import { Loading } from "../../app/ui";
 import { MicrophoneCapture, Pcm16Framer, type HandsFreeVad } from "../../audio";
 import t from "../../locales/zh-CN.json";
-import type { Block } from "./board";
+import { BoardBlock } from "./board-block";
 import type { Ask, Prefill } from "./lesson-state";
 import { useClassroom } from "./use-classroom";
 import "./classroom.css";
@@ -14,21 +16,7 @@ import "./classroom.css";
 const copy = t.classroom;
 const quick = ["confused", "example", "hint", "show_answer"] as const;
 const more = ["repeat", "slower", "faster", "skip", "break"] as const;
-
-function BoardBlock({ block, locate }: { block: Block; locate: (target: string) => void }) {
-  const lines = block.content.split("\n");
-  const math = block.type === "steps" || block.type === "math";
-  return <article className="lesson-block" data-kind={block.type} data-marked={block.mark}>
-    {block.title ? <h3>{block.title}</h3> : null}
-    {math ? lines.map((line, index) => <button
-      className="lesson-line" key={index} type="button" title={copy.locate}
-      onClick={() => locate(`${block.id}.${index + 1}`)}
-    ><MathBlock expression={line.replace(/^\$+|\$+$/g, "")} /></button>) : null}
-    {block.type === "code" ? <pre><code>{block.content}</code></pre> : null}
-    {block.type === "list" ? <ul>{lines.map((line, index) => <li key={index}><LessonText source={line.replace(/^[-*]\s+/, "")} /></li>)}</ul> : null}
-    {!math && !["code", "list"].includes(block.type) ? <LessonText source={block.content} /> : null}
-  </article>;
-}
+const ClassroomAvatar = lazy(() => import("./classroom-avatar"));
 
 function Question({ ask, prefill, submit }: {
   ask: Ask; prefill?: Prefill;
@@ -66,7 +54,8 @@ function Question({ ask, prefill, submit }: {
 }
 
 function Lesson({ id }: { id: string }) {
-  const live = useClassroom(id);
+  const speechController = useMemo(() => createAvatarSpeechController(), []);
+  const live = useClassroom(id, speechController.publishLevel, speechController.publishVisemes);
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
   const [handsFree, setHandsFree] = useState(false);
@@ -234,14 +223,17 @@ function Lesson({ id }: { id: string }) {
     <h1>{room.title}</h1>
     <h2>{copy.recap}</h2>
     {typeof recap?.summary === "string" ? <LessonText source={recap.summary} /> : null}
+    <Link className="button quiet" to={`/lessons/${id}/history`}>{t.history.replay}</Link>
     <details><summary>{copy.board}</summary>
-      {classroom.board.map((block) => <BoardBlock key={block.id} block={block} locate={() => undefined} />)}
+      {classroom.board.map((block) => <BoardBlock key={block.id} block={block} />)}
     </details>
   </section>;
   const ask = classroom.ask;
   const ready = started && connected && !live.resuming;
   const enabled = ready && voice.data?.stt_configured;
   const status = !connected ? copy.connecting : !started ? copy.paused : recording ? copy.listening : speaking ? copy.speaking : ask ? copy.waiting : copy.thinking;
+  const avatarState: CharacterPreviewState = recording ? "listening" : speaking ? "speaking" : ask ? "listening" : started ? "thinking" : "idle";
+  const avatarFallback = room.teacher?.appearance.kind === "portrait" ? <img alt="" src={room.teacher.appearance.src} /> : null;
   return <section className="lesson-room">
     <header className="lesson-header">
       <div><Link className="text-link" to={`/courses/${room.course_id}`}>{copy.back}</Link><h1>{room.title}</h1></div>
@@ -264,7 +256,18 @@ function Lesson({ id }: { id: string }) {
     {live.fallback ? <div className="notice" role="status">{live.fallback}<Link className="text-link" to="/settings#voice">{copy.voiceSettings}</Link></div> : null}
     <div className="lesson-surface">
       <aside className="lesson-stage">
-        {room.teacher?.appearance.kind === "portrait" ? <img alt="" src={room.teacher.appearance.src} /> : null}
+        <Suspense fallback={avatarFallback}>
+          <ClassroomAvatar
+            appearance={room.teacher?.appearance}
+            emotion={classroom.avatar.emotion}
+            gaze={classroom.avatar.gaze}
+            gestureSequence={classroom.avatar.gestureSequence}
+            name={room.teacher?.name ?? copy.teacher}
+            reactionKey={classroom.avatar.reactionKey}
+            speechController={speechController}
+            state={avatarState}
+          />
+        </Suspense>
         <div className="lesson-stage-copy">
           <p className="lesson-caption" aria-live="polite">{classroom.caption}</p>
           <p className="lesson-speaker">{room.teacher?.name ?? copy.teacher}<span>{status}</span></p>

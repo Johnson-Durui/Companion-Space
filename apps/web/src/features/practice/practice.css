@@ -1,0 +1,10 @@
+.practice-page { display: grid; gap: 22px; max-width: 900px; margin-inline: auto; padding-block: 32px 64px; }
+.practice-header { position: sticky; z-index: 2; top: 0; display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); background: var(--paper); }
+.practice-header strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.practice-question { display: grid; gap: 12px; padding: 22px; border: 1px solid var(--line); border-radius: var(--r-md); }
+.practice-question legend { padding-inline: 8px; font-weight: 700; }
+.practice-question label { padding: 10px; border-radius: var(--r-sm); background: var(--accent-soft); }
+.debrief-list { display: grid; gap: 14px; }
+.debrief-list article { padding: 20px; border: 1px solid var(--line); border-radius: var(--r-md); }
+.debrief-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.debrief-list .notice { margin-top: 14px; }

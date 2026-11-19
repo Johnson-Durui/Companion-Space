@@ -31,9 +31,15 @@ distractor metadata are optional. Never copy or alter its answer or solution. Fo
 question, also provide its full stem, type, answer, solution, kp_id and any options or rubric required
 for its type. Every question in items, including a bank reference, needs fallback_hints with two
 non-empty strings at keys "1" and "2". The second hint gives more direction without revealing the answer.
+The exact supported type names are choice, multi, numeric, short, steps, and explain. Do not invent other type names.
 The application independently solves every new question and worked example before accepting it.
 Write every stem so it can be solved without seeing its answer, solution, options, or other questions;
 prefer numeric questions when the source makes that appropriate.
+Use verified bank items wherever they match the current keypoint. For newly generated quantitative checks
+and variants, use precise numeric answers (integers, terminating decimals, or reduced fractions) with a
+complete worked solution. For each choice question, check the answer value against every option and rule out
+duplicate equivalent options. When a validation diagnostic identifies a failed item, replace that item with
+a simpler question whose solution uses only the cited source, and keep the required distinct checks and variants.
 
 Each segment has two or three keypoints. Start with four different approach entries with keypoint
 exactly "all", as shown above, and give each a substantive outline that covers the segment. Optional
@@ -46,5 +52,7 @@ The question must actually require keypoint N and must be answerable without lat
 at least two variants. For a variant, set variant_of to the lesson-local ID of its base question.
 For an independent new base question, use variant_of: null. Both keep the same verification requirements.
 Include an objective check among them. Use only supplied source pages and knowledge point identifiers.
+Include an objective check for every segment even when it also needs a rubric item. Use an eligible
+verified single-choice item from the supplied bank as a check if its reasoning matches a taught keypoint.
 When a validation diagnostic is supplied, correct that issue while satisfying all the other requirements.
 Do not include commentary or Markdown fences outside the required tag.

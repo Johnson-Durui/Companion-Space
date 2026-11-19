@@ -20,5 +20,7 @@ if __name__ == "__main__":
         origin = f"http://127.0.0.1:{port}"
         settings = Settings(COMPANION_DATA_DIR=directory, app_base_url=origin, api_base_url=origin, _env_file=None)
         application = create_app(gateway_factory=BrowserHarnessGateway, settings=settings)
-        seed_classroom(application.dependency_overrides[get_container]())
+        container = application.dependency_overrides[get_container]()
+        for scenario in ("board", "voice", "today", "avatar-teaching", "avatar-correct", "avatar-incorrect"):
+            seed_classroom(container, scenario)
         uvicorn.run(application, host="127.0.0.1", port=port, proxy_headers=False, access_log=False)

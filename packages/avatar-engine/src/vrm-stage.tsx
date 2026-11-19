@@ -14,7 +14,13 @@ import {
 
 import type { AvatarSpeechController } from "./vrm-speech-controller";
 import {
-  dominantViseme,
+  AVATAR_LOW_FPS_LIMIT_SECONDS,
+  avatarFrameLoop,
+  installWebGlRecovery,
+  nextLowFrameRateSeconds,
+} from "./runtime-health";
+import {
+  measuredVisemeWeights,
   VISEME_NAMES,
   nextSpeakingEnvelope,
   visemeWeights,
@@ -41,14 +47,6 @@ type Object3DLike = {
   rotation: { x: number; y: number; z: number; set: (x: number, y: number, z: number) => void };
 };
 
-const leftArmPoseQuaternion = new THREE.Quaternion();
-const rightArmPoseQuaternion = new THREE.Quaternion();
-const armPoseEuler = new THREE.Euler();
-const gestureHeadBeforeQuaternion = new THREE.Quaternion();
-const gestureSpineBeforeQuaternion = new THREE.Quaternion();
-
-const GESTURE_HEAD_SAMPLE = 1;
-const GESTURE_SPINE_SAMPLE = 2;
 const REACTION_DURATION_SECONDS = 1.3;
 
 interface ReactionProfile {
@@ -154,12 +152,6 @@ export interface AvatarGazeInput {
   y: number;
 }
 
-export interface AvatarMetricSignal {
-  event: "avatar_fps";
-  session_id: string;
-  value: number;
-}
-
 export interface VrmStageProps {
   className?: string;
   emotion: CompanionEmotion;
@@ -169,13 +161,12 @@ export interface VrmStageProps {
   onCapabilitiesChange?: (capabilities: AvatarRuntimeCapabilities | null) => void;
   onFailure: (error: Error) => void;
   onMotionStatusChange: (status: AvatarMotionStatus) => void;
-  onMetricSignal?: (signal: AvatarMetricSignal) => void | Promise<void>;
   onReady: (detail: string) => void;
+  onSnapshot?: (dataUrl: string) => void;
   onStatusChange: (detail: string) => void;
   recipe: CharacterRecipeLike | Record<string, unknown>;
   reactionKey?: string | null;
   reducedMotion: boolean;
-  sessionId?: string | null;
   speechController?: AvatarSpeechController;
   state: CharacterPreviewState;
 }
@@ -191,10 +182,8 @@ interface LoadedRuntime {
   disposed: boolean;
   expressionNames: Set<string>;
   expressionManager: Record<string, unknown> | null;
-  instanceId: string;
   lookTarget: Object3DLike | null;
   mixer: THREE.AnimationMixer;
-  motionActivationCount: number;
   motionActions: Map<CharacterPreviewState, THREE.AnimationAction>;
   motionClips: Map<CharacterPreviewState, THREE.AnimationClip>;
   nodes: Record<string, Object3DLike | null>;
@@ -213,8 +202,6 @@ interface RuntimeExpression {
   overrideMouth?: unknown;
 }
 
-type CameraFitSource = "humanoid" | "visible-bounds" | "legacy";
-
 interface AvatarBoundsMeasurement {
   bounds: THREE.Box3;
   conversationLowerY: number | null;
@@ -223,7 +210,7 @@ interface AvatarBoundsMeasurement {
   neckY: number | null;
   shoulderSpan: number | null;
   upperBodyCenterX: number | null;
-  source: Exclude<CameraFitSource, "legacy">;
+  source: "humanoid" | "visible-bounds";
 }
 
 function finiteVector(vector: THREE.Vector3) {
@@ -366,24 +353,17 @@ function CameraFramingController({
   state: CharacterPreviewState;
 }) {
   const camera = useThree((state) => state.camera);
-  const canvas = useThree((state) => state.gl.domElement);
   const width = useThree((state) => state.size.width);
   const height = useThree((state) => state.size.height);
 
   useEffect(() => {
     const profile = CAMERA_FRAMING_PROFILES[framing];
     const aspect = width > 0 && height > 0 ? width / height : 1;
-    let fitSource: CameraFitSource = "legacy";
     let boundsSize = new THREE.Vector3();
     let target = new THREE.Vector3(...profile.target);
     let distance = new THREE.Vector3(...profile.position).distanceTo(target);
-    let occupancy = 0;
-    let headOccupancy = 0;
-    let verticalOccupancy = 0;
-    let frameSize = new THREE.Vector3();
 
     if (measurement && camera instanceof THREE.PerspectiveCamera) {
-      fitSource = measurement.source;
       boundsSize = measurement.bounds.getSize(new THREE.Vector3());
       const center = measurement.bounds.getCenter(new THREE.Vector3());
       const useConversationFrame = framing === "full_body"
@@ -421,7 +401,6 @@ function CameraFramingController({
         : useConversationFrame
           ? conversationWidth
           : fullBodyWidth;
-      frameSize = new THREE.Vector3(framedWidth, framedHeight, boundsSize.z);
       const margin = framing === "portrait" ? 1.08 : useConversationFrame ? 1.09 : 1.13;
       const verticalFov = THREE.MathUtils.degToRad(profile.fov);
       const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * Math.max(0.1, aspect));
@@ -437,15 +416,6 @@ function CameraFramingController({
       camera.fov = profile.fov;
       camera.far = Math.max(30, distance + boundsSize.length() * 2 + 5);
       camera.updateProjectionMatrix();
-      const effectiveDistance = Math.max(0.001, distance - boundsSize.z * 0.5);
-      verticalOccupancy = framedHeight / (2 * effectiveDistance * Math.tan(verticalFov / 2));
-      const visibleHeadHeight = measurement.neckY !== null
-        ? Math.max(0, upper - measurement.neckY)
-        : framedHeight * 0.14;
-      headOccupancy = visibleHeadHeight / (2 * effectiveDistance * Math.tan(verticalFov / 2));
-      const horizontalOccupancy = framedWidth / (2 * effectiveDistance * Math.tan(horizontalFov / 2));
-      occupancy = THREE.MathUtils.clamp(Math.max(verticalOccupancy, horizontalOccupancy), 0, 1);
-      canvas.dataset.cameraComposition = useConversationFrame ? "conversation" : framing;
     } else {
       camera.position.set(...profile.position);
       camera.lookAt(...profile.target);
@@ -454,29 +424,9 @@ function CameraFramingController({
         camera.far = 30;
         camera.updateProjectionMatrix();
       }
-      canvas.dataset.cameraComposition = framing;
     }
 
-    if (camera instanceof THREE.PerspectiveCamera) {
-      canvas.dataset.cameraFov = String(camera.fov);
-    }
-
-    canvas.dataset.avatarFraming = framing;
-    canvas.dataset.cameraFitSource = fitSource;
-    canvas.dataset.avatarBoundsSize = boundsSize.toArray().map((value) => value.toFixed(3)).join(",");
-    canvas.dataset.cameraFrameSize = frameSize.toArray().map((value) => value.toFixed(3)).join(",");
-    canvas.dataset.cameraTarget = target.toArray().map((value) => value.toFixed(3)).join(",");
-    canvas.dataset.cameraDistance = distance.toFixed(3);
-    canvas.dataset.cameraOccupancy = occupancy.toFixed(3);
-    canvas.dataset.cameraHeadOccupancy = THREE.MathUtils.clamp(headOccupancy, 0, 1).toFixed(3);
-    canvas.dataset.cameraVerticalOccupancy = THREE.MathUtils.clamp(verticalOccupancy, 0, 1).toFixed(3);
-    canvas.dataset.cameraPosition = camera.position.toArray().join(",");
-    canvas.dataset.cameraDirection = camera
-      .getWorldDirection(new THREE.Vector3())
-      .toArray()
-      .map((value) => value.toFixed(6))
-      .join(",");
-  }, [camera, canvas, framing, height, measurement, state, width]);
+  }, [camera, framing, height, measurement, state, width]);
 
   return null;
 }
@@ -548,90 +498,15 @@ function updateRuntimeVrm(runtime: LoadedRuntime, delta: number) {
   }
 }
 
-function finishRuntimeFrame(
-  runtime: LoadedRuntime,
-  canvas: HTMLCanvasElement,
-  delta: number,
-  gestureSampleMask: number,
-  publishMotionTelemetry: boolean,
-) {
+function finishRuntimeFrame(runtime: LoadedRuntime, delta: number) {
   updateRuntimeVrm(runtime, delta);
-
-  let appliedGestureAngle = 0;
-  const headQuaternion = runtime.nodes.head?.quaternion as THREE.Quaternion | undefined;
-  const spineQuaternion = runtime.nodes.spine?.quaternion as THREE.Quaternion | undefined;
-  if ((gestureSampleMask & GESTURE_HEAD_SAMPLE) !== 0 && headQuaternion) {
-    appliedGestureAngle = gestureHeadBeforeQuaternion.angleTo(headQuaternion);
-  }
-  if ((gestureSampleMask & GESTURE_SPINE_SAMPLE) !== 0 && spineQuaternion) {
-    appliedGestureAngle = Math.max(
-      appliedGestureAngle,
-      gestureSpineBeforeQuaternion.angleTo(spineQuaternion),
-    );
-  }
-  canvas.dataset.avatarGestureOffset = appliedGestureAngle.toFixed(3);
-
-  if (!publishMotionTelemetry) {
-    return;
-  }
-
-  const poseValues = [
-    "hips",
-    "spine",
-    "head",
-    "leftUpperArm",
-    "rightUpperArm",
-  ].flatMap((boneName) => runtime.nodes[boneName]?.quaternion?.toArray() ?? []);
-  if (poseValues.length) {
-    canvas.dataset.avatarMotionBoneSample = poseValues
-      .map((value) => value.toFixed(6))
-      .join(",");
-  }
-  const lookTargetPosition = runtime.lookTarget?.position;
-  if (lookTargetPosition) {
-    canvas.dataset.avatarGazeSample = [
-      lookTargetPosition.x,
-      lookTargetPosition.y,
-      lookTargetPosition.z,
-    ].map((value) => value.toFixed(6)).join(",");
-  } else {
-    delete canvas.dataset.avatarGazeSample;
-  }
-  const lookAt = runtime.vrm.lookAt as {
-    pitch?: unknown;
-    target?: unknown;
-    yaw?: unknown;
-  } | undefined;
-  if (!lookAt) {
-    delete canvas.dataset.avatarGazeOutput;
-    delete canvas.dataset.avatarGazeTargetAttached;
-  } else {
-    canvas.dataset.avatarGazeTargetAttached = String(lookAt.target === runtime.lookTarget);
-    if (
-      typeof lookAt.yaw === "number"
-      && Number.isFinite(lookAt.yaw)
-      && typeof lookAt.pitch === "number"
-      && Number.isFinite(lookAt.pitch)
-    ) {
-      canvas.dataset.avatarGazeOutput = `${lookAt.yaw.toFixed(6)},${lookAt.pitch.toFixed(6)}`;
-    } else {
-      delete canvas.dataset.avatarGazeOutput;
-    }
-  }
-  const activeAction = runtime.activeMotionAction;
-  if (activeAction) {
-    canvas.dataset.avatarMotionActionRunning = String(activeAction.isRunning());
-    canvas.dataset.avatarMotionEffectiveWeight = activeAction.getEffectiveWeight().toFixed(3);
-    canvas.dataset.avatarMotionTime = activeAction.time.toFixed(3);
-  }
 }
 
 function getBoneNode(vrm: Record<string, unknown>, boneName: string) {
   const humanoid = vrm.humanoid as {
     getNormalizedBoneNode?: (name: string) => Object3DLike | null;
-    getRawBoneNode?: (name: string) => Object3DLike | null;
   } | undefined;
-  return humanoid?.getNormalizedBoneNode?.(boneName) ?? humanoid?.getRawBoneNode?.(boneName) ?? null;
+  return humanoid?.getNormalizedBoneNode?.(boneName) ?? null;
 }
 
 function captureRotation(node: Object3DLike | null) {
@@ -872,16 +747,30 @@ function buildLoadedRuntime(vrm: Record<string, unknown>, root: Object3DLike) {
     disposed: false,
     expressionManager,
     expressionNames: collectExpressionNames(expressionManager),
-    instanceId: (root as unknown as THREE.Object3D).uuid,
     lookTarget,
     mixer: new THREE.AnimationMixer(root as unknown as THREE.Object3D),
-    motionActivationCount: 0,
     motionActions: new Map<CharacterPreviewState, THREE.AnimationAction>(),
     motionClips: new Map<CharacterPreviewState, THREE.AnimationClip>(),
     nodes,
     root,
     vrm,
   } satisfies LoadedRuntime;
+}
+
+function applyProceduralArmPose(runtime: LoadedRuntime, wave: number, motionScale: number) {
+  const leftArmBase = runtime.baseRotations.get("leftUpperArm");
+  const rightArmBase = runtime.baseRotations.get("rightUpperArm");
+  const armDirection = readVrmModelVersion(runtime.vrm) === "VRM 0.x" ? 1 : -1;
+  assignRotation(runtime.nodes.leftUpperArm, {
+    x: (leftArmBase?.x ?? 0) + wave * 0.045 * motionScale,
+    y: leftArmBase?.y ?? 0,
+    z: (leftArmBase?.z ?? 0) + armDirection * 1.25,
+  });
+  assignRotation(runtime.nodes.rightUpperArm, {
+    x: (rightArmBase?.x ?? 0) - wave * 0.045 * motionScale,
+    y: rightArmBase?.y ?? 0,
+    z: (rightArmBase?.z ?? 0) - armDirection * 1.25,
+  });
 }
 
 function describeReadyState(runtimeRecipeName: string, reducedMotion: boolean) {
@@ -902,7 +791,6 @@ function Scene({
   onStatusChange,
   onFrameRate,
   recipe,
-  reactionKey,
   reducedMotion,
   speechController,
   state,
@@ -920,7 +808,6 @@ function Scene({
     runtimeRecipe.outfitColor,
     runtimeRecipe.accentColor,
   ].join("|");
-  const canvas = useThree((frameState) => frameState.gl.domElement);
   const configuredMotionUrls = {
     ...runtimeRecipe.motionUrls,
     ...motionAssetUrls,
@@ -949,7 +836,6 @@ function Scene({
   const frameAccumulatorRef = useRef(0);
   const elapsedRef = useRef(0);
   const frameRateSampleRef = useRef({ elapsed: 0, frames: 0 });
-  const motionTelemetryAccumulatorRef = useRef(0);
   const speechLevelRef = useRef(0);
   const speakingEnvelopeRef = useRef(0);
   const blinkRef = useRef({
@@ -969,48 +855,12 @@ function Scene({
   const publishCapabilities = useCallback((next: AvatarRuntimeCapabilities | null) => {
     capabilitiesRef.current = next;
     if (!next) {
-      delete canvas.dataset.avatarVrmVersion;
-      delete canvas.dataset.avatarSafeExpressionCount;
-      delete canvas.dataset.avatarSafeExpressions;
-      delete canvas.dataset.avatarExpressionCapabilities;
-      delete canvas.dataset.avatarMotionConfiguredCount;
-      delete canvas.dataset.avatarMotionLoadedStates;
-      delete canvas.dataset.avatarMotionReadyCount;
-      delete canvas.dataset.avatarAppearanceSlotCount;
-      delete canvas.dataset.avatarAppearanceSelectedSlotCount;
-      delete canvas.dataset.avatarColorMaterialCount;
-      delete canvas.dataset.avatarColorMaterialSemantics;
-      delete canvas.dataset.avatarRuntimeInstance;
-      delete canvas.dataset.avatarGazeSource;
-      delete canvas.dataset.avatarGazeInput;
-      delete canvas.dataset.avatarGazeSample;
-      delete canvas.dataset.avatarGazeOutput;
-      delete canvas.dataset.avatarGazeTargetAttached;
       onCapabilitiesChange?.(null);
       return;
     }
 
-    const slotCounts = Object.values(next.appearance.slots);
-    const recognizedSlotCount = slotCounts.reduce((total, slot) => total + slot.recognized, 0);
-    const selectedSlotCount = slotCounts.reduce((total, slot) => total + slot.selected, 0);
-    const safeExpressions = next.expressions
-      .filter((expression) => expression.status === "safe")
-      .map((expression) => expression.name);
-    canvas.dataset.avatarVrmVersion = next.modelVersion;
-    canvas.dataset.avatarSafeExpressionCount = String(safeExpressions.length);
-    canvas.dataset.avatarSafeExpressions = safeExpressions.join(",");
-    canvas.dataset.avatarExpressionCapabilities = next.expressions
-      .map((expression) => `${expression.name}:${expression.status}`)
-      .join(",");
-    canvas.dataset.avatarMotionConfiguredCount = String(next.configuredMotionStates.length);
-    canvas.dataset.avatarMotionLoadedStates = next.readyMotionStates.join(",");
-    canvas.dataset.avatarMotionReadyCount = String(next.readyMotionStates.length);
-    canvas.dataset.avatarAppearanceSlotCount = String(recognizedSlotCount);
-    canvas.dataset.avatarAppearanceSelectedSlotCount = String(selectedSlotCount);
-    canvas.dataset.avatarColorMaterialCount = String(next.appearance.colorMaterialCount);
-    canvas.dataset.avatarColorMaterialSemantics = next.appearance.colorMaterialSemantics.join(",");
     onCapabilitiesChange?.(next);
-  }, [canvas, onCapabilitiesChange]);
+  }, [onCapabilitiesChange]);
 
   const patchCapabilities = useCallback((patch: Partial<AvatarRuntimeCapabilities>) => {
     const current = capabilitiesRef.current;
@@ -1020,47 +870,15 @@ function Scene({
   }, [publishCapabilities]);
 
   useEffect(() => {
-    canvas.dataset.avatarEmotion = emotion;
-    canvas.dataset.avatarStageBackground = runtimeRecipe.stageBackground;
-    canvas.dataset.avatarExpression = "none";
-    canvas.dataset.avatarExpressionWeight = "0.000";
-    canvas.dataset.avatarExpressionIsBinary = "none";
-    canvas.dataset.avatarExpressionOverrideBlink = "none";
-    canvas.dataset.avatarExpressionOverrideMouth = "none";
-    canvas.dataset.avatarMouthWeight = "0.000";
-    canvas.dataset.avatarViseme = "none";
-    canvas.dataset.avatarVisemeWeights = "aa:0.000,ih:0.000,ou:0.000,ee:0.000,oh:0.000";
-    canvas.dataset.avatarBlinkWeight = "0.000";
-  }, [canvas, emotion, runtimeRecipe.stageBackground]);
-
-  useEffect(() => {
     const gesture = gestureRef.current;
-    canvas.dataset.avatarGestureSequence = String(gestureSequence);
-    canvas.dataset.avatarGestureProgress = "0.000";
-    canvas.dataset.avatarGestureOffset = "0.000";
-    canvas.dataset.avatarReactionEmotion = emotion;
-    canvas.dataset.avatarReactionDuration = REACTION_DURATION_SECONDS.toFixed(2);
-    canvas.dataset.avatarReactionEnvelope = "0.000";
-    canvas.dataset.avatarReactionKey = reactionKey ?? "none";
-    canvas.dataset.avatarReactionSequence = String(gestureSequence);
-    canvas.dataset.avatarReactionProgress = "0.000";
-    canvas.dataset.avatarReactionReducedMotion = String(reducedMotion);
 
     if (gesture.sequence === gestureSequence) {
-      const reactionState = gesture.sequence > 0 && gesture.elapsed < REACTION_DURATION_SECONDS
-        ? reducedMotion ? "reduced" : "active"
-        : "idle";
-      canvas.dataset.avatarGestureState = reactionState;
-      canvas.dataset.avatarReactionState = reactionState;
       return;
     }
 
     gesture.elapsed = 0;
     gesture.sequence = gestureSequence;
-    const reactionState = reducedMotion ? "reduced" : "active";
-    canvas.dataset.avatarGestureState = reactionState;
-    canvas.dataset.avatarReactionState = reactionState;
-  }, [canvas, emotion, gestureSequence, reactionKey, reducedMotion]);
+  }, [gestureSequence]);
 
   useEffect(() => {
     const gesture = gestureRef.current;
@@ -1072,27 +890,11 @@ function Scene({
 
   const publishMotionStatus = useCallback((
     status: AvatarMotionStatus,
-    requestedState: CharacterPreviewState,
-    action?: THREE.AnimationAction | null,
+    _requestedState: CharacterPreviewState,
+    _action?: THREE.AnimationAction | null,
   ) => {
-    canvas.dataset.avatarMotionMode = status.mode;
-    canvas.dataset.avatarMotionState = status.state;
-    canvas.dataset.avatarMotionRequestedState = requestedState;
-    canvas.dataset.avatarMotionDetail = status.detail;
-    if (action) {
-      canvas.dataset.avatarMotionActionRunning = String(action.isRunning());
-      canvas.dataset.avatarMotionClipTracks = String(action.getClip().tracks.length);
-      canvas.dataset.avatarMotionEffectiveWeight = action.getEffectiveWeight().toFixed(3);
-      canvas.dataset.avatarMotionTime = action.time.toFixed(3);
-    } else {
-      delete canvas.dataset.avatarMotionActionRunning;
-      delete canvas.dataset.avatarMotionClipTracks;
-      delete canvas.dataset.avatarMotionEffectiveWeight;
-      delete canvas.dataset.avatarMotionTime;
-      delete canvas.dataset.avatarMotionBoneSample;
-    }
     onMotionStatusChange(status);
-  }, [canvas, onMotionStatusChange]);
+  }, [onMotionStatusChange]);
 
   const activateRuntimeMotion = useCallback((
     runtime: LoadedRuntime,
@@ -1120,7 +922,6 @@ function Scene({
       gesture.appliedSpine = { x: 0, y: 0, z: 0 };
       runtime.activeMotionAction = null;
       runtime.activeMotionState = null;
-      delete canvas.dataset.avatarMotionActivationCount;
       publishMotionStatus({
         mode: "procedural",
         state: requestedState,
@@ -1140,21 +941,18 @@ function Scene({
       } else {
         nextAction.fadeIn(0.22);
       }
-      runtime.motionActivationCount += 1;
     } else if (!nextAction.isRunning()) {
       nextAction.play();
-      runtime.motionActivationCount += 1;
     }
 
     runtime.activeMotionAction = nextAction;
     runtime.activeMotionState = selectedState;
-    canvas.dataset.avatarMotionActivationCount = String(runtime.motionActivationCount);
     publishMotionStatus({
       mode: "vrma",
       state: selectedState,
       detail: `Playing the ${selectedState} VRMA loop.`,
     }, requestedState, nextAction);
-  }, [canvas, publishMotionStatus]);
+  }, [publishMotionStatus]);
 
   useEffect(() => {
     stateRef.current = state;
@@ -1215,6 +1013,8 @@ function Scene({
         VRMUtils.rotateVRM0(vrm as never);
 
         const runtime = buildLoadedRuntime(vrm, sceneRoot);
+        applyProceduralArmPose(runtime, 0, reducedMotionRef.current ? 0 : 1);
+        updateRuntimeVrm(runtime, 0);
         const lookAt = vrm.lookAt as { target?: Object3DLike | null } | undefined;
         if (lookAt && runtime.lookTarget) {
           lookAt.target = runtime.lookTarget;
@@ -1240,7 +1040,6 @@ function Scene({
               : "procedural",
           readyMotionStates: [],
         });
-        canvas.dataset.avatarRuntimeInstance = runtime.instanceId;
         ownedRuntime = runtime;
         loadedRuntimeRef.current = runtime;
         setLoadedRuntime(runtime);
@@ -1267,7 +1066,6 @@ function Scene({
       publishCapabilities(null);
     };
   }, [
-    canvas,
     onFailure,
     onReady,
     onStatusChange,
@@ -1373,16 +1171,6 @@ function Scene({
         }
         try {
           const clip = createVRMAnimationClip(result.value.animation, runtime.vrm as never);
-          const humanoid = runtime.vrm.humanoid as {
-            getNormalizedBoneNode?: (boneName: string) => { name?: string } | null;
-          } | undefined;
-          const controlledArmTracks = new Set(
-            ["leftUpperArm", "rightUpperArm"]
-              .map((boneName) => humanoid?.getNormalizedBoneNode?.(boneName)?.name)
-              .filter((name): name is string => Boolean(name))
-              .map((name) => `${name}.quaternion`),
-          );
-          clip.tracks = clip.tracks.filter((track) => !controlledArmTracks.has(track.name));
           if (!clip.tracks.length) {
             throw new Error(`${result.value.motionState} VRMA has no compatible humanoid tracks.`);
           }
@@ -1519,19 +1307,8 @@ function Scene({
       : 0;
     const reactionProfile = REACTION_PROFILES[emotion];
     const applyGesture = () => {
-      let sampleMask = 0;
       const spine = runtime.nodes.spine;
       const head = runtime.nodes.head;
-      const spineQuaternion = spine?.quaternion as THREE.Quaternion | undefined;
-      const headQuaternion = head?.quaternion as THREE.Quaternion | undefined;
-      if (spineQuaternion) {
-        gestureSpineBeforeQuaternion.copy(spineQuaternion);
-        sampleMask |= GESTURE_SPINE_SAMPLE;
-      }
-      if (headQuaternion) {
-        gestureHeadBeforeQuaternion.copy(headQuaternion);
-        sampleMask |= GESTURE_HEAD_SAMPLE;
-      }
       if (reactionEnvelope > 0) {
         const applyAdditiveRotation = (
           node: Object3DLike | null,
@@ -1555,52 +1332,12 @@ function Scene({
         applyAdditiveRotation(runtime.nodes.leftUpperArm, gesture.appliedLeftUpperArm, reactionProfile.armX, 0, reactionProfile.armZ);
         applyAdditiveRotation(runtime.nodes.rightUpperArm, gesture.appliedRightUpperArm, reactionProfile.armX, 0, -reactionProfile.armZ);
       }
-      canvas.dataset.avatarGestureSequence = String(gesture.sequence);
-      canvas.dataset.avatarGestureState = gesture.sequence === 0 || gestureProgress >= 1
-        ? "idle"
-        : reducedMotion
-          ? "reduced"
-          : "active";
-      canvas.dataset.avatarGestureProgress = gestureProgress.toFixed(3);
-      canvas.dataset.avatarReactionEmotion = emotion;
-      canvas.dataset.avatarReactionDuration = REACTION_DURATION_SECONDS.toFixed(2);
-      canvas.dataset.avatarReactionEnvelope = reactionEnvelope.toFixed(3);
-      canvas.dataset.avatarReactionKey = reactionKey ?? "none";
-      canvas.dataset.avatarReactionProgress = gestureProgress.toFixed(3);
-      canvas.dataset.avatarReactionState = gesture.sequence === 0 || gestureProgress >= 1
-        ? "idle"
-        : reducedMotion
-          ? "reduced"
-          : "active";
-      canvas.dataset.avatarReactionBoneSample = [
-        gesture.appliedHead.x,
-        gesture.appliedHead.y,
-        gesture.appliedHead.z,
-        gesture.appliedSpine.x,
-        gesture.appliedSpine.y,
-        gesture.appliedSpine.z,
-        gesture.appliedLeftUpperArm.x,
-        gesture.appliedLeftUpperArm.z,
-        gesture.appliedRightUpperArm.x,
-        gesture.appliedRightUpperArm.z,
-      ].map((value) => value.toFixed(6)).join(",");
-      return sampleMask;
     };
-    motionTelemetryAccumulatorRef.current += delta;
-    const publishMotionTelemetry = motionTelemetryAccumulatorRef.current >= 0.25;
-    if (publishMotionTelemetry) {
-      motionTelemetryAccumulatorRef.current = 0;
-    }
 
     frameAccumulatorRef.current += delta;
     if (frameAccumulatorRef.current < 1 / 30) {
-      finishRuntimeFrame(
-        runtime,
-        canvas,
-        delta,
-        applyGesture(),
-        publishMotionTelemetry,
-      );
+      applyGesture();
+      finishRuntimeFrame(runtime, delta);
       return;
     }
 
@@ -1625,20 +1362,22 @@ function Scene({
     const breathing = Math.sin(now * 1.6) * (reducedMotion ? 0 : 0.02);
     const sway = Math.sin(now * (state === "thinking" ? 2.1 : 1.35));
     const armWave = Math.sin(now * 1.7 + 0.6);
-    const armRestAngle = 1.08;
     speakingEnvelopeRef.current = nextSpeakingEnvelope({
       current: speakingEnvelopeRef.current,
       speaking: state === "speaking",
       speechLevel: speechLevelRef.current,
       deltaSeconds: step,
     });
-    const mouthShapes = visemeWeights({
-      elapsedSeconds: now,
-      speaking: state === "speaking",
-      speechLevel: speechLevelRef.current,
-      envelope: speakingEnvelopeRef.current,
-      emotion,
-    });
+    const measuredVisemes = speechController?.peekVisemes() ?? null;
+    const mouthShapes = measuredVisemes
+      ? measuredVisemeWeights(measuredVisemes, speakingEnvelopeRef.current, emotion)
+      : visemeWeights({
+          elapsedSeconds: now,
+          speaking: state === "speaking",
+          speechLevel: speechLevelRef.current,
+          envelope: speakingEnvelopeRef.current,
+          emotion,
+        });
     const motionScale = reducedMotion ? 0 : 1;
 
     const stateProfiles: Record<CharacterPreviewState, { chestX: number; chestY: number; headX: number; headY: number; lean: number; lookX: number; lookY: number }> = {
@@ -1665,8 +1404,6 @@ function Scene({
       runtime.lookTarget.position.y += (targetY - runtime.lookTarget.position.y) * smoothing;
       runtime.lookTarget.position.z += (1.55 - runtime.lookTarget.position.z) * smoothing;
     }
-    canvas.dataset.avatarGazeSource = gazeSource;
-    canvas.dataset.avatarGazeInput = `${gazeX.toFixed(3)},${gazeY.toFixed(3)}`;
 
     const hasVrmaAction = Boolean(
       runtime.activeMotionAction && runtime.activeMotionAction.isRunning(),
@@ -1703,42 +1440,8 @@ function Scene({
         y: (headBase?.y ?? 0) + Math.sin(now * 0.55) * profile.headY * motionScale,
         z: (headBase?.z ?? 0) + Math.cos(now * 0.67) * 0.018 * motionScale,
       });
+      applyProceduralArmPose(runtime, armWave, motionScale);
     }
-
-    // The bundled VRMA clips intentionally keep the torso alive, but some
-    // source arm tracks retarget into a permanent overhead V pose on VRM 0.x.
-    // Own the upper-arm resting pose here for every motion mode, then let the
-    // one-shot emotion reaction add a visible gesture on top of it.
-    const armDirection = readVrmModelVersion(runtime.vrm) === "VRM 0.x" ? 1 : -1;
-    const armAngleMagnitude =
-      armRestAngle - (state === "speaking" ? 0.16 : -0.02) * motionScale;
-    leftArmPoseQuaternion.setFromEuler(
-      armPoseEuler.set(
-        armWave * 0.06 * motionScale,
-        0,
-        armDirection * armAngleMagnitude,
-      ),
-    );
-    rightArmPoseQuaternion.setFromEuler(
-      armPoseEuler.set(
-        -armWave * 0.06 * motionScale,
-        0,
-        -armDirection * armAngleMagnitude,
-      ),
-    );
-    const humanoid = runtime.vrm.humanoid as {
-      setNormalizedPose?: (
-        pose: Record<string, { rotation: [number, number, number, number] }>,
-      ) => void;
-    } | undefined;
-    humanoid?.setNormalizedPose?.({
-      leftUpperArm: {
-        rotation: leftArmPoseQuaternion.toArray(),
-      },
-      rightUpperArm: {
-        rotation: rightArmPoseQuaternion.toArray(),
-      },
-    });
 
     for (const expressionName of FACIAL_EXPRESSION_NAMES) {
       setExpressionValue(runtime, expressionName, 0);
@@ -1746,51 +1449,15 @@ function Scene({
     const selectedExpression =
       selectEmotionExpression(runtime, emotion, reducedMotion) ??
       (allowStateExpressions ? selectStateExpression(runtime, state) : null);
-    const expressionApplied = selectedExpression
-      ? setExpressionValue(runtime, selectedExpression.name, selectedExpression.weight)
-      : false;
+    if (selectedExpression) {
+      setExpressionValue(runtime, selectedExpression.name, selectedExpression.weight);
+    }
     setExpressionValue(runtime, "blink", blinkProgress);
     for (const visemeName of VISEME_NAMES) {
       setExpressionValue(runtime, visemeName, mouthShapes[visemeName]);
     }
-    finishRuntimeFrame(
-      runtime,
-      canvas,
-      delta,
-      applyGesture(),
-      publishMotionTelemetry,
-    );
-
-    canvas.dataset.avatarEmotion = emotion;
-    canvas.dataset.avatarExpression = expressionApplied && selectedExpression
-      ? selectedExpression.name
-      : "none";
-    const selectedExpressionMetadata = expressionApplied && selectedExpression
-      ? getExpression(runtime, selectedExpression.name)
-      : null;
-    canvas.dataset.avatarExpressionWeight = expressionApplied && selectedExpression
-      ? getExpressionOutputWeight(runtime, selectedExpression.name, selectedExpression.weight).toFixed(3)
-      : "0.000";
-    canvas.dataset.avatarExpressionIsBinary = selectedExpressionMetadata
-      ? String(selectedExpressionMetadata.isBinary)
-      : "none";
-    canvas.dataset.avatarExpressionOverrideBlink = selectedExpressionMetadata?.overrideBlink === "none"
-      ? "none"
-      : "unsafe";
-    canvas.dataset.avatarExpressionOverrideMouth = selectedExpressionMetadata?.overrideMouth === "none"
-      ? "none"
-      : "unsafe";
-    let mouthWeight = 0;
-    const renderedVisemes: string[] = [];
-    for (const name of VISEME_NAMES) {
-      const weight = getExpressionOutputWeight(runtime, name, 0);
-      mouthWeight = Math.max(mouthWeight, weight);
-      renderedVisemes.push(`${name}:${weight.toFixed(3)}`);
-    }
-    canvas.dataset.avatarMouthWeight = mouthWeight.toFixed(3);
-    canvas.dataset.avatarViseme = dominantViseme(mouthShapes);
-    canvas.dataset.avatarVisemeWeights = renderedVisemes.join(",");
-    canvas.dataset.avatarBlinkWeight = getExpressionOutputWeight(runtime, "blink", blinkProgress).toFixed(3);
+    applyGesture();
+    finishRuntimeFrame(runtime, delta);
   });
 
   return (
@@ -1811,42 +1478,69 @@ function Scene({
 }
 
 export function VrmStage(props: VrmStageProps) {
-  const { className, emotion, onMetricSignal, onReady, reactionKey, recipe, reducedMotion, sessionId } = props;
+  const { className, onFailure, onReady, onSnapshot, recipe, reducedMotion } = props;
   const runtimeRecipe = getRuntimeRecipeView(recipe);
   const cameraFraming = CAMERA_FRAMING_PROFILES[runtimeRecipe.avatarFraming];
-  const [frameRate, setFrameRate] = useState(0);
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [paused, setPaused] = useState(() => typeof document !== "undefined" && document.hidden);
   const [modelReady, setModelReady] = useState(false);
-  const reportedSessionsRef = useRef(new Set<string>());
+  const failedRef = useRef(false);
+  const lowFrameRateSecondsRef = useRef(0);
+
+  const fail = useCallback((message: string) => {
+    if (failedRef.current) return;
+    failedRef.current = true;
+    onFailure(new Error(message));
+  }, [onFailure]);
+
+  const handleFrameRate = useCallback((framesPerSecond: number) => {
+    if (!modelReady || document.hidden) return;
+    lowFrameRateSecondsRef.current = nextLowFrameRateSeconds(
+      lowFrameRateSecondsRef.current,
+      framesPerSecond,
+      !document.hidden,
+    );
+    if (lowFrameRateSecondsRef.current >= AVATAR_LOW_FPS_LIMIT_SECONDS) {
+      fail("VRM rendering stayed below 18 FPS and was replaced by the lightweight portrait.");
+    }
+  }, [fail, modelReady]);
 
   const handleReady = useCallback(
     (detail: string) => {
-      setFrameRate(0);
       setModelReady(true);
       onReady(detail);
+      if (canvas && onSnapshot) {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          try {
+            onSnapshot(canvas.toDataURL("image/png"));
+          } catch {
+            // Cross-origin or constrained canvases may not be readable.
+          }
+        }));
+      }
     },
-    [onReady],
+    [canvas, onReady, onSnapshot],
   );
 
   useEffect(() => {
-    setFrameRate(0);
     setModelReady(false);
+    failedRef.current = false;
+    lowFrameRateSecondsRef.current = 0;
   }, [runtimeRecipe.vrmAssetUrl]);
 
   useEffect(() => {
-    const normalizedSessionId = sessionId?.trim();
-    if (!modelReady || !normalizedSessionId || !Number.isFinite(frameRate) || frameRate <= 0) {
-      return;
-    }
-    if (reportedSessionsRef.current.has(normalizedSessionId)) {
-      return;
-    }
-    reportedSessionsRef.current.add(normalizedSessionId);
-    void onMetricSignal?.({
-      event: "avatar_fps",
-      session_id: normalizedSessionId,
-      value: Number(frameRate.toFixed(1)),
-    });
-  }, [frameRate, modelReady, onMetricSignal, sessionId]);
+    const update = () => setPaused(document.hidden);
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+
+  useEffect(() => {
+    if (!canvas) return;
+    return installWebGlRecovery(
+      canvas,
+      () => fail("WebGL context could not be restored."),
+    );
+  }, [canvas, fail]);
 
   return (
     <Canvas
@@ -1858,19 +1552,15 @@ export function VrmStage(props: VrmStageProps) {
         position: cameraFraming.position,
       }}
       className={className}
-      data-avatar-emotion={emotion}
-      data-avatar-reaction-key={reactionKey ?? "none"}
-      data-avatar-reaction-reduced-motion={reducedMotion}
-      data-avatar-reduced-motion={reducedMotion}
-      data-avatar-stage-background={runtimeRecipe.stageBackground}
-      data-vrm-fps={frameRate > 0 ? frameRate.toFixed(1) : "measuring"}
       dpr={reducedMotion ? [1, 1.25] : [1, 1.75]}
-      frameloop="always"
+      frameloop={avatarFrameLoop(paused)}
       gl={{
         alpha: true,
         antialias: true,
         powerPreference: "high-performance",
+        preserveDrawingBuffer: Boolean(onSnapshot),
       }}
+      onCreated={({ gl }) => setCanvas(gl.domElement)}
     >
       <ambientLight intensity={0.9} />
       <hemisphereLight args={["#fff7ec", "#7f8da6", 1.05]} />
@@ -1880,7 +1570,7 @@ export function VrmStage(props: VrmStageProps) {
       <Scene
         {...props}
         key={`${runtimeRecipe.modelId}:${runtimeRecipe.vrmAssetUrl}`}
-        onFrameRate={setFrameRate}
+        onFrameRate={handleFrameRate}
         onReady={handleReady}
       />
     </Canvas>

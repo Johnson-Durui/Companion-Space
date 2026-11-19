@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router";
 import { browserApiFetch } from "@companion-space/api-client";
 import { api, bodyOf, charactersKey, fetchCharacters } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
@@ -7,6 +8,8 @@ import { MicrophoneCapture } from "../../audio";
 import t from "../../locales/zh-CN.json";
 
 const voiceSettingsKey = ["voice-settings"] as const;
+const sttSettingsKey = ["stt-settings"] as const;
+const voiceStatusKey = ["voice-status"] as const;
 const defaultVoice = {
   engine: "edge" as const, voice_id: "zh-CN-XiaoxiaoNeural", model: "", rate: 1, pitch: 0, options: {},
 };
@@ -132,7 +135,45 @@ function VoiceEditor({ target, initial, characterId, settings }: {
   );
 }
 
+function RecognitionSettings() {
+  const copy = t.voiceSettings;
+  const queries = useQueryClient();
+  const settings = useQuery({ queryKey: sttSettingsKey, queryFn: async () => bodyOf(await api.GET("/api/v2/voice/stt")) });
+  const save = useMutation({
+    mutationFn: async (body: { engine: "openai_compat" | "local_sherpa"; download_model?: boolean }) =>
+      bodyOf(await api.PUT("/api/v2/voice/stt", { body: { ...body, download_model: body.download_model ?? false } })),
+    onSuccess(result) {
+      queries.setQueryData(sttSettingsKey, result);
+      void queries.invalidateQueries({ queryKey: voiceStatusKey });
+    },
+  });
+
+  if (settings.isPending) return <Loading />;
+  if (settings.isError) return <Problem error={settings.error} onRetry={() => void settings.refetch()} />;
+  const current = settings.data;
+  const local = current.engine === "local_sherpa";
+  const activate = !current.local_model_available || !local;
+  const size = String(Math.round((current.download_bytes ?? 163_000_000) / 1_000_000));
+  return (
+    <section className="fields">
+      <h3>{copy.recognition}</h3>
+      <p>{copy.recognitionSelected.replace("{engine}", local ? copy.recognitionLocal : copy.recognitionOnline)}</p>
+      <p className="hint">{copy.recognitionLocalHint} <a href={current.license_url} target="_blank" rel="noreferrer">{copy.recognitionLicense}</a></p>
+      {!current.local_runtime_available ? <p className="hint">{copy.recognitionRuntime} <code>python -m pip install -r services/api/requirements-local-stt.txt</code></p> : null}
+      <div className="actions">
+        {local ? <button type="button" className="button quiet" disabled={save.isPending} onClick={() => save.mutate({ engine: "openai_compat" })}>{copy.recognitionEnableOnline}</button> : null}
+        {activate && current.local_runtime_available ? <button type="button" className="button quiet" disabled={save.isPending} onClick={() => save.mutate({ engine: "local_sherpa", download_model: !current.local_model_available })}>
+          {current.local_model_available ? copy.recognitionEnableLocal : copy.recognitionDownload.replace("{size}", size)}
+        </button> : null}
+      </div>
+      {save.isPending && save.variables?.download_model ? <p role="status">{copy.recognitionInstalling}</p> : null}
+      {save.isError ? <Problem error={new Error(copy.recognitionFailed)} /> : null}
+    </section>
+  );
+}
+
 function MicrophoneTest() {
+  const status = useQuery({ queryKey: voiceStatusKey, queryFn: async () => bodyOf(await api.GET("/api/v2/voice/status")) });
   const capture = useRef(new MicrophoneCapture());
   const frames = useRef<ArrayBuffer[]>([]);
   const frameCount = useRef(0);
@@ -172,9 +213,11 @@ function MicrophoneTest() {
       <h3>{t.voiceSettings.microphone}</h3>
       <meter min="0" max="0.25" value={Math.min(level, 0.25)} aria-label={t.voiceSettings.level} />
       <div className="actions">
-        <button type="button" className={`button ${recording ? "primary" : "quiet"}`} onClick={() => void (recording ? stop() : start())}>{recording ? t.voiceSettings.finishTest : t.voiceSettings.startTest}</button>
+        <button type="button" className={`button ${recording ? "primary" : "quiet"}`} disabled={!recording && !status.data?.stt_configured} onClick={() => void (recording ? stop() : start())}>{recording ? t.voiceSettings.finishTest : t.voiceSettings.startTest}</button>
         {recording ? <p className="hint" role="status">{t.voiceSettings.speakNow}</p> : null}
       </div>
+      {status.data && !status.data.stt_configured ? <p className="hint">{t.voiceSettings.recognitionNotReady}</p> : null}
+      {status.isError ? <Problem error={status.error} onRetry={() => void status.refetch()} /> : null}
       {result ? <p className="notice" role="status">{result}</p> : null}
       {error ? <Problem error={error} /> : null}
     </div>
@@ -182,12 +225,15 @@ function MicrophoneTest() {
 }
 
 export function VoiceSettingsPanel() {
-  const [target, setTarget] = useState("default");
+  const [params] = useSearchParams();
+  const [selected, setTarget] = useState<string>();
   const settings = useQuery({ queryKey: voiceSettingsKey, queryFn: fetchVoiceSettings });
   const characters = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
   if (settings.isPending || characters.isPending) return <Loading />;
   if (settings.isError) return <Problem error={settings.error} onRetry={() => void settings.refetch()} />;
   if (characters.isError) return <Problem error={characters.error} onRetry={() => void characters.refetch()} />;
+  const requested = selected ?? params.get("teacher");
+  const target = characters.data.some((entry) => entry.id === requested) ? requested! : "default";
   const character = characters.data.find((entry) => entry.id === target);
   const initial = target === "default"
     ? (settings.data.default ?? defaultVoice)
@@ -201,6 +247,7 @@ export function VoiceSettingsPanel() {
         </select>
       </label>
       <VoiceEditor key={target} target={target} initial={initial} characterId={character?.id} settings={settings.data} />
+      <RecognitionSettings />
       <MicrophoneTest />
     </>
   );

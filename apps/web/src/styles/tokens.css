@@ -257,9 +257,13 @@ details > summary { min-height: 44px; padding-block: 10px; color: var(--accent-s
 .course-empty > span { color: var(--coral); font: 300 3.5rem/1 var(--serif); }
 .course-empty p { color: var(--muted); }
 .course-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line-strong); }
-.course-list li { border-bottom: 1px solid var(--line-strong); }
-.course-list a { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; align-items: center; gap: clamp(20px, 5vw, 72px); min-height: 130px; padding: 22px 6px; }
-.course-list a:hover h2 { color: var(--accent); }
+.course-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .65fr); gap: clamp(18px, 4vw, 48px); align-items: center; border-bottom: 1px solid var(--line-strong); }
+.course-list .course-main { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; align-items: center; gap: clamp(20px, 5vw, 72px); min-height: 130px; padding: 22px 6px; }
+.course-list .course-main:hover h2 { color: var(--accent); }
+.course-today { display: grid; gap: 10px; padding: 18px 6px; }
+.course-today > div:first-child { display: grid; gap: 3px; }
+.course-today span, .course-today small { color: var(--muted); }
+.course-today .actions { margin-block-start: 2px; }
 .course-list h2 { font: 650 clamp(1.4rem, 2.5vw, 2rem)/1.2 var(--serif); transition: color 140ms; }
 .course-list p { margin-block-start: 7px; color: var(--muted); }
 .course-list dl { display: flex; gap: 28px; margin: 0; }
@@ -360,7 +364,9 @@ details > summary { min-height: 44px; padding-block: 10px; color: var(--accent-s
 .answer-status { color: var(--muted); font-size: .75rem; }
 
 @media (width < 900px) {
-  .course-list a { grid-template-columns: 1fr auto; }
+  .course-list li { grid-template-columns: 1fr; gap: 0; }
+  .course-list .course-main { grid-template-columns: 1fr auto; padding-block-end: 10px; }
+  .course-today { padding-block: 0 22px; }
   .course-list dl { grid-column: 1; }
   .course-open { grid-column: 2; grid-row: 1 / 3; }
   .pending-file { grid-template-columns: minmax(160px, 1fr) 150px auto; }
@@ -377,7 +383,7 @@ details > summary { min-height: 44px; padding-block: 10px; color: var(--accent-s
   .title-actions, .course-title, .section-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
   .course-title { padding-block-start: 24px; }
   .course-overview { max-width: none; }
-  .course-list a { grid-template-columns: 1fr; gap: 16px; }
+  .course-list .course-main { grid-template-columns: 1fr; gap: 16px; }
   .course-list dl { gap: 18px; }
   .course-open { grid-column: 1; grid-row: auto; }
   .pending-file, .material-list article, .exam-metadata, .material-exam-meta { grid-template-columns: 1fr; align-items: stretch; }

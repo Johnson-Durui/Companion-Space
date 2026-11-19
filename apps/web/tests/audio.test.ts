@@ -29,7 +29,12 @@ class TestAudioContext {
   destination = {} as AudioDestinationNode;
   state: AudioContextState = "running";
   sources: AudioSource[] = [];
-  createAnalyser() { return { connect() {} } as unknown as AnalyserNode; }
+  createAnalyser() {
+    return {
+      connect() {}, fftSize: 8,
+      getFloatTimeDomainData(values: Float32Array) { values.fill(0.25); },
+    } as unknown as AnalyserNode;
+  }
   createBuffer(_channels: number, length: number, sampleRate: number) {
     const samples = new Float32Array(length);
     return { duration: length / sampleRate, getChannelData: () => samples, length } as unknown as AudioBuffer;
@@ -125,6 +130,26 @@ describe("M5 microphone framing", () => {
 });
 
 describe("SpeechOutput", () => {
+  it("publishes analyser levels outside React state and resets after playback", async () => {
+    const browser = audioBrowser();
+    let frame: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frame = callback; return 7; });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const onLevel = vi.fn();
+    const output = new SpeechOutput({ onLevel });
+    output.setGeneration(8);
+    output.pushFrame(csa1(8, 1, 0, [1, 0, 2, 0]), { format: "pcm_s16le", sampleRate: 24000 });
+    const played = output.play(8, 1);
+    output.finishSegment(8, 1);
+    await Promise.resolve();
+    await Promise.resolve();
+    frame?.(0);
+    expect(onLevel).toHaveBeenCalledWith(1);
+    browser.contexts[0]?.sources[0]?.finish();
+    await expect(played).resolves.toBeUndefined();
+    expect(onLevel).toHaveBeenLastCalledWith(0);
+  });
+
   it("waits for a separately signalled PCM segment to finish audibly", async () => {
     const browser = audioBrowser();
     const output = new SpeechOutput();

@@ -42,6 +42,14 @@ function scaleVisemes(weights: VisemeWeights, energy: number): VisemeWeights {
   };
 }
 
+export function measuredVisemeWeights(
+  weights: VisemeWeights,
+  envelope: number,
+  emotion: VisemeEmotion = "neutral",
+): VisemeWeights {
+  return scaleVisemes(weights, clamp01(envelope) * EMOTION_MOUTH_SCALE[emotion]);
+}
+
 export function dominantViseme(weights: VisemeWeights): VisemeName | "none" {
   let name: VisemeName | "none" = "none";
   let highest = 0.04;

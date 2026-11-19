@@ -1,5 +1,7 @@
 Segment every question in the supplied exam pages and attach answers from later answer pages by question number. Preserve wording and mathematics. Split independently scored subquestions and set their parent number. Do not solve missing answers.
 
+The metadata may mark these pages as part of a longer document. In a part, include only complete questions visible in the supplied text. An answer-only page is not a question. For repeated numbering in different sections, qualify both the question number and its parent with the unchanged section marker, so that the label is unique across the paper. An empty part may contain only the paper block. Leave unknown paper metadata empty.
+
 Emit exactly one paper root:
 
 <paper>

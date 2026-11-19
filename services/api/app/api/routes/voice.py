@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field, model_validator
 from app.api.deps import ServiceContainer, get_container, require_owner
 from app.providers.url_policy import is_local_endpoint
 from app.services.settings_store import get_setting, put_setting
-from app.voice.stt import MAX_PCM_BYTES, VoiceTranscriber
+from app.voice.sherpa import ENGINE, MODEL_DOWNLOAD_BYTES, MODEL_LICENSE_URL
+from app.voice.stt import MAX_PCM_BYTES, STT_SETTING_KEY, SttEngine, VoiceTranscriber, get_stt_engine
 from app.voice.tts.engines import resolve_tts
 from app.voice.tts.edge import DEFAULT_VOICE
 
@@ -55,6 +56,19 @@ class VoiceStatus(BaseModel):
     tts_configured: bool
     input_modes: list[Literal["push_to_talk", "hands_free"]]
     sample_rate_hz: Literal[16000] = 16000
+
+
+class SttSettings(BaseModel):
+    engine: SttEngine
+    local_runtime_available: bool
+    local_model_available: bool
+    license_url: str = MODEL_LICENSE_URL
+    download_bytes: int = MODEL_DOWNLOAD_BYTES
+
+
+class SttSettingUpdate(BaseModel):
+    engine: SttEngine
+    download_model: bool = False
 
 
 class MicrophoneTestResult(BaseModel):
@@ -125,11 +139,37 @@ async def update_voice_settings(payload: VoiceSettings, container: Container) ->
     return payload
 
 
+@router.get("/stt", response_model=SttSettings)
+def get_stt_settings(container: Container) -> SttSettings:
+    return SttSettings(
+        engine=get_stt_engine(container.repository),
+        local_runtime_available=container.local_stt.runtime_available(),
+        local_model_available=container.local_stt.model_available(),
+    )
+
+
+@router.put("/stt", response_model=SttSettings)
+async def update_stt_settings(payload: SttSettingUpdate, container: Container) -> SttSettings:
+    if payload.engine == ENGINE and not container.local_stt.model_available():
+        if not payload.download_model:
+            raise HTTPException(409, detail={"code": "model_download_required", "message": "Review the license and download the model first."})
+        await asyncio.to_thread(container.local_stt.install)
+    if payload.engine == ENGINE and not container.local_stt.runtime_available():
+        raise HTTPException(409, detail={"code": "local_stt_required", "message": "Install the optional local STT runtime."})
+    async with container.settings_lock:
+        await asyncio.to_thread(put_setting, container.repository, STT_SETTING_KEY, payload.engine)
+    return await asyncio.to_thread(get_stt_settings, container)
+
+
 @router.get("/status", response_model=VoiceStatus)
-async def get_voice_status(container: Container) -> VoiceStatus:
-    roles = await asyncio.to_thread(container.providers.get_roles)
+def get_voice_status(container: Container) -> VoiceStatus:
+    stt = get_stt_settings(container)
+    ready = (
+        stt.local_model_available and stt.local_runtime_available
+        if stt.engine == ENGINE else "stt" in container.providers.get_roles()
+    )
     return VoiceStatus(
-        stt_configured="stt" in roles,
+        stt_configured=ready,
         tts_configured=True,
         input_modes=["push_to_talk", "hands_free"],
     )
@@ -204,7 +244,9 @@ async def microphone_test(
             detail={"code": "unsupported_audio", "message": "Send little-endian 16 kHz PCM audio."},
         )
     pcm16 = await _bounded_pcm_body(request)
-    result = await VoiceTranscriber(container.gateway).transcribe_pcm16(pcm16)
+    result = await VoiceTranscriber(
+        container.gateway, local=container.local_stt, repository=container.repository,
+    ).transcribe_pcm16(pcm16)
     return MicrophoneTestResult(
         accepted=result.accepted,
         text=result.text,

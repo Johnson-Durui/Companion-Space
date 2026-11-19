@@ -16,7 +16,6 @@ from starlette.exceptions import HTTPException
 from starlette.routing import Match
 
 from app.api.deps import GatewayFactory, ServiceContainer, build_container, get_container
-from app.api.v1 import router as v1_router
 from app.api.v2 import router as v2_router
 from app.core.config import Settings, get_settings
 from app.core.errors import ResourceNotFoundError
@@ -147,7 +146,7 @@ def create_app(gateway_factory: GatewayFactory | None = None, *, settings: Setti
             await container.aclose()
             container_factory.cache_clear()
 
-    application = FastAPI(title="Companion Space API", version="2.0.0", lifespan=lifespan)
+    application = FastAPI(title="Companion Space API", version="1.0.0-rc.1", lifespan=lifespan)
     if container_factory is not get_container:
         application.dependency_overrides[get_container] = container_factory
 
@@ -167,7 +166,6 @@ def create_app(gateway_factory: GatewayFactory | None = None, *, settings: Setti
     application.add_exception_handler(CharacterInUseError, character_in_use)
     application.add_exception_handler(ResourceNotFoundError, missing_resource)
     application.add_exception_handler(ValueError, invalid_request)
-    application.include_router(v1_router)
     application.include_router(v2_router)
 
     @application.get("/healthz")

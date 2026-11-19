@@ -13,7 +13,8 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.providers.errors import ProviderError, provider_error_code
 from app.teaching.director import VALID_STYLES
-from app.teaching.runtime import LessonRuntime
+from app.teaching.lsp_parser import LspEvent
+from app.teaching.runtime import LessonRuntime, PreparedBeat
 from app.teaching.timers import lesson_time_limit_ms, silence_delay_ms
 from app.voice.stt import MAX_PCM_BYTES, VoiceTranscriber
 from app.voice.tts.engines import resolve_tts
@@ -65,7 +66,7 @@ class LiveLesson:
         self.socket = socket
         self.container = container
         self.repository = container.repository
-        self.runtime = LessonRuntime(self.repository, container.gateway, space_id, lesson_id)
+        self.runtime = LessonRuntime(self.repository, container.gateway, space_id, lesson_id, jobs=container.jobs)
         self.space_id = space_id
         self.id = lesson_id
         self.lesson: dict = {}
@@ -78,6 +79,7 @@ class LiveLesson:
         self.interruptions = 0
         self.recording_interrupted = False
         self.time_limit_ms = 0
+        self.prepared: asyncio.Task[PreparedBeat | None] | None = None
 
     async def _reload(self) -> None:
         lesson = await asyncio.to_thread(self.repository.get_lesson, self.space_id, self.id)
@@ -111,25 +113,47 @@ class LiveLesson:
                 self._arm("silence", limit / 1000)
 
     async def _step(self, event: dict) -> None:
+        prepared = None
+        if self.prepared is not None:
+            task, self.prepared = self.prepared, None
+            if event.get("type") == "beat_done":
+                try:
+                    prepared = await task
+                except (ProviderError, ValueError) as exc:
+                    logger.info("lesson_preparation_discarded=%s", type(exc).__name__)
+            else:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
         elapsed = round((monotonic() - self.waiting) * 1000) if self.waiting else 0
         self.waiting = 0.0
         self.deadline = None
         queue: SpeechQueue | None = None
         voice: VoiceSpec | None = None
+        speaker: asyncio.Task[None] | None = None
+        sayings: dict[int, dict] = {}
+        preview_gen = self.lesson["gen"] + 1
 
         async def prefetch(seg: int, text: str) -> None:
-            nonlocal queue, voice
+            nonlocal queue, voice, speaker
             if queue is None:
                 service, voice = await resolve_tts(self.container, self.lesson["character_id"])
                 pace = self.lesson["state"].get("pace")
                 multiplier = {"slow": 0.85, "fast": 1.15}.get(pace, 1)
                 voice = replace(voice, rate=max(0.5, min(2.0, voice.rate * multiplier)))
                 queue = SpeechQueue(service)
+                speaker = asyncio.create_task(self._speak(sayings, queue, voice))
+            sayings[seg] = {"gen": preview_gen, "seq": 0, "data": {"seg": seg, "text": text}}
+            await self._send("say.preview", {"seg": seg, "text": text}, gen=preview_gen)
             await queue.enqueue(seg, text, voice)
+
+        async def preview_visual(event: LspEvent) -> None:
+            await self._send("board.preview", {"type": event.type, "event": event.data}, gen=preview_gen)
 
         try:
             rows = await self.runtime.step(
                 event, elapsed_ms=elapsed, split_speech=split_speech, on_say=prefetch if self.audio else None,
+                on_visual=preview_visual if self.audio else None,
+                prepared=prepared,
             )
             if rows and rows[0]["type"] == "prefill":
                 await self._send("prefill", rows[0]["data"])
@@ -141,13 +165,22 @@ class LiveLesson:
                 self.waiting = monotonic()
             for row in rows:
                 await self.socket.send_json({"v": 1, **row})
+            if (
+                self.lesson["status"] == "active"
+                and "playback_after_seq" in self.lesson["state"]
+                and not any(row["type"] == "ask" for row in rows)
+            ):
+                self.prepared = asyncio.create_task(self.runtime.prepare_next())
             if self.audio and self.lesson["status"] != "paused":
                 if queue is None:
                     for row in rows:
                         if row["type"] == "say":
                             await prefetch(row["data"]["seg"], row["data"]["text"])
                 if queue is not None and voice is not None:
-                    await self._speak(rows, queue, voice)
+                    sayings.update({row["data"]["seg"]: row for row in rows if row["type"] == "say"})
+                    await queue.close()
+                    if speaker is not None:
+                        await speaker
             if any(row["type"] == "ask" for row in rows) and not any(row["type"] == "say" for row in rows):
                 await self._waiting_for_student()
             if self.lesson["status"] == "done":
@@ -159,11 +192,11 @@ class LiveLesson:
         finally:
             if queue is not None:
                 await queue.cancel()
+            if speaker is not None and not speaker.done():
+                speaker.cancel()
+                await asyncio.gather(speaker, return_exceptions=True)
 
-    async def _speak(self, rows: list[dict], queue: SpeechQueue, voice: VoiceSpec) -> None:
-        sayings = {row["data"]["seg"]: row for row in rows if row["type"] == "say"}
-        if not sayings:
-            return
+    async def _speak(self, sayings: dict[int, dict], queue: SpeechQueue, voice: VoiceSpec) -> None:
         formats: dict[int, str] = {}
         sample_rates: dict[int, int] = {}
 
@@ -183,7 +216,6 @@ class LiveLesson:
 
         last_seg = None
         try:
-            await queue.close()
             async for result in queue.stream():
                 seg, chunk = result.seg, result.chunk
                 row = sayings[seg]
@@ -210,9 +242,23 @@ class LiveLesson:
                     await audio_event(seg, last=True)
 
     async def _interrupt(self, data: dict) -> None:
+        if self.prepared is not None:
+            self.prepared.cancel()
+            await asyncio.gather(self.prepared, return_exceptions=True)
+            self.prepared = None
         await self._reload()
         gen, heard = data.get("gen"), data.get("heard_seq")
-        if type(heard) is not int or not 0 <= heard <= self.lesson["seq"] or gen != self.lesson["gen"]:
+        if type(heard) is not int or not 0 <= heard <= self.lesson["seq"]:
+            return
+        if gen == self.lesson["gen"] + 1:
+            self.beat = []
+            await self._send(
+                "beat.cancelled", {"gen": gen, "reason": "student", "heard_seq": heard}, gen=gen,
+            )
+            if self.pcm is None:
+                self._arm("lesson_resume", 8)
+            return
+        if gen != self.lesson["gen"]:
             return
         say = [row for row in self.beat if row["type"] == "say" and row["gen"] == gen]
         total = sum(len(row["data"]["text"]) for row in say)
@@ -225,7 +271,9 @@ class LiveLesson:
     async def _transcribe(self, pcm: bytes) -> None:
         recent = " ".join(row["data"]["text"] for row in self.beat if row["type"] == "say") if self.recording_interrupted else None
         try:
-            result = await VoiceTranscriber(self.container.gateway).transcribe_pcm16(pcm, echo_reference=recent)
+            result = await VoiceTranscriber(
+                self.container.gateway, local=self.container.local_stt, repository=self.repository,
+            ).transcribe_pcm16(pcm, echo_reference=recent)
         except ProviderError as exc:
             await self._send("error", {"code": provider_error_code(exc), "recoverable": True})
             self._arm("lesson_resume", 0)
@@ -347,3 +395,7 @@ class LiveLesson:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            if self.prepared is not None:
+                self.prepared.cancel()
+                await asyncio.gather(self.prepared, return_exceptions=True)
+                self.prepared = None

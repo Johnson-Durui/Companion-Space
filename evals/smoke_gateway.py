@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from contextlib import aclosing
 import json
 from pathlib import Path
@@ -77,8 +78,8 @@ async def voice(_):
     return {"bytes": len(data), "engine": "edge"}
 
 
-async def evaluate(env_file: Path) -> int:
-    env = dotenv_values(env_file, encoding="utf-8", interpolate=False)
+async def evaluate(config: Path | Mapping[str, str | None]) -> int:
+    env = dotenv_values(config, encoding="utf-8", interpolate=False) if isinstance(config, Path) else config
     output_root = (ROOT / "evals/out/data").resolve()
     data_dir = (output_root / uuid4().hex / "m1").resolve()
     if not data_dir.is_relative_to(output_root) or data_dir.is_relative_to((ROOT / "storage").resolve()):

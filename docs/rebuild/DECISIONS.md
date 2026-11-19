@@ -75,3 +75,4 @@
 
 - 开课入口允许从课程地图选择一个知识点，复用已有的备课、复核和课堂存储。该课单独放在按需计划中，便于重复进入同一课并保留断点。
 - 语音客观题答案需要显式确认。播放使用浏览器 AudioContext，后端按合成器返回的采样率发送单声道 PCM。GPT-SoVITS 读取流式 WAV 头确定采样率，避免不同模型输出被固定速率播放。
+- 可选离线语音识别锁定 `sherpa-onnx==2.0.1`（Apache-2.0，针对 CPython 3.14 有 Windows 轮子）。SenseVoice int8 模型由用户接受 FunASR 模型许可后下载并校验上游哈希。在本机运行识别并保存权重缓存，发布包省去运行时和模型。在线识别继续用已配置的模型角色。[Sherpa Python 包](https://pypi.org/project/sherpa-onnx/2.0.1/) [SenseVoice 模型许可](https://github.com/modelscope/FunASR/blob/main/MODEL_LICENSE)

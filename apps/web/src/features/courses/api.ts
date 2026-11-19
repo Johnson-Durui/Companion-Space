@@ -1,6 +1,6 @@
 import { browserApiFetch } from "@companion-space/api-client";
 import { publicMessage } from "../../app/api";
-import type { AnalysisStart, Course, CourseMap, ExamItem, Job, Material, MaterialPage, MaterialRole } from "./types";
+import type { AnalysisStart, Course, CourseDashboard, CourseMap, ExamItem, Job, Material, MaterialPage, MaterialRole } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
@@ -24,6 +24,7 @@ export const courseKeys = {
 };
 
 export const listCourses = () => request<Course[]>("/api/v2/courses");
+export const listCourseDashboard = () => request<CourseDashboard[]>("/api/v2/courses/dashboard");
 export const getCourse = (id: string) => request<Course>(`/api/v2/courses/${id}`);
 export const createCourse = (body: { name: string; goal?: string }) => request<Course>("/api/v2/courses", { method: "POST", body: JSON.stringify(body) });
 export const listMaterials = (id: string) => request<Material[]>(`/api/v2/courses/${id}/materials`);

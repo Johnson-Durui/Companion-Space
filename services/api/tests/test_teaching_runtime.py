@@ -40,6 +40,7 @@ def test_text_lesson_resume_answer_and_finish_are_persistent(isolated_settings):
         "items": {"q1": item},
     }
     repository.save_lesson_plan("course", "plan-item", plan=plan)
+    repository.upsert_course_enrollment("course", {})
     lesson = repository.create_or_resume_lesson("course", "plan-item", state={"stage": "opening"})
     lesson_id = lesson["id"]
 
@@ -49,7 +50,11 @@ def test_text_lesson_resume_answer_and_finish_are_persistent(isolated_settings):
         result = await runtime.step({"type": "lesson_resume"})
         assert any(event["type"] == "board" for event in result)
         assert next(event["data"]["move"] for event in result if event["type"] == "beat.start") == "OPEN"
-        await runtime.step({"type": "beat_done"})
+        prepared = await runtime.prepare_next()
+        assert prepared is not None
+        prepared_calls = len(container.gateway.prompts)
+        await runtime.step({"type": "beat_done"}, prepared=prepared)
+        assert len(container.gateway.prompts) == prepared_calls
         call_count = len(container.gateway.prompts)
         replay = await runtime.step({"type": "lesson_resume"})
         assert next(event["data"]["move"] for event in replay if event["type"] == "beat.start") == "EXPLAIN"
@@ -97,11 +102,16 @@ def test_text_lesson_resume_answer_and_finish_are_persistent(isolated_settings):
         cards = conn.execute(
             "SELECT item_ref FROM review_cards WHERE space_id = ? AND source_lesson_id = ?", ("course", lesson_id),
         ).fetchall()
+        approach = conn.execute("SELECT n, success FROM approach_stats WHERE kind = 'visual'").fetchone()
     assert [(row["verdict"], row["retry"]) for row in evidence] == [("incorrect", 0), ("correct", 1)]
     assert evidence[0]["p_after"] < evidence[0]["p_before"]
     assert evidence[1]["p_after"] > evidence[1]["p_before"]
     assert [row["item_ref"] for row in cards] == ["bank-1"]
+    assert tuple(approach) == (1, 0)
     finished = repository.get_lesson("course", lesson_id)
     assert finished["status"] == "done"
     assert finished["recap"]["items_done"] == {"q1": "correct"}
     assert finished["recap"]["summary"] == "The learner answered the check correctly."
+    current_plan = repository.current_plan("course")
+    assert current_plan["version"] == 2
+    assert current_plan["reason"] == "lesson_finished"

@@ -6,12 +6,15 @@ from copy import deepcopy
 import pytest
 
 from app.analysis.item_verifier import ItemVerifier
+from app.llm.errors import LLMOutputError
+from app.analysis.documents import ParsedPage
 from app.analysis.model_analysis import (
     extract_knowledge_points,
     map_exam_items,
     reduce_knowledge_points,
     segment_exam,
 )
+from app.analysis.structure import build_sections, infer_headings
 
 
 class QueuedGateway:
@@ -22,6 +25,32 @@ class QueuedGateway:
     async def complete_tagged(self, role, prompt_name, variables, *, parse, **options):
         self.calls.append((role, prompt_name, variables, options))
         return parse(self.outputs.pop(0))
+
+
+class InvalidOutputGateway:
+    async def complete_tagged(self, *args, **kwargs):
+        raise LLMOutputError(public_detail="invalid")
+
+
+def test_inferred_headings_keep_original_page_ranges_and_respect_native_headings():
+    input_pages = (
+        ParsedPage(page_no=1, markdown="Opening text " + "x" * 450, source="text", quality=1),
+        ParsedPage(page_no=2, markdown="A new chapter begins", source="text", quality=1),
+        ParsedPage(page_no=4, markdown="A second chapter begins", source="text", quality=1),
+    )
+    gateway = QueuedGateway(
+        "<section><level>1</level><title>First</title><page>2</page></section>"
+        "<section><level>1</level><title>Second</title><page>4</page></section>",
+    )
+    headings = asyncio.run(infer_headings(gateway, input_pages))
+    assert "x" * 200 not in gateway.calls[0][2]["page_content"]
+    sections = build_sections("material", input_pages, inferred=headings)
+    assert [(section.title, section.page_start, section.page_end) for section in sections[-2:]] == [
+        ("First", 2, 3), ("Second", 4, 4),
+    ]
+    assert sections[0].page_start == 1
+    native = (ParsedPage(page_no=1, markdown="# Original", source="text", quality=1), *input_pages[1:])
+    assert [section.title for section in build_sections("material", native, inferred=headings)] == ["Original"]
 
 
 def test_extract_kps_preserves_source_refs_and_uses_untrusted_blocks():
@@ -49,7 +78,7 @@ def test_extract_kps_preserves_source_refs_and_uses_untrusted_blocks():
 
 def test_reduce_merges_candidates_reuses_stable_id_and_removes_backward_edge():
     gateway = QueuedGateway(
-        """<merge><member>c0</member><member>c1</member></merge>
+        """<merge><name>Canonical Alpha</name><member>c0</member><member>c1</member></merge>
         <merge><member>c2</member></merge>
         <edge><before>c2</before><after>c0</after></edge>
         <edge><before>c0</before><after>c2</after></edge>"""
@@ -88,12 +117,37 @@ def test_reduce_merges_candidates_reuses_stable_id_and_removes_backward_edge():
     assert [point["id"] for point in result["knowledge_points"][:2]][0] == "keep-id"
     alpha, beta = result["knowledge_points"][:2]
     assert alpha["importance"] == "core"
+    assert alpha["name"] == "Canonical Alpha"
     assert alpha["source_refs"] == [
         {"material_id": "m", "page_no": 1},
         {"material_id": "m", "page_no": 2},
     ]
     assert beta["prerequisite_ids"] == [alpha["id"]]
     assert alpha["prerequisite_ids"] == []
+
+
+def test_reduce_reconciles_a_medium_unit_in_one_global_batch():
+    candidates = [{
+        "id": f"candidate-{index}", "unit_id": "u1", "name": f"Point {index}",
+        "norm_name": f"point{index}", "kind": "concept", "summary": "summary",
+        "must_know": [], "formula": None, "pitfalls": [], "question_types": [],
+        "importance": "important", "difficulty": 1, "assumed": False, "ord": index,
+        "source_refs": [{"material_id": "m", "page_no": 1}],
+        "prerequisite_names": [], "prerequisite_ids": [],
+    } for index in range(41)]
+    groups = "".join(
+        f"<merge><name>Point {index}</name><member>c{index}</member></merge>"
+        for index in range(41)
+    )
+    gateway = QueuedGateway(groups)
+
+    result = asyncio.run(reduce_knowledge_points(
+        gateway, course_id="course", units=[{"id": "u1", "title": "Unit", "ord": 0}],
+        candidates=candidates,
+    ))
+
+    assert len(gateway.calls) == 1
+    assert len(result["knowledge_points"]) == 41
 
 
 def test_exam_segmentation_and_mapping_return_checkpointable_dicts():
@@ -121,6 +175,46 @@ def test_exam_segmentation_and_mapping_return_checkpointable_dicts():
     assert segmented["paper"]["full_score"] == 10
     assert segmented["items"][0]["answer_status"] == "unverified"
     assert mapped["items"][0]["kp_ids"] == ["kp-1"]
+
+
+def test_item_mapping_accepts_model_selection_outside_lexical_shortlist():
+    points = [
+        {"id": f"kp-{index}", "name": f"Topic {index}", "summary": ""}
+        for index in range(10)
+    ]
+    gateway = QueuedGateway("<map><item>i0</item><kp>k9</kp></map>")
+
+    mapped = asyncio.run(map_exam_items(
+        gateway,
+        course_id="c",
+        items=[{"id": "i", "stem": "No lexical overlap", "type": "short"}],
+        knowledge_points=points,
+    ))
+
+    assert mapped["items"][0]["kp_ids"] == ["kp-9"]
+
+
+def test_long_exam_reattaches_answer_pages_and_cross_part_parent_links():
+    title = "<paper><name>Final</name><year>2025</year></paper>"
+    answer = "<reference><no>1b</no><answer>12</answer><solution>3 times 4</solution><pages>3</pages></reference>"
+    gateway = QueuedGateway(
+        title + "<item><no>1</no><type>short</type><stem>Explain the situation.</stem><pages>1</pages></item>",
+        title + "<item><no>1b</no><parent_no>1</parent_no><type>numeric</type><stem>Calculate the result.</stem><pages>2</pages></item>",
+        "<none></none>", answer,
+    )
+    pages = [{"page_no": i, "markdown": f"page {i} " + "x" * 5000} for i in range(1, 4)]
+    packet = asyncio.run(segment_exam(gateway, course_id="c", material={"id": "m"}, pages=pages))
+
+    parent, child = packet["items"]
+    assert child["parent_item_id"] == parent["id"]
+    assert child["paper_id"] == parent["paper_id"] == packet["paper"]["id"]
+    assert child["answer"] == "12" and child["solution"] == "3 times 4"
+    assert child["answer_status"] == "unverified"
+    assert [ref["page_no"] for ref in child["page_refs"]] == [2, 3]
+    first_part, second_part, _, _ = gateway.calls
+    assert "page 1 " in first_part[2]["page_content"]
+    assert "page 1 " not in second_part[2]["page_content"]
+    assert "page 3 " in second_part[2]["page_content"]
 
 
 def test_truncated_knowledge_point_output_fails_instead_of_auto_closing():
@@ -267,6 +361,19 @@ def test_choice_solution_must_map_to_exactly_one_option():
         "type": "choice", "stem": "Pick.", "answer": "A", "options": {"A": "one", "B": "two"},
     }))
     assert result["status"] == "unverified"
+
+
+def test_verifier_keeps_provider_format_failure_unverified_and_visible():
+    result = asyncio.run(ItemVerifier(InvalidOutputGateway()).verify({
+        "type": "choice", "stem": "Pick.", "answer": "A", "options": {"A": "one"},
+    }))
+
+    assert result == {
+        "status": "unverified",
+        "solved_answer": None,
+        "reason": "Independent verification could not produce a valid structured result.",
+        "warnings": ["provider_output_invalid"],
+    }
 
 
 def test_rubric_items_require_every_required_point():

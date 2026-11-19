@@ -17,6 +17,10 @@ from app.llm.tagged import parse_blocks
 
 _OBJECTIVE = {"choice", "multi", "numeric", "short"}
 _RUBRIC = {"explain", "steps", "proof", "essay"}
+
+
+def canonical_item_type(kind: str) -> str:
+    return {"short_answer": "short", "blank": "short", "proof": "steps", "essay": "explain"}.get(kind, kind)
 _INTENTS = {
     "answer", "question", "confusion", "request_example", "request_hint", "request_answer",
     "request_repeat", "request_slower", "request_faster", "request_style", "request_break",
@@ -260,7 +264,7 @@ async def understand(
                 "candidate_answer": data_block("student", student_text),
             },
             parse=lambda raw: _parse(raw, student_text, item, points, probe=probe),
-            cache=False, max_tokens=768, temperature=0,
+            cache=False, max_tokens=768,
         )
     except LLMOutputError as exc:
         return _unclear(exc.public_code)

@@ -19,6 +19,8 @@ from app.services.repository import SQLiteRepository
 from app.services.settings_store import get_setting
 from app.services.tutor_catalog import TutorCatalog
 from app.services.vault import OwnerTokenState, VaultService
+from app.voice.sherpa import LocalSpeechRecognizer
+from app.teaching.preparation import register_preparation_jobs
 
 OWNER_SESSION_REQUIRED = "Owner session required"
 OWNER_SESSION_INVALID = "Invalid owner session"
@@ -37,6 +39,7 @@ class ServiceContainer:
     providers: ProviderRegistryService
     gateway: LLMGateway
     jobs: JobRunner
+    local_stt: LocalSpeechRecognizer
     settings_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     preparing_lessons: set[str] = field(default_factory=set)
     live_lessons: set[str] = field(default_factory=set)
@@ -59,6 +62,8 @@ def build_container(settings: Settings, gateway_factory: GatewayFactory = LLMGat
     tutors.seed()
     jobs = JobRunner(repository, concurrency=get_setting(repository, "analysis_concurrency", 4))
     gateway = gateway_factory(providers)
+    preparing_lessons: set[str] = set()
+    register_preparation_jobs(jobs, repository, gateway, preparing_lessons)
     return ServiceContainer(
         settings=settings,
         repository=repository,
@@ -69,6 +74,8 @@ def build_container(settings: Settings, gateway_factory: GatewayFactory = LLMGat
         providers=providers,
         gateway=gateway,
         jobs=jobs,
+        local_stt=LocalSpeechRecognizer(settings.model_cache_dir),
+        preparing_lessons=preparing_lessons,
     )
 
 

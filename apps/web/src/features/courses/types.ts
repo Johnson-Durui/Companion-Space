@@ -8,9 +8,19 @@ export type CourseBrief = {
   estimated_hours?: number;
   overview?: string;
   summary?: string;
+  summary_support?: { supported: number; checked: number };
 };
 
 export type Course = { id: string; name: string; goal: string | null; brief: CourseBrief | null };
+
+export type CourseDashboard = {
+  course_id: string;
+  due_review_count: number;
+  today_lesson: { id: string; title: string; est_minutes: number; status: string; lesson_id: string | null } | null;
+  remaining_days: number | null;
+  secured_score: number | null;
+  score_scale: number | null;
+};
 
 export type Material = {
   id: string;

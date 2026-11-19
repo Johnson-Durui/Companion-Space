@@ -13,6 +13,7 @@ from app.llm.prompts import data_block
 from app.llm.tagged import parse_blocks
 from app.repositories.mixins.common import utcnow
 from app.services.repository import SQLiteRepository
+from app.teaching.understanding import canonical_item_type
 from app.teaching.validators import answer_leaks, build_forbidden
 
 _OBJECTIVE_TYPES = {"choice", "multi", "numeric", "short"}
@@ -72,6 +73,7 @@ class LessonPlanner:
 
     async def prepare(self, space_id: str, plan_item_id: str) -> dict[str, Any]:
         inputs = await asyncio.to_thread(self._load_inputs, space_id, plan_item_id)
+        learning_history = await asyncio.to_thread(self._learning_history, space_id, tuple(inputs.points))
         failure: Exception | None = None
         for _ in range(2):
             try:
@@ -83,6 +85,7 @@ class LessonPlanner:
                             "title": inputs.row["title"],
                             "minutes": inputs.row["est_minutes"],
                             "knowledge_points": list(inputs.points.values()),
+                            "learning_history": learning_history,
                         }),
                         "page_content": _json_block("sources", {
                             kp_id: [
@@ -120,6 +123,27 @@ class LessonPlanner:
             except (KeyError, TypeError, ValueError, LLMOutputError) as error:
                 failure = error
         raise LessonPlanError(f"Lesson preparation failed after one supplement attempt: {failure}")
+
+    def _learning_history(self, space_id: str, point_ids: tuple[str, ...]) -> dict[str, Any]:
+        with self.repository.connection() as conn:
+            recaps = conn.execute(
+                """SELECT recap_json FROM lessons WHERE space_id = ? AND status = 'done' AND recap_json IS NOT NULL
+                   ORDER BY ended_at DESC, id DESC LIMIT 3""",
+                (space_id,),
+            ).fetchall()
+            placeholders = ",".join("?" for _ in point_ids)
+            gaps = conn.execute(
+                f"""SELECT kp_id, text, count FROM misconceptions WHERE space_id = ?
+                    AND kp_id IN ({placeholders}) AND resolved_at IS NULL
+                    ORDER BY count DESC, last_seen_at DESC LIMIT 12""",
+                (space_id, *point_ids),
+            ).fetchall()
+            approaches = conn.execute("SELECT kind, n, success FROM approach_stats ORDER BY kind").fetchall()
+        return {
+            "recent_recaps": [json.loads(row["recap_json"]).get("summary", "")[:360] for row in recaps],
+            "unresolved_misconceptions": [dict(row) for row in gaps],
+            "approach_success": [{"kind": row["kind"], "checks": row["n"], "correct": row["success"]} for row in approaches],
+        }
 
     async def more_items(self, space_id: str, kp_id: str, n: int) -> list[dict[str, Any]]:
         if n < 1:
@@ -277,6 +301,7 @@ class LessonPlanner:
         item = json.loads(row["item_json"])
         if not isinstance(item, dict):
             return None
+        item["type"] = row["type"]
         options = item.get("options")
         if isinstance(options, dict):
             item["options"] = [{"key": key, "text": value} for key, value in options.items()]
@@ -313,6 +338,7 @@ class LessonPlanner:
         verifier = ItemVerifier(self.gateway)
         new_items: list[dict[str, Any]] = []
         hydrated: dict[str, dict[str, Any]] = {}
+        rejected_ids: set[str] = set()
         for local_id, definition in plan["items"].items():
             if not isinstance(local_id, str) or not isinstance(definition, dict):
                 raise LessonPlanError("Every lesson item must have an identifier and object definition.")
@@ -338,9 +364,14 @@ class LessonPlanner:
                     raise LessonPlanError(f"Generated item {local_id} is incomplete.")
                 if not self._canonicalize_objective(item):
                     raise LessonPlanError(f"Generated item {local_id} cannot be graded deterministically.")
-                result = await verifier.verify(self._verification_item(item))
+                try:
+                    result = await verifier.verify(self._verification_item(item))
+                except LLMOutputError:
+                    rejected_ids.add(local_id)
+                    continue
                 if result.get("status") != "verified":
-                    raise LessonPlanError(f"Generated item {local_id} failed independent verification.")
+                    rejected_ids.add(local_id)
+                    continue
                 item["bank_id"] = str(uuid4())
                 item["origin"] = {"kind": "generated"}
                 item["_local_id"] = local_id
@@ -353,6 +384,23 @@ class LessonPlanner:
             if any(answer_leaks(str(hints.get(level, "")), item["forbidden"]) for level in ("1", "2")):
                 raise LessonPlanError(f"An answer leaks through fallback hints for {local_id}.")
             hydrated[local_id] = item
+        if rejected_ids:
+            while True:
+                dependent_ids = {local_id for local_id, item in hydrated.items() if item.get("variant_of") in rejected_ids}
+                if dependent_ids <= rejected_ids:
+                    break
+                rejected_ids.update(dependent_ids)
+            for local_id in rejected_ids:
+                discarded = hydrated.pop(local_id, None)
+                if discarded in new_items:
+                    new_items.remove(discarded)
+            for segment in plan["segments"]:
+                if isinstance(segment.get("checks"), list):
+                    segment["checks"] = [ref for ref in segment["checks"] if ref not in rejected_ids]
+                if isinstance(segment.get("backfills"), list):
+                    segment["backfills"] = [entry for entry in segment["backfills"] if not isinstance(entry, dict) or entry.get("check") not in rejected_ids]
+            if isinstance(plan.get("practice"), list):
+                plan["practice"] = [ref for ref in plan["practice"] if ref not in rejected_ids]
         local_by_bank = {item["bank_id"]: local_id for local_id, item in hydrated.items()}
         for item in hydrated.values():
             if "_local_id" not in item:
@@ -369,11 +417,21 @@ class LessonPlanner:
             item["_variant_bank_id"] = base["bank_id"]
         plan["items"] = hydrated
 
-        await self._supplement_missing_checks(plan, hydrated, new_items, inputs, verifier)
+        try:
+            await self._supplement_missing_checks(plan, hydrated, new_items, inputs, verifier)
+        except LessonPlanError as error:
+            if rejected_ids:
+                raise LessonPlanError(f"{error} Rejected unverified items: {', '.join(sorted(rejected_ids))}.") from error
+            raise
 
         check_refs: set[str] = set()
         for segment in plan["segments"]:
-            self._validate_segment(segment, hydrated, inputs)
+            try:
+                self._validate_segment(segment, hydrated, inputs)
+            except LessonPlanError as error:
+                if rejected_ids:
+                    raise LessonPlanError(f"{error} Rejected unverified items: {', '.join(sorted(rejected_ids))}.") from error
+                raise
             check_refs.update(segment["checks"])
             verified_examples = []
             for example in segment["examples"]:
@@ -433,11 +491,13 @@ class LessonPlanner:
         slots: list[dict[str, Any]] = []
         segments: dict[str, dict[str, Any]] = {}
         rejected_items: set[str] = set()
+        scopes: dict[str, list[dict[str, Any]]] = {}
         for segment in plan["segments"]:
             checks = segment.get("checks")
             if not isinstance(checks, list) or len(checks) != len(set(checks)) or any(ref not in items for ref in checks):
                 raise LessonPlanError("A segment has too few or invalid check items.")
             segments[segment["id"]] = segment
+            scopes[segment["id"]] = []
             for index, keypoint in enumerate(segment["keypoints"]):
                 slot = {
                     "slot": f'{segment["id"]}:{index}',
@@ -448,6 +508,7 @@ class LessonPlanner:
                     "taught": segment["keypoints"][:index + 1],
                     "later": segment["keypoints"][index + 1:],
                 }
+                scopes[segment["id"]].append(slot)
                 covered = False
                 rejected: set[str] = set()
                 for local_id in checks:
@@ -499,6 +560,12 @@ class LessonPlanner:
                 rejected = items.pop(local_id, None)
                 if rejected in new_items:
                     new_items.remove(rejected)
+        for identifier, segment in segments.items():
+            selectable = [items[ref] for ref in segment["checks"]]
+            if not any(item.get("type") in _OBJECTIVE_TYPES for item in selectable) and not any(
+                slot["segment_id"] == identifier for slot in slots
+            ):
+                slots.append(scopes[identifier][0])
         if not slots:
             return
 
@@ -722,9 +789,10 @@ class LessonPlanner:
 
     @staticmethod
     def _canonicalize_objective(item: dict[str, Any]) -> bool:
-        kind = item.get("type")
+        kind = canonical_item_type(str(item.get("type", "")))
+        item["type"] = kind
         if kind not in _OBJECTIVE_TYPES:
-            return True
+            return kind in {"explain", "steps"}
         answer = item.get("answer")
         if kind == "numeric":
             return numeric_value(str(answer)) is not None

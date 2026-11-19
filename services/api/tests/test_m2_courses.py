@@ -43,6 +43,8 @@ def test_retry_continues_from_saved_phase_and_retains_the_same_job(isolated_sett
     class Gateway(BrowserHarnessGateway):
         async def complete_tagged(self, role, prompt_name, variables, **options):
             calls.append(prompt_name)
+            if prompt_name == "analysis/kp_faithful":
+                return options["parse"]("<support>unsupported</support>")
             if prompt_name == "analysis/course_brief" and calls.count(prompt_name) == 1:
                 raise ProviderTimeoutError(provider="test", public_detail="Timed out")
             return await super().complete_tagged(role, prompt_name, variables, **options)
@@ -88,8 +90,12 @@ def test_retry_continues_from_saved_phase_and_retains_the_same_job(isolated_sett
         assert retried.status_code == 200
         assert retried.json()["id"] == submitted["id"]
         await_terminal(resumed, headers, course, "completed")
-        assert resumed.get(f"/api/v2/courses/{course}/map", headers=headers).json()["units"]
+        course_map = resumed.get(f"/api/v2/courses/{course}/map", headers=headers).json()
+        assert course_map["units"]
+        assert course_map["brief"]["summary_support"] == {"checked": 2, "supported": 0}
+        assert "summary_support_low" in course_map["warnings"]
 
     assert calls.count("analysis/kp_extract") == 1
     assert calls.count("analysis/kp_reduce") == 1
+    assert calls.count("analysis/kp_faithful") == 2
     assert calls.count("analysis/course_brief") == 2

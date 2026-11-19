@@ -11,7 +11,7 @@ import numpy as np
 from app.analysis.course_data import CourseData
 from app.analysis.documents import DocumentBookmark, DocumentParser, ParsedPage
 from app.analysis.indexing import chunk_document
-from app.analysis.structure import build_sections
+from app.analysis.structure import build_sections, heading_entries, infer_headings
 from app.llm.gateway import LLMGateway, usage_observer
 from app.providers.errors import MissingRoleError, ProviderError, provider_error_code
 from app.services.jobs import Job, JobFailure, JobProgress, JobRunner, ReportProgress
@@ -158,7 +158,14 @@ class AnalysisPipeline:
         )
         source_pages = tuple(ParsedPage(**page) for page in pages if page["quality"] > 0)
         bookmarks = tuple(DocumentBookmark(**entry) for entry in material.get("bookmarks", []))
-        sections = await asyncio.to_thread(build_sections, material["id"], source_pages, bookmarks)
+        inferred = None
+        if (
+            material["role"] in {"textbook", "slides", "notes"} and len(source_pages) > 1
+            and "analysis" in roles and not bookmarks
+            and not await asyncio.to_thread(heading_entries, source_pages)
+        ):
+            inferred = await infer_headings(self.gateway, source_pages)
+        sections = await asyncio.to_thread(build_sections, material["id"], source_pages, bookmarks, inferred=inferred)
         await asyncio.to_thread(self.data.save_sections, material, [asdict(section) for section in sections])
         await report(JobProgress(stage="index", progress=progress + 0.02))
         chunks = await asyncio.to_thread(chunk_document, source_pages, sections)

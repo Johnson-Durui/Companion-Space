@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { SpeechOutput, parseCsa1Frame, type BrowserVoice, type SpeechFormat } from "../../audio";
+import type { VisemeWeights } from "@companion-space/avatar-engine/viseme";
 import { publicMessage } from "../../app/api";
 import t from "../../locales/zh-CN.json";
 import { fetchLesson, fetchLessonEvents, openLessonSocket } from "./lesson-api";
@@ -14,8 +15,16 @@ type Connection = { start: (audio: boolean) => Promise<void>; send: Command; int
   pause: () => void; upload: (frame: ArrayBuffer) => void };
 const copy = t.classroom;
 
-export function useClassroom(id: string) {
+export function useClassroom(
+  id: string,
+  onSpeechLevel?: (level: number) => void,
+  onSpeechVisemes?: (weights: VisemeWeights | null) => void,
+) {
   const connection = useRef<Connection>(null);
+  const onSpeechLevelRef = useRef(onSpeechLevel);
+  onSpeechLevelRef.current = onSpeechLevel;
+  const onSpeechVisemesRef = useRef(onSpeechVisemes);
+  onSpeechVisemesRef.current = onSpeechVisemes;
   const [room, setRoom] = useState<Room>();
   const [classroom, setClassroom] = useState(initialClassroom);
   const [connected, setConnected] = useState(false);
@@ -41,12 +50,19 @@ export function useClassroom(id: string) {
     let audio = false;
     let firstSound = 0;
     let currentCaption: LessonEvent | undefined;
+    let previewGen: number | undefined;
+    let previewTail = Promise.resolve();
     let seq = 0;
     const events: LessonEvent[] = [];
     const cancelled = new Set<number>();
     const formats = new Map<string, AudioMeta>();
+    const previewControllers = new Map<number, AbortController>();
+    const previews = new Map<string, Promise<void>>();
+    const previewVisuals = new Map<number, string[]>();
     const waiting = new Map<string, () => void>();
     const output = new SpeechOutput({
+      onLevel: (level) => onSpeechLevelRef.current?.(level),
+      onVisemes: (weights) => onSpeechVisemesRef.current?.(weights),
       onSegmentStart: (gen, seg) => {
         if (firstSound) {
           setLatency(Math.round(performance.now() - firstSound));
@@ -68,12 +84,21 @@ export function useClassroom(id: string) {
       if (gen !== undefined) {
         cancelled.add(gen);
         timeline?.cancel(gen);
+        previewControllers.get(gen)?.abort();
+        previewControllers.delete(gen);
+        if (previewVisuals.delete(gen)) setClassroom(restoreClassroom(events, seq));
+        if (previewGen === gen) previewGen = undefined;
+      } else {
+        for (const controller of previewControllers.values()) controller.abort();
+        previewControllers.clear();
+        previewGen = undefined;
+        previewVisuals.clear();
       }
       output.stop(gen);
       setSpeaking(false);
     }
     function interrupt() {
-      const gen = timeline?.playingGen;
+      const gen = timeline?.playingGen ?? previewGen;
       if (gen === undefined || !timeline) return false;
       const heard_seq = timeline.heardSeq;
       stop(gen);
@@ -103,6 +128,11 @@ export function useClassroom(id: string) {
       const after = lesson.status === "done" ? lesson.seq : lesson.playback_after_seq ?? lesson.seq;
       timeline?.dispose();
       formats.clear();
+      previews.clear();
+      previewVisuals.clear();
+      previewControllers.clear();
+      previewGen = undefined;
+      previewTail = Promise.resolve();
       cancelled.clear();
       output.stop();
       output.resetGeneration(lesson.gen);
@@ -125,38 +155,56 @@ export function useClassroom(id: string) {
       });
     }
 
+    async function playSay(event: LessonEvent, signal: AbortSignal) {
+      setSpeaking(true);
+      try {
+        const text = String(event.data.text ?? "");
+        const seg = Number(event.data.seg);
+        const meta = audio ? await formatOf(`${event.gen}:${seg}`, signal) : undefined;
+        if (signal.aborted) return;
+        if (meta && meta.format !== "text") {
+          currentCaption = event;
+          const browserVoice = meta.format === "browser" ? meta.browserVoice ?? { lang: "zh-CN" } : undefined;
+          try {
+            if (browserVoice) await output.useBrowser(event.gen, seg, text, browserVoice, signal);
+            else await output.play(event.gen, seg, {}, signal);
+            return;
+          } catch {
+            if (signal.aborted) return;
+            setFallback(copy.textFallback);
+          }
+        } else if (audio) setFallback(copy.textFallback);
+        setClassroom((state) => advanceClassroom(state, event));
+        await waitFor(captionDelay(text, current?.teacher?.voice.rate), signal);
+      } finally {
+        currentCaption = undefined;
+        setSpeaking(false);
+      }
+    }
+
     async function execute(event: LessonEvent, signal: AbortSignal) {
       if (event.type === "say") {
-        setSpeaking(true);
-        try {
-          const text = String(event.data.text ?? "");
-          const seg = Number(event.data.seg);
-          const meta = audio ? await formatOf(`${event.gen}:${seg}`, signal) : undefined;
-          if (signal.aborted) return;
-          if (meta && meta.format !== "text") {
-            currentCaption = event;
-            const browserVoice = meta.format === "browser" ? meta.browserVoice ?? { lang: "zh-CN" } : undefined;
-            try {
-              if (browserVoice) await output.useBrowser(event.gen, seg, text, browserVoice, signal);
-              else await output.play(event.gen, seg, {}, signal);
-              return;
-            } catch {
-              if (signal.aborted) return;
-              setFallback(copy.textFallback);
-            }
-          } else if (audio) setFallback(copy.textFallback);
-          setClassroom((state) => advanceClassroom(state, event));
-          await waitFor(captionDelay(text, current?.teacher?.voice.rate), signal);
-        } finally {
-          currentCaption = undefined;
-          setSpeaking(false);
+        const preview = previews.get(`${event.gen}:${Number(event.data.seg)}`);
+        if (preview) {
+          await preview;
+          if (!signal.aborted) setClassroom((state) => advanceClassroom(state, event));
+          return;
         }
-        return;
+        return playSay(event, signal);
       }
       if (event.type === "beat.start") {
         output.setGeneration(event.gen);
         for (const key of formats.keys()) if (!key.startsWith(`${event.gen}:`)) formats.delete(key);
         setPrefill(undefined);
+      }
+      if (event.type === "board" || event.type === "mark") {
+        const pending = previewVisuals.get(event.gen);
+        const index = pending?.indexOf(JSON.stringify([event.type, event.data])) ?? -1;
+        if (pending && index >= 0) {
+          pending.splice(index, 1);
+          if (!pending.length) previewVisuals.delete(event.gen);
+          return;
+        }
       }
       setClassroom((state) => advanceClassroom(state, event));
       if (event.type === "beat.end" && !signal.aborted) send("playback.done", { gen: event.gen });
@@ -182,6 +230,33 @@ export function useClassroom(id: string) {
       const event: LessonEvent = JSON.parse(packet.data);
       if (event.lesson_id !== id) return;
       switch (event.type) {
+        case "board.preview": {
+          if (!audio || cancelled.has(event.gen)) return;
+          const type = String(event.data.type);
+          if (type !== "board" && type !== "mark") return;
+          const data = event.data.event as Record<string, unknown>;
+          const signature = JSON.stringify([type, data]);
+          const pending = previewVisuals.get(event.gen) ?? [];
+          pending.push(signature);
+          previewVisuals.set(event.gen, pending);
+          setClassroom((state) => advanceClassroom(state, { ...event, type, data }));
+          return;
+        }
+        case "say.preview": {
+          if (!audio || cancelled.has(event.gen)) return;
+          if (previewGen !== event.gen) {
+            if (previewGen !== undefined) previewControllers.get(previewGen)?.abort();
+            previewGen = event.gen;
+            output.setGeneration(event.gen);
+          }
+          const controller = previewControllers.get(event.gen) ?? new AbortController();
+          previewControllers.set(event.gen, controller);
+          const key = `${event.gen}:${Number(event.data.seg)}`;
+          const playback = previewTail.catch(() => undefined).then(() => playSay(event, controller.signal));
+          previewTail = playback;
+          previews.set(key, playback);
+          return;
+        }
         case "audio": {
           if (cancelled.has(event.gen)) return;
           const seg = Number(event.data.seg), format = event.data.format as Format;

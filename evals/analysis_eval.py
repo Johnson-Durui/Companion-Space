@@ -7,6 +7,8 @@ import asyncio
 import json
 import re
 import unicodedata
+from collections import Counter
+from datetime import datetime, timezone
 from fractions import Fraction
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
@@ -44,14 +46,28 @@ def comparable(text: str) -> str:
 
 def answer_key(value: str) -> str:
     text = unicodedata.normalize("NFKC", value).strip().casefold()
+    text = re.sub(r"^\\(?:\(|\[)|\\(?:\)|\])$", "", text.strip())
     text = re.sub(r"\\(?:d?frac|tfrac)\s*\{([^}]+)\}\s*\{([^}]+)\}", r"\1/\2", text)
-    text = re.sub(r"[\s$]", "", text)
+    text = re.sub(r"[\s$，,；;：:]", "", text)
     if re.fullmatch(r"[+-]?\d+(?:\.\d+)?(?:/[+-]?\d+)?", text):
         try:
             return str(Fraction(text))
         except (ValueError, ZeroDivisionError):
             return text
     return text.rstrip("。.")
+
+
+def answers_match(expected: str, actual: str) -> bool:
+    expected_key, actual_key = answer_key(expected), answer_key(actual)
+    if expected_key == actual_key:
+        return True
+    if len(expected_key) >= 4 and expected_key in actual_key:
+        return True
+    if len(expected_key) < 8 or len(actual_key) < 8:
+        return False
+    expected_bigrams = {expected_key[index:index + 2] for index in range(len(expected_key) - 1)}
+    actual_bigrams = {actual_key[index:index + 2] for index in range(len(actual_key) - 1)}
+    return len(expected_bigrams & actual_bigrams) / len(expected_bigrams) >= 0.5
 
 
 def score(course_dir: Path, points: list[dict], items: list[dict], filenames: dict[str, str]) -> dict:
@@ -84,7 +100,7 @@ def score(course_dir: Path, points: list[dict], items: list[dict], filenames: di
     matching = [(gold, actual_items.get(key)) for key, gold in expected_items.items()]
     checked_answers = [(gold, actual) for gold, actual in matching if gold.get("answer")]
     answer_hits = sum(
-        actual is not None and answer_key(gold["answer"]) == answer_key(actual.get("answer") or "")
+        actual is not None and answers_match(gold["answer"], actual.get("answer") or "")
         for gold, actual in checked_answers
     )
     item_hits = sum(
@@ -196,6 +212,8 @@ async def run_course(container, directory: Path, *, parse_only: bool) -> dict:
         from app.analysis.results import _item_rows
         items = _item_rows(conn, course.id)
     metrics = score(directory, points, items, names)
+    course_map = results.course_map(course.id)
+    metrics["answer_verification_counts"] = dict(Counter(item["answer_status"] for item in items))
     calls_before = sum(row.calls for row in list_usage(container.repository))
     if directory.parent == SAMPLES:
         rerun = await process()
@@ -203,9 +221,12 @@ async def run_course(container, directory: Path, *, parse_only: bool) -> dict:
         metrics["rerun_cache_only"] = (
             rerun.status == "completed" and rerun.tokens_in == rerun.tokens_out == 0 and calls_before == calls_after
         )
+    verification_complete = "item_verification_incomplete" not in course_map.warnings
+    thresholds_pass = metrics["passes_thresholds"] and metrics.get("rerun_cache_only", True)
     return {
-        "status": "passed" if metrics["passes_thresholds"] and metrics.get("rerun_cache_only", True) else "failed",
+        "status": "passed" if thresholds_pass and verification_complete else "failed" if verification_complete else "unverified",
         "metrics": metrics, "input_tokens": result.tokens_in, "output_tokens": result.tokens_out,
+        "warnings": course_map.warnings,
     }
 
 
@@ -213,18 +234,45 @@ async def verify_reference_answers(container) -> dict:
     items = read_json(GOLD / "verifier/items.json")["items"]
     verifier = ItemVerifier(container.gateway)
     flagged = false_alarms = 0
+    measured_wrong = measured_correct = 0
+    warnings = []
     for item in items:
         result = await verifier.verify({**item, "answer": item["reference_answer"]})
+        if result.get("warnings"):
+            warnings.append({"item_id": item["id"], "warnings": result["warnings"]})
+            continue
         if item["reference_is_intentionally_wrong"]:
+            measured_wrong += 1
             flagged += result["status"] != "verified"
         else:
+            measured_correct += 1
             false_alarms += result["status"] != "verified"
-    detection = flagged / sum(item["reference_is_intentionally_wrong"] for item in items)
-    false_alarm_rate = false_alarms / sum(not item["reference_is_intentionally_wrong"] for item in items)
+    detection = flagged / max(1, measured_wrong)
+    false_alarm_rate = false_alarms / max(1, measured_correct)
+    complete = measured_wrong + measured_correct == len(items)
     return {
-        "status": "passed" if detection >= 0.90 and false_alarm_rate <= 0.15 else "failed",
+        "status": (
+            "passed" if complete and detection >= 0.90 and false_alarm_rate <= 0.15
+            else "failed" if complete else "unverified"
+        ),
         "wrong_reference_detection": detection, "correct_reference_false_alarm_rate": false_alarm_rate,
+        "measured": measured_wrong + measured_correct, "expected": len(items), "warnings": warnings,
     }
+
+
+def persist_report(
+    report: dict, *, holdout: bool, parse_only: bool, path: Path | None = None,
+) -> Path:
+    mode = "holdout" if holdout else "parse" if parse_only else "sample"
+    if path is None:
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+        path = OUTPUT / f"m2-{mode}-{stamp}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    report["report_file"] = str(path.relative_to(ROOT))
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(path)
+    return path
 
 
 async def evaluate(*, parse_only: bool, holdout: bool, env: dict) -> dict:
@@ -241,15 +289,19 @@ async def evaluate(*, parse_only: bool, holdout: bool, env: dict) -> dict:
         directory = HOLDOUTS if holdout else SAMPLES
         report["holdout" if holdout else "samples"] = {}
         group = report["holdout" if holdout else "samples"]
+        report_path = persist_report(report, holdout=holdout, parse_only=parse_only)
         for course in sorted(path for path in directory.iterdir() if path.is_dir()):
             if holdout:
                 lock = OUTPUT / f"holdout-{course.name}.attempted"
                 with lock.open("x", encoding="utf-8") as stream:
                     stream.write(container.settings.storage_root.name + "\n")
             group[course.name] = await run_course(container, course, parse_only=parse_only)
+            persist_report(report, holdout=holdout, parse_only=parse_only, path=report_path)
         if not holdout and not parse_only:
             report["verifier"] = await verify_reference_answers(container)
+            persist_report(report, holdout=holdout, parse_only=parse_only, path=report_path)
         report["usage"] = [row.model_dump() for row in list_usage(container.repository)]
+        persist_report(report, holdout=holdout, parse_only=parse_only, path=report_path)
     finally:
         await container.aclose()
     return report
@@ -269,8 +321,8 @@ def main() -> int:
     report = asyncio.run(evaluate(parse_only=args.parse_only, holdout=args.holdout, env=env))
     print(json.dumps(report, indent=2, ensure_ascii=False))
     group = report.get("holdout") or report.get("samples") or {}
-    return int(any(item["status"] == "failed" for item in group.values())
-               or report.get("verifier", {}).get("status") == "failed")
+    return int(any(item["status"] != "passed" for item in group.values())
+               or ("verifier" in report and report["verifier"].get("status") != "passed"))
 
 
 if __name__ == "__main__":

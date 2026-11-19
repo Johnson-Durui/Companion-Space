@@ -50,6 +50,11 @@ _INSTRUCTIONS = {
     "WRAP": "Sum up only what happened and identify what still needs practice from the lesson record.",
     **dict.fromkeys(_ITEM_INTRO, "Say one transition sentence only. Do not say the question or options."),
 }
+_DEBRIEF_INSTRUCTIONS = {
+    "SHOW_SOLUTION": "Explain the supplied verified solution in order.",
+    "REEXPLAIN": "Explain the same supplied verified solution once more with smaller steps.",
+    "CHECK": "Briefly explain why the submitted answer matches the supplied verified answer.",
+}
 _EMOTIONS = {"neutral", "warm", "cheerful", "curious", "focused", "playful", "concerned"}
 _LOG = logging.getLogger(__name__)
 
@@ -78,7 +83,13 @@ class Realizer:
         data = data_block("lesson", json.dumps(context, ensure_ascii=False))
         if item and move in _PRIVATE:
             data += "\n" + data_block("item_private", json.dumps(item, ensure_ascii=False))
-        instruction = f"{_INSTRUCTIONS[move]} {style} Total spoken text: at most {budget} characters."
+        instruction_text = _INSTRUCTIONS[move]
+        if context.get("mode") == "practice_debrief":
+            instruction_text = (
+                f"{_DEBRIEF_INSTRUCTIONS[move]} Use only the supplied verified item, answer, and solution. "
+                "Do not invent examples, facts, questions, or follow-up exercises. Do not ask the learner anything."
+            )
+        instruction = f"{instruction_text} {style} Total spoken text: at most {budget} characters."
         system = render_prompt(self.prompt_dir, "live/system", {})
         protected = item is not None and move in _PROTECTED
         for attempt in range(2 if protected else 1):

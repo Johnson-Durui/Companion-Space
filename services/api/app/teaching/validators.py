@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections.abc import Mapping
 from fractions import Fraction
 from typing import Any
 
@@ -61,8 +62,11 @@ def build_forbidden(item: dict) -> dict:
         accepted = item.get("accepted") or [item.get("answer")]
         patterns = [_WORD_EDGES.format(re.escape(term)) for term in _terms_outside_stem(accepted, "", 2)]
     elif kind in {"explain", "steps"}:
-        points = (item.get("rubric") or {}).get("points", [])
-        terms = _terms_outside_stem([point.get("key") or point.get("text") for point in points], stem, 1)
+        rubric = item.get("rubric")
+        points = rubric.get("points", []) if isinstance(rubric, Mapping) else rubric if isinstance(rubric, list) else []
+        terms = _terms_outside_stem([
+            point.get("key") or point.get("text") if isinstance(point, Mapping) else point for point in points
+        ], stem, 1)
     return {"terms": terms, "patterns": patterns, "number": number}
 
 

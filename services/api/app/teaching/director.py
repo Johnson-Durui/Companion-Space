@@ -507,6 +507,7 @@ def _commit_pending(current: dict[str, Any], patch: dict[str, Any]) -> None:
     patch["explains_since_check"] = int(current.get("explains_since_check", 0)) + 1
     if move != "REPEAT" and pending.get("kind"):
         patch["approaches_used"] = [*current.get("approaches_used", []), pending["kind"]]
+        patch["approach_stat_recorded"] = False
     if move == "EXAMPLE" and pending.get("example_id"):
         patch["examples_used"] = [*current.get("examples_used", []), pending["example_id"]]
     if move == "EXPLAIN":
@@ -572,8 +573,8 @@ def _next_approach(current: Mapping[str, Any], learner: Mapping[str, Any], plan:
 
 def _approach_score(stats: Any) -> float:
     if not isinstance(stats, Mapping) or not stats.get("n"):
-        return 0.0
-    return float(stats.get("success", 0)) / float(stats["n"])
+        return 0.5
+    return (float(stats.get("success", 0)) + 1) / (float(stats["n"]) + 2)
 
 
 def _unused_example(current: Mapping[str, Any], plan: LessonPlan) -> dict[str, Any] | None:

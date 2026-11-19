@@ -61,10 +61,11 @@ def record_answer(conn: sqlite3.Connection, space_id: str, lesson_id: str, obser
     conn.execute(
         """INSERT INTO evidence
            (id, space_id, kp_id, lesson_id, item_ref, source, verdict, hint_level, item_type,
-            n_options, judged_by, via, retry, p_before, p_after, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            n_options, judged_by, via, retry, p_before, p_after, detail_json, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (str(uuid4()), space_id, point_id, lesson_id, item_id, source, evidence.verdict, evidence.hint_level,
-         kind, option_count, judged_by, observation["via"], evidence.retry, before, after, now.isoformat()),
+         kind, option_count, judged_by, observation["via"], evidence.retry, before, after,
+         json.dumps(observation.get("detail", {}), ensure_ascii=False), now.isoformat()),
     )
     conn.execute(
         """INSERT INTO kp_mastery (
@@ -79,3 +80,10 @@ def record_answer(conn: sqlite3.Connection, space_id: str, lesson_id: str, obser
         (space_id, point_id, after, status, count, clean_count, days, date if clean else previous_date,
          objective_clean, now.isoformat()),
     )
+    approach = observation.get("approach_kind")
+    if approach:
+        conn.execute(
+            """INSERT INTO approach_stats(kind, n, success) VALUES (?, 1, ?)
+               ON CONFLICT(kind) DO UPDATE SET n = n + 1, success = success + excluded.success""",
+            (approach, int(evidence.verdict == "correct")),
+        )

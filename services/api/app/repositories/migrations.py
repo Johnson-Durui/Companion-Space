@@ -4,7 +4,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CURRENT_SCHEMA_VERSION = 9
+CURRENT_SCHEMA_VERSION = 10
 
 
 @dataclass(frozen=True)
@@ -374,6 +374,29 @@ def migrate_v8_to_v9(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA user_version = 9")
 
 
+def migrate_v9_to_v10(conn: sqlite3.Connection) -> None:
+    _execute(conn, (
+        """CREATE TABLE practice_runs (
+            id TEXT PRIMARY KEY, space_id TEXT NOT NULL, plan_item_id TEXT,
+            kind TEXT NOT NULL CHECK (kind IN ('practice', 'mock')),
+            item_refs_json TEXT NOT NULL, duration_seconds INTEGER NOT NULL CHECK (duration_seconds > 0),
+            status TEXT NOT NULL CHECK (status IN ('active', 'submitted')),
+            started_at TEXT NOT NULL, deadline_at TEXT NOT NULL, submitted_at TEXT,
+            score REAL, max_score REAL,
+            FOREIGN KEY(space_id) REFERENCES study_spaces(id) ON DELETE CASCADE,
+            FOREIGN KEY(plan_item_id) REFERENCES plan_items(id) ON DELETE SET NULL
+        )""",
+        """CREATE TABLE practice_answers (
+            run_id TEXT NOT NULL REFERENCES practice_runs(id) ON DELETE CASCADE,
+            item_ref TEXT NOT NULL REFERENCES item_bank(id) ON DELETE CASCADE,
+            answer_json TEXT, verdict TEXT, score REAL, max_score REAL, submitted_at TEXT NOT NULL,
+            PRIMARY KEY (run_id, item_ref)
+        )""",
+        "CREATE INDEX idx_practice_runs_space ON practice_runs(space_id, started_at)",
+    ))
+    conn.execute("PRAGMA user_version = 10")
+
+
 MIGRATIONS = (
     Migration(1, 2, migrate_v1_to_v2),
     Migration(2, 3, migrate_v2_to_v3),
@@ -383,6 +406,7 @@ MIGRATIONS = (
     Migration(6, 7, migrate_v6_to_v7),
     Migration(7, 8, migrate_v7_to_v8),
     Migration(8, 9, migrate_v8_to_v9),
+    Migration(9, 10, migrate_v9_to_v10),
 )
 
 

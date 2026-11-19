@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import random
 from typing import TYPE_CHECKING
 
 from app.analysis.exam_stats import exam_statistics
 from app.analysis.item_verifier import ItemVerifier
 from app.analysis.model_analysis import (
+    check_summary_support,
     extract_knowledge_points,
     generate_course_brief,
     generate_diagnostic_items,
@@ -15,6 +17,7 @@ from app.analysis.model_analysis import (
     segment_exam,
 )
 from app.analysis.results import CourseResults
+from app.llm.errors import LLMOutputError
 from app.services.jobs import Job, JobFailure, JobProgress, ReportProgress
 
 if TYPE_CHECKING:
@@ -234,13 +237,19 @@ async def analyze_course(
             ))
     needed = [point for point in priority if point["id"] in diagnostic and not diagnostic[point["id"]]]
     generated = job.payload.get("diagnostic_generated")
+    diagnostic_format_failed = bool(job.payload.get("diagnostic_format_failed"))
     if generated is None:
         generated = []
         for index in range(0, len(needed), 5):
-            pack = await generate_diagnostic_items(
-                gateway, course_id=space_id, knowledge_points=needed[index:index + 5],
-                existing_items=[item for item, _ in verified if item.get("paper_id") not in reserved],
-            )
+            try:
+                pack = await generate_diagnostic_items(
+                    gateway, course_id=space_id, knowledge_points=needed[index:index + 5],
+                    existing_items=[item for item, _ in verified if item.get("paper_id") not in reserved],
+                )
+            except LLMOutputError:
+                diagnostic_format_failed = True
+                await checkpoint("diagnostic_format_failed", True)
+                continue
             generated.extend(pack["items"])
         await checkpoint("diagnostic_generated", generated)
     gaps = {point["id"] for point in needed}
@@ -249,13 +258,35 @@ async def analyze_course(
             continue
         item_id = item["id"]
         if item_id not in decisions:
-            decisions[item_id] = await verifier.verify(item)
+            try:
+                decisions[item_id] = await verifier.verify(item)
+            except LLMOutputError:
+                diagnostic_format_failed = True
+                await checkpoint("diagnostic_format_failed", True)
+                continue
             await checkpoint("verified", decisions)
         if decisions[item_id]["status"] == "verified":
             bank.append(_bank_entry(item, decisions[item_id], purpose="diagnostic", reserved=False))
             gaps.discard(item["kp_ids"][0])
 
     await report(JobProgress(stage="brief", progress=0.95))
+    supports = job.payload.get("summary_support", {})
+    eligible = sorted(
+        (point for point in active if point.get("source_refs") and not point.get("assumed")),
+        key=lambda point: point["id"],
+    )
+    sampled = random.Random(space_id).sample(eligible, min(5, len(eligible)))
+    source_pages = {(material, page["page_no"]): page for material, pages in contents.items() for page in pages}
+    for point in sampled:
+        if point["id"] in supports:
+            continue
+        refs = [(ref["material_id"], ref["page_no"]) for ref in point["source_refs"]]
+        cited = [
+            {"material_id": material, "page_no": page_no, "markdown": source_pages[material, page_no]["markdown"]}
+            for material, page_no in refs if (material, page_no) in source_pages
+        ]
+        supports[point["id"]] = await check_summary_support(gateway, point, cited)
+        await checkpoint("summary_support", supports)
     brief = job.payload.get("brief")
     if brief is None:
         minutes = {"concept": 10, "theorem": 12, "formula": 8, "method": 15, "skill": 15, "fact": 5}
@@ -267,6 +298,24 @@ async def analyze_course(
         )
         await checkpoint("brief", brief)
     warnings = list(reduced["warnings"])
+    verification_warnings = {
+        warning
+        for decision in decisions.values()
+        for warning in decision.get("warnings", [])
+    }
+    if verification_warnings:
+        warnings.append("item_verification_incomplete")
+    if any(decision.get("status") == "disputed" for decision in decisions.values()):
+        warnings.append("official_answers_disputed")
+    verification_summary = {
+        status: sum(decision.get("status") == status for decision in decisions.values())
+        for status in ("verified", "disputed", "unverified")
+    }
+    if diagnostic_format_failed:
+        warnings.append("diagnostic_format_failed")
+    supported = sum(bool(supports[point["id"]]) for point in sampled)
+    if sampled and supported / len(sampled) < 0.8:
+        warnings.append("summary_support_low")
     if gaps:
         warnings.append("diagnostic_questions_missing")
     if any(material.get("scanned_pages") for material in materials):
@@ -287,7 +336,9 @@ async def analyze_course(
     syllabus_kp_ids = [point["id"] for point in active if point["norm_name"] and point["norm_name"] in hints]
     await asyncio.to_thread(
         results.save_analysis, space_id, reduced["units"], points, papers, mapped, bank,
-        {**brief, "warnings": warnings, "syllabus_kp_ids": syllabus_kp_ids},
+        {**brief, "warnings": warnings, "syllabus_kp_ids": syllabus_kp_ids,
+         "summary_support": {"supported": supported, "checked": len(sampled)},
+         "item_verification": verification_summary},
     )
     # Model cache and published results are the durable records once the run finishes.
     job.payload.clear()

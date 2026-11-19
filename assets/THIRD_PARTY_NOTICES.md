@@ -4,6 +4,13 @@ Companion Space source code is licensed under Apache License 2.0. The code and
 character models listed below retain their upstream notices and remain governed
 by their respective license terms. Keep this notice with redistributed copies.
 
+## wLipSync and three-vrm-lip-sync
+
+- Packages: `wlipsync` 1.3.1 and `three-vrm-lip-sync` 0.1.0.
+- Sources: <https://github.com/mrxz/wLipSync> and <https://github.com/vlapky/three-vrm-lip-sync>.
+- License: MIT. These packages provide the AudioWorklet/WASM phoneme analysis
+  used for real-time VRM mouth shapes.
+
 ## Original observatory room background
 
 - Desktop file: `assets/avatars/backgrounds/observatory.webp`, created for Companion Space on 2026-11-11 using OpenAI image generation.

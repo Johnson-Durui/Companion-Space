@@ -2,20 +2,25 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import date
 from time import time_ns
 
 from app.analysis.retrieval import retrieve_for_kp
 from app.llm.gateway import LLMGateway
+from app.learning.replanning import rebuild_course_plan
 from app.services.repository import SQLiteRepository
+from app.services.jobs import JobRunner
 from app.services.tutor_catalog import TutorCatalog
 from app.teaching.director import Director
 from app.teaching.evidence import OBJECTIVE_TYPES
 from app.teaching.finish import finish_lesson
+from app.teaching.preparation import prepare_upcoming_lessons, queue_upcoming_lessons
 from app.teaching.lsp_parser import LspEvent
 from app.teaching.realizer import Realizer
 from app.teaching.speech_text import clean_speech
-from app.teaching.understanding import InvalidAnswer, grade_objective, understand
-from app.teaching.validators import validate_board
+from app.teaching.understanding import InvalidAnswer, canonical_item_type, grade_objective, understand
+from app.teaching.validators import build_forbidden, validate_board
 
 _INTRO = {"OPEN", "CHECK", "PRACTICE_ITEM", "VERIFY_SKIP", "BACKFILL"}
 _QUICK_INTENTS = {
@@ -25,12 +30,25 @@ _QUICK_INTENTS = {
 }
 
 
+@dataclass(frozen=True)
+class PreparedBeat:
+    expected_seq: int
+    move: str
+    args: dict
+    ask: dict | None
+    events: tuple[LspEvent, ...]
+
+
 def _item_for_ask(ask: dict | None, plan: dict) -> dict | None:
     if not ask or ask.get("kind") != "item":
         return None
     item = plan["items"].get(ask.get("item_id"))
     if not item or item.get("verify", {}).get("status") != "verified":
         raise ValueError("This classroom question has not been verified")
+    kind = canonical_item_type(str(item.get("type", "")))
+    if kind != item["type"]:
+        item = {**item, "type": kind}
+        item["forbidden"] = build_forbidden(item)
     return item
 
 
@@ -49,16 +67,22 @@ def _public_ask(ask: dict, plan: dict) -> dict:
 class LessonRuntime:
     """Run one durable turn at a time. The text client consumes committed events."""
 
-    def __init__(self, repository: SQLiteRepository, gateway: LLMGateway, space_id: str, lesson_id: str) -> None:
+    def __init__(
+        self, repository: SQLiteRepository, gateway: LLMGateway, space_id: str, lesson_id: str,
+        *, jobs: JobRunner | None = None,
+    ) -> None:
         self.repository = repository
         self.gateway = gateway
         self.space_id = space_id
         self.lesson_id = lesson_id
+        self.jobs = jobs
         self.realizer = Realizer(gateway)
 
     async def step(
         self, event: dict, *, elapsed_ms: int = 0, split_speech: Callable[[str], list[str]] | None = None,
         on_say: Callable[[int, str], Awaitable[None]] | None = None,
+        on_visual: Callable[[LspEvent], Awaitable[None]] | None = None,
+        prepared: PreparedBeat | None = None,
     ) -> list[dict]:
         lesson = await asyncio.to_thread(self.repository.get_lesson, self.space_id, self.lesson_id)
         if lesson is None:
@@ -150,15 +174,29 @@ class LessonRuntime:
         decision_item = plan["items"].get(decision.args.get("item_id"))
         outbound_item = _item_for_ask(decision.ask, plan)
         if decision.move:
-            add("beat.start", {"move": decision.move, "ask_after": bool(decision.ask)})
+            approach = decision.args.get("approach")
+            add("beat.start", {
+                "move": decision.move, "ask_after": bool(decision.ask),
+                "approach": approach.get("kind") if isinstance(approach, dict) else None,
+                "item_id": decision.args.get("item_id"),
+            })
             context = await asyncio.to_thread(self._context, lesson, plan, next_state, decision.args)
-            async for generated in self.realizer.run(
+            cached = prepared is not None and (
+                prepared.expected_seq == lesson["seq"]
+                and prepared.move == decision.move
+                and prepared.args == decision.args
+                and prepared.ask == decision.ask
+            )
+            generated_events = prepared.events if cached else self.realizer.run(
                 decision, context=context, board=board, item=decision_item or outbound_item or item,
-            ):
+            )
+            async for generated in _as_async(generated_events):
                 if generated.type == "say":
                     await say(generated.data)
                 elif validate_board(generated, board):
                     add(generated.type, generated.data)
+                    if on_visual is not None and generated.type in {"board", "mark"}:
+                        await on_visual(generated)
             if not spoken:
                 raise ValueError("The live model returned no usable classroom explanation")
             if outbound_item and decision.move in _INTRO:
@@ -184,15 +222,65 @@ class LessonRuntime:
         retry = event["type"] == "student_answer" and decision.move != "PROBE"
         if proof and (proof.get("record", True) or retry):
             observed_item = _item_for_ask({"kind": "item", "item_id": proof["item_id"]}, plan)
-            observation = {**proof, "item": observed_item, "via": event.get("via", "text")}
+            observation = {
+                **proof, "item": observed_item, "via": event.get("via", "text"),
+                "detail": {key: event[key] for key in ("value", "gap", "misconception") if key in event},
+            }
+            approaches = state.get("approaches_used", [])
+            if (
+                proof.get("purpose") == "check" and proof.get("record", True)
+                and proof.get("hint_level", 0) == 0 and not state.get("approach_stat_recorded")
+                and approaches
+            ):
+                observation["approach_kind"] = approaches[-1]
+                next_state["approach_stat_recorded"] = True
         recap, cards = None, ()
         if next_state.get("stage") == "done":
             status = "done"
             recap, cards = await finish_lesson(
                 self.repository, self.gateway, self.space_id, self.lesson_id, plan, next_state,
             )
-        return await self._commit(
+        recorded = await self._commit(
             lesson, gen, events, next_state, board, status=status, observation=observation, recap=recap, cards=cards,
+        )
+        if status == "done":
+            replanned = await rebuild_course_plan(
+                self.repository, self.gateway, self.space_id, today=date.today(), reason="lesson_finished",
+            )
+            if replanned is not None:
+                if self.jobs is None:
+                    await prepare_upcoming_lessons(self.repository, self.gateway, self.space_id)
+                else:
+                    await queue_upcoming_lessons(self.jobs, self.repository, self.space_id)
+        return recorded
+
+    async def prepare_next(self) -> PreparedBeat | None:
+        """Generate the deterministic post-playback beat without advancing durable state."""
+        lesson = await asyncio.to_thread(self.repository.get_lesson, self.space_id, self.lesson_id)
+        if lesson is None or lesson["status"] != "active" or "playback_after_seq" not in lesson["state"]:
+            return None
+        saved = await asyncio.to_thread(
+            self.repository.get_lesson_plan, self.space_id, lesson["plan_item_id"],
+            lesson_plan_id=lesson["lesson_plan_id"],
+        )
+        if saved is None:
+            return None
+        plan = saved["plan"]
+        state = lesson["state"]
+        decision = Director.decide(state, {"type": "beat_done"}, await asyncio.to_thread(self._learner), plan)
+        if not decision.move:
+            return None
+        decision_item = plan["items"].get(decision.args.get("item_id"))
+        outbound_item = _item_for_ask(decision.ask, plan)
+        context = await asyncio.to_thread(self._context, lesson, plan, {**state, **decision.state_patch}, decision.args)
+        board = {key: dict(value) for key, value in (lesson["board"] or {}).items()}
+        events = tuple([
+            event async for event in self.realizer.run(
+                decision, context=context, board=board, item=decision_item or outbound_item,
+            )
+        ])
+        return PreparedBeat(
+            expected_seq=lesson["seq"], move=decision.move, args=decision.args, ask=decision.ask, events=events,
         )
 
     async def _commit(
@@ -255,7 +343,11 @@ class LessonRuntime:
         learner = self.repository.get_learner_profile() or {}
         with self.repository.connection() as conn:
             rows = conn.execute("SELECT kp_id, p FROM kp_mastery WHERE space_id = ?", (self.space_id,)).fetchall()
-        return {**learner, "mastery": {row["kp_id"]: row["p"] for row in rows}}
+            approaches = conn.execute("SELECT kind, n, success FROM approach_stats").fetchall()
+        return {
+            **learner, "mastery": {row["kp_id"]: row["p"] for row in rows},
+            "approach_stats": {row["kind"]: {"n": row["n"], "success": row["success"]} for row in approaches},
+        }
 
     def _context(self, lesson: dict, plan: dict, state: dict, args: dict) -> dict:
         context = {
@@ -283,3 +375,12 @@ class LessonRuntime:
                     for part in excerpts
                 ]
         return context
+
+
+async def _as_async(events):
+    if hasattr(events, "__aiter__"):
+        async for event in events:
+            yield event
+        return
+    for event in events:
+        yield event

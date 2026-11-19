@@ -6,6 +6,7 @@ from copy import deepcopy
 from fractions import Fraction
 
 from app.llm.gateway import LLMGateway
+from app.llm.errors import LLMOutputError
 from app.llm.prompts import data_block
 from app.llm.tagged import Node, parse_blocks
 
@@ -238,6 +239,24 @@ class ItemVerifier:
         )
 
     async def verify(self, item: dict) -> dict:
+        """Return a strict decision even when a checker response is malformed.
+
+        A provider-format failure is not evidence that either the item or its
+        official answer is correct.  Preserve it as an unverified decision so
+        the course analysis can continue while keeping the item out of the
+        verified grading bank.
+        """
+        try:
+            return await self._verify(item)
+        except LLMOutputError:
+            return {
+                "status": "unverified",
+                "solved_answer": None,
+                "reason": "Independent verification could not produce a valid structured result.",
+                "warnings": ["provider_output_invalid"],
+            }
+
+    async def _verify(self, item: dict) -> dict:
         candidate = deepcopy(item)
         first = await self._normalized_solve(candidate, 1)
         if not first["valid"]:

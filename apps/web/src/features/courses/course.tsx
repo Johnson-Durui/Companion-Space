@@ -253,9 +253,11 @@ function CourseMapView({ courseId }: { courseId: string }) {
   if (map.isPending) return <Loading />;
   if (map.isError) return <p className="hint">{t.courses.mapPending}</p>;
   if (!allPoints.length && !unmapped.data?.length) return <p className="hint">{t.courses.mapEmpty}</p>;
+  const support = map.data.brief?.summary_support;
   return (
     <section className="course-panel map-panel" aria-labelledby="map-title">
       <div className="section-heading"><div><p className="eyebrow">{t.courses.map}</p><h2 id="map-title">{t.courses.mapHeading}</h2></div><span>{allPoints.length} {t.courses.kpUnit}</span></div>
+      {support && support.checked > 0 ? <p className="hint">{t.courses.summarySupport.replace("{supported}", String(support.supported)).replace("{checked}", String(support.checked))}</p> : null}
       {map.data.warnings.map((warning) => <div className="notice" key={warning}><p>{warningText(warning)}</p></div>)}
       <div className="map-layout">
         <nav className="unit-map" aria-label={t.courses.mapHeading}>{map.data.units.map((unit) => <section key={unit.id}><h3>{unit.title}</h3>{unit.knowledge_points.map((point) => <button key={point.id} aria-current={!showUnmapped && selected?.id === point.id ? "true" : undefined} onClick={() => setSelectedId(point.id)}><span data-importance={point.importance} />{point.name}<small>{point.stats?.n_items ? `${point.stats.n_items} ${t.courses.questionUnit}` : ""}</small></button>)}</section>)}{unmapped.data?.length ? <section><h3>{t.courses.unmapped}</h3><button aria-current={showUnmapped ? "true" : undefined} onClick={() => setSelectedId("unmapped")}><span />{t.courses.unmapped}<small>{unmapped.data.length} {t.courses.questionUnit}</small></button></section> : null}</nav>
@@ -273,7 +275,7 @@ export default function CourseWorkspace() {
   return (
     <div className="course-workspace">
       <div className="course-breadcrumb"><Link to="/courses">{t.courses.heading}</Link><span aria-hidden="true">/</span><span>{course.data.name}</span></div>
-      <div className="page-title course-title"><div><p className="eyebrow">{t.courses.workspace}</p><h1>{course.data.name}</h1><p>{course.data.goal || t.courses.goalEmpty}</p></div>{course.data.brief?.overview || course.data.brief?.summary ? <p className="course-overview">{course.data.brief.overview || course.data.brief.summary}</p> : null}</div>
+      <div className="page-title course-title"><div><p className="eyebrow">{t.courses.workspace}</p><h1>{course.data.name}</h1><p>{course.data.goal || t.courses.goalEmpty}</p><div className="actions"><Link className="button quiet" to={`/courses/${courseId}/review`}>{t.review.open}</Link><Link className="button quiet" to={`/courses/${courseId}/progress`}>{t.progress.open}</Link><Link className="button quiet" to={`/courses/${courseId}/history`}>{t.history.heading}</Link></div></div>{course.data.brief?.overview || course.data.brief?.summary ? <p className="course-overview">{course.data.brief.overview || course.data.brief.summary}</p> : null}</div>
       <LearnerSetup key={courseId} courseId={courseId} />
       <UploadPanel courseId={courseId} />
       <Materials courseId={courseId} />

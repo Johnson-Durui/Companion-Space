@@ -44,9 +44,10 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   await expect(page.getByText(t.welcome.chosen)).toBeVisible();
 
-  await page.locator(".model-option").first().click();
-  await expect(page.locator(".teacher-stage")).toContainText(t.welcome.preview3d);
-  await expect(page.locator(".teacher-stage img")).toHaveCount(0);
+  const firstModel = page.locator(".model-option").first();
+  const modelName = await firstModel.locator("span").textContent();
+  await firstModel.click();
+  await expect(page.getByRole("heading", { name: modelName ?? "", exact: true })).toBeVisible();
   await page.getByRole("button", { name: t.voice.preview }).click();
   await expect(page.getByRole("button", { name: t.voice.browser })).toBeVisible();
 

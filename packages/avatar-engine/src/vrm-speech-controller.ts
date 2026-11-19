@@ -1,8 +1,12 @@
+import type { VisemeWeights } from "./viseme";
+
 export type AvatarSpeechLevelListener = (level: number) => void;
 
 export interface AvatarSpeechController {
   peek: () => number;
+  peekVisemes: () => VisemeWeights | null;
   publishLevel: (level: number) => void;
+  publishVisemes: (weights: VisemeWeights | null) => void;
   reset: () => void;
   subscribe: (listener: AvatarSpeechLevelListener) => () => void;
 }
@@ -16,6 +20,7 @@ function clampLevel(level: number): number {
 
 export function createAvatarSpeechController(initialLevel = 0): AvatarSpeechController {
   let currentLevel = clampLevel(initialLevel);
+  let currentVisemes: VisemeWeights | null = null;
   const listeners = new Set<AvatarSpeechLevelListener>();
 
   const emit = () => {
@@ -26,6 +31,7 @@ export function createAvatarSpeechController(initialLevel = 0): AvatarSpeechCont
 
   return {
     peek: () => currentLevel,
+    peekVisemes: () => currentVisemes,
     publishLevel: (level) => {
       const nextLevel = clampLevel(level);
       if (Math.abs(nextLevel - currentLevel) < 0.001) {
@@ -34,7 +40,11 @@ export function createAvatarSpeechController(initialLevel = 0): AvatarSpeechCont
       currentLevel = nextLevel;
       emit();
     },
+    publishVisemes: (weights) => {
+      currentVisemes = weights;
+    },
     reset: () => {
+      currentVisemes = null;
       if (currentLevel === 0) {
         return;
       }

@@ -144,6 +144,7 @@ async def extract_knowledge_points(
 
 def _parse_reduce(raw: str, candidate_keys: set[str]) -> dict:
     groups = []
+    names = []
     seen: set[str] = set()
     for node in _root_nodes(raw, "merge"):
         members = [child.text.strip() for child in node.many("member")]
@@ -151,6 +152,7 @@ def _parse_reduce(raw: str, candidate_keys: set[str]) -> dict:
             raise ValueError("Merge groups must contain unique candidate keys.")
         seen.update(members)
         groups.append(members)
+        names.append((members, _text(node, "name", required=False)))
     groups.extend([[key] for key in sorted(candidate_keys - seen)])
     edges = []
     for node in _root_nodes(raw, "edge"):
@@ -165,14 +167,14 @@ def _parse_reduce(raw: str, candidate_keys: set[str]) -> dict:
             raise ValueError("External prerequisite refers to an unknown candidate.")
         if len(set(used_by)) >= 2:
             external.append({"name": _text(node, "name"), "used_by": sorted(set(used_by))})
-    return {"groups": groups, "edges": edges, "external": external}
+    return {"groups": groups, "names": names, "edges": edges, "external": external}
 
 
-def _merge_point(group: list[dict]) -> dict:
+def _merge_point(group: list[dict], canonical_name: str = "") -> dict:
     ordered = sorted(group, key=lambda point: (point.get("ord", 0), point["name"]))
     richest = max(ordered, key=lambda point: len(point.get("summary", "")))
     merged = deepcopy(richest)
-    merged["name"] = ordered[0]["name"]
+    merged["name"] = canonical_name or ordered[0]["name"]
     merged["norm_name"] = normalize_name(merged["name"])
     merged["unit_id"] = ordered[0]["unit_id"]
     merged["ord"] = min(point.get("ord", 0) for point in ordered)
@@ -210,6 +212,7 @@ def _finalize_reduction(
     candidates: list[dict],
     existing_points: list[dict],
     reduced: dict,
+    group_names: dict[frozenset[str], str] | None = None,
 ) -> dict:
     by_key = {f"c{index}": deepcopy(point) for index, point in enumerate(candidates)}
     key_to_point: dict[str, dict] = {}
@@ -218,8 +221,17 @@ def _finalize_reduction(
     unit_order = {unit["id"]: int(unit.get("ord", index)) for index, unit in enumerate(units)}
     groups = _merge_same_names(by_key, reduced["groups"])
     for members in groups:
-        merged = _merge_point([by_key[key] for key in members])
+        merged = _merge_point(
+            [by_key[key] for key in members],
+            (group_names or {}).get(frozenset(members), ""),
+        )
         old = existing.get((merged["unit_id"], merged["norm_name"]))
+        if old is None:
+            old = next((
+                existing[(by_key[key]["unit_id"], by_key[key]["norm_name"])]
+                for key in members
+                if (by_key[key]["unit_id"], by_key[key]["norm_name"]) in existing
+            ), None)
         merged["id"] = old["id"] if old else _stable_id(
             "kp", course_id, merged["unit_id"], merged["norm_name"],
         )
@@ -244,14 +256,19 @@ def _finalize_reduction(
             matches = by_norm.get(normalize_name(name), [])
             if len(matches) == 1:
                 proposed.append((matches[0], point))
+    mentions = defaultdict(dict)
     for external in reduced["external"]:
-        dependents = [key_to_point[key] for key in external["used_by"]]
-        first = min(dependents, key=lambda point: (unit_order.get(point["unit_id"], 0), point["ord"]))
         norm = normalize_name(external["name"])
+        mentions[norm].update((key, external["name"]) for key in external["used_by"])
+    for norm, references in mentions.items():
+        dependents = list({key_to_point[key]["id"]: key_to_point[key] for key in references}.values())
+        if len(dependents) < 2 or norm in by_norm:
+            continue
+        first = min(dependents, key=lambda point: (unit_order.get(point["unit_id"], 0), point["ord"]))
         assumed = {
             "id": _stable_id("kp", course_id, "assumed", norm),
             "unit_id": first["unit_id"],
-            "name": external["name"],
+            "name": next(iter(references.values())),
             "norm_name": norm,
             "kind": "concept",
             "summary": "",
@@ -309,6 +326,24 @@ def _merge_same_names(by_key: dict[str, dict], groups: list[list[str]]) -> list[
     return list(merged.values())
 
 
+def _find(parent: dict[str, str], key: str) -> str:
+    while parent[key] != key:
+        parent[key] = parent[parent[key]]
+        key = parent[key]
+    return key
+
+
+def _union(parent: dict[str, str], rank: dict[str, int], left: str, right: str) -> None:
+    left_root, right_root = _find(parent, left), _find(parent, right)
+    if left_root == right_root:
+        return
+    if rank[left_root] < rank[right_root]:
+        left_root, right_root = right_root, left_root
+    parent[right_root] = left_root
+    if rank[left_root] == rank[right_root]:
+        rank[left_root] += 1
+
+
 async def reduce_knowledge_points(
     gateway: LLMGateway,
     *,
@@ -320,52 +355,97 @@ async def reduce_knowledge_points(
 ) -> dict:
     if not candidates:
         return {"units": deepcopy(units), "knowledge_points": [], "warnings": []}
-    keyed = [{"key": f"c{index}", **point} for index, point in enumerate(candidates)]
-    variables = {
-        "course_context": _json_block("course", {"id": course_id, "units": units}),
-        "knowledge_candidates": _json_block("candidates", keyed),
+    keyed = {
+        f"c{index}": {
+            "key": f"c{index}", "unit_id": point["unit_id"], "name": point["name"],
+            "summary": point["summary"][:420], "prerequisite_names": point.get("prerequisite_names", [])[:6],
+        }
+        for index, point in enumerate(candidates)
     }
-    reduced = await gateway.complete_tagged(
-        "analysis",
-        "analysis/kp_reduce",
-        variables,
-        parse=lambda raw: _parse_reduce(raw, {point["key"] for point in keyed}),
-        cache=True,
-        max_tokens=6144,
-    )
-    if use_embeddings and len(candidates) > 1:
-        vectors = await gateway.embed([
-            f"{point['name']}\n{point['summary']}" for point in candidates
-        ], cache=True)
+    keys = list(keyed)
+    parent = {key: key for key in keys}
+    rank = {key: 0 for key in keys}
+    reduced = {"groups": [], "names": [], "edges": [], "external": []}
+
+    async def reconcile(batch: list[str]) -> None:
+        unit_ids = {keyed[key]["unit_id"] for key in batch}
+        result = await gateway.complete_tagged(
+            "analysis", "analysis/kp_reduce",
+            {
+                "course_context": _json_block("course", {"id": course_id, "units": [u for u in units if u["id"] in unit_ids]}),
+                "knowledge_candidates": _json_block("candidates", [keyed[key] for key in batch]),
+            },
+            parse=lambda raw: _parse_reduce(raw, set(batch)), cache=True, max_tokens=6144,
+        )
+        for group in result["groups"]:
+            for key in group[1:]:
+                _union(parent, rank, group[0], key)
+        reduced["names"].extend(result["names"])
+        reduced["edges"].extend(result["edges"])
+        reduced["external"].extend(result["external"])
+
+    by_unit = defaultdict(list)
+    for key in keys:
+        by_unit[keyed[key]["unit_id"]].append(key)
+    batches = [keys] if len(keys) <= 64 else [
+        members[offset:offset + 64] for members in by_unit.values() for offset in range(0, len(members), 64)
+    ]
+    for batch in batches:
+        await reconcile(batch)
+
+    neighbors = defaultdict(list)
+    for key, point in keyed.items():
+        neighbors[normalize_name(point["name"])].append(key)
+    pairs = {
+        (members[0], key) for members in neighbors.values() for key in members[1:]
+        if keyed[key]["unit_id"] != keyed[members[0]]["unit_id"]
+    }
+    if use_embeddings and len(keys) > 1:
+        vectors = await gateway.embed([f"{point['name']}\n{point['summary']}" for point in candidates], cache=True)
         vectors = vectors / np.maximum(np.linalg.norm(vectors, axis=1, keepdims=True), 1e-12)
-        component = {key: group for group in reduced["groups"] for key in group}
         for index, vector in enumerate(vectors):
-            left = f"c{index}"
-            nearby = np.flatnonzero(vectors[index + 1:] @ vector >= 0.90)
-            for offset in nearby:
-                right = f"c{index + 1 + offset}"
-                if component[left] is component[right]:
-                    continue
-                merged = component[left] + component[right]
-                for key in merged:
-                    component[key] = merged
-        reduced["groups"] = list({tuple(group): group for group in component.values()}.values())
+            scores = vectors[index + 1:] @ vector
+            for offset in np.flatnonzero(scores >= 0.90):
+                _union(parent, rank, keys[index], keys[index + 1 + int(offset)])
+            plausible = np.flatnonzero((scores >= 0.80) & (scores < 0.90))
+            top = sorted(plausible, key=lambda offset: (-float(scores[offset]), offset))[:3]
+            pairs.update((keys[index], keys[index + 1 + int(offset)]) for offset in top)
+
+    pending = sorted((left, right) for left, right in pairs if _find(parent, left) != _find(parent, right))
+    for offset in range(0, len(pending), 12):
+        await reconcile(list(dict.fromkeys(key for pair in pending[offset:offset + 12] for key in pair)))
+
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for key in keys:
+        grouped[_find(parent, key)].append(key)
+    reduced["groups"] = list(grouped.values())
+    group_names = {}
+    for members in reduced["groups"]:
+        member_set = set(members)
+        proposals = [
+            (len(proposal_members), name)
+            for proposal_members, name in reduced["names"]
+            if name and set(proposal_members).issubset(member_set)
+        ]
+        if proposals:
+            group_names[frozenset(members)] = max(proposals, key=lambda proposal: proposal[0])[1]
     return _finalize_reduction(
         course_id=course_id,
         units=units,
         candidates=candidates,
         existing_points=existing_points or [],
         reduced=reduced,
+        group_names=group_names,
     )
 
 
-def _parse_exam(raw: str, *, course_id: str, material: dict, pages: list[dict]) -> dict:
+def _parse_exam(raw: str, *, course_id: str, material: dict, pages: list[dict], partial: bool = False) -> dict:
     paper_nodes = _root_nodes(raw, "paper")
     if len(paper_nodes) != 1:
         raise ValueError("Expected exactly one paper.")
     paper_node = paper_nodes[0]
     material_id = str(material["id"])
-    paper_name = _text(paper_node, "name")
+    paper_name = _text(paper_node, "name", required=not partial)
     year_text = _text(paper_node, "year", required=False)
     score_text = _text(paper_node, "full_score", required=False)
     year = int(year_text) if year_text else material.get("year")
@@ -425,37 +505,130 @@ def _parse_exam(raw: str, *, course_id: str, material: dict, pages: list[dict]) 
         }
         if item["difficulty"] not in {1, 2, 3}:
             raise ValueError("Exam item difficulty is invalid.")
+        if partial:
+            item["_parent_no"] = parent_no
         items.append(item)
         by_no[number] = item_id
-    if not items:
+    if not items and not partial:
         raise ValueError("Expected at least one exam item.")
     return {"paper": paper, "items": items}
 
 
-async def segment_exam(
-    gateway: LLMGateway,
-    *,
-    course_id: str,
-    material: dict,
-    pages: list[dict],
+async def _segment_exam_part(
+    gateway: LLMGateway, course_id: str, material: dict, pages: list[dict], part: int | None = None,
 ) -> dict:
-    page_payload = [
-        {"page_no": int(page["page_no"]), "markdown": str(page.get("markdown", ""))}
-        for page in pages
-    ]
+    context = {"id": course_id, "material": material}
+    if part is not None:
+        context["part"] = part
     return await gateway.complete_tagged(
         "analysis",
         "analysis/exam_segment",
         {
-            "course_context": _json_block("course", {"id": course_id, "material": material}),
-            "page_content": _json_block("pages", page_payload),
+            "course_context": _json_block("course", context),
+            "page_content": _json_block("pages", pages),
         },
         parse=lambda raw: _parse_exam(
-            raw, course_id=course_id, material=material, pages=page_payload,
+            raw, course_id=course_id, material=material, pages=pages, partial=part is not None,
         ),
         cache=True,
         max_tokens=8192,
     )
+
+
+def _exam_parts(pages: list[dict], *, chars: int = 9_000, overlap: int = 3_000) -> list[list[dict]]:
+    material = "".join(page["markdown"] + "\n\n" for page in pages)
+    ranges = []
+    offset = 0
+    for page in pages:
+        end = offset + len(page["markdown"]) + 2
+        ranges.append((page["page_no"], offset, end))
+        offset = end
+    return [
+        [{"page_no": no, "markdown": material[max(left, start - overlap):min(right, start + chars)]}
+         for no, left, right in ranges if right > start - overlap and left < start + chars]
+        for start in range(0, len(material), chars)
+    ]
+
+
+def _exam_number(value: str) -> str:
+    return re.sub(r"\s+", "", unicodedata.normalize("NFKC", value)).casefold()
+
+
+def _exam_references(raw: str, pages: set[int], questions: set[str]) -> list[dict]:
+    refs = []
+    for node in _root_nodes(raw, "reference"):
+        no = _exam_number(_text(node, "no"))
+        if no not in questions:
+            raise ValueError("Answer reference has an unknown question number.")
+        cited = _parse_page_numbers(_text(node, "pages"), pages)
+        answer = _text(node, "answer", required=False)
+        solution = _text(node, "solution", required=False)
+        if not cited or not (answer or solution):
+            raise ValueError("Answer reference must cite an explicit answer or solution.")
+        refs.append({"no": no, "answer": answer, "solution": solution, "pages": cited})
+    return refs
+
+
+async def segment_exam(
+    gateway: LLMGateway, *, course_id: str, material: dict, pages: list[dict],
+) -> dict:
+    page_payload = [{"page_no": int(p["page_no"]), "markdown": str(p.get("markdown", ""))} for p in pages]
+    if sum(len(page["markdown"]) + 2 for page in page_payload) <= 9_000:
+        return await _segment_exam_part(gateway, course_id, material, page_payload)
+
+    parts = _exam_parts(page_payload)
+    packets = [await _segment_exam_part(gateway, course_id, material, part, index + 1) for index, part in enumerate(parts)]
+    paper = next((packet["paper"] for packet in packets if packet["paper"]["name"]), packets[0]["paper"])
+    paper = {**paper, "name": paper["name"] or material.get("exam_name") or material.get("title") or "Exam"}
+    items: dict[str, dict] = {}
+    for packet in packets:
+        for item in packet["items"]:
+            key = _exam_number(item["no"])
+            previous = items.get(key)
+            if previous is None:
+                items[key] = item
+                continue
+            old_pages = {ref["page_no"] for ref in previous["page_refs"]}
+            new_pages = {ref["page_no"] for ref in item["page_refs"]}
+            old_stem, new_stem = normalize_name(previous["stem"]), normalize_name(item["stem"])
+            shared_question = old_pages & new_pages and (old_stem in new_stem or new_stem in old_stem)
+            if not shared_question:
+                raise ValueError("Repeated exam numbers need distinct section qualifiers.")
+            if len(item["stem"]) > len(previous["stem"]):
+                items[key], item = item, previous
+            selected = items[key]
+            for field in ("answer", "solution"):
+                if selected[field] is None:
+                    selected[field] = item[field]
+    if not items:
+        raise ValueError("Expected at least one exam item.")
+
+    needs_reference = {no for no, item in items.items() if not item["answer"] or not item["solution"]}
+    references = defaultdict(list)
+    for part in parts if needs_reference and material.get("has_answers") is not False else ():
+        valid_pages = {p["page_no"] for p in part}
+        result = await gateway.complete_tagged(
+            "analysis", "analysis/exam_reference",
+            {
+                "exam_items": _json_block("question_numbers", [items[no]["no"] for no in items if no in needs_reference]),
+                "page_content": _json_block("pages", part),
+            },
+            parse=lambda raw: _exam_references(raw, valid_pages, needs_reference), cache=True, max_tokens=8192,
+        )
+        for ref in result:
+            references[ref["no"]].append(ref)
+
+    for index, (no, item) in enumerate(items.items()):
+        parent = items.get(_exam_number(item.pop("_parent_no")))
+        item.update(paper_id=paper["id"], parent_item_id=parent["id"] if parent and parent is not item else None, ord=index)
+        for field in ("answer", "solution"):
+            originals = {ref[field] for ref in references[no] if ref[field]}
+            if not item[field] and len(originals) == 1:
+                item[field] = originals.pop()
+                cited = {page for ref in references[no] if ref[field] == item[field] for page in ref["pages"]}
+                known = {ref["page_no"] for ref in item["page_refs"]}
+                item["page_refs"].extend({"material_id": item["material_id"], "page_no": page} for page in sorted(cited - known))
+    return {"paper": paper, "items": list(items.values())}
 
 
 def _parse_item_maps(raw: str, item_keys: set[str], kp_keys: set[str]) -> dict[str, list[str]]:
@@ -519,8 +692,7 @@ async def map_exam_items(
     kp_ids = {point["key"]: knowledge_points[index]["id"] for index, point in enumerate(kp_payload)}
     mapped = deepcopy(items)
     for index, item in enumerate(mapped):
-        candidates = set(item_payload[index]["candidate_keys"])
-        item["kp_ids"] = [kp_ids[key] for key in mapping[f"i{index}"] if key in candidates]
+        item["kp_ids"] = [kp_ids[key] for key in mapping[f"i{index}"]]
     return {"items": mapped}
 
 
@@ -632,3 +804,23 @@ async def generate_course_brief(
         "estimated_hours": estimated_hours,
         **generated,
     }
+
+
+async def check_summary_support(gateway: LLMGateway, point: dict, pages: list[dict]) -> bool:
+    if not pages:
+        return False
+
+    def parse(raw: str) -> bool:
+        nodes = _root_nodes(raw, "support")
+        if len(nodes) != 1 or nodes[0].text.strip() not in {"supported", "unsupported"}:
+            raise ValueError("Expected a source support verdict.")
+        return nodes[0].text.strip() == "supported"
+
+    return await gateway.complete_tagged(
+        "analysis", "analysis/kp_faithful",
+        {
+            "knowledge_candidates": _json_block("point", {key: point[key] for key in ("name", "summary")}),
+            "page_content": _json_block("source_pages", pages),
+        },
+        parse=parse, cache=True, max_tokens=1024,
+    )

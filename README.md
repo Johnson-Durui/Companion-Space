@@ -1,170 +1,82 @@
-# Companion Space v2
-
-> 正在重塑为 v1.0，见[重塑总纲](docs/rebuild/PLAN.md)。
-
-## 本机快速开始
-
-1. 安装 Python 3.12 或更新版本。从源码构建界面时需要 Node.js 24。
-2. Windows 双击 `start.bat`。macOS 和 Linux 在项目根目录运行 `sh start.sh`。
-3. 浏览器打开 [伴学空间](http://127.0.0.1:8000/welcome) 后选择老师。到「设置 → 模型」选预设、填密钥、保存并测试，然后用「试聊」检查流式对话或图片识别。
-4. 在「课程」新建一门课，导入教材和试卷，核对资料类型与考试年份，再开始分析。课程地图可以查看知识点、资料出处、关联真题和答案复核状态。文字分析需要配置分析模型，扫描页和图片需要配置视觉模型。
-
-默认直接打开欢迎页。启用可选主密码后，重启时输入它即可解锁。应用把模型密钥加密保存在设置页显示的数据目录。
-
-Python 下载慢时，Windows 可运行 `powershell -NoProfile -ExecutionPolicy Bypass -File start.ps1 -Mirror cn`。macOS 和 Linux 可运行 `sh start.sh --mirror cn`。发行包自带已构建的界面时只需要 Python。
-
-> 以下为重塑前版本的历史说明。运行当前工作树请使用本机快速开始。
+# Companion Space 1.0 RC
 
 [English](README.en.md)
 
-本地优先、单用户的二次元学习搭子。从自己的书房进入学习空间，导入资料、选择伙伴，用文字或语音共学，再把对话整理成复盘与记忆。支持 Windows 本机运行和 Docker 部署；记录保存在本机，接入外部模型时会向你选择的服务发送相应请求。
+Companion Space 是本地优先、单用户的 AI 家教。你可以导入自己的教材、讲义、试卷和笔记，生成可核对来源的课程地图，完成学情访谈与摸底，再进入带语音、黑板和复习卡的实时课堂。
 
-源码许可证：**Apache License 2.0**。角色模型、动作、语音权重各自还有独立许可，见 [NOTICE](NOTICE) 和 [assets/THIRD_PARTY_NOTICES.md](assets/THIRD_PARTY_NOTICES.md)。
+这是 `1.0.0-rc.1` 候选版本，不是已签名的正式发行版。应用数据默认只写入本机；使用外部模型时，完成当前操作所需的文本或图片会发送给你配置的服务商。
 
-## 从哪里开始
+## 三条命令快速开始
 
-- **星轨书房**管理学习空间、PDF / 笔记和模型服务。
-- **互动课堂**左侧是导师，右侧常驻黑板。支持公式、单步推演、修改输入、图谱追问和随堂测验。
-- **记忆复盘**显示课堂提炼的候选闪卡。确认后进入 FSRS 排程，复习时可查看资料出处。
-
-本机 Vault 解锁后，浏览器刷新可继续当前课堂。试用内置 Mock 无需 API Key，在新空间输入「二分查找」即可体验完整流程。连接自己的模型服务后，课堂会使用当前空间绑定的模型生成讲义和回答。
-
-### Windows 本机启动
-
-安装 Node.js 24 和 Python 3.12 或 3.13，在解压后的项目根目录运行一次：
+需要 Windows 10/11、Python 3.12+ 和 Node.js 24。PowerShell 中运行：
 
 ```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r services/api/requirements.txt
-npx.cmd --yes npm@11.21.2 ci
-.\START-LOCAL-WINDOWS.ps1 -Production
-```
-
-使用 Python 3.13 时将第一行改为 `py -3.13`。之后运行最后一行，浏览器访问 `http://127.0.0.1:3000`；保持终端开启，Ctrl+C 停止本次启动的服务。开发时省略 `-Production`。无需安装 Bash。
-
-安装使用固定的 npm 11.21.2，避免旧 npm 对 workspace 安全补丁覆盖处理不完整。该命令不会替换系统的全局 npm，首次执行需要联网。
-
-## 第三方：一步启动
-
-需要 Docker Desktop（或兼容的 Docker Engine）和 Docker Compose v2。先 **不要** 打开 `neural-tts` profile。
-
-```bash
-git clone https://github.com/Johnson-Durui/Companion-Space.git Companion-Space
+git clone https://github.com/Johnson-Durui/Companion-Space.git
 cd Companion-Space
-cp .env.example .env
-docker compose up --build
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-首次启动后：
+浏览器会打开 `http://127.0.0.1:8000/welcome`。点「看示例课」即可在未配置 API Key 的情况下体验白板、作答、选项反馈和结课小结。示例课播放真实模型预先录制的内容。
 
-- 打开 `https://companion.localhost`
-- 按浏览器提示信任 Caddy 本地 CA（`tls internal`，**不是** 公网 Let's Encrypt）
-- 先走 Mock：Vault → 空间 → 资料 → 角色 → 共学
+![示例课白板和作答反馈](docs/images/sample-lesson.png)
 
-健康检查：Caddy 起来后访问 `https://companion.localhost/healthz`。`api` 与 `web` 容器带 healthcheck；Caddy 会等它们 healthy。
+要用自己的资料上课，请到「设置 → 模型」选择服务商、保存 API Key，并测试分析、对话、视觉和嵌入角色。可先用预设页的「关注免费额度」筛选服务，额度以服务商的说明为准。
 
-可选神经语音（NVIDIA GPU，首次约 2.5 GB 权重）只有在你明确打开 profile 后才会构建：
+## 当前能力
 
-```dotenv
-COMPOSE_PROFILES=neural-tts
-BUILTIN_NEURAL_TTS_ENABLED=true
-```
+- 导入 PDF、PPTX、DOCX、图片、Markdown 和纯文本，并标记教材、讲义、试卷等资料角色。
+- 用配置的真实模型生成课程地图、知识点、题目关联和答案复核状态；所有自动结果都可人工修正。
+- 学情访谈、摸底、学习计划、实时语音/文字课堂、黑板同步、打断与断线恢复。
+- 课堂后的 FSRS 复习卡与错题复盘。
+- 六位 2D 老师和三位许可登记的 VRM 示例角色；便携包和容器候选包暂时只含许可已核验的两张立绘与三个 VRM。
+- Edge 在线语音为零配置默认。可选本地 Sherpa STT 需在源码环境单独安装，模型权重不会随发行包分发。
 
-不要把真实的 `.env`、`storage/`、`infra/caddy/data`、私钥、token 或数据库提交进 git。
+## Windows 便携包
 
-### Windows
-
-仓库根目录有 `START-WINDOWS.ps1`：适合把 WSL/Docker 内存帽打到 14 GB 的 16 GB 主机。别的机器可以：
+维护者可构建内置 CPython 3.14.10 x64 的目录式压缩包：
 
 ```powershell
-Copy-Item .env.example .env
-docker compose up --build
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-portable.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-portable.ps1
 ```
 
-或 `.\START-WINDOWS.ps1 -SkipWslMemoryCheck`。Docker 没开时用 `.\START-LOCAL-WINDOWS.ps1`，浏览器打开 `http://127.0.0.1:3000`。备份只用仓库内脚本，默认写到 `backups/`（已 gitignore）：
+压缩包和 SHA-256 文件输出到 `outputs/`。用户解压后双击 `start.bat`；数据写入解压目录的 `data/`。程序目前未做代码签名，Windows SmartScreen 可能显示“未知发布者”；只使用项目发布页提供且 SHA-256 匹配的包，选择“更多信息 → 仍要运行”。不要从来源不明的镜像下载。
+
+四张历史立绘的再分发许可尚待所有者核验，因此构建脚本会把它们和对应角色目录项排除，并在包内写入 `PORTABLE-ASSET-STATUS.md`。这不影响源码本机运行，但在许可完成前不得公开发布包含这些文件的二进制包。
+
+## Docker（可选）
+
+Docker Compose 只启动一个同时托管 API 与界面的服务：
+
+```bash
+docker compose up --build -d
+docker compose ps
+curl http://127.0.0.1:8000/healthz
+```
+
+数据保存在 `companion_data` 卷。端口只绑定回环地址；不要把它改成 `0.0.0.0` 直接暴露到局域网或公网。设置页可启用主密码来保护模型凭据，但它不是反向代理的网络访问口令。需要远程访问时，必须在前面配置带 HTTPS 和身份验证的反向代理，本项目的 Compose 文件不会替你开放远程入口。
+
+## 可选本地语音识别
+
+源码环境可安装 Sherpa 扩展：
 
 ```powershell
-.\BACKUP-WINDOWS.ps1
+.\.venv\Scripts\python.exe -m pip install -r services/api/requirements-local-stt.txt
 ```
 
-不要在 API 运行时直接复制 `companion.db`、WAL/SHM 或整个 `storage/`。更换 API 镜像前先跑备份。
+首次选择本地识别时按界面提示取得模型并确认其许可证。Sherpa 运行时和语音模型均不打入便携包；音频只在内存中处理，不写入磁盘。
 
-本地开发（不用 Docker）见 [WINDOWS-README.md](legacy/WINDOWS-README.md)。本仓库是 **npm workspace**，用 `npm.cmd` / `npm`，不要用 pnpm。
+## 数据、迁移与备份
 
-## 当前仓库布局
+- 源码启动默认使用 `storage/`；便携包使用自身的 `data/`；Docker 使用命名卷。可用 `COMPANION_DATA_DIR` 指定一个独立目录。
+- 从旧版本升级前先完整备份旧数据目录和 `vault.json`。RC 不会主动删除或搬移旧目录，也不要把不同安装同时指向同一数据目录。
+- 旧版手机壳、成人模式、第三方 Live2D/Spine bridge、角色捏人和旧多容器 Caddy 部署已下线。载入旧数据库后，可到「课程记录」把对话导出为 Markdown。保留原安装与备份，先在副本验证迁移。
+- 主密码保险箱由应用在首次打开时按现有格式迁移；看到迁移或解锁错误时停止写入，恢复备份后再处理，不要删除 `vault.json` 猜测修复。
 
-```text
-.
-├── packages/          角色引擎、互动黑板和 OpenAPI 客户端
-├── apps/web/          Next.js UI（VRM / 2D、会话、设置）
-├── services/api/      FastAPI
-├── services/tts/      可选 Qwen3-TTS sidecar
-├── infra/caddy/       唯一 HTTPS 入口（当前 Caddyfile 对所有 APP_HOST 使用 tls internal）
-├── docker-compose.yml
-├── .env.example
-├── LICENSE
-├── NOTICE
-└── assets/THIRD_PARTY_NOTICES.md
-```
+## 限制与发布状态
 
-Web 默认用**同源相对地址**构建：
+- 课程分析和实时教学的模型质量、真人麦克风与耳机延迟、干净 Windows 新用户流程仍需验收。实时资料分析和实时课堂需要配置模型。
+- 便携包未签名；Docker 镜像当前不发布到公共仓库。
+- MIRA、KITE、CAEL、LYRA 四张立绘的公开再分发许可仍待核验。
 
-```dotenv
-NEXT_PUBLIC_API_BASE_URL=/
-NEXT_PUBLIC_REALTIME_WS_URL=/api/v1/sessions/:sessionId/realtime
-```
-
-这样手机用 IP、电脑用 `companion.localhost`，只要反代同源，都不需要为每个主机名重编一套前端。改了这些构建期变量必须重建 `web` 镜像，只重启容器不够。
-
-## 角色与许可（请读）
-
-| 产品角色 | 当前 3D | 许可摘要 |
-| --- | --- | --- |
-| 澄羽 MIRA | `Mira.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 曜柚 KITE | `Kite.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 凛序 CAEL | `Cael.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 弦灯 LYRA | `Lyra.vrm` 原创定制 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 星澜 NOVA | `Nova.vrm` original-vrm 原型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-| 沐音 ECHO | `Echo.vrm` original-vrm 原型 | 嵌入 VRM 权限：个人商业可用；企业商业未授权 |
-
-卡面插画与六个原创 3D 形象均为本项目原创。Sendagaya Shino / Seed-san / Sakurada Fumiriya / Constraint Twist 仍作为许可样本保留。Mori / Yuzu 的 2D atlas 是本项目资源。不要从 CyberVerse（GPL-3.0）拷代码进来。
-
-六个原创 VRM 允许再分发和修改且无需署名，但其内嵌权限不授权企业商业使用，并禁止过度暴力/性、政治/宗教、反社会或仇恨用途；不得剥离内嵌元数据。完整字段见模型 `manifest.json` 与 [第三方/素材声明](assets/THIRD_PARTY_NOTICES.md)。其中 MIRA/KITE/CAEL/LYRA 是 painted-blender 级模型，NOVA/ECHO 是同一运行时契约下的 original-vrm 原型模型。
-
-仓库发布的是经过校验的六个 VRM 二进制与哈希；精确的 painted albedo 输入和本地 `.blend` 工作文件不在公开仓库。干净 clone 可以直接运行这些模型，但不承诺从公开源逐字节重建相同哈希。详见 [原创 3D 契约](docs/archive/design/original-companions-3d.md)。
-
-## 验证命令
-
-从仓库根目录：
-
-```bash
-npm run typecheck:web
-npm run lint:web
-npm run test:original-vrm
-npm run test:runtime-config
-npm run test:pet-assets
-```
-
-API（需要本机 Python 依赖）：
-
-```bash
-python3 -m ruff check services/api
-PYTHONPATH=services/api python3 -m pytest services/api/tests -q
-```
-
-不要并发跑两个 Next production build，也不要在正在跑的 `next start` 旁边覆盖 `.next`。
-
-## 文档
-
-- [Windows 快速启动](legacy/WINDOWS-README.md)
-- [部署](docs/archive/deployment.md)
-- [移动配对](docs/archive/lan-pairing.md)
-- [架构](docs/archive/architecture.md)
-- [隐私](docs/privacy-and-data.md)
-- [安全模型](docs/security-model.md)
-- [素材许可](docs/asset-licensing.md)
-- [贡献](CONTRIBUTING.md)
-
-## English
-
-Companion Space is a local-first, single-user anime study companion. Clone, copy `.env.example` to `.env`, and run `docker compose up --build`. Open `https://companion.localhost` and trust the **internal** Caddy CA. The six featured 3D bodies are project-owned original VRM companions; licensed sample VRM files remain optional. Credit Seed-san to VirtualCast, Inc. Mobile and GPU TTS are optional. Do not commit `.env`, `storage/`, or `infra/caddy/data`.
+许可详情见 [LICENSE](LICENSE)、[NOTICE](NOTICE) 和 [第三方素材清单](assets/THIRD_PARTY_NOTICES.md)。问题报告请附启动方式、系统版本、失败页面和去敏后的日志，绝不要提交 API Key、`vault.json` 或个人教材。
