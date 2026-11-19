@@ -14,6 +14,7 @@ import { Loading } from "../../app/ui";
 import { MicrophoneCapture, Pcm16Framer, type HandsFreeVad } from "../../audio";
 import t from "../../locales/zh-CN.json";
 import { toVideoAvatarConfig, videoBoxLabels } from "../characters/video-config";
+import { createSidecarConnector } from "../characters/sidecar-connector";
 import { BoardBlock } from "./board-block";
 import type { Ask, Prefill } from "./lesson-state";
 import { useClassroom } from "./use-classroom";
@@ -312,6 +313,7 @@ function Lesson({ id }: { id: string }) {
   }
 
   const labels = useMemo(() => videoBoxLabels(), []);
+  const sidecarConnector = useMemo(() => createSidecarConnector(), []);
   const { room, classroom, started, connected, recap, speaking, error } = live;
   const teacher = room?.teacher;
   const teacherConfig = useMemo(
@@ -390,6 +392,7 @@ function Lesson({ id }: { id: string }) {
             statusLabel={status}
             caption={classroom.caption}
             labels={labels}
+            sidecarConnector={sidecarConnector}
           />
         ) : (
           <div className="lesson-stage-copy">

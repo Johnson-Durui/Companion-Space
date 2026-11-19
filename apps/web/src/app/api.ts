@@ -8,6 +8,7 @@ export const settingsKey = ["settings"] as const;
 export const charactersKey = ["characters"] as const;
 export const rolesKey = ["model-roles"] as const;
 export const connectionsKey = ["connections"] as const;
+export const avatarDriversKey = ["avatar-drivers"] as const;
 
 export function publicMessage(error: unknown) {
   if (error && typeof error === "object" && "code" in error && typeof error.code === "string" && Object.hasOwn(t.errors, error.code)) {
@@ -33,9 +34,11 @@ export async function fetchSettings() { return bodyOf(await api.GET("/api/v2/set
 export async function fetchCharacters() { return bodyOf(await api.GET("/api/v2/characters")); }
 export async function fetchRoles() { return bodyOf(await api.GET("/api/v2/settings/model-roles")); }
 export async function fetchConnections() { return bodyOf(await api.GET("/api/v2/providers/connections")); }
+export async function fetchAvatarDriverSettings() { return bodyOf(await api.GET("/api/v2/avatar-drivers/settings")); }
 
 export type SessionStatus = Awaited<ReturnType<typeof bootstrapSession>>;
 export type Character = Awaited<ReturnType<typeof fetchCharacters>>[number];
 export type Connection = Awaited<ReturnType<typeof fetchConnections>>[number];
 export type ModelRoles = Awaited<ReturnType<typeof fetchRoles>>;
+export type AvatarDriverSettings = Awaited<ReturnType<typeof fetchAvatarDriverSettings>>;
 export type ChatInput = paths["/api/v2/diagnostics/chat"]["post"]["requestBody"]["content"]["application/json"];

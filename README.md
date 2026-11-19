@@ -28,7 +28,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 - 用配置的真实模型生成课程地图、知识点、题目关联和答案复核状态；所有自动结果都可人工修正。
 - 学情访谈、摸底、学习计划、实时语音/文字课堂、黑板同步、打断与断线恢复。
 - 课堂后的 FSRS 复习卡与错题复盘。
-- 六位 2D 老师和三位许可登记的 VRM 示例角色；便携包和容器候选包暂时只含许可已核验的两张立绘与三个 VRM。
+- 微信视频通话风格的竖屏纯视频框老师（`<TutorVideoBox>`）：默认内置六位 2D 角色（其中 `tutor-echo` 沐音与 `tutor-nova` 星澜的 Apache-2.0 立绘可用于便携和容器包），支持在角色库拖入单张图片秒建老师或导入 `.tutorpack` 8 段循环短片包；旧版 3D VRM 已退场归档至 `assets-archive/retired-vrm/`。
+- 内置二次元 `.tutorpack` 制作脚手架（`tools/tutorpack/`）与完全独立的本地 GPU 实时驱动参考模板（`sidecars/local-gpu-avatar/`），可在「设置 → 视频形象」按需接入本地显卡开源驱动，默认零按分钟计费。
 - Edge 在线语音为零配置默认。可选本地 Sherpa STT 需在源码环境单独安装，模型权重不会随发行包分发。
 
 ## Windows 便携包

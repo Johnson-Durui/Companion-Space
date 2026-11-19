@@ -1,0 +1,12 @@
+[project]
+name = "companion-space-local-gpu-avatar"
+version = "0.1.0"
+description = "Apache-2.0 TutorVideo Sidecar Protocol v1 reference server and local GPU adapter template"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pillow>=11.0.0",
+    "pydantic>=2.9.0",
+]

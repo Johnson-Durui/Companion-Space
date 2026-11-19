@@ -4,6 +4,7 @@ import { TutorVideoBox, type TutorVideoBoxHandle } from "@companion-space/avatar
 import type { Character } from "../../app/api";
 import t from "../../locales/zh-CN.json";
 import { toVideoAvatarConfig, videoBoxLabels } from "./video-config";
+import { createSidecarConnector } from "./sidecar-connector";
 import "../classroom/classroom.css";
 
 export function TeacherPreview({
@@ -21,6 +22,7 @@ export function TeacherPreview({
 }) {
   const config = useMemo(() => toVideoAvatarConfig(character), [character]);
   const labels = useMemo(() => videoBoxLabels(), []);
+  const sidecarConnector = useMemo(() => createSidecarConnector(), []);
   return (
     <TutorVideoBox
       ref={videoRef}
@@ -32,6 +34,7 @@ export function TeacherPreview({
       showOverlay={false}
       compact
       labels={labels}
+      sidecarConnector={sidecarConnector}
     />
   );
 }

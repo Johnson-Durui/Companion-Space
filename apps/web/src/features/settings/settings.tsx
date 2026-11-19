@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { api, bodyOf, fetchSettings, settingsKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
+import { AvatarSettingsPanel } from "./avatar-settings";
 import { ModelSettings } from "./models";
 import { SecuritySettings } from "./security";
 import { VoiceSettingsPanel } from "./voice-settings";
@@ -11,6 +12,7 @@ import { VoiceSettingsPanel } from "./voice-settings";
 const sections = [
   ["models", t.settings.models],
   ["voice", t.settings.voices],
+  ["avatar", t.settings.avatar],
   ["security", t.security.title],
   ["data", t.settings.data],
   ["usage", t.settings.usage],
@@ -85,6 +87,7 @@ export default function Settings() {
         <div className="settings-sections">
           <section className="settings-section" id="models" aria-label={t.settings.models}><ModelSettings /></section>
           <section className="settings-section" id="voice" aria-label={t.settings.voices}><h2>{t.settings.voices}</h2><VoiceSettingsPanel /></section>
+          <section className="settings-section" id="avatar" aria-label={t.settings.avatar}><h2>{t.settings.avatar}</h2><AvatarSettingsPanel /></section>
           <section className="settings-section" id="security" aria-label={t.security.title}><h2>{t.security.title}</h2><SecuritySettings /></section>
           <section className="settings-section" id="data" aria-label={t.settings.data}><h2>{t.settings.data}</h2><DataSettings /></section>
           <section className="settings-section" id="usage" aria-label={t.settings.usage}><h2>{t.settings.usage}</h2><Usage /></section>

@@ -270,6 +270,7 @@
     "tier": "默认视频档位",
     "sidecarDriver": "本地实时驱动（可选）",
     "sidecarDefault": "使用默认本地驱动",
+    "configureSidecar": "配置本地驱动",
     "voice": "编辑这位老师的声音",
     "delete": "删除角色",
     "deleteConfirm": "确定删除这位自定义老师吗？",
@@ -359,6 +360,39 @@
       "empty": "没有识别到文字。",
       "echo": "这段声音像是老师的外放回声。"
     }
+  },
+  "avatarSettings": {
+    "lead": "管理本地实时 GPU 驱动与云端实时视频预算护栏。",
+    "sidecarsTitle": "本地 GPU 实时驱动（Sidecar）",
+    "sidecarsHint": "独立运行在本地显卡上的开源驱动，零按分钟计费。",
+    "sidecarsEmpty": "尚未添加本地驱动。点击下方按钮新增。",
+    "defaultDriver": "默认本地驱动",
+    "noDefault": "自动选择首个已启用驱动",
+    "addDriver": "添加本地驱动",
+    "label": "驱动名称",
+    "url": "服务地址",
+    "urlPlaceholder": "http://127.0.0.1:8090",
+    "transport": "传输模式",
+    "transports": {
+      "auto": "自动协商（优先低延迟）",
+      "ws_frames": "WebSocket 帧流（TSVA/TSVF）",
+      "webrtc": "WebRTC 音视频流"
+    },
+    "allowLan": "允许局域网私网地址",
+    "enabled": "启用此驱动",
+    "test": "测试连接",
+    "testing": "正在探测驱动…",
+    "probeOk": "已就绪 · {driver} · {fps} FPS · {ms} ms",
+    "probeFailed": "连接失败：{error}",
+    "gpuLabel": "显卡环境：{gpu}",
+    "cloudTitle": "云端实时数字人护栏（Tier 3 预留）",
+    "cloudHint": "默认关闭；仅在显式配置云端实时驱动后按需启用。",
+    "cloudEnabled": "允许使用云端实时驱动",
+    "idleSuspendSec": "静音自动挂起（秒）",
+    "maxSessionMin": "单节最长时长（分钟）",
+    "maxSessionCost": "单节预算上限（元）",
+    "newDriverLabel": "本机实时驱动",
+    "protocolHint": "启动参考模板：uvicorn server:app --port 8090"
   },
   "security": {
     "title": "安全",
@@ -627,6 +661,8 @@
     "provider_protocol_error": "模型服务返回了无法读取的回复。",
     "provider_configuration_error": "模型配置有误，请检查连接和角色分配。",
     "analysis_active": "课程正在分析，请等待完成后再修改资料。",
+    "sidecar_not_configured": "请先在设置中配置并启用本地实时驱动。",
+    "sidecar_unavailable": "本地实时驱动暂不可用，已自动切回基础档。",
     "validation_error": "请检查必填项和输入格式。"
   }
 }

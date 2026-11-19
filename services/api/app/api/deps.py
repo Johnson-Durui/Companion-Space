@@ -9,6 +9,7 @@ from fastapi import Depends, Header, HTTPException, Request, status
 
 from app.analysis.course_data import CourseData
 from app.analysis.pipeline import AnalysisPipeline
+from app.avatar.sidecar_client import SidecarSessionRegistry
 from app.core.config import Settings, get_settings
 from app.llm.gateway import LLMGateway
 from app.services.browser_session import OWNER_COOKIE_NAME, require_cookie_csrf
@@ -40,15 +41,19 @@ class ServiceContainer:
     gateway: LLMGateway
     jobs: JobRunner
     local_stt: LocalSpeechRecognizer
+    sidecars: SidecarSessionRegistry = field(default_factory=SidecarSessionRegistry)
     settings_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     preparing_lessons: set[str] = field(default_factory=set)
     live_lessons: set[str] = field(default_factory=set)
 
     async def aclose(self) -> None:
         try:
-            await self.jobs.aclose()
+            await self.sidecars.close_all()
         finally:
-            await self.providers.aclose()
+            try:
+                await self.jobs.aclose()
+            finally:
+                await self.providers.aclose()
 
     def close(self) -> None:
         self.providers.close()

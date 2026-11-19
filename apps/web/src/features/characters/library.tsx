@@ -5,7 +5,17 @@ import { browserApiFetch } from "@companion-space/api-client";
 import type { components } from "@companion-space/api-client/schema";
 import { CLIP_SLOTS, type InstantAction, type TutorEmotion, type TutorPose, type VideoAvatarTier } from "@companion-space/avatar-engine/types";
 import type { TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
-import { api, bodyOf, charactersKey, ensureOK, fetchCharacters, settingsKey, type Character } from "../../app/api";
+import {
+  api,
+  avatarDriversKey,
+  bodyOf,
+  charactersKey,
+  ensureOK,
+  fetchAvatarDriverSettings,
+  fetchCharacters,
+  settingsKey,
+  type Character,
+} from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
 import { TeacherPreview } from "./teacher-preview";
@@ -45,6 +55,13 @@ function downloadPromptSheet(character: Character) {
 
 function TutorEditor({ character, onDeleted }: { character: Character; onDeleted: () => void }) {
   const queries = useQueryClient();
+  const [tier, setTier] = useState<VideoAvatarTier>(
+    (character.video_avatar?.preferred_tier ?? "static") as VideoAvatarTier,
+  );
+  const avatarDrivers = useQuery({
+    queryKey: avatarDriversKey,
+    queryFn: fetchAvatarDriverSettings,
+  });
   const save = useMutation({
     mutationFn: async (body: TutorUpdate) => bodyOf(await api.PUT("/api/v2/characters/{character_id}", {
       params: { path: { character_id: character.id } }, body,
@@ -70,18 +87,24 @@ function TutorEditor({ character, onDeleted }: { character: Character; onDeleted
     const form = new FormData(event.currentTarget);
     const text = (key: string) => String(form.get(key) ?? "").trim();
     const lines = (key: string) => text(key).split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    const nextTier = text("tier") as VideoAvatarTier;
+    const selectedSidecar = nextTier === "local_sidecar"
+      ? (text("sidecar_driver") || null)
+      : (character.video_avatar?.local_sidecar?.driver_id ?? null);
     save.mutate({
       name: text("name"),
       relationship: text("relationship"),
       address_user_as: text("address"),
       default_style_id: text("style") as TutorUpdate["default_style_id"],
-      preferred_tier: text("tier") as VideoAvatarTier,
+      preferred_tier: nextTier,
+      local_sidecar_driver_id: selectedSidecar,
       traits: lines("traits"),
       catchphrases: lines("phrases"),
     });
   }
 
   const canDelete = character.pack_metadata?.source_kind !== "builtin";
+  const sidecars = avatarDrivers.data?.local_sidecars ?? [];
 
   return <form className="fields" onSubmit={submit}>
     <label>{copy.name}<input name="name" maxLength={160} required defaultValue={character.name} /></label>
@@ -93,13 +116,24 @@ function TutorEditor({ character, onDeleted }: { character: Character; onDeleted
       <label>{copy.style}<select name="style" defaultValue={character.default_style_id}>
         {Object.entries(styles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select></label>
-      <label>{copy.tier}<select name="tier" defaultValue={character.video_avatar?.preferred_tier ?? "static"}>
+      <label>{copy.tier}<select name="tier" value={tier} onChange={(event) => setTier(event.target.value as VideoAvatarTier)}>
         {Object.entries(copy.tiers).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select></label>
     </div>
+    {tier === "local_sidecar" ? (
+      <label>{copy.sidecarDriver}
+        <select name="sidecar_driver" defaultValue={character.video_avatar?.local_sidecar?.driver_id ?? ""}>
+          <option value="">{copy.sidecarDefault}</option>
+          {sidecars.map((entry) => (
+            <option key={entry.id} value={entry.id}>{entry.label} ({entry.base_url})</option>
+          ))}
+        </select>
+      </label>
+    ) : null}
     <div className="actions">
       <button className="button primary" disabled={save.isPending}>{t.common.save}</button>
       <Link className="button quiet" to={`/settings?teacher=${encodeURIComponent(character.id)}#voice`}>{copy.voice}</Link>
+      <Link className="button quiet" to="/settings#avatar">{copy.configureSidecar}</Link>
       <button className="button quiet" type="button" onClick={() => downloadPromptSheet(character)}>{copy.exportPrompts}</button>
       {canDelete ? (
         <button
