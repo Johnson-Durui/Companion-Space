@@ -265,3 +265,9 @@
   - 前端 `tsc --noEmit`、`eslint`（React 19 规则）、Vitest **7 文件 32 项通过**、`vite build` 922ms 通过。
 - 独立 Sidecar 测试 `.venv\Scripts\python.exe -m pytest sidecars/local-gpu-avatar/tests -q`：**2 通过**；`ruff check tools/tutorpack sidecars/local-gpu-avatar` 全绿。
 - 生产构建产物 `apps/web/dist/assets/*.js` 零 `three-vrm`/`wlipsync`/`VRMLoaderPlugin` 引用。
+
+### 2026-11-20 六位原创二次元老师锚图上线与专属视频提示词
+
+- 已将所有者原创的六位 9:16 竖屏二次元老师（`雪川`、`沈砚`、`岚玥`、`初棠`、`青衡`、`澜音`）1080×1920 WebP 锚点图合入 `assets/avatars/portraits/` 与 `content/characters/`，并逐一登记 SHA-256 与 Apache-2.0 许可至 `assets/avatars/LICENSES.md` 和 `assets/THIRD_PARTY_NOTICES.md`；旧六张立绘（含原四张许可待核历史立绘）归档至 `assets-archive/retired-portraits/`，便携包构建脚本现可完整分发全部六位内置老师。
+- 强化 `<TutorVideoBox>` 顶部状态栏与底部字幕条深色保护渐变（`classroom.css`），提升雪川、岚玥等亮色系角色的字幕可读性；`resolve_active_character` 回退序升级为六位新内置角色，旧数据库中的 `tutor-echo` / `tutor-mira` / 退役 VRM 均无缝确定性回退至 `tutor-chutang`。
+- 在 `tools/tutorpack/prompts/characters/` 与 `outputs/数字人角色锚图-20261119/六位角色-8段视频专属提示词/` 交付 6 份中英双语、针对龙角/竹簪/发卡/曝光/肤色防穿模定制的 8 段图生视频提示词，同步接入 `/characters` 页面的「导出 8 段二次元短片提示词」按钮。

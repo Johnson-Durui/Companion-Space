@@ -27,7 +27,7 @@
 .tvb-media-host, .tvb-surface { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
 .tvb-anchor, .tvb-video, .tvb-canvas {
   position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; object-position: center 20%;
+  object-fit: cover; object-position: center 22%;
 }
 .tvb-anchor { z-index: 1; transition: transform 320ms ease, filter 320ms ease; }
 .tvb-video { z-index: 2; transition: opacity var(--tvb-fade-ms, 180ms) ease; pointer-events: none; }
@@ -65,45 +65,47 @@
 }
 
 .tvb-top-bar {
-  position: absolute; z-index: 6; inset: 12px 12px auto 12px;
+  position: absolute; z-index: 6; inset: 0 0 auto 0; padding: 12px 12px 24px;
+  background: linear-gradient(180deg, #051316b8 0%, #0513164d 58%, transparent 100%);
   display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
 }
 .tvb-status-pill {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px;
-  border-radius: 999px; background: #07191cb8; backdrop-filter: blur(8px);
-  border: 1px solid #ffffff26; font-size: .78rem; font-weight: 600; color: #f5fffd;
+  border-radius: 999px; background: #051518d6; backdrop-filter: blur(8px);
+  border: 1px solid #ffffff30; font-size: .78rem; font-weight: 600; color: #f5fffd;
+  text-shadow: 0 1px 4px #020b0d;
 }
 .tvb-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #6ee7c8; flex: none; }
 .tvb-status-pill[data-pose="idle_companion"] .tvb-status-dot { background: #cbd5e1; }
 .tvb-status-pill[data-pose="feedback_reaction"] .tvb-status-dot { background: #fbbf24; }
 .tvb-tier-tag {
-  padding: 1px 6px; border-radius: 999px; background: #ffffff1f;
-  color: #d7f5ee; font-size: .7rem; font-weight: 500;
+  padding: 1px 6px; border-radius: 999px; background: #ffffff24;
+  color: #dff7f1; font-size: .7rem; font-weight: 500;
 }
 .tvb-top-actions { display: inline-flex; align-items: center; gap: 6px; }
 .tvb-cost-pill {
-  padding: 4px 8px; border-radius: 999px; background: #07191cc9;
-  border: 1px solid #fbbf2455; color: #fde68a; font-size: .74rem; font-variant-numeric: tabular-nums;
+  padding: 4px 8px; border-radius: 999px; background: #051518d9;
+  border: 1px solid #fbbf2466; color: #fde68a; font-size: .74rem; font-variant-numeric: tabular-nums;
 }
 .tvb-degraded-banner {
   position: absolute; z-index: 7; inset: 52px 12px auto 12px;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 7px 10px; border-radius: 10px; background: #451a03d9; border: 1px solid #f59e0b80;
+  padding: 7px 10px; border-radius: 10px; background: #451a03e6; border: 1px solid #f59e0b80;
   color: #fef3c7; font-size: .78rem;
 }
 .tvb-bottom-bar {
-  position: absolute; z-index: 6; inset: auto 0 0 0; padding: 36px 14px 12px;
-  background: linear-gradient(0deg, #061619eb 0%, #0616199e 58%, transparent 100%);
+  position: absolute; z-index: 6; inset: auto 0 0 0; padding: 44px 14px 12px;
+  background: linear-gradient(0deg, #041114f5 0%, #041114c4 56%, #0411144d 82%, transparent 100%);
   display: grid; gap: 8px;
 }
 .tvb-caption {
   min-height: 2.8em; font-size: .95rem; line-height: 1.5; overflow-wrap: anywhere;
-  text-shadow: 0 1px 8px #041214; color: #fffdf7;
+  text-shadow: 0 1px 10px #020a0c, 0 0 2px #020a0ccc; color: #fffdf7;
 }
 .tvb-speaker-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.tvb-speaker-name { font-size: .9rem; font-weight: 700; color: #ffffff; }
+.tvb-speaker-name { font-size: .9rem; font-weight: 700; color: #ffffff; text-shadow: 0 1px 6px #020a0c; }
 .tvb-chip-btn {
-  border: 1px solid #ffffff30; background: #0b2429a8; color: #e8fbf7;
+  border: 1px solid #ffffff38; background: #071d22cc; color: #eefcf9;
   border-radius: 999px; padding: 3px 10px; font-size: .74rem; font-weight: 600;
   min-height: 28px;
 }

@@ -29,7 +29,14 @@ from app.services.tutorpack import (
 
 type StyleId = Literal["guided", "direct", "analogy", "exam", "rigorous"]
 ShortLine = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
-_FALLBACK_ORDER = ("tutor-echo", "tutor-nova")
+_FALLBACK_ORDER = (
+    "tutor-chutang",
+    "tutor-xuechuan",
+    "tutor-qingheng",
+    "tutor-shenyan",
+    "tutor-lanyue",
+    "tutor-lanyin",
+)
 _ALLOWED_ASSET_SUFFIXES = IMAGE_SUFFIXES | VIDEO_SUFFIXES
 
 

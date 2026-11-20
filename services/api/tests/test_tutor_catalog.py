@@ -81,11 +81,11 @@ def test_single_image_import_persona_update_and_delete(client, owner_token):
     )
     assert deleted.status_code == 204
     settings = client.get("/api/v2/settings", headers={"Authorization": f"Bearer {owner_token}"}).json()
-    assert settings["default_character_id"] in {"tutor-echo", "tutor-nova"}
+    assert settings["default_character_id"] in {"tutor-chutang", "tutor-xuechuan"}
 
     # Built-in teachers cannot be deleted.
     builtin_delete = client.delete(
-        "/api/v2/characters/tutor-echo",
+        "/api/v2/characters/tutor-chutang",
         headers={"Authorization": f"Bearer {owner_token}"},
     )
     assert builtin_delete.status_code == 400
@@ -177,7 +177,7 @@ def test_legacy_v2_portrait_upgrade_and_retired_vrm_fallback(client, owner_token
         "id": "legacy-portrait-tutor",
         "name": "Legacy Portrait",
         "schema_version": 2,
-        "appearance": {"kind": "portrait", "src": "/static/avatars/portraits/echo.png"},
+        "appearance": {"kind": "portrait", "src": "/static/avatars/portraits/chutang.webp"},
         "voice": {"engine": "edge", "voice_id": "zh-CN-XiaoxiaoNeural", "rate": 1, "pitch": 0},
         "persona": {"relationship": "Tutor", "traits": ["Calm"], "catchphrases": [], "address_user_as": "你"},
         "default_style_id": "guided",
@@ -211,9 +211,11 @@ def test_legacy_v2_portrait_upgrade_and_retired_vrm_fallback(client, owner_token
 
     # Default character setting and resolver gracefully fall back to an active anime teacher.
     settings = client.get("/api/v2/settings", headers=auth).json()
-    assert settings["default_character_id"] in {"tutor-echo", "tutor-nova"}
+    assert settings["default_character_id"] in {"tutor-chutang", "tutor-xuechuan"}
     fallback = container.tutors.resolve_active_character("legacy-retired-vrm")
-    assert fallback is not None and fallback.id in {"tutor-echo", "tutor-nova"}
+    assert fallback is not None and fallback.id in {"tutor-chutang", "tutor-xuechuan"}
+    legacy_echo = container.tutors.resolve_active_character("tutor-echo")
+    assert legacy_echo is not None and legacy_echo.id == "tutor-chutang"
 
 
 def test_tutorpack_cli_roundtrip_into_backend_import(tmp_path, client, owner_token):
@@ -279,7 +281,7 @@ def test_objective_answer_triggers_on_judge_before_realizer_runs(isolated_settin
     }
     saved = repository.save_lesson_plan(course_id, item_id, plan=plan)
     lesson = repository.create_or_resume_lesson(
-        course_id, item_id, lesson_plan_id=saved["id"], character_id="tutor-echo",
+        course_id, item_id, lesson_plan_id=saved["id"], character_id="tutor-chutang",
         state={"stage": "teaching", "seg_idx": 0, "active_ask": {"kind": "item", "purpose": "check", "item_id": "q1"}},
     )
 

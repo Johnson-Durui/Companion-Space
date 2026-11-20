@@ -130,7 +130,7 @@ def test_sidecar_probe_and_session_errors(client, owner_token) -> None:
         "/api/v2/avatar-drivers/sidecar/sessions",
         headers=headers,
         json={
-            "character_id": "tutor-echo",
+            "character_id": "tutor-chutang",
             "aspect_ratio": "9:16",
             "fps": 25,
             "resolution": "384x682",
@@ -151,7 +151,7 @@ def test_sidecar_client_roundtrip_against_reference_sidecar(isolated_settings) -
         sidecar_app = create_sidecar_app("anime_2d_reference")
         transport = httpx.ASGITransport(app=sidecar_app)
         container = get_container()
-        anchor = container.tutors.read_anchor_image("tutor-echo")
+        anchor = container.tutors.read_anchor_image("tutor-chutang")
         assert anchor is not None
         anchor_bytes, anchor_mime = anchor
 
@@ -167,7 +167,7 @@ def test_sidecar_client_roundtrip_against_reference_sidecar(isolated_settings) -
             session, sdp_answer, width, height = await registry.create_session(
                 base_url="http://127.0.0.1:8090",
                 allow_lan=False,
-                character_id="tutor-echo",
+                character_id="tutor-chutang",
                 anchor_bytes=anchor_bytes,
                 anchor_mime=anchor_mime,
                 aspect_ratio="9:16",

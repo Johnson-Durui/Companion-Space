@@ -38,8 +38,8 @@ def test_catalog_and_default_character_persist_across_a_fresh_app(isolated_setti
         assert len(tutors) == 6
         assert all(tutor["schema_version"] == 3 for tutor in tutors)
         assert all(tutor["appearance"]["kind"] in {"portrait", "video_pack"} for tutor in tutors)
-        portrait = next(tutor for tutor in tutors if tutor["id"] == "tutor-echo")
-        assert browser.get(portrait["appearance"]["src"]).headers["content-type"] == "image/png"
+        portrait = next(tutor for tutor in tutors if tutor["id"] == "tutor-chutang")
+        assert browser.get(portrait["appearance"]["src"]).headers["content-type"] == "image/webp"
         legacy_path = f"/api/v1/characters/{portrait['id']}"
         assert browser.delete(legacy_path, headers=headers).status_code == 404
         changed = browser.put("/api/v2/settings/default-character", headers=headers, json={"character_id": portrait["id"]})
@@ -92,7 +92,7 @@ def test_browser_fixture_exercises_role_settings_text_image_and_voice_fallback(i
         })
         assert bad.status_code == 415
 
-        preview = browser.post("/api/v2/tts/preview", headers=headers, json={"character_id": "tutor-mira"})
+        preview = browser.post("/api/v2/tts/preview", headers=headers, json={"character_id": "tutor-xuechuan"})
         assert preview.json()["kind"] == "browser"
         assert preview.json()["warning"]
         assert preview.json()["audio_b64"] is None

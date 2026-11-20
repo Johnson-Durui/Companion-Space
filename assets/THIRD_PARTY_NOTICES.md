@@ -94,27 +94,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## NOVA / 星澜 and ECHO / 沐音 2D portraits
+## Original Six Anime Tutor Anchor Portraits (2026-11-19)
 
-- Bundled files:
-  - `assets/avatars/portraits/nova.png`
-    (`faf3313f0094adeaddd9e67054468d4848e1ecfea415233de85af47dfbed7325`)
-  - `assets/avatars/portraits/echo.png`
-    (`e81dc98eab6fe9a85e4724508d592a5b77ca547611fce82a7a299925f4718a9a`)
-- Author: Companion Space project.
-- Provenance: original AI-assisted artwork generated specifically for Companion
-  Space on 2026-09-22, then reviewed and registered as portrait-only runtime
-  assets. The images are not copied from AIRI, an anime franchise, a celebrity,
-  or another mascot.
+- Bundled files (`1080×1920` 9:16 vertical WebP anchors):
+  - `assets/avatars/portraits/xuechuan.webp` (雪川)
+    (`633f82353aba238e6ea008d5e207fc7f8a6de55363cd23e57d939673c143c386`)
+  - `assets/avatars/portraits/shenyan.webp` (沈砚)
+    (`cbfa2434b3147c47855f1bcdfd894daeff8f3b4409400258273c61e467f24a7c`)
+  - `assets/avatars/portraits/lanyue.webp` (岚玥)
+    (`729191e6bd5c9863c28e8b122600d310b0168612b5a3c670b987df423c222f06`)
+  - `assets/avatars/portraits/chutang.webp` (初棠)
+    (`ba9c6805ec1e48f7440009e049f9b65563eefa3752fa509562da493b63569939`)
+  - `assets/avatars/portraits/qingheng.webp` (青衡)
+    (`c5dd39e6b7fafc198f4a52d6b83d7f055e074e6122d4a9fb42716398485b1678`)
+  - `assets/avatars/portraits/lanyin.webp` (澜音)
+    (`2608f99ec48b5003cefae6362eef7c196184cd1fcf0c8e553f17b9dff670afd8`)
+- Author: Companion Space project owner.
+- Provenance: original AI-assisted artwork created specifically for Companion
+  Space on 2026-11-19 for the pure-video `<TutorVideoBox>` roster. None of the
+  images copy a third-party franchise, celebrity, or mascot.
 - Third-party license: none. These project-owned portrait assets are distributed
   under the same Apache License 2.0 terms as the repository unless a release
   notice says otherwise.
-- Runtime boundary: these are reactive 2D anime portraits and anchor images for
-  the pure-video tutor avatar box; they do not claim to be Cubism Live2D models
-  and do not introduce a third-party Live2D runtime.
+- Runtime boundary: these are 9:16 2D anime anchor portraits (Tier 0) and base
+  frames for `.tutorpack` loop packs (Tier 1) and optional local GPU sidecar
+  drivers (Tier 2); they do not include Cubism Live2D runtimes.
 
 ## Distribution Rules
 
 - See [Avatar asset licenses](avatars/LICENSES.md) for all retained assets.
-- Retired 3D VRM models are archived under `assets-archive/retired-vrm/` and excluded from product distributions.
+- Retired 3D VRM models (`assets-archive/retired-vrm/`) and retired v0.x/v1 portraits (`assets-archive/retired-portraits/`) are excluded from product distributions.
 - Exclude [archived assets](../assets-archive/README.md) from product distributions.

@@ -17,5 +17,10 @@ product distributions. The active asset collection is in [assets/avatars](../ass
   restrict redistribution of unmodified model data, so the product excludes
   this file.
 
-The complete pre-rebuild notices are available under the local snapshot tag:
+- `retired-vrm/` holds the 3D VRM sample models and catalog entries retired on
+  2026-11-19 when the character subsystem moved to `<TutorVideoBox>`.
+- `retired-portraits/` holds the six pre-2026-11-19 built-in portraits
+  (`mira/kite/cael/lyra/nova/echo`) and their catalog JSONs replaced by the
+  owner-verified six-character anime roster (`xuechuan/shenyan/lanyue/chutang/qingheng/lanyin`).
+- The complete pre-rebuild notices are available under the local snapshot tag:
 `git show pre-rebuild-20261116:assets/THIRD_PARTY_NOTICES.md`.

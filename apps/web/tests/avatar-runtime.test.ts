@@ -130,11 +130,11 @@ describe("LoopPackVideoDriver and fallback resolution", () => {
 
     const container = makeElement("div") as unknown as HTMLElement;
     const config: VideoAvatarRuntimeConfig = {
-      characterId: "tutor-echo",
-      name: "Echo",
+      characterId: "tutor-chutang",
+      name: "Chutang",
       aspectRatio: "9:16",
       preferredTier: "loop_pack",
-      anchorImage: "/static/avatars/portraits/echo.png",
+      anchorImage: "/static/avatars/portraits/chutang.webp",
       loopPack: {
         crossfadeMs: 180,
         clips: {
@@ -251,11 +251,11 @@ describe("LiveCostGuard and Sidecar Protocol + Fallback", () => {
     });
 
     await manager.mount(makeEl() as unknown as HTMLElement, {
-      characterId: "tutor-echo",
-      name: "Echo",
+      characterId: "tutor-chutang",
+      name: "Chutang",
       aspectRatio: "9:16",
       preferredTier: "local_sidecar",
-      anchorImage: "/static/avatars/portraits/echo.png",
+      anchorImage: "/static/avatars/portraits/chutang.webp",
       loopPack: { crossfadeMs: 180, clips: {} },
     });
 

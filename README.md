@@ -28,8 +28,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 - 用配置的真实模型生成课程地图、知识点、题目关联和答案复核状态；所有自动结果都可人工修正。
 - 学情访谈、摸底、学习计划、实时语音/文字课堂、黑板同步、打断与断线恢复。
 - 课堂后的 FSRS 复习卡与错题复盘。
-- 微信视频通话风格的竖屏纯视频框老师（`<TutorVideoBox>`）：默认内置六位 2D 角色（其中 `tutor-echo` 沐音与 `tutor-nova` 星澜的 Apache-2.0 立绘可用于便携和容器包），支持在角色库拖入单张图片秒建老师或导入 `.tutorpack` 8 段循环短片包；旧版 3D VRM 已退场归档至 `assets-archive/retired-vrm/`。
-- 内置二次元 `.tutorpack` 制作脚手架（`tools/tutorpack/`）与完全独立的本地 GPU 实时驱动参考模板（`sidecars/local-gpu-avatar/`），可在「设置 → 视频形象」按需接入本地显卡开源驱动，默认零按分钟计费。
+- 微信视频通话风格的竖屏纯视频框老师（`<TutorVideoBox>`）：内置六位原创 Apache-2.0 二次元老师（雪川、沈砚、岚玥、初棠、青衡、澜音，均配备 1080×1920 9:16 锚点图），支持在角色库拖入单张图片秒建老师或导入 `.tutorpack` 8 段循环短片包；旧版 3D VRM 与历史立绘已归档至 `assets-archive/`。
+- 内置二次元 `.tutorpack` 制作脚手架与六位角色专属 8 段视频提示词（`tools/tutorpack/`），以及完全独立的本地 GPU 实时驱动参考模板（`sidecars/local-gpu-avatar/`），可在「设置 → 视频形象」按需接入本地显卡开源驱动，默认零按分钟计费。
 - Edge 在线语音为零配置默认。可选本地 Sherpa STT 需在源码环境单独安装，模型权重不会随发行包分发。
 
 ## Windows 便携包
@@ -43,7 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-portable.ps1
 
 压缩包和 SHA-256 文件输出到 `outputs/`。用户解压后双击 `start.bat`；数据写入解压目录的 `data/`。程序目前未做代码签名，Windows SmartScreen 可能显示“未知发布者”；只使用项目发布页提供且 SHA-256 匹配的包，选择“更多信息 → 仍要运行”。不要从来源不明的镜像下载。
 
-四张历史立绘的再分发许可尚待所有者核验，因此构建脚本会把它们和对应角色目录项排除，并在包内写入 `PORTABLE-ASSET-STATUS.md`。这不影响源码本机运行，但在许可完成前不得公开发布包含这些文件的二进制包。
+全部六位内置二次元老师锚点图均已完成 Apache-2.0 登记并随便携包完整分发，构建脚本会写入 `PORTABLE-ASSET-STATUS.md`；已退役的旧立绘与 3D VRM 均留在 `assets-archive/` 而不打入发行包。
 
 ## Docker（可选）
 
@@ -78,6 +78,6 @@ curl http://127.0.0.1:8000/healthz
 
 - 课程分析和实时教学的模型质量、真人麦克风与耳机延迟、干净 Windows 新用户流程仍需验收。实时资料分析和实时课堂需要配置模型。
 - 便携包未签名；Docker 镜像当前不发布到公共仓库。
-- MIRA、KITE、CAEL、LYRA 四张立绘的公开再分发许可仍待核验。
+- 六位内置二次元老师的 8 段循环短片（Tier 1）待生成合入后自动由 Tier 0 升级。
 
 许可详情见 [LICENSE](LICENSE)、[NOTICE](NOTICE) 和 [第三方素材清单](assets/THIRD_PARTY_NOTICES.md)。问题报告请附启动方式、系统版本、失败页面和去敏后的日志，绝不要提交 API Key、`vault.json` 或个人教材。

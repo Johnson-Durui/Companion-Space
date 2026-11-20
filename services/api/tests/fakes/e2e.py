@@ -34,7 +34,7 @@ def seed_classroom(container, scenario: str):
                VALUES (?, ?, ?, 'generated', 'check', 'choice', '{}', 'verified', ?)""",
             (bank_id, course_id, kp_id, now),
         )
-    teacher = container.tutors.resolve_active_character("tutor-echo")
+    teacher = container.tutors.resolve_active_character("tutor-chutang")
     assert teacher is not None
     plan = {
         "title": "关系判断", "est_minutes": 10,

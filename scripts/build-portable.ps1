@@ -116,26 +116,18 @@ Copy-Tree 'CHANGELOG.md'
 Copy-Tree 'docs\images\sample-lesson.png'
 New-Item -ItemType Directory -Path (Join-Path $stage 'data') -Force | Out-Null
 
-# Four retained v0.x portraits still need owner redistribution verification.
-# Keep the release candidate usable with the independently verified anime teachers
-# (ECHO and NOVA) and fail closed instead of silently redistributing assets with unknown terms.
-foreach ($name in @('mira', 'kite', 'cael', 'lyra')) {
-    Remove-Item -LiteralPath (Join-Path $stage "assets\avatars\portraits\$name.png") -Force -ErrorAction SilentlyContinue
-}
-foreach ($name in @('1-mira.json', '2-kite.json', '3-cael.json', '4-lyra.json')) {
-    Remove-Item -LiteralPath (Join-Path $stage "content\characters\$name") -Force -ErrorAction SilentlyContinue
-}
+# All six active built-in anime tutor anchor portraits (xuechuan, shenyan, lanyue,
+# chutang, qingheng, lanyin) are owner-created original assets registered under Apache-2.0.
 @'
 # Portable asset eligibility
 
-This local release-candidate package intentionally omits the MIRA, KITE, CAEL,
-and LYRA portraits and their catalog entries. Their authorship and redistribution
-terms remain pending owner verification. Do not add those files to a public
-artifact until `assets/avatars/LICENSES.md` records a verified distribution grant.
+All six active built-in anime tutor anchor portraits (`xuechuan.webp`,
+`shenyan.webp`, `lanyue.webp`, `chutang.webp`, `qingheng.webp`, `lanyin.webp`)
+and any verified `.tutorpack` clips registered under `assets/avatars/packs/`
+are covered by `assets/avatars/LICENSES.md` and `assets/THIRD_PARTY_NOTICES.md`.
 
-The included NOVA and ECHO anime teacher assets (and any verified `.tutorpack`
-clips registered under `assets/avatars/packs/`) are covered by the notices
-shipped with this package. Retired 3D VRM models are no longer distributed.
+Retired 3D VRM models (`assets-archive/retired-vrm/`) and retired legacy
+portraits (`assets-archive/retired-portraits/`) are excluded from this package.
 '@ | Set-Content -LiteralPath (Join-Path $stage 'PORTABLE-ASSET-STATUS.md') -Encoding utf8
 
 $portableStart = @'
