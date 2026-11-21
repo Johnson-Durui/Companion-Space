@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>目标效果图 · 今天</title>
+<!--
+  静态效果图，只用来说明目标观感与信息层次，不是产品代码。
+  数值取自 docs/rebuild/spec/design-system.md；结构取自 docs/rebuild/spec/experience-design.md §5.1。
+  页面上只有一个实心强调色按钮（"开始上课"）。主题色用的是初棠的一组。
+-->
+<style>
+  :root {
+    --accent: #C4497A; --accent-strong: #A93A66; --accent-soft: #FBE9F0;
+    --page: #F6F5F2; --card: #FFFFFF; --sunken: #EFEDE8;
+    --text: #1B2126; --text-2: #55606A; --text-3: #66707A;
+    --border: #E4E1DA; --border-2: #CFCAC0;
+    --ok: #2E9B63; --shaky: #B47B06;
+    --shadow-1: 0 1px 2px rgb(16 24 32 / .06), 0 1px 1px rgb(16 24 32 / .04);
+    --shadow-2: 0 4px 12px rgb(16 24 32 / .08), 0 2px 4px rgb(16 24 32 / .05);
+    --font: "Geist Variable", "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 14px/22px var(--font); color: var(--text); background: var(--page); font-variant-numeric: tabular-nums;
+    background-image: radial-gradient(50% 42% at 12% 0%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%); background-repeat: no-repeat; min-height: 100vh; }
+  button, a { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; text-decoration: none; }
+  svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  .header { height: 64px; display: flex; align-items: center; gap: 32px; padding: 0 max(24px, calc((100% - 1120px) / 2)); background: rgb(255 255 255 / .72); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; }
+  .brand i { width: 32px; height: 32px; border-radius: 10px; background: var(--text); color: #fff; display: grid; place-items: center; }
+  .brand i svg { width: 18px; height: 18px; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { height: 40px; padding: 0 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-weight: 500; }
+  .nav a:hover { background: var(--sunken); }
+  .nav a.on { color: var(--accent-strong); background: var(--accent-soft); }
+  .spacer { flex: 1; }
+  .tutor-chip { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 4px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); font-weight: 500; }
+  .tutor-chip img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; object-position: center 18%; }
+  .local { display: flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 12px; }
+  .local i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+
+  main { width: min(100% - 48px, 1120px); margin: 0 auto; padding: 36px 0 56px; display: grid; gap: 20px; }
+  .hello { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; }
+  .frame { width: 148px; aspect-ratio: 9 / 16; border-radius: 24px; overflow: hidden; box-shadow: 0 0 0 4px #fff, var(--shadow-2); }
+  .frame img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+  .hello h1 { font-size: 28px; line-height: 36px; font-weight: 600; }
+  .hello p { margin-top: 6px; font-size: 16px; line-height: 26px; color: var(--text-2); }
+  .bubble { margin-top: 16px; display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 4px 16px 16px 16px; background: var(--card); box-shadow: var(--shadow-1); color: var(--text-2); }
+  .bubble b { color: var(--text); font-weight: 500; }
+
+  .card { background: var(--card); border-radius: 16px; box-shadow: var(--shadow-1); padding: 24px; }
+  .label { font-size: 12px; line-height: 18px; font-weight: 500; color: var(--text-3); display: flex; align-items: center; gap: 8px; }
+  .tag { padding: 2px 8px; border-radius: 6px; background: var(--sunken); color: var(--text-2); font-size: 12px; line-height: 18px; font-weight: 500; }
+  .today { display: grid; grid-template-columns: 1fr auto; gap: 24px 40px; align-items: center; padding: 28px 32px; box-shadow: var(--shadow-2); }
+  .today h2 { margin-top: 8px; font-size: 22px; line-height: 30px; font-weight: 600; }
+  .today .meta { margin-top: 4px; color: var(--text-2); }
+  .why { grid-column: 1 / -1; display: grid; grid-template-columns: auto auto 1fr; gap: 10px 28px; align-items: center; padding-top: 20px; border-top: 1px solid var(--border); color: var(--text-2); }
+  .bar { display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 18px; }
+  .bar span { width: 96px; height: 6px; border-radius: 3px; background: var(--sunken); overflow: hidden; display: block; }
+  .bar span i { display: block; height: 100%; border-radius: 3px; }
+  .cta { height: 52px; padding: 0 28px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 6px 16px color-mix(in oklab, var(--accent) 32%, transparent); }
+  .cta:hover { background: var(--accent-strong); }
+  .cta:active { transform: scale(.97); }
+
+  .row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 20px; }
+  .card h3 { margin-top: 8px; font-size: 20px; line-height: 28px; font-weight: 600; }
+  .card h3 small { font-size: 14px; font-weight: 400; color: var(--text-2); }
+  .second { margin-top: 16px; height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--border-2); font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
+  .second:hover { background: var(--sunken); }
+  .score { margin-top: 18px; position: relative; height: 10px; border-radius: 5px; background: var(--sunken); }
+  .score i { position: absolute; inset: 0 auto 0 0; width: 42%; border-radius: 5px; background: var(--accent); }
+  .score b { position: absolute; inset: -6px auto -6px 85%; width: 2px; background: var(--text); border-radius: 1px; }
+  .score-legend { margin-top: 10px; display: flex; justify-content: space-between; font-size: 12px; line-height: 18px; color: var(--text-3); }
+
+  .week { display: flex; align-items: center; gap: 24px; padding: 18px 24px; }
+  .days { display: flex; gap: 10px; }
+  .days i { width: 28px; height: 28px; border-radius: 8px; background: var(--sunken); display: grid; place-items: center; font: 500 12px/1 var(--font); color: var(--text-3); font-style: normal; }
+  .days i.on { background: var(--accent-soft); color: var(--accent-strong); }
+  .days i.now { box-shadow: 0 0 0 2px var(--accent) inset; }
+  .week p { color: var(--text-2); }
+  .week a { margin-inline-start: auto; color: var(--accent-strong); font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+</style>
+</head>
+<body>
+  <header class="header">
+    <a class="brand" href="#"><i><svg viewBox="0 0 24 24"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z" fill="currentColor" stroke="none"/></svg></i>伴学空间</a>
+    <nav class="nav">
+      <a class="on" href="#"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></svg>今天</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5"/></svg>课程</a>
+      <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>老师</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>设置</a>
+    </nav>
+    <div class="spacer"></div>
+    <span class="local"><i></i>只在本机运行</span>
+    <a class="tutor-chip" href="#"><img src="../../../../assets/avatars/portraits/chutang.webp" alt="">初棠</a>
+  </header>
+
+  <main>
+    <section class="hello">
+      <div class="frame"><img src="../../../../assets/avatars/portraits/chutang.webp" alt="初棠"></div>
+      <div>
+        <h1>晚上好，小林。</h1>
+        <p>今天有 1 节课和 6 张复习卡。</p>
+        <div class="bubble"><b>初棠</b>来啦？今天也一起往前走一小步。</div>
+      </div>
+    </section>
+
+    <section class="card today">
+      <div>
+        <div class="label">今天的课<span class="tag">高一数学 · 函数</span></div>
+        <h2>二次函数的顶点式与最值</h2>
+        <p class="meta">约 25 分钟 · 第 7 / 18 节</p>
+      </div>
+      <button class="cta"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" fill="currentColor"/></svg>开始上课</button>
+      <div class="why">
+        <div class="bar">考试权重<span><i style="width: 82%; background: var(--accent)"></i></span>高</div>
+        <div class="bar">当前掌握<span><i style="width: 28%; background: var(--shaky)"></i></span>还不稳</div>
+        <p>这部分考得多，你现在还不太稳，所以排在今天。</p>
+      </div>
+    </section>
+
+    <section class="row">
+      <div class="card">
+        <div class="label">到期复习</div>
+        <h3>6 张 <small>· 约 5 分钟</small></h3>
+        <button class="second">开始复习</button>
+      </div>
+      <div class="card">
+        <div class="label">距期末考试 23 天</div>
+        <h3>预计已保住 42 <small>/ 100 分</small></h3>
+        <div class="score" role="img" aria-label="预计已保住 42 分，目标 85 分"><i></i><b></b></div>
+        <div class="score-legend"><span>现在 42</span><span>目标 85</span></div>
+      </div>
+    </section>
+
+    <section class="card week">
+      <div class="days" aria-hidden="true"><i class="on">一</i><i class="on">二</i><i>三</i><i class="on now">四</i><i>五</i><i>六</i><i>日</i></div>
+      <p>这周学了 3 天，已连续 1 天。</p>
+      <a href="#">看看进度<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+    </section>
+  </main>
+</body>
+</html>

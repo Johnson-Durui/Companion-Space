@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>目标效果图 · 老师</title>
+<!--
+  静态效果图，只用来说明目标观感，不是产品代码。
+  结构取自 docs/rebuild/spec/experience-design.md §5.12；每位老师的主题色取自 docs/rebuild/spec/design-system.md §2.3。
+  这里选中的是初棠，所以页面强调色是她的一组；名册里每张卡片的描边用各自老师的主题色。
+-->
+<style>
+  :root {
+    --accent: #C4497A; --accent-strong: #A93A66; --accent-soft: #FBE9F0;
+    --page: #F6F5F2; --card: #FFFFFF; --sunken: #EFEDE8;
+    --text: #1B2126; --text-2: #55606A; --text-3: #66707A; --border: #E4E1DA; --border-2: #CFCAC0;
+    --shadow-1: 0 1px 2px rgb(16 24 32 / .06), 0 1px 1px rgb(16 24 32 / .04);
+    --shadow-2: 0 4px 12px rgb(16 24 32 / .08), 0 2px 4px rgb(16 24 32 / .05);
+    --shadow-3: 0 16px 40px rgb(16 24 32 / .16), 0 4px 12px rgb(16 24 32 / .08);
+    --font: "Geist Variable", "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font: 14px/22px var(--font); color: var(--text); background: var(--page); min-height: 100vh;
+    background-image: radial-gradient(46% 40% at 18% 6%, color-mix(in oklab, var(--accent) 10%, transparent), transparent 70%); background-repeat: no-repeat; }
+  button, a { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; text-decoration: none; }
+  svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  .header { height: 64px; display: flex; align-items: center; gap: 32px; padding: 0 max(24px, calc((100% - 1120px) / 2)); background: rgb(255 255 255 / .72); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; }
+  .brand i { width: 32px; height: 32px; border-radius: 10px; background: var(--text); color: #fff; display: grid; place-items: center; }
+  .brand i svg { width: 18px; height: 18px; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { height: 40px; padding: 0 14px; border-radius: 10px; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-weight: 500; }
+  .nav a.on { color: var(--accent-strong); background: var(--accent-soft); }
+  .spacer { flex: 1; }
+  .tutor-chip { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 4px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); font-weight: 500; }
+  .tutor-chip img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; object-position: center 18%; }
+
+  main { width: min(100% - 48px, 1120px); margin: 0 auto; padding: 28px 0 48px; display: grid; gap: 24px; }
+  .show { display: grid; grid-template-columns: auto 1fr; gap: 44px; align-items: center; }
+  .frame { position: relative; width: 264px; aspect-ratio: 9 / 16; border-radius: 24px; overflow: hidden; box-shadow: 0 0 0 4px #fff, 0 0 0 7px color-mix(in oklab, var(--accent) 30%, transparent), var(--shadow-3); }
+  .frame img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+  .frame span { position: absolute; inset: auto 12px 12px auto; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgb(11 14 18 / .6); color: #fff; font-size: 12px; line-height: 18px; backdrop-filter: blur(8px); }
+  .frame span i { display: flex; align-items: end; gap: 2px; height: 10px; }
+  .frame span i b { width: 2px; border-radius: 1px; background: #F3A9C4; }
+  .frame span i b:nth-child(1) { height: 50%; } .frame span i b:nth-child(2) { height: 100%; } .frame span i b:nth-child(3) { height: 70%; }
+  .eyebrow { display: inline-flex; padding: 2px 10px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-strong); font-size: 12px; line-height: 18px; font-weight: 600; }
+  .show h1 { margin-top: 10px; font-size: 40px; line-height: 48px; font-weight: 700; letter-spacing: .02em; }
+  .lead { margin-top: 6px; font-size: 16px; line-height: 26px; color: var(--text-2); }
+  .quote { margin-top: 20px; display: flex; align-items: center; gap: 14px; max-width: 560px; padding: 14px 18px; border-radius: 4px 20px 20px 20px; background: var(--card); box-shadow: var(--shadow-2); font-size: 16px; line-height: 26px; }
+  .play { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); display: grid; place-items: center; flex: none; }
+  .how { margin-top: 18px; display: grid; gap: 4px; max-width: 560px; color: var(--text-2); }
+  .how b { color: var(--text); font-weight: 600; }
+  .try { margin-top: 18px; display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: 12px; }
+  .try button { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--card); color: var(--text-2); font-size: 13px; }
+  .actions { margin-top: 24px; display: flex; align-items: center; gap: 12px; }
+  .cta { height: 52px; padding: 0 28px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; box-shadow: 0 6px 16px color-mix(in oklab, var(--accent) 32%, transparent); }
+  .ghost { height: 44px; padding: 0 16px; border-radius: 10px; color: var(--text-2); font-weight: 500; }
+
+  .roster { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 14px; }
+  .tile { display: grid; gap: 8px; text-align: start; }
+  .tile .pic { aspect-ratio: 9 / 13; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-1); position: relative; outline: 3px solid transparent; outline-offset: 3px; transition: transform 200ms cubic-bezier(.23, 1, .32, 1); }
+  .tile:hover .pic { transform: translateY(-4px); box-shadow: var(--shadow-2); }
+  .tile .pic img { width: 100%; height: 100%; object-fit: cover; object-position: center 16%; display: block; }
+  .tile.on .pic { outline-color: var(--c); }
+  .tile .badge { position: absolute; inset: 8px auto auto 8px; padding: 2px 8px; border-radius: 6px; background: var(--c); color: #fff; font-size: 11px; line-height: 16px; font-weight: 600; }
+  .tile strong { font-size: 16px; line-height: 24px; font-weight: 600; }
+  .tile small { display: block; font-size: 12px; line-height: 18px; color: var(--text-3); }
+  .tile small i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-inline-end: 6px; }
+  .add .pic { display: grid; place-items: center; background: transparent; box-shadow: none; border: 1.5px dashed var(--border-2); color: var(--text-3); }
+  .add .pic svg { width: 28px; height: 28px; }
+</style>
+</head>
+<body>
+  <header class="header">
+    <a class="brand" href="#"><i><svg viewBox="0 0 24 24"><path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z" fill="currentColor" stroke="none"/></svg></i>伴学空间</a>
+    <nav class="nav">
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/></svg>今天</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5"/></svg>课程</a>
+      <a class="on" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>老师</a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>设置</a>
+    </nav>
+    <div class="spacer"></div>
+    <a class="tutor-chip" href="#"><img src="../../../../assets/avatars/portraits/chutang.webp" alt="">初棠</a>
+  </header>
+
+  <main>
+    <section class="show">
+      <div class="frame">
+        <img src="../../../../assets/avatars/portraits/chutang.webp" alt="初棠">
+        <span><i aria-hidden="true"><b></b><b></b><b></b></i>正在自我介绍</span>
+      </div>
+      <div>
+        <span class="eyebrow">清新温暖</span>
+        <h1>初棠</h1>
+        <p class="lead">日常伴学老师，擅长鼓励引导，把容易错的地方拆开讲。</p>
+        <div class="quote">
+          <button class="play" aria-label="再听一遍"><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z" fill="currentColor"/></svg></button>
+          没关系，这一步已经想到点子上了，我们再往前走一小步。
+        </div>
+        <div class="how"><b>她会这样教你</b>循循善诱：先问你怎么想，再顺着你的思路往下带，不直接把答案塞给你。</div>
+        <div class="try">看看她的反应<button>讲解</button><button>点赞</button><button>安抚</button></div>
+        <div class="actions"><button class="cta">就选初棠</button><button class="ghost">调整她的人设与声音</button></div>
+      </div>
+    </section>
+
+    <section class="roster" aria-label="老师名册">
+      <button class="tile" style="--c:#3F66D8"><div class="pic"><img src="../../../../assets/avatars/portraits/xuechuan.webp" alt=""></div><div><strong>雪川</strong><small><i></i>清透耐心</small></div></button>
+      <button class="tile" style="--c:#4A5B73"><div class="pic"><img src="../../../../assets/avatars/portraits/shenyan.webp" alt=""></div><div><strong>沈砚</strong><small><i></i>沉稳果断</small></div></button>
+      <button class="tile" style="--c:#8A55C4"><div class="pic"><img src="../../../../assets/avatars/portraits/lanyue.webp" alt=""></div><div><strong>岚玥</strong><small><i></i>典雅从容</small></div></button>
+      <button class="tile on" style="--c:#C4497A"><div class="pic"><img src="../../../../assets/avatars/portraits/chutang.webp" alt=""><span class="badge">当前老师</span></div><div><strong>初棠</strong><small><i></i>清新温暖</small></div></button>
+      <button class="tile" style="--c:#66752A"><div class="pic"><img src="../../../../assets/avatars/portraits/qingheng.webp" alt=""></div><div><strong>青衡</strong><small><i></i>儒雅博学</small></div></button>
+      <button class="tile" style="--c:#1B79A8"><div class="pic"><img src="../../../../assets/avatars/portraits/lanyin.webp" alt=""></div><div><strong>澜音</strong><small><i></i>敏锐干练</small></div></button>
+      <button class="tile add"><div class="pic"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div><strong>导入角色</strong><small>拖一张立绘进来</small></div></button>
+    </section>
+  </main>
+</body>
+</html>
