@@ -14,7 +14,10 @@ export function Problem({ error, onRetry }: { error?: unknown; onRetry?: () => v
   );
 }
 
-export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+export class ErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode },
+  { failed: boolean }
+> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
@@ -22,11 +25,14 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
   }
 
   render() {
-    return this.state.failed ? (
+    if (!this.state.failed) return this.props.children;
+    if (this.props.fallback) return this.props.fallback;
+    return (
       <main className="shell error-screen">
+        <h1>{t.app.routeErrorTitle}</h1>
         <p role="alert">{t.app.error}</p>
         <button className="button primary" onClick={() => window.location.reload()}>{t.app.refresh}</button>
       </main>
-    ) : this.props.children;
+    );
   }
 }

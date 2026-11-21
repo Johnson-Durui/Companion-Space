@@ -70,7 +70,7 @@ export default function SampleLesson() {
   const sample = useQuery({ queryKey: sampleKey, queryFn: fetchSample, staleTime: Infinity });
   if (sample.isPending) return <Loading />;
   if (sample.isError) return <Problem error={sample.error} onRetry={() => void sample.refetch()} />;
-  if (!sample.data) return <p className="notice">{copy.unavailable}</p>;
+  if (!sample.data) return <section className="lesson-recap"><h1>{copy.open}</h1><p className="notice">{copy.unavailable}</p></section>;
   return <section className="lesson-recap">
     <Link className="text-link" to="/welcome">{t.welcome.heading}</Link>
     <h1>{sample.data.title}</h1>

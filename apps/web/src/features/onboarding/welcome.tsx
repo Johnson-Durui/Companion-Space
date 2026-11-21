@@ -25,7 +25,7 @@ export default function Welcome() {
   const characters = roster.data;
   const selectedId = settings.data.default_character_id;
   const candidate = characters.find((entry) => entry.id === (focused ?? selectedId)) ?? characters[0];
-  if (!candidate) return <p className="state-note">{t.welcome.empty}</p>;
+  if (!candidate) return <div className="welcome-page"><div className="page-title welcome-title"><h1>{t.welcome.heading}</h1></div><p className="state-note">{t.welcome.empty}</p></div>;
 
   const selected = candidate.id === selectedId;
   const typeLabel = candidate.appearance.kind === "video_pack" ? t.welcome.videoPack : t.welcome.portrait;

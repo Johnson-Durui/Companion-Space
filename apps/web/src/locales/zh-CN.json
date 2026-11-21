@@ -9,7 +9,28 @@
     "skip": "跳到主要内容",
     "loading": "正在打开伴学空间…",
     "error": "打开失败，稍后再试。",
-    "refresh": "重新加载"
+    "refresh": "重新加载",
+    "routeErrorTitle": "这一页加载出了点问题",
+    "notFoundTitle": "这一页不存在",
+    "notFoundHint": "地址可能已经变化，先回到课程列表继续学习吧。",
+    "backCourses": "回到课程列表",
+    "titles": {
+      "welcome": "选一位老师",
+      "sample": "示例课堂",
+      "characters": "角色库",
+      "courses": "我的课程",
+      "course": "课程工作台",
+      "courseHistory": "课程记录",
+      "review": "复习与错题本",
+      "warmup": "课前热身",
+      "progress": "学习进度",
+      "practice": "限时作答",
+      "lesson": "课堂",
+      "lessonHistory": "课堂回放",
+      "settings": "设置",
+      "diagnostics": "和老师试聊",
+      "notFound": "这一页不存在"
+    }
   },
   "common": {
     "loading": "加载中…",
