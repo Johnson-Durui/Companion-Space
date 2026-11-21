@@ -1,11 +1,13 @@
-.review-page { padding-block-end: 64px; }
-.review-prompt { display: grid; gap: 18px; max-width: 720px; padding: clamp(20px, 4vw, 36px); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--accent-soft); }
-.review-prompt h3 { margin: 0; font-size: clamp(1.25rem, 3vw, 1.8rem); }
-.review-answer { padding: 18px; border-left: 4px solid var(--accent); background: var(--paper); font-size: 1.1rem; }
-.rating-row, .review-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
-.review-option { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--paper); cursor: pointer; }
-.review-empty { padding: 42px; text-align: center; color: var(--muted); }
-.mistake-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-.mistake-list article { padding: 18px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--accent-soft); }
-.mistake-list h3 { margin-block: 8px; }
-@media (max-width: 620px) { .review-filters { align-items: stretch; flex-direction: column; } }
+@layer legacy {
+  .review-page { padding-block-end: 64px; }
+  .review-prompt { display: grid; gap: 18px; max-width: 720px; padding: clamp(20px, 4vw, 32px); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-1); }
+  .review-prompt h3 { margin: 0; font-size: clamp(1.25rem, 2.5vw, 1.5rem); }
+  .review-answer { padding: 18px; border-left: 4px solid var(--accent); background: var(--surface-sunken); border-radius: var(--radius-sm); font-size: 1rem; }
+  .rating-row, .review-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+  .review-option { padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-card); cursor: pointer; }
+  .review-empty { padding: 42px; text-align: center; color: var(--text-secondary); }
+  .mistake-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .mistake-list article { padding: 18px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-1); }
+  .mistake-list h3 { margin-block: 8px; }
+  @media (max-width: 767px) { .review-filters { align-items: stretch; flex-direction: column; } }
+}

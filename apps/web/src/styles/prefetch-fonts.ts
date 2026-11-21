@@ -30,10 +30,12 @@ export function scheduleFontPrefetch(): void {
     });
   };
 
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-    (window as Window & { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number })
-      .requestIdleCallback(run, { timeout: 3000 });
+  const idle = (globalThis as {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+  }).requestIdleCallback;
+  if (typeof idle === "function") {
+    idle(run, { timeout: 3000 });
   } else {
-    window.setTimeout(run, 1200);
+    globalThis.setTimeout(run, 1200);
   }
 }

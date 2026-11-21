@@ -1,10 +1,12 @@
-.progress-page { padding-block-end: 64px; }
-.progress-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-block: 24px; }
-.progress-summary article { display: grid; gap: 4px; padding: 20px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--accent-soft); }
-.progress-summary strong { font-size: clamp(1.5rem, 4vw, 2.4rem); }
-.mastery-map, .trend-list { display: grid; gap: 12px; }
-.mastery-map > div { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(120px, 3fr) 48px; align-items: center; gap: 12px; }
-.mastery-map progress { width: 100%; accent-color: var(--accent); }
-.trend-list > div { display: grid; grid-template-columns: 100px minmax(100px, 1fr) 110px; align-items: center; gap: 10px; }
-.trend-list > div > span { height: 10px; min-width: 2px; border-radius: 99px; background: var(--accent); }
-@media (max-width: 620px) { .progress-summary { grid-template-columns: 1fr; } .mastery-map > div { grid-template-columns: 1fr 50px; } .mastery-map progress { grid-row: 2; grid-column: 1 / -1; } }
+@layer legacy {
+  .progress-page { padding-block-end: 64px; }
+  .progress-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-block: 24px; }
+  .progress-summary article { display: grid; gap: 4px; padding: 20px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-card); box-shadow: var(--shadow-1); }
+  .progress-summary strong { font-size: clamp(1.5rem, 3.5vw, 2.25rem); font-variant-numeric: tabular-nums; }
+  .mastery-map, .trend-list { display: grid; gap: 12px; }
+  .mastery-map > div { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(120px, 3fr) 48px; align-items: center; gap: 12px; }
+  .mastery-map progress { width: 100%; accent-color: var(--accent); }
+  .trend-list > div { display: grid; grid-template-columns: 100px minmax(100px, 1fr) 110px; align-items: center; gap: 10px; }
+  .trend-list > div > span { height: 10px; min-width: 2px; border-radius: 99px; background: var(--accent); }
+  @media (max-width: 767px) { .progress-summary { grid-template-columns: 1fr; } .mastery-map > div { grid-template-columns: 1fr 50px; } .mastery-map progress { grid-row: 2; grid-column: 1 / -1; } }
+}

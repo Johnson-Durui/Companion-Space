@@ -1,0 +1,367 @@
+@layer theme, base, legacy, components, utilities;
+
+@import "tailwindcss";
+@import "./fonts.css";
+
+:root {
+  color-scheme: light;
+
+  /* Surface & text tokens — Desk (light) */
+  --surface-page: #F6F5F2;
+  --surface-card: #FFFFFF;
+  --surface-sunken: #EFEDE8;
+  --surface-overlay: #FFFFFF;
+  --text-primary: #1B2126;
+  --text-secondary: #55606A;
+  --text-tertiary: #66707A;
+  --text-disabled: #9AA2A9;
+  --border-subtle: #E4E1DA;
+  --border-default: #CFCAC0;
+  --border-control: #868D94;
+  --scrim: rgb(11 14 18 / 0.72);
+
+  /* Default tutor accent (brand teal) */
+  --accent: #1F7A6E;
+  --accent-strong: #17625A;
+  --accent-soft: #E3F1EE;
+  --accent-on-dark: #8FD9CC;
+  --on-accent: #FFFFFF;
+
+  /* Status tokens — Desk (light) */
+  --ok: #1E7B4D;
+  --ok-soft: #E6F4EC;
+  --ok-text: #1E7B4D;
+
+  --retry: #A8480F;
+  --retry-soft: #FDEEE3;
+  --retry-text: #A8480F;
+
+  --warn: #8A5A00;
+  --warn-soft: #FFF4D6;
+  --warn-text: #8A5A00;
+
+  --danger: #B3261E;
+  --danger-soft: #FCEBEA;
+  --danger-text: #B3261E;
+
+  --info: #1F5FA8;
+  --info-soft: #E7F0FB;
+  --info-text: #1F5FA8;
+
+  /* Mastery tokens */
+  --mastery-unseen: #8E959C;
+  --mastery-learning: #4C84D9;
+  --mastery-fragile: #B47B06;
+  --mastery-mastered: #2E9B63;
+
+  /* Board highlight */
+  --board-focus: color-mix(in srgb, var(--accent) 12%, var(--surface-card));
+
+  /* Elevation shadows (backed by --elev-* so @theme inline shadow-1/2/3 is non-circular) */
+  --elev-1: 0 1px 2px rgb(16 24 32 / 0.06), 0 1px 1px rgb(16 24 32 / 0.04);
+  --elev-2: 0 4px 12px rgb(16 24 32 / 0.08), 0 2px 4px rgb(16 24 32 / 0.05);
+  --elev-3: 0 16px 40px rgb(16 24 32 / 0.16), 0 4px 12px rgb(16 24 32 / 0.08);
+  --shadow-1: var(--elev-1);
+  --shadow-2: var(--elev-2);
+  --shadow-3: var(--elev-3);
+
+  /* Motion */
+  --dur-instant: 80ms;
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --dur-page: 450ms;
+
+  /* Z-index layers */
+  --z-sticky: 10;
+  --z-dock: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+}
+
+/* System font stack switch (for U1 gallery comparison & reversibility) */
+[data-font="system"] {
+  --font-sans: "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+/* Eight tutor accent themes */
+:is([data-theme="default"], [data-tutor="default"]) {
+  --accent: #1F7A6E;
+  --accent-strong: #17625A;
+  --accent-soft: #E3F1EE;
+  --accent-on-dark: #8FD9CC;
+  --on-accent: #FFFFFF;
+}
+
+:is([data-theme="xuechuan"], [data-tutor="tutor-xuechuan"]) {
+  --accent: #3F66D8;
+  --accent-strong: #3355BC;
+  --accent-soft: #E7ECFB;
+  --accent-on-dark: #A9BCF7;
+  --on-accent: #FFFFFF;
+}
+
+:is([data-theme="shenyan"], [data-tutor="tutor-shenyan"]) {
+  --accent: #4A5B73;
+  --accent-strong: #3A495E;
+  --accent-soft: #E9EDF2;
+  --accent-on-dark: #B4C2D6;
+  --on-accent: #FFFFFF;
+}
+
+:is([data-theme="lanyue"], [data-tutor="tutor-lanyue"]) {
+  --accent: #8A55C4;
+  --accent-strong: #7443AE;
+  --accent-soft: #F1EAFA;
+  --accent-on-dark: #D0B5F2;
+  --on-accent: #FFFFFF;
+}
+
+:is([data-theme="chutang"], [data-tutor="tutor-chutang"]) {
+  --accent: #C4497A;
+  --accent-strong: #A93A66;
+  --accent-soft: #FBE9F0;
+  --accent-on-dark: #F3A9C4;
+  --on-accent: #FFFFFF;
+}
+
+:is([data-theme="qingheng"], [data-tutor="tutor-qingheng"]) {
+  --accent: #66752A;
+  --accent-strong: #525F1F;
+  --accent-soft: #F0F2DF;
+  --accent-on-dark: #C6D48A;
+  --on-accent: #FFFFFF;
+}
+
+:is([data-theme="lanyin"], [data-tutor="tutor-lanyin"]) {
+  --accent: #1B79A8;
+  --accent-strong: #14628A;
+  --accent-soft: #E3F1F8;
+  --accent-on-dark: #8FCBEA;
+  --on-accent: #FFFFFF;
+}
+
+:is([data-theme="neutral"], [data-tutor="neutral"]) {
+  --accent: #5B6472;
+  --accent-strong: #474F5B;
+  --accent-soft: #ECEEF1;
+  --accent-on-dark: #BFC6D0;
+  --on-accent: #FFFFFF;
+}
+
+/* Classroom stage surface (dark) — redefines all §2.1 & §2.4 tokens */
+[data-surface="stage"] {
+  color-scheme: dark;
+  --surface-page: #0E1116;
+  --surface-card: #171B22;
+  --surface-sunken: #0A0D11;
+  --surface-overlay: #1F242D;
+  --text-primary: #F3F5F7;
+  --text-secondary: #A7B0BA;
+  --text-tertiary: #8C96A1;
+  --text-disabled: #5F6873;
+  --border-subtle: rgb(255 255 255 / 0.12);
+  --border-default: #3A424D;
+  --border-control: #6B7480;
+  --scrim: rgb(11 14 18 / 0.72);
+
+  --ok: #5FCB93;
+  --ok-soft: color-mix(in srgb, #5FCB93 16%, #171B22);
+  --ok-text: #5FCB93;
+
+  --retry: #F0A06A;
+  --retry-soft: color-mix(in srgb, #F0A06A 16%, #171B22);
+  --retry-text: #F0A06A;
+
+  --warn: #E8B84A;
+  --warn-soft: color-mix(in srgb, #E8B84A 16%, #171B22);
+  --warn-text: #E8B84A;
+
+  --danger: #F28B82;
+  --danger-soft: color-mix(in srgb, #F28B82 16%, #171B22);
+  --danger-text: #F28B82;
+
+  --info: #7FB2F0;
+  --info-soft: color-mix(in srgb, #7FB2F0 16%, #171B22);
+  --info-text: #7FB2F0;
+
+  --board-focus: color-mix(in srgb, var(--accent-on-dark) 16%, #171B22);
+
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.08);
+  --elev-2: 0 4px 12px rgb(0 0 0 / 0.16), 0 2px 4px rgb(0 0 0 / 0.10);
+  --elev-3: 0 16px 40px rgb(0 0 0 / 0.32), 0 4px 12px rgb(0 0 0 / 0.16);
+}
+
+/* Paper surface (desk light) — redefines all §2.1 & §2.4 tokens */
+[data-surface="paper"] {
+  color-scheme: light;
+  --surface-page: #FFFDF6;
+  --surface-card: #FFFDF6;
+  --surface-sunken: #F5F1E4;
+  --surface-overlay: #FFFFFF;
+  --text-primary: #1F2A30;
+  --text-secondary: #5A656C;
+  --text-tertiary: #606A71;
+  --text-disabled: #959CA2;
+  --border-subtle: #E9E3D3;
+  --border-default: #CFC7B4;
+  --border-control: #7D848B;
+  --scrim: rgb(11 14 18 / 0.72);
+
+  --ok: #1E7B4D;
+  --ok-soft: #E6F4EC;
+  --ok-text: #1E7B4D;
+
+  --retry: #A8480F;
+  --retry-soft: #FDEEE3;
+  --retry-text: #A8480F;
+
+  --warn: #8A5A00;
+  --warn-soft: #FFF4D6;
+  --warn-text: #8A5A00;
+
+  --danger: #B3261E;
+  --danger-soft: #FCEBEA;
+  --danger-text: #B3261E;
+
+  --info: #1F5FA8;
+  --info-soft: #E7F0FB;
+  --info-text: #1F5FA8;
+
+  --board-focus: color-mix(in srgb, var(--accent) 12%, var(--surface-card));
+
+  --elev-1: 0 1px 2px rgb(16 24 32 / 0.06), 0 1px 1px rgb(16 24 32 / 0.04);
+  --elev-2: 0 4px 12px rgb(16 24 32 / 0.08), 0 2px 4px rgb(16 24 32 / 0.05);
+  --elev-3: 0 16px 40px rgb(16 24 32 / 0.16), 0 4px 12px rgb(16 24 32 / 0.08);
+}
+
+/* Paper surface inside classroom stage — dimmed one step to prevent eye strain */
+[data-surface="stage"] [data-surface="paper"] {
+  --surface-page: #F6F2E6;
+  --surface-card: #F6F2E6;
+  --surface-sunken: #ECE6D6;
+  --surface-overlay: #FAF7EE;
+  --border-subtle: #DED7C4;
+  --border-default: #C4BBA6;
+  --board-focus: color-mix(in srgb, var(--accent) 12%, #F6F2E6);
+}
+
+/* Tailwind v4 scale, fonts, easing & breakpoint theme */
+@theme {
+  --font-sans: "Geist Variable", "Noto Sans SC Variable", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.125rem;
+  --text-ui: 0.875rem;
+  --text-ui--line-height: 1.375rem;
+  --text-body: 1rem;
+  --text-body--line-height: 1.625rem;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+  --text-headline: 1.75rem;
+  --text-headline--line-height: 2.25rem;
+  --text-display: 2.5rem;
+  --text-display--line-height: 3rem;
+  --text-board: 1.0625rem;
+  --text-board--line-height: 1.875rem;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1100px;
+  --breakpoint-2xl: 1600px;
+}
+
+/* Tailwind v4 semantic token-to-utility mapping (DECISIONS.md U1) */
+@theme inline {
+  --color-surface-page: var(--surface-page);
+  --color-surface-card: var(--surface-card);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-scrim: var(--scrim);
+  --color-board-focus: var(--board-focus);
+
+  --color-fg-primary: var(--text-primary);
+  --color-fg-secondary: var(--text-secondary);
+  --color-fg-tertiary: var(--text-tertiary);
+  --color-fg-disabled: var(--text-disabled);
+
+  --color-line-subtle: var(--border-subtle);
+  --color-line-default: var(--border-default);
+  --color-line-control: var(--border-control);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-on-dark: var(--accent-on-dark);
+  --color-on-accent: var(--on-accent);
+
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-text: var(--ok-text);
+
+  --color-retry: var(--retry);
+  --color-retry-soft: var(--retry-soft);
+  --color-retry-text: var(--retry-text);
+
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-text: var(--warn-text);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-text: var(--danger-text);
+
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-info-text: var(--info-text);
+
+  --color-mastery-unseen: var(--mastery-unseen);
+  --color-mastery-learning: var(--mastery-learning);
+  --color-mastery-fragile: var(--mastery-fragile);
+  --color-mastery-mastered: var(--mastery-mastered);
+
+  --shadow-1: var(--elev-1);
+  --shadow-2: var(--elev-2);
+  --shadow-3: var(--elev-3);
+}
+
+@utility duration-instant {
+  transition-duration: var(--dur-instant);
+}
+@utility duration-fast {
+  transition-duration: var(--dur-fast);
+}
+@utility duration-base {
+  transition-duration: var(--dur-base);
+}
+@utility duration-slow {
+  transition-duration: var(--dur-slow);
+}
+@utility duration-page {
+  transition-duration: var(--dur-page);
+}
+@utility z-sticky {
+  z-index: var(--z-sticky);
+}
+@utility z-dock {
+  z-index: var(--z-dock);
+}
+@utility z-overlay {
+  z-index: var(--z-overlay);
+}
+@utility z-modal {
+  z-index: var(--z-modal);
+}
+@utility z-toast {
+  z-index: var(--z-toast);
+}

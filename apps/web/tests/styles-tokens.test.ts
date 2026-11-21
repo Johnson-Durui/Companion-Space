@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const RUNTIME_VARS = new Set([
   "--speech-level",
   "--tvb-fade-ms",
+  "--transform-origin",
 ]);
 
 function collectCssFiles(dir: string): string[] {

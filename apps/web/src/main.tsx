@@ -1,3 +1,6 @@
+import "./styles/theme.css";
+import "./styles/base.css";
+import "./styles/tokens.css";
 import { lazy, StrictMode, Suspense, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -7,7 +10,9 @@ import { ErrorBoundary, Loading, Problem } from "./app/ui";
 import { UnlockSession } from "./features/settings/security";
 import Welcome from "./features/onboarding/welcome";
 import t from "./locales/zh-CN.json";
-import "./styles/tokens.css";
+import { scheduleFontPrefetch } from "./styles/prefetch-fonts";
+
+scheduleFontPrefetch();
 
 const Settings = lazy(() => import("./features/settings/settings"));
 const Diagnostics = lazy(() => import("./features/settings/diagnostics"));

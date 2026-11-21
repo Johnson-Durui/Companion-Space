@@ -4,7 +4,7 @@
 .code span[data-current] { background: #305a4d; box-shadow: inset 3px 0 #b9e8ad; }
 
 .block { position: relative; display: grid; gap: .55rem; padding: .25rem 0; overflow-wrap: anywhere; animation: board-in 250ms ease-out both; }
-.block[data-kind="title"] { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; }
+.block[data-kind="title"] { font-family: var(--font-sans); font-size: 1.25rem; font-weight: 600; }
 .block[data-marked], .block[data-kind="callout"] { border-inline-start: 3px solid var(--accent); padding-inline-start: .9rem; }
 .block[data-variant="warning"] { border-inline-start-color: #b06a33; }
 .line { display: block; width: 100%; border: 0; padding: .2rem; text-align: start; color: inherit; background: transparent; overflow-x: auto; animation: board-write 400ms ease-out both; }
