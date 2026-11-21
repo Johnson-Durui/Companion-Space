@@ -127,6 +127,20 @@ SOFTWARE.
   - 6 matching dry 24 kHz mono PCM WAV voice-clone reference clips (`assets/avatars/voices/*-ref-24k.wav`) and `voices_manifest.json`.
 - Provenance: generated locally on 2026-11-21 by the Companion Space project owner from the six original 2026-11-19 anchor portraits using locally hosted MiniMax H3-Base (`H3-Base-FL2VA`), then sliced and transcoded into silent VP9 `.webm` loops and normalized reference WAV clips.
 - Third-party license: none. These project-owned media assets are distributed under Apache License 2.0 alongside the repository unless a release notice states otherwise. Individual file registrations are listed in [Avatar asset licenses](avatars/LICENSES.md).
+
+## Fonts
+
+The bundled variable fonts below are distributed as font assets under SIL Open Font License 1.1. Full license texts are shipped under `assets/fonts/LICENSES/`.
+
+- **Geist** (`Geist Variable`)
+  - Version: `5.3.0` (source package: `@fontsource-variable/geist@5.3.0`)
+  - Copyright: Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
+  - License: SIL Open Font License 1.1 ([assets/fonts/LICENSES/geist-OFL-1.1.txt](fonts/LICENSES/geist-OFL-1.1.txt))
+- **Noto Sans SC** (`Noto Sans SC Variable`)
+  - Version: `5.3.1` (source package: `@fontsource-variable/noto-sans-sc@5.3.1`)
+  - Copyright: Google Inc.
+  - License: SIL Open Font License 1.1 ([assets/fonts/LICENSES/noto-sans-sc-OFL-1.1.txt](fonts/LICENSES/noto-sans-sc-OFL-1.1.txt))
+
 ## Distribution Rules
 
 - See [Avatar asset licenses](avatars/LICENSES.md) for all retained assets.

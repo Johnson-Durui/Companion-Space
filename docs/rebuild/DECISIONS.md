@@ -87,3 +87,25 @@
 ## 体验重塑 U0 执行决定（2026-11-21）
 
 - **`feedback_reaction` 姿态与 `think_chin` 片段播放方式**：`poseToClipSlot("feedback_reaction")` 不再映射到一次性表扬片段，改为返回基础待机片段 `idle_breathe`，且 `LoopPackVideoDriver.setPose("feedback_reaction")` 保持当前正在播放的片段不变；所有一次性反应片段只由 `triggerInstantAction` 决定。`think_chin` 保持**循环播放**（不加入 `ONE_SHOT_CLIPS`），与素材规范（3s loop）、"给点提示 / 举个例子"等待期以及 U2a 的思考相位一致；当老师开始讲解或恢复倾听时平滑切换离开。
+
+## 体验重塑 U1 执行决定（2026-11-22）
+
+- **依赖核对与锁定**：
+  - `@base-ui/react@1.9.0`（MIT，支持 React 19，单包覆盖 Dialog、AlertDialog、Menu、Popover、Tooltip、Select、Switch、Slider、Tabs 等无样式可访问原语）。
+  - `lucide-react@1.77.0`（ISC，统一描边风格图标，经 `apps/web/src/ui/icons.ts` 单点导出）。
+  - `clsx@2.1.1`（MIT，类名拼接）。
+  - `happy-dom@21.0.4`（MIT，仅开发依赖，供 Vitest 组件行为单测使用）。
+  - React / React DOM 在 U1 保持 `19.2.9` 不升级，路由进入转场先采用 CSS 淡入动画，React ViewTransition 留待 U7 评估。
+- **字体采用 OFL-1.1，按素材许可处理，可逆**：锁定开发依赖 `@fontsource-variable/geist@5.3.0` 与 `@fontsource-variable/noto-sans-sc@5.3.1`（均为 SIL OFL 1.1），由 `scripts/generate-fonts-css.mjs` 生成并提交 `apps/web/src/styles/fonts.css`（`font-display: fallback`），两份许可全文存放在 `assets/fonts/LICENSES/` 并随 `scripts/build-portable.ps1` 一起分发，同时登记在 `assets/THIRD_PARTY_NOTICES.md`。通过 `data-font="system"` 保留切回系统字体栈的对比与可逆能力。
+- **Tailwind v4 token 到工具类的映射命名**（在 `apps/web/src/styles/theme.css` 的 `@theme` 与 `@theme inline` 中一次定型，后续里程碑不得另起别名）：
+  - 表面背景：`bg-surface-page`、`bg-surface-card`、`bg-surface-sunken`、`bg-surface-overlay`、`bg-scrim`、`bg-board-focus`。
+  - 前景文字：`text-fg-primary`、`text-fg-secondary`、`text-fg-tertiary`、`text-fg-disabled`。
+  - 边框：`border-line-subtle`、`border-line-default`、`border-line-control`。
+  - 老师强调色：`bg-accent` / `text-accent` / `border-accent`、`bg-accent-strong` / `text-accent-strong` / `border-accent-strong`、`bg-accent-soft` / `text-accent-soft`、`text-accent-on-dark` / `bg-accent-on-dark`、`text-on-accent`。
+  - 状态色（`ok` / `retry` / `warn` / `danger` / `info`）：`bg-<k>`、`text-<k>`、`border-<k>`、`bg-<k>-soft`、`text-<k>-text`。
+  - 掌握度：`text-mastery-unseen/learning/fragile/mastered`、`bg-mastery-unseen/learning/fragile/mastered`。
+  - 字阶：`text-caption`（12/18）、`text-ui`（14/22）、`text-body`（16/26）、`text-title`（20/28）、`text-headline`（28/36）、`text-display`（40/48）、`text-board`（17/30）。
+  - 圆角：`rounded-sm`（6px）、`rounded-md`（10px）、`rounded-lg`（16px）、`rounded-xl`（24px）；阴影：`shadow-1`、`shadow-2`、`shadow-3`；时长：`duration-instant/fast/base/slow/page`；缓动：`ease-out/in-out/sheet`；层级：`z-sticky/dock/overlay/modal/toast`；断点：768 / 1100 / 1600。
+- **舞台与纸面补齐的语义 token**（均纳入对比度单测）：
+  - 纸面（`[data-surface="paper"]`）在书桌下 `--surface-page/--surface-card` 为 `#FFFDF6`、`--surface-sunken` 为 `#F5F1E4`、`--surface-overlay` 为 `#FFFFFF`、`--border-subtle` 为 `#E9E3D3`、`--border-default` 为 `#CFC7B4`；在深色舞台内（`[data-surface="stage"] [data-surface="paper"]`）降一档为 `--surface-page/--surface-card: #F6F2E6`、`--surface-sunken: #ECE6D6`、`--surface-overlay: #FAF7EE`、`--border-subtle: #DED7C4`、`--border-default: #C4BBA6`。两者共用 `--text-tertiary: #606A71`（对两档纸面对比度均 ≥ 4.8:1）、`--text-disabled: #959CA2`、`--border-control: #7D848B`（对两档纸面对比度均 ≥ 3.4:1）以及全套浅色状态色与浅色阴影，防止从外层舞台继承深色状态色。
+  - 深色舞台（`[data-surface="stage"]`）补齐状态浅底（各提亮状态色 16% 混入 `#171B22`）、纯黑加倍不透明度三档阴影与 `--board-focus`（`--accent-on-dark` 16% 混入 `#171B22`）。
