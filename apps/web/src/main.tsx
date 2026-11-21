@@ -7,12 +7,13 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { BrowserRouter, Link, matchPath, Navigate, Route, Routes, useLocation } from "react-router";
 import { api, bodyOf, bootstrapSession, isClientError, sessionKey } from "./app/api";
 import { ErrorBoundary, Loading, Problem } from "./app/ui";
-import { BrandMark } from "./ui/icons";
+import { AppShell } from "./shell/AppShell";
 import { UnlockSession } from "./features/settings/security";
 import Welcome from "./features/onboarding/welcome";
 import t from "./locales/zh-CN.json";
 import { scheduleFontPrefetch } from "./styles/prefetch-fonts";
 import { useTutorThemeSync } from "./styles/use-tutor-theme";
+import { Button } from "./ui";
 
 scheduleFontPrefetch();
 
@@ -28,6 +29,7 @@ const TutorLibrary = lazy(() => import("./features/characters/library"));
 const CourseHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.CourseHistoryPage })));
 const LessonHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.LessonHistoryPage })));
 const SampleLesson = lazy(() => import("./features/replay/sample"));
+
 const queries = new QueryClient({
   defaultOptions: {
     queries: {
@@ -38,29 +40,6 @@ const queries = new QueryClient({
     mutations: { retry: false },
   },
 });
-const navigation = [
-  ["/courses", t.app.courses],
-  ["/welcome", t.app.teachers],
-  ["/settings", t.app.settings],
-  ["/settings/diagnostics", t.app.diagnostics],
-] as const;
-
-function navActive(to: string, pathname: string): boolean {
-  if (to === "/courses") {
-    return pathname === "/courses"
-      || pathname.startsWith("/courses/")
-      || pathname.startsWith("/lessons/")
-      || pathname.startsWith("/plan-items/");
-  }
-  if (to === "/welcome") {
-    return pathname === "/welcome"
-      || pathname.startsWith("/characters")
-      || pathname.startsWith("/sample-lesson");
-  }
-  if (to === "/settings") return pathname === "/settings";
-  if (to === "/settings/diagnostics") return pathname.startsWith("/settings/diagnostics");
-  return pathname === to;
-}
 
 function pageTitleFor(pathname: string, search: string): string {
   const titles = t.app.titles;
@@ -137,7 +116,7 @@ function RouteFallback() {
       <h1>{t.app.routeErrorTitle}</h1>
       <p role="alert">{t.app.error}</p>
       <div className="actions">
-        <button className="button primary" onClick={() => window.location.reload()}>{t.app.refresh}</button>
+        <Button variant="primary" onClick={() => window.location.reload()}>{t.app.refresh}</Button>
         <Link className="button quiet" to="/courses">{t.app.backCourses}</Link>
       </div>
     </section>
@@ -159,22 +138,7 @@ function App() {
   return (
     <>
       <RouteEffects />
-      <a className="skip" href="#main">{t.app.skip}</a>
-      <header className="site-header">
-        <div className="shell header-row">
-          <Link to="/welcome" className="brand">
-            <BrandMark size={36} />
-            <span><strong>{t.app.name}</strong><small>Companion Space</small></span>
-          </Link>
-          <nav className="site-nav" aria-label={t.app.name}>
-            {navigation.map(([to, label]) => (
-              <Link key={to} to={to} aria-current={navActive(to, location.pathname) ? "page" : undefined}>{label}</Link>
-            ))}
-          </nav>
-          <span className="local-badge"><span aria-hidden="true" />{t.app.local}</span>
-        </div>
-      </header>
-      <main id="main" className="shell">
+      <AppShell>
         {session.isPending ? <Loading text={t.app.loading} /> : null}
         {session.isError ? <Problem error={session.error} onRetry={() => void session.refetch()} /> : null}
         {session.data?.state !== undefined && session.data.state !== "ready" ? <UnlockSession session={session.data} /> : null}
@@ -201,7 +165,7 @@ function App() {
             </Suspense>
           </ErrorBoundary>
         ) : null}
-      </main>
+      </AppShell>
     </>
   );
 }

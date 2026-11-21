@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api, bodyOf, charactersKey, fetchCharacters, fetchSettings, settingsKey, type Character } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { Check } from "../../ui/icons";
+import { Button, Check, toast } from "../../ui";
 import { TeacherPreview } from "../characters/teacher-preview";
 import { fetchSample, sampleKey } from "../replay/sample-api";
 import t from "../../locales/zh-CN.json";
@@ -17,7 +17,10 @@ export default function Welcome() {
   const queries = useQueryClient();
   const save = useMutation({
     mutationFn: async (character_id: string) => bodyOf(await api.PUT("/api/v2/settings/default-character", { body: { character_id } })),
-    onSuccess: () => queries.invalidateQueries({ queryKey: settingsKey }),
+    onSuccess: () => {
+      void queries.invalidateQueries({ queryKey: settingsKey });
+      toast.success(t.common.saved);
+    },
   });
   if (roster.isPending || settings.isPending) return <Loading />;
   if (roster.isError) return <Problem error={roster.error} onRetry={() => void roster.refetch()} />;
@@ -58,9 +61,9 @@ export default function Welcome() {
           {candidate.persona.traits.length ? <ul className="teacher-traits">{candidate.persona.traits.map((trait) => <li key={trait}>{trait}</li>)}</ul> : null}
           <div className="teacher-actions">
             {selected ? <p className="current-teacher" role="status"><Check size={16} aria-hidden="true" />{t.welcome.chosen}</p> : (
-              <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined} onClick={() => save.mutate(candidate.id)}>
-                {save.isPending ? t.common.saving : t.welcome.save}
-              </button>
+              <Button variant="primary" pending={save.isPending} onClick={() => save.mutate(candidate.id)}>
+                {t.welcome.save}
+              </Button>
             )}
             <VoicePreview key={candidate.id} id={candidate.id} />
           </div>

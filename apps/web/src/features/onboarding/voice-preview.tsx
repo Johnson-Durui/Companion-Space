@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { api, bodyOf } from "../../app/api";
 import { Problem } from "../../app/ui";
-import { Play } from "../../ui/icons";
+import { Button, Play } from "../../ui";
 import t from "../../locales/zh-CN.json";
 
 export function VoicePreview({ id, text }: { id: string; text?: string }) {
@@ -32,9 +32,9 @@ export function VoicePreview({ id, text }: { id: string; text?: string }) {
 
   return (
     <div className="voice-preview">
-      <button className="button quiet" disabled={preview.isPending} aria-busy={preview.isPending || undefined} onClick={() => { setHint(""); preview.mutate(); }}>
-        <Play size={15} aria-hidden="true" />{preview.isPending ? t.voice.loading : t.voice.preview}
-      </button>
+      <Button variant="secondary" pending={preview.isPending} leftIcon={<Play size={15} aria-hidden="true" />} onClick={() => { setHint(""); preview.mutate(); }}>
+        {t.voice.preview}
+      </Button>
       <audio aria-label={t.voice.play} ref={audio} controls hidden={preview.data?.kind !== "audio"} />
       {preview.data?.kind === "audio" && preview.data.warning ? <p role="status" className="hint">{preview.data.warning}</p> : null}
       {preview.data?.kind === "browser" ? (

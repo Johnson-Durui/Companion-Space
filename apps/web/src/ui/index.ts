@@ -21,4 +21,5 @@ export { Toaster, toast, type ToastAction, type ToastItem, type ToastOptions, ty
 export { Tooltip, TooltipProvider, type TooltipProps, type TooltipProviderProps } from "./tooltip";
 export { TutorAvatar, type TutorAvatarProps, type TutorAvatarSize } from "./tutor-avatar";
 export { TutorChip, type TutorChipProps } from "./tutor-chip";
+export { useTransientSaved } from "./use-transient-saved";
 export * from "./icons";

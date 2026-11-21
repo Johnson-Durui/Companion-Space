@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, bodyOf, connectionsKey, ensureOK, fetchConnections, fetchRoles, publicMessage, rolesKey, type Connection, type ModelRoles } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { ArrowUpRight, ChevronDown } from "../../ui/icons";
+import { ArrowUpRight, Button, Check, ChevronDown, ConfirmDialog, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
 
 async function fetchPresets() {
@@ -25,6 +25,7 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
   const [cost, setCost] = useState<"free" | "paid" | "all">("free");
   const [presetId, setPresetId] = useState("");
   const queryClient = useQueryClient();
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const create = useMutation({
     mutationFn: async (data: FormData) => {
       const values = (field: string) => String(data.get(field) ?? "").trim();
@@ -37,6 +38,7 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
     },
     onSuccess: async () => {
       await Promise.all([queryClient.invalidateQueries({ queryKey: connectionsKey }), queryClient.invalidateQueries({ queryKey: rolesKey })]);
+      notifySaved();
     },
   });
   const suggested = cost === "all" ? presets : presets.filter((entry) => recommendations[cost].some((base) => entry.base_url?.startsWith(base)));
@@ -74,9 +76,9 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
       {preset.free_tier_note ? <p className="hint">{preset.free_tier_note}</p> : null}
       {preset.manual_live ? <p className="hint">{preset.manual_live}</p> : null}
       <div className="actions">
-        <button disabled={create.isPending} aria-busy={create.isPending || undefined} className="button primary">{t.settings.create}</button>
+        <Button type="submit" variant="primary" pending={create.isPending}>{t.settings.create}</Button>
         {preset.key_url ? <a className="text-link" href={preset.key_url} target="_blank" rel="noreferrer">{t.settings.getKey}<ArrowUpRight size={15} aria-hidden="true" /></a> : null}
-        {create.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+        {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
       </div>
       {create.isError ? <Problem error={create.error} /> : null}
     </form>
@@ -85,6 +87,8 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
 
 function ConnectionRow({ connection, onModels }: { connection: Connection; onModels: (id: string, entries: string[]) => void }) {
   const queries = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const params = { path: { connection_id: connection.id } };
   const refresh = async () => {
     await Promise.all([queries.invalidateQueries({ queryKey: connectionsKey }), queries.invalidateQueries({ queryKey: rolesKey })]);
@@ -105,26 +109,32 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
         ...(key ? { api_key: key } : {}),
       } }));
     },
-    onSuccess: refresh,
+    onSuccess: async () => {
+      await refresh();
+      notifySaved();
+    },
   });
   const remove = useMutation({
     mutationFn: async () => {
       const { response, error } = await api.DELETE("/api/v2/providers/connections/{connection_id}", { params });
       ensureOK(response, error);
     },
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setDeleteOpen(false);
+      await refresh();
+    },
   });
   return (
     <article className="connection" data-testid="connection-card">
       <h3>{connection.label}</h3>
       {connection.base_url ? <p className="hint">{connection.base_url}</p> : null}
       <div className="actions">
-        <button type="button" className="button quiet" disabled={test.isPending || remove.isPending} aria-busy={test.isPending || undefined} onClick={() => test.mutate()}>
-          {test.isPending ? t.settings.testing : t.settings.test}
-        </button>
-        <button type="button" className="button quiet" disabled={discover.isPending || remove.isPending} aria-busy={discover.isPending || undefined} onClick={() => discover.mutate()}>
-          {discover.isPending ? t.settings.fetching : t.settings.discover}
-        </button>
+        <Button variant="secondary" disabled={remove.isPending} pending={test.isPending} onClick={() => test.mutate()}>
+          {t.settings.test}
+        </Button>
+        <Button variant="secondary" disabled={remove.isPending} pending={discover.isPending} onClick={() => discover.mutate()}>
+          {t.settings.discover}
+        </Button>
       </div>
       {test.data?.length === 0 ? <p role="status" className="hint">{t.settings.testedNone}</p> : null}
       {test.data?.length ? (
@@ -158,12 +168,20 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
           <label>{t.settings.baseUrl}<input name="base_url" type="url" defaultValue={connection.base_url ?? ""} /></label>
           <label>{t.settings.rotate}<input name="api_key" type="password" autoComplete="new-password" spellCheck={false} /></label>
           <div className="actions">
-            <button className="button primary" disabled={edit.isPending || remove.isPending} aria-busy={edit.isPending || undefined}>{t.common.save}</button>
-            <button type="button" className="button danger-action" disabled={remove.isPending || edit.isPending} aria-busy={remove.isPending || undefined} onClick={() => {
-              if (window.confirm(t.settings.deleteConfirm)) remove.mutate();
-            }}>{t.settings.delete}</button>
-            {edit.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+            <Button type="submit" variant="primary" disabled={remove.isPending} pending={edit.isPending}>{t.common.save}</Button>
+            <Button variant="danger" disabled={edit.isPending} pending={remove.isPending} onClick={() => setDeleteOpen(true)}>{t.settings.delete}</Button>
+            {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
           </div>
+          <ConfirmDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title={t.settings.deleteTitle}
+            description={t.settings.deleteConfirm}
+            confirmLabel={t.settings.confirmDelete}
+            cancelLabel={t.common.keep}
+            pending={remove.isPending}
+            onConfirm={() => remove.mutate()}
+          />
           {edit.isError || remove.isError ? <Problem error={edit.error ?? remove.error} /> : null}
         </form>
       </details>
@@ -225,12 +243,16 @@ function RoleRow({ role, value, connections, busy, onSave }: {
 export function ModelSettings() {
   const [loadedModels, setLoadedModels] = useState<Record<string, string[]>>({});
   const queryClient = useQueryClient();
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const presets = useQuery({ queryKey: ["presets"], queryFn: fetchPresets });
   const connections = useQuery({ queryKey: connectionsKey, queryFn: fetchConnections });
   const assignments = useQuery({ queryKey: rolesKey, queryFn: fetchRoles });
   const save = useMutation({
     mutationFn: async (body: ModelRoles) => bodyOf(await api.PUT("/api/v2/settings/model-roles", { body })),
-    onSuccess: (values) => queryClient.setQueryData(rolesKey, values),
+    onSuccess: (values) => {
+      queryClient.setQueryData(rolesKey, values);
+      notifySaved();
+    },
   });
   function setRole(role: Role, entry?: NonNullable<ModelRoles[Role]>) {
     const next = { ...assignments.data };
@@ -271,7 +293,7 @@ export function ModelSettings() {
         </div>
       ) : null}
       {save.isError ? <Problem error={save.error} /> : null}
-      {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+      {saved ? <p className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</p> : null}
     </>
   );
 }

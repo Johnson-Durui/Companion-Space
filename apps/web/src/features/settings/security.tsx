@@ -2,17 +2,22 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, bodyOf, sessionKey, type SessionStatus } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { Button, Check, ConfirmDialog, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
 
 export function UnlockSession({ session }: { session: SessionStatus }) {
   const queryClient = useQueryClient();
+  const [skipOpen, setSkipOpen] = useState(false);
   const migration = session.state === "migration_required";
   const action = useMutation({
     mutationFn: async (password: string | null) => (
       password === null ? bodyOf(await api.POST("/api/v2/session/skip-migration")) :
       bodyOf(await api.POST("/api/v2/session/unlock", { body: { password } }))
     ),
-    onSuccess: (status) => queryClient.setQueryData(sessionKey, status),
+    onSuccess: (status) => {
+      setSkipOpen(false);
+      queryClient.setQueryData(sessionKey, status);
+    },
   });
   function unlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,14 +34,22 @@ export function UnlockSession({ session }: { session: SessionStatus }) {
       <form className="fields" onSubmit={unlock}>
         <label>{t.security.password}<input autoComplete="current-password" name="password" type="password" maxLength={200} required /></label>
         <div className="actions">
-          <button className="button primary" disabled={action.isPending} aria-busy={action.isPending || undefined}>{migration ? t.security.migrate : t.security.unlock}</button>
+          <Button type="submit" variant="primary" pending={action.isPending}>{migration ? t.security.migrate : t.security.unlock}</Button>
           {migration ? (
-            <button className="button quiet" type="button" disabled={action.isPending} aria-busy={action.isPending || undefined} onClick={() => {
-              if (window.confirm(t.security.skipConfirm)) action.mutate(null);
-            }}>{t.security.skipMigration}</button>
+            <Button variant="secondary" disabled={action.isPending} onClick={() => setSkipOpen(true)}>{t.security.skipMigration}</Button>
           ) : null}
         </div>
       </form>
+      <ConfirmDialog
+        open={skipOpen}
+        onOpenChange={setSkipOpen}
+        title={t.security.skipTitle}
+        description={t.security.skipConfirm}
+        confirmLabel={t.security.confirmSkip}
+        cancelLabel={t.common.cancel}
+        pending={action.isPending}
+        onConfirm={() => action.mutate(null)}
+      />
       {action.isError ? <Problem error={action.error} /> : null}
     </div>
   );
@@ -47,6 +60,7 @@ const securityKey = ["security"] as const;
 export function SecuritySettings() {
   const queries = useQueryClient();
   const [validation, setValidation] = useState("");
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const status = useQuery({
     queryKey: securityKey,
     queryFn: async () => bodyOf(await api.GET("/api/v2/settings/security")),
@@ -56,6 +70,7 @@ export function SecuritySettings() {
     onSuccess: (session) => {
       queries.setQueryData(securityKey, session);
       queries.setQueryData(sessionKey, session);
+      notifySaved();
     },
   });
   if (status.isPending) return <Loading />;
@@ -98,9 +113,9 @@ export function SecuritySettings() {
           <label>{t.security.confirm}<input autoComplete="new-password" name="confirmation" type="password" required={!enabled} /></label>
         </div>
         <div className="actions">
-          <button className="button primary" name="action" value="enable" disabled={update.isPending} aria-busy={update.isPending || undefined}>{enabled ? t.security.change : t.security.enable}</button>
-          {enabled ? <button className="button quiet" name="action" value="disable" disabled={update.isPending} aria-busy={update.isPending || undefined}>{t.security.disable}</button> : null}
-          {update.isSuccess ? <span role="status" className="form-success">{t.common.saved}</span> : null}
+          <Button type="submit" variant="primary" name="action" value="enable" pending={update.isPending}>{enabled ? t.security.change : t.security.enable}</Button>
+          {enabled ? <Button type="submit" variant="secondary" name="action" value="disable" pending={update.isPending}>{t.security.disable}</Button> : null}
+          {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
         </div>
         {validation ? <p role="alert" className="hint">{validation}</p> : null}
         {update.isError ? <Problem error={update.error} /> : null}

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { Loading, Problem } from "../../app/ui";
+import { Button, Check, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { isLessonItem, isTimedPracticeItem, planItemDisplayTitle, planItemKindLabel } from "../plan/item-kind";
 import {
@@ -19,9 +20,13 @@ function list(value: FormDataEntryValue | null) {
 
 function ProfileForm({ profile }: { profile: LearnerProfile }) {
   const queries = useQueryClient();
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const save = useMutation({
     mutationFn: saveLearnerProfile,
-    onSuccess: (result) => queries.setQueryData(learnerKeys.profile, result),
+    onSuccess: (result) => {
+      queries.setQueryData(learnerKeys.profile, result);
+      notifySaved();
+    },
   });
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,8 +56,8 @@ function ProfileForm({ profile }: { profile: LearnerProfile }) {
       </div>
       <label>{t.learner.interests}<input name="interests" defaultValue={(profile.interests ?? []).join("，")} placeholder={t.learner.interestsPlaceholder} /></label>
       <div className="actions">
-        <button className="button quiet" disabled={save.isPending} aria-busy={save.isPending || undefined}>{save.isPending ? t.common.saving : t.learner.saveProfile}</button>
-        {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+        <Button type="submit" variant="secondary" pending={save.isPending}>{t.learner.saveProfile}</Button>
+        {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
       </div>
       {save.isError ? <Problem error={save.error} /> : null}
     </form>
@@ -61,11 +66,15 @@ function ProfileForm({ profile }: { profile: LearnerProfile }) {
 
 function EnrollmentForm({ courseId, enrollment }: { courseId: string; enrollment: CourseEnrollment }) {
   const queries = useQueryClient();
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const [goalType, setGoalType] = useState(enrollment.goal_type);
   const [fullScore, setFullScore] = useState(String(enrollment.full_score ?? 100));
   const save = useMutation({
     mutationFn: (body: Parameters<typeof saveEnrollment>[1]) => saveEnrollment(courseId, body),
-    onSuccess: (result) => queries.setQueryData(learnerKeys.enrollment(courseId), result),
+    onSuccess: (result) => {
+      queries.setQueryData(learnerKeys.enrollment(courseId), result);
+      notifySaved();
+    },
   });
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -103,8 +112,8 @@ function EnrollmentForm({ courseId, enrollment }: { courseId: string; enrollment
       <fieldset className="weekday-options"><legend>{t.learner.weeklyDays}</legend>{weekdays.map((day) => <label key={day}><input name="weekly_days" type="checkbox" value={day} defaultChecked={(enrollment.weekly_days ?? []).includes(day)} />{t.learner.weekdays[day - 1]}</label>)}</fieldset>
       <label>{t.learner.teacherHints}<textarea name="teacher_hints" rows={3} defaultValue={enrollment.teacher_hints} maxLength={2000} /></label>
       <div className="actions">
-        <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>{save.isPending ? t.common.saving : t.learner.saveCourse}</button>
-        {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+        <Button type="submit" variant="primary" pending={save.isPending}>{t.learner.saveCourse}</Button>
+        {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
       </div>
       {save.isError ? <Problem error={save.error} /> : null}
     </form>

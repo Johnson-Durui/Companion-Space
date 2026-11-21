@@ -11,6 +11,7 @@ import type { DecodedSpeechChunk, InstantAction } from "@companion-space/avatar-
 import { TutorVideoBox, type TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import { api, bodyOf } from "../../app/api";
 import { Loading } from "../../app/ui";
+import { ConfirmDialog } from "../../ui";
 import { MicrophoneCapture, Pcm16Framer, type HandsFreeVad } from "../../audio";
 import t from "../../locales/zh-CN.json";
 import { toVideoAvatarConfig, videoBoxLabels } from "../characters/video-config";
@@ -105,6 +106,7 @@ function Lesson({ id }: { id: string }) {
   const queries = useQueryClient();
   const live = useClassroom(id, onSpeechLevel, onSpeechChunk, onJudgePreview);
   const [text, setText] = useState("");
+  const [endOpen, setEndOpen] = useState(false);
   const [recording, setRecording] = useState(false);
   const [handsFree, setHandsFree] = useState(false);
   const [micMessage, setMicMessage] = useState("");
@@ -374,13 +376,22 @@ function Lesson({ id }: { id: string }) {
           </select>
         </label>
         <button className="button quiet" disabled={!ready} onClick={() => { finishMic(); void stopVad(); live.pause(); }}>{copy.pause}</button>
-        <button className="button quiet" disabled={!ready} onClick={() => {
-          if (window.confirm(copy.endConfirm)) {
-            finishMic(); void stopVad(); interruptAll(); live.send("lesson.control", { action: "end" });
-          }
-        }}>{copy.end}</button>
+        <button className="button quiet" disabled={!ready} onClick={() => setEndOpen(true)}>{copy.end}</button>
       </div>
     </header>
+    <ConfirmDialog
+      open={endOpen}
+      onOpenChange={setEndOpen}
+      title={copy.endTitle}
+      description={copy.endConfirm}
+      confirmLabel={copy.confirmEnd}
+      cancelLabel={copy.keepLesson}
+      danger={false}
+      onConfirm={() => {
+        setEndOpen(false);
+        finishMic(); void stopVad(); interruptAll(); live.send("lesson.control", { action: "end" });
+      }}
+    />
     {error ? <div className="notice danger" role="alert">{error} <button className="button quiet" disabled={live.resuming} aria-busy={live.resuming || undefined}
       onClick={() => void (connected ? live.start(live.lastAudio) : live.reconnect())}>{copy.retry}</button></div> : null}
     {live.fallback ? <div className="notice" role="status">{live.fallback}<Link className="text-link" to="/settings#voice">{copy.voiceSettings}</Link></div> : null}

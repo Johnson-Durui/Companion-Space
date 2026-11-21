@@ -71,7 +71,7 @@ export function LessonHistoryPage() {
   const lesson = useQuery({ queryKey: ["lesson-history", lessonId], queryFn: () => fetchLesson(lessonId!), enabled: Boolean(lessonId) });
   const history = useQuery({ queryKey: ["lesson-events", lessonId], queryFn: () => fetchLessonEvents(lessonId!), enabled: Boolean(lessonId) });
   if (history.isPending || lesson.isPending) return <Loading />;
-  if (history.isError || lesson.isError) return <Problem error={history.error ?? lesson.error} />;
+  if (history.isError || lesson.isError) return <Problem error={history.error ?? lesson.error} onRetry={() => { void history.refetch(); void lesson.refetch(); }} />;
   return <section className="lesson-recap">
     <Link className="text-link" to={`/courses/${lesson.data.course_id}/history`}>{copy.heading}</Link>
     <h1>{lesson.data.title}</h1>

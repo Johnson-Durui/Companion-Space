@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 import { browserApiFetch } from "@companion-space/api-client";
 import { api, bodyOf, charactersKey, fetchCharacters } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { Button, Check, useTransientSaved } from "../../ui";
 import { MicrophoneCapture } from "../../audio";
 import t from "../../locales/zh-CN.json";
 
@@ -54,6 +55,7 @@ function VoiceEditor({ target, initial, characterId, settings }: {
   const audioUrl = useRef("");
   const [draft, setDraft] = useState(initial);
   const [playbackHint, setPlaybackHint] = useState("");
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const save = useMutation({
     mutationFn: async () => bodyOf(await api.PUT("/api/v2/voice/settings", { body: {
       default: target === "default" ? draft : (settings.default ?? defaultVoice),
@@ -61,7 +63,10 @@ function VoiceEditor({ target, initial, characterId, settings }: {
         ? { ...(settings.characters ?? {}), [characterId]: draft }
         : (settings.characters ?? {}),
     } })),
-    onSuccess: (result) => queries.setQueryData(voiceSettingsKey, result),
+    onSuccess: (result) => {
+      queries.setQueryData(voiceSettingsKey, result);
+      notifySaved();
+    },
   });
   const preview = useMutation({
     mutationFn: async () => {
@@ -124,9 +129,9 @@ function VoiceEditor({ target, initial, characterId, settings }: {
         <label>{t.voiceSettings.pitch}<input type="number" min="-100" max="100" step="1" value={draft.pitch} onChange={(event) => setDraft({ ...draft, pitch: Number(event.target.value) })} /></label>
       </div>
       <div className="actions">
-        <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>{save.isPending ? t.common.saving : t.common.save}</button>
-        <button type="button" className="button quiet" disabled={!characterId || preview.isPending || save.isPending} aria-busy={preview.isPending || undefined} onClick={() => preview.mutate()}>{preview.isPending ? t.voice.loading : t.voice.preview}</button>
-        {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+        <Button type="submit" variant="primary" pending={save.isPending}>{t.common.save}</Button>
+        <Button variant="secondary" disabled={!characterId || save.isPending} pending={preview.isPending} onClick={() => preview.mutate()}>{t.voice.preview}</Button>
+        {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
       </div>
       <audio ref={audio} controls hidden={!preview.data || preview.data.kind !== "audio"} aria-label={t.voice.play} />
       {playbackHint ? <p className="hint" role="status">{playbackHint}</p> : null}

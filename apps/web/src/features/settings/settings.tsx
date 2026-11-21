@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api, bodyOf, fetchSettings, settingsKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { ArrowUpRight } from "../../ui/icons";
+import { ArrowUpRight, Button, Check, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { AvatarSettingsPanel } from "./avatar-settings";
 import { ModelSettings } from "./models";
@@ -21,10 +21,14 @@ const sections = [
 
 function DataSettings() {
   const queries = useQueryClient();
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const settings = useQuery({ queryKey: settingsKey, queryFn: fetchSettings });
   const save = useMutation({
     mutationFn: async (analysis_concurrency: number) => bodyOf(await api.PUT("/api/v2/settings", { body: { analysis_concurrency } })),
-    onSuccess: (result) => queries.setQueryData(settingsKey, result),
+    onSuccess: (result) => {
+      queries.setQueryData(settingsKey, result);
+      notifySaved();
+    },
   });
   if (settings.isPending) return <Loading />;
   if (settings.isError) return <Problem error={settings.error} onRetry={() => void settings.refetch()} />;
@@ -42,8 +46,8 @@ function DataSettings() {
       <form className="fields" onSubmit={submit}>
         <label>{t.settings.parallel}<input key={settings.data.analysis_concurrency} name="concurrency" type="number" min="1" max="16" step="1" defaultValue={settings.data.analysis_concurrency} required /></label>
         <div className="actions">
-          <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>{t.common.save}</button>
-          {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+          <Button type="submit" variant="primary" pending={save.isPending}>{t.common.save}</Button>
+          {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
         </div>
         {save.isError ? <Problem error={save.error} /> : null}
       </form>
@@ -76,9 +80,14 @@ function Usage() {
 export default function Settings() {
   return (
     <>
-      <div className="page-title">
-        <h1>{t.settings.heading}</h1>
-        <p>{t.settings.lead}</p>
+      <div className="page-title title-actions">
+        <div>
+          <h1>{t.settings.heading}</h1>
+          <p>{t.settings.lead}</p>
+        </div>
+        <Link className="button quiet" to="/settings/diagnostics">
+          {t.diagnostics.heading}<ArrowUpRight size={15} aria-hidden="true" />
+        </Link>
       </div>
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t.settings.heading}>

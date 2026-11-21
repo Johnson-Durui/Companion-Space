@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { Loading, Problem } from "../../app/ui";
-import { ArrowRight, Plus } from "../../ui/icons";
+import { ArrowRight, Button, Plus } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { courseKeys, createCourse, listCourseDashboard, listCourses } from "./api";
 
@@ -38,7 +38,7 @@ export default function Courses() {
           <label>{t.courses.name}<input name="name" maxLength={120} autoComplete="off" required /></label>
           <label>{t.courses.goal}<textarea name="goal" rows={2} maxLength={500} autoComplete="off" /></label>
           <div className="actions">
-            <button className="button primary" disabled={create.isPending} aria-busy={create.isPending || undefined}>{create.isPending ? t.common.saving : t.courses.create}</button>
+            <Button type="submit" variant="primary" pending={create.isPending}>{t.courses.create}</Button>
             <button className="button quiet" type="button" onClick={() => setCreating(false)}>{t.common.cancel}</button>
           </div>
           {create.isError ? <Problem error={create.error} /> : null}

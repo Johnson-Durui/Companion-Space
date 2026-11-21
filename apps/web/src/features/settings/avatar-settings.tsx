@@ -9,6 +9,7 @@ import {
   type AvatarDriverSettings,
 } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { Button, Check, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
 
 const copy = t.avatarSettings;
@@ -38,6 +39,7 @@ function AvatarSettingsForm({ initial }: { initial: AvatarDriverSettings }) {
   }));
   const [probes, setProbes] = useState<Record<string, SidecarTestResult>>({});
   const [probingId, setProbingId] = useState<string | null>(null);
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
 
   const save = useMutation({
     mutationFn: async (body: AvatarDriverSettings) =>
@@ -45,6 +47,7 @@ function AvatarSettingsForm({ initial }: { initial: AvatarDriverSettings }) {
     onSuccess(result) {
       queries.setQueryData(avatarDriversKey, result);
       setDraft(result);
+      notifySaved();
     },
   });
 
@@ -333,10 +336,10 @@ function AvatarSettingsForm({ initial }: { initial: AvatarDriverSettings }) {
       </div>
 
       <div className="actions">
-        <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>
-          {save.isPending ? t.common.saving : t.common.save}
-        </button>
-        {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+        <Button type="submit" variant="primary" pending={save.isPending}>
+          {t.common.save}
+        </Button>
+        {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
       </div>
       {save.isError ? <Problem error={save.error} /> : null}
       {probe.isError ? <Problem error={probe.error} /> : null}

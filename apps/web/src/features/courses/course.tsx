@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, bodyOf, publicMessage } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { ChevronRight, DifficultyDots } from "../../ui/icons";
+import { Button, ChevronRight, ConfirmDialog, DifficultyDots, toast } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import {
   courseKeys, getAnalysis, getCourse, getCourseMap, getMaterialPage, listExamItems, listMaterials,
@@ -73,7 +73,7 @@ function UploadPanel({ courseId }: { courseId: string }) {
               <button className="button quiet" type="button" onClick={() => setPending((items) => items.filter((_, itemIndex) => itemIndex !== index))}>{t.common.remove}</button>
             </div>
           ))}
-          <button className="button primary" disabled={upload.isPending} aria-busy={upload.isPending || undefined} onClick={() => upload.mutate()}>{upload.isPending ? t.courses.uploading : t.courses.upload}</button>
+          <Button variant="primary" pending={upload.isPending} onClick={() => upload.mutate()}>{t.courses.upload}</Button>
         </div>
       ) : null}
       <details className="paste-material">
@@ -82,7 +82,7 @@ function UploadPanel({ courseId }: { courseId: string }) {
           <label>{t.courses.pasteTitle}<input name="title" maxLength={120} autoComplete="off" required /></label>
           <label>{t.courses.role}<select name="role" defaultValue="notes">{roles.map((role) => <option key={role} value={role}>{t.courses.roles[role]}</option>)}</select></label>
           <label>{t.courses.pasteContent}<textarea name="content" rows={8} required /></label>
-          <button className="button primary" disabled={paste.isPending} aria-busy={paste.isPending || undefined}>{paste.isPending ? t.common.saving : t.courses.addPaste}</button>
+          <Button type="submit" variant="primary" pending={paste.isPending}>{t.courses.addPaste}</Button>
           {paste.isError ? <Problem error={paste.error} /> : null}
         </form>
       </details>
@@ -161,7 +161,7 @@ function AnalysisPanel({ courseId }: { courseId: string }) {
   return (
     <section className="course-panel" aria-labelledby="analysis-title">
       <div className="section-heading"><div><p className="eyebrow">{t.courses.analysis}</p><h2 id="analysis-title">{t.courses.analysisHeading}</h2></div>
-        {!job || job.status === "completed" ? <button className="button primary" disabled={start.isPending} aria-busy={start.isPending || undefined} onClick={() => start.mutate(false)}>{start.isPending ? t.courses.estimating : job ? t.courses.refresh : t.courses.start}</button> : null}
+        {!job || job.status === "completed" ? <Button variant="primary" pending={start.isPending} onClick={() => start.mutate(false)}>{job ? t.courses.refresh : t.courses.start}</Button> : null}
       </div>
       {estimate?.requires_confirmation && !estimate.job ? <div className="notice"><p>{t.courses.confirmTokens.replace("{tokens}", estimate.estimated_tokens.toLocaleString())}</p><button className="button primary" disabled={start.isPending} aria-busy={start.isPending || undefined} onClick={() => start.mutate(true)}>{t.courses.confirmStart}</button></div> : null}
       {job ? (
@@ -197,10 +197,14 @@ function ExamItems({ items }: { items: ExamItem[] }) {
 function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { courseId: string; point: KnowledgePoint; allPoints: KnowledgePoint[]; onChanged: () => void }) {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [source, setSource] = useState(point.source_refs[0]);
   const [examOpen, setExamOpen] = useState(false);
   const exams = useQuery({ queryKey: courseKeys.exams(courseId, point.id), queryFn: () => listExamItems(courseId, point.id), enabled: examOpen });
-  const revise = useMutation({ mutationFn: (body: Parameters<typeof updateKnowledgePoint>[2]) => updateKnowledgePoint(courseId, point.id, body), onSuccess: () => { setEditing(false); onChanged(); } });
+  const revise = useMutation({
+    mutationFn: (body: Parameters<typeof updateKnowledgePoint>[2]) => updateKnowledgePoint(courseId, point.id, body),
+    onSuccess: () => { setEditing(false); setDeleteOpen(false); toast.success(t.common.saved); onChanged(); },
+  });
   const lesson = useMutation({
     mutationFn: async () => bodyOf(await api.POST("/api/v2/courses/{course_id}/lessons", {
       params: { path: { course_id: courseId } }, body: { kp_id: point.id },
@@ -218,9 +222,9 @@ function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { cours
       {point.assumed ? <div className="notice"><p>{t.courses.assumed}</p></div> : null}
       <p>{point.summary}</p>
       <div className="actions">
-        <button className="button primary" disabled={lesson.isPending} aria-busy={lesson.isPending || undefined} onClick={() => lesson.mutate()}>
-          {lesson.isPending ? t.classroom.preparing : t.classroom.openLesson}
-        </button>
+        <Button variant="primary" pending={lesson.isPending} onClick={() => lesson.mutate()}>
+          {t.classroom.openLesson}
+        </Button>
       </div>
       {lesson.isError ? <Problem error={lesson.error} /> : null}
       {point.formula ? <pre className="formula">{point.formula}</pre> : null}
@@ -237,12 +241,22 @@ function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { cours
           <label>{t.courses.importance}<select name="importance" defaultValue={point.importance}>{Object.entries(t.courses.importanceValue).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <fieldset><legend>{t.courses.prerequisites}</legend>{allPoints.filter((candidate) => candidate.id !== point.id).map((candidate) => <label key={candidate.id}><input type="checkbox" name="prerequisite" value={candidate.id} defaultChecked={point.prerequisite_ids.includes(candidate.id)} />{candidate.name}</label>)}</fieldset>
           <div className="actions"><button className="button primary" disabled={revise.isPending} aria-busy={revise.isPending || undefined}>{t.common.save}</button><button type="button" className="button quiet" onClick={() => setEditing(false)}>{t.common.cancel}</button></div>
-          <details className="danger-zone"><summary>{t.courses.moreRevisions}</summary><label>{t.courses.mergeInto}<select name="merge"><option value="">{t.courses.chooseKp}</option>{allPoints.filter((candidate) => candidate.id !== point.id).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select></label><div className="actions"><button className="button quiet" type="button" onClick={(event) => { const select = event.currentTarget.closest("details")?.querySelector("select"); if (select?.value) revise.mutate({ merge_into: select.value }); }}>{t.courses.merge}</button><button className="button danger-action" type="button" onClick={() => window.confirm(t.courses.deleteConfirm) && revise.mutate({ deleted: true })}>{t.common.remove}</button></div></details>
+          <details className="danger-zone"><summary>{t.courses.moreRevisions}</summary><label>{t.courses.mergeInto}<select name="merge"><option value="">{t.courses.chooseKp}</option>{allPoints.filter((candidate) => candidate.id !== point.id).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select></label><div className="actions"><button className="button quiet" type="button" onClick={(event) => { const select = event.currentTarget.closest("details")?.querySelector("select"); if (select?.value) revise.mutate({ merge_into: select.value }); }}>{t.courses.merge}</button><Button variant="danger" onClick={() => setDeleteOpen(true)}>{t.common.remove}</Button></div></details>
+          <ConfirmDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title={t.courses.deleteTitle}
+            description={t.courses.deleteConfirm}
+            confirmLabel={t.courses.confirmDelete}
+            cancelLabel={t.common.keep}
+            pending={revise.isPending}
+            onConfirm={() => revise.mutate({ deleted: true })}
+          />
           {revise.isError ? <Problem error={revise.error} /> : null}
         </form>
       ) : null}
       <section className="provenance"><h3>{t.courses.provenance}</h3>{point.source_refs.length ? <div className="source-tabs">{point.source_refs.map((reference) => <button className="button quiet" aria-pressed={source?.material_id === reference.material_id && source.page_no === reference.page_no} key={`${reference.material_id}:${reference.page_no}`} onClick={() => setSource(reference)}>{t.courses.page.replace("{page}", String(reference.page_no))}</button>)}</div> : <p className="hint">{t.courses.noSource}</p>}{source ? <SourcePage courseId={courseId} reference={source} /> : null}</section>
-      <section className="exam-browser"><button className="button quiet" onClick={() => setExamOpen((value) => !value)}>{examOpen ? t.courses.hideQuestions : t.courses.showQuestions.replace("{count}", String(point.stats?.n_items ?? 0))}</button>{examOpen && exams.isPending ? <Loading /> : null}{exams.isError ? <Problem error={exams.error} /> : null}{exams.data ? <ExamItems items={exams.data} /> : null}</section>
+      <section className="exam-browser"><button className="button quiet" onClick={() => setExamOpen((value) => !value)}>{examOpen ? t.courses.hideQuestions : t.courses.showQuestions.replace("{count}", String(point.stats?.n_items ?? 0))}</button>{examOpen && exams.isPending ? <Loading /> : null}{exams.isError ? <Problem error={exams.error} onRetry={() => void exams.refetch()} /> : null}{exams.data ? <ExamItems items={exams.data} /> : null}</section>
     </article>
   );
 }

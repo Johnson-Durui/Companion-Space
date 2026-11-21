@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { charactersKey, fetchCharacters, fetchSettings, settingsKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { ChevronRight } from "../../ui/icons";
+import { Button, ChevronRight } from "../../ui";
 import { VoicePreview } from "../onboarding/voice-preview";
 import t from "../../locales/zh-CN.json";
 import { answerCard, getMistakes, getReview, mistakesKey, rateCard, reviewKey, startPlannedLesson, type ReviewCard } from "./api";
@@ -64,7 +64,7 @@ export default function Review() {
       <div className="page-title"><div><h1>{plan ? t.review.warmup : t.review.heading}</h1><p>{plan ? t.review.warmupIntro : t.review.lead}</p></div></div>
       {plan ? <div className="actions">
         {preferred && card ? <VoicePreview id={preferred.id} text={`${t.review.warmupCue} ${card.front}`.slice(0, 240)} /> : null}
-        <button className="button primary" disabled={start.isPending} aria-busy={start.isPending || undefined} onClick={() => start.mutate(plan)}>{start.isPending ? t.classroom.preparing : t.review.startLesson}</button>
+        <Button variant="primary" pending={start.isPending} onClick={() => start.mutate(plan)}>{t.review.startLesson}</Button>
         {start.isError ? <Problem error={start.error} /> : null}
       </div> : null}
       <section className="review-card course-panel" aria-labelledby="daily-review">
@@ -79,7 +79,7 @@ export default function Review() {
       {!plan ? <section className="course-panel" aria-labelledby="mistakes-title">
         <div className="section-heading"><div><p className="eyebrow">{t.review.history}</p><h2 id="mistakes-title">{t.review.mistakes}</h2></div></div>
         <div className="review-filters"><label>{t.review.knowledgePoint}<select value={kpId} onChange={(event) => setKpId(event.target.value)}><option value="">{t.review.all}</option>{points.map(([id, name]) => <option key={id} value={id ?? ""}>{name}</option>)}</select></label><label>{t.review.since}<input type="date" value={since} onChange={(event) => setSince(event.target.value)} /></label><label className="check-field"><input type="checkbox" checked={archived} onChange={(event) => setArchived(event.target.checked)} />{t.review.archived}</label></div>
-        {mistakes.isPending ? <Loading /> : null}{mistakes.isError ? <Problem error={mistakes.error} /> : null}
+        {mistakes.isPending ? <Loading /> : null}{mistakes.isError ? <Problem error={mistakes.error} onRetry={() => void mistakes.refetch()} /> : null}
         <div className="mistake-list">{mistakes.data?.cards.map((entry) => <article key={entry.id}><small>{entry.kp_name}</small><h3>{entry.front}</h3><p>{t.review.original}: {String(entry.original_mistake?.detail.answer ?? t.review.unknown)}</p>{entry.original_mistake?.detail.gap ? <p>{t.review.reason}: {entry.original_mistake.detail.gap}</p> : null}</article>)}</div>
       </section> : null}
     </div>

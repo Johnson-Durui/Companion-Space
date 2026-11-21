@@ -17,6 +17,7 @@ import {
   type Character,
 } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { Button, Check, ConfirmDialog, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { TeacherPreview } from "./teacher-preview";
 import { buildAnimeLoopPromptSheet } from "./video-config";
@@ -55,6 +56,8 @@ function downloadPromptSheet(character: Character) {
 
 function TutorEditor({ character, onDeleted }: { character: Character; onDeleted: () => void }) {
   const queries = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const [tier, setTier] = useState<VideoAvatarTier>(
     (character.video_avatar?.preferred_tier ?? "static") as VideoAvatarTier,
   );
@@ -66,7 +69,10 @@ function TutorEditor({ character, onDeleted }: { character: Character; onDeleted
     mutationFn: async (body: TutorUpdate) => bodyOf(await api.PUT("/api/v2/characters/{character_id}", {
       params: { path: { character_id: character.id } }, body,
     })),
-    onSuccess: (result) => queries.setQueryData<Character[]>(charactersKey, (items) => items?.map((entry) => entry.id === result.id ? result : entry)),
+    onSuccess: (result) => {
+      queries.setQueryData<Character[]>(charactersKey, (items) => items?.map((entry) => entry.id === result.id ? result : entry));
+      notifySaved();
+    },
   });
   const remove = useMutation({
     mutationFn: async () => {
@@ -76,6 +82,7 @@ function TutorEditor({ character, onDeleted }: { character: Character; onDeleted
       ensureOK(response.response, response.error);
     },
     onSuccess: () => {
+      setDeleteOpen(false);
       queries.setQueryData<Character[]>(charactersKey, (items) => items?.filter((entry) => entry.id !== character.id));
       void queries.invalidateQueries({ queryKey: settingsKey });
       onDeleted();
@@ -131,23 +138,27 @@ function TutorEditor({ character, onDeleted }: { character: Character; onDeleted
       </label>
     ) : null}
     <div className="actions">
-      <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>{t.common.save}</button>
+      <Button type="submit" variant="primary" pending={save.isPending}>{t.common.save}</Button>
       <Link className="button quiet" to={`/settings?teacher=${encodeURIComponent(character.id)}#voice`}>{copy.voice}</Link>
       <Link className="button quiet" to="/settings#avatar">{copy.configureSidecar}</Link>
       <button className="button quiet" type="button" onClick={() => downloadPromptSheet(character)}>{copy.exportPrompts}</button>
       {canDelete ? (
-        <button
-          className="button danger-action"
-          type="button"
-          disabled={remove.isPending}
-          aria-busy={remove.isPending || undefined}
-          onClick={() => { if (window.confirm(copy.deleteConfirm)) remove.mutate(); }}
-        >
+        <Button variant="danger" pending={remove.isPending} onClick={() => setDeleteOpen(true)}>
           {copy.delete}
-        </button>
+        </Button>
       ) : null}
+      {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
     </div>
-    {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
+    <ConfirmDialog
+      open={deleteOpen}
+      onOpenChange={setDeleteOpen}
+      title={copy.deleteTitle}
+      description={copy.deleteConfirm}
+      confirmLabel={copy.confirmDelete}
+      cancelLabel={t.common.keep}
+      pending={remove.isPending}
+      onConfirm={() => remove.mutate()}
+    />
     {save.isError ? <Problem error={save.error} /> : null}
     {remove.isError ? <Problem error={remove.error} /> : null}
   </form>;
