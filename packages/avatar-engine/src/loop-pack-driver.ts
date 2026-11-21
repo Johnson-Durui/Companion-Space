@@ -152,7 +152,9 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     this.basePose = pose;
     if (this.root) this.root.dataset.pose = pose;
     if (this.reducedMotion) return;
+    if (pose === "feedback_reaction") return;
     const target = poseToClipSlot(pose, this.lectureVariant);
+    if (target === this.currentSlot && ONE_SHOT_CLIPS.has(target)) return;
     this.switchToClip(target, ONE_SHOT_CLIPS.has(target));
   }
 

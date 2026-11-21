@@ -41,6 +41,7 @@ export function useClassroom(
   const [resuming, setResuming] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState("");
+  const [errorSeq, setErrorSeq] = useState(0);
   const [fallback, setFallback] = useState("");
   const [prefill, setPrefill] = useState<Prefill>();
   const [transcript, setTranscript] = useState("");
@@ -149,7 +150,10 @@ export function useClassroom(
       output.stop();
       output.resetGeneration(lesson.gen);
       setClassroom({ ...restoreClassroom(events, after), paused: lesson.status === "paused" });
-      timeline = new Timeline(after, execute, () => setError(copy.actionError));
+      timeline = new Timeline(after, execute, () => {
+        setError(copy.actionError);
+        setErrorSeq((count) => count + 1);
+      });
     }
 
     function formatOf(key: string, signal: AbortSignal) {
@@ -324,6 +328,7 @@ export function useClassroom(
         case "error":
           setResuming(false);
           setError(publicMessage(event.data) ?? copy.actionError);
+          setErrorSeq((count) => count + 1);
           return;
         case "state":
           if (active) setResuming(false);
@@ -442,6 +447,7 @@ export function useClassroom(
     resuming,
     speaking,
     error,
+    errorSeq,
     fallback,
     prefill,
     transcript,

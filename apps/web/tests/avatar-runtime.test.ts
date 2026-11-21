@@ -167,6 +167,94 @@ describe("LoopPackVideoDriver and fallback resolution", () => {
     expect(driver.getActiveClipSlot()).toBe("listen_nod");
     await driver.unmount();
   });
+
+  it("keeps each instant action clip when classroom follows with feedback_reaction or board_guiding pose", async () => {
+    vi.useFakeTimers();
+    const surfaceRef: { current: { dataset: Record<string, string> } | null } = { current: null };
+    const makeElement = (tag: string) => {
+      const attrs = new Map<string, string>();
+      const style: Record<string, unknown> = {
+        setProperty(k: string, v: string) { style[k] = v; },
+      };
+      const el = {
+        tagName: tag.toUpperCase(),
+        className: "",
+        dataset: {} as Record<string, string>,
+        style,
+        children: [] as unknown[],
+        src: "",
+        loop: false,
+        muted: false,
+        playsInline: false,
+        preload: "",
+        readyState: 4,
+        currentTime: 0,
+        onended: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+        append(...items: unknown[]) { this.children.push(...items); },
+        replaceChildren(...items: unknown[]) {
+          this.children = [...items];
+          surfaceRef.current = (items[0] as { dataset: Record<string, string> }) ?? null;
+        },
+        remove() {},
+        getAttribute(name: string) { return name === "src" ? (this.src || null) : (attrs.get(name) ?? null); },
+        setAttribute(name: string, value: string) { attrs.set(name, value); },
+        removeAttribute(name: string) { if (name === "src") this.src = ""; attrs.delete(name); },
+        addEventListener() {},
+        removeEventListener() {},
+        load: vi.fn(),
+        play: vi.fn(() => Promise.resolve()),
+        pause: vi.fn(),
+      };
+      return el;
+    };
+
+    vi.stubGlobal("document", { createElement: makeElement });
+    vi.stubGlobal("window", { setTimeout, clearTimeout });
+
+    const container = makeElement("div") as unknown as HTMLElement;
+    const config: VideoAvatarRuntimeConfig = {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/static/avatars/portraits/chutang.webp",
+      loopPack: {
+        crossfadeMs: 180,
+        clips: {
+          idle_breathe: "/clips/idle.webm",
+          listen_nod: "/clips/listen.webm",
+          think_chin: "/clips/think.webm",
+          speak_explain_a: "/clips/speak_a.webm",
+          speak_explain_b: "/clips/speak_b.webm",
+          board_point: "/clips/point.webm",
+          react_praise: "/clips/praise.webm",
+          react_comfort: "/clips/comfort.webm",
+        },
+      },
+    };
+
+    const driver = new LoopPackVideoDriver();
+    await driver.mount(container, config);
+
+    const cases = [
+      { action: "gentle_encourage" as const, pose: "feedback_reaction" as const, expectedClip: "react_comfort" },
+      { action: "think_chin" as const, pose: "feedback_reaction" as const, expectedClip: "think_chin" },
+      { action: "praise_thumbs_up" as const, pose: "feedback_reaction" as const, expectedClip: "react_praise" },
+      { action: "praise_clap" as const, pose: "feedback_reaction" as const, expectedClip: "react_praise" },
+      { action: "empathy_nod" as const, pose: "feedback_reaction" as const, expectedClip: "listen_nod" },
+      { action: "board_point" as const, pose: "board_guiding" as const, expectedClip: "board_point" },
+    ];
+
+    for (const [index, entry] of cases.entries()) {
+      const gen = index + 1;
+      driver.triggerInstantAction(entry.action, gen);
+      driver.setPose(entry.pose, gen);
+      expect(driver.getActiveClipSlot()).toBe(entry.expectedClip);
+      expect(surfaceRef.current?.dataset.clip).toBe(entry.expectedClip);
+    }
+    await driver.unmount();
+  });
 });
 
 describe("LiveCostGuard and Sidecar Protocol + Fallback", () => {

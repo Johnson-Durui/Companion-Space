@@ -522,6 +522,7 @@
     "startVoice": "语音上课",
     "startText": "文字上课",
     "ready": "老师准备好了。你可以选语音或文字上课。",
+    "waitingStart": "等你上课",
     "waitingResume": "我等你，回来点继续。",
     "waiting": "等你回答",
     "quietCompanion": "安静陪你",

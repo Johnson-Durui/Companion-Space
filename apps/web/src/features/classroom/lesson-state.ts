@@ -128,18 +128,19 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
         caption: "",
         avatar: { ...state.avatar, gen, seg: 0, instantAction: null },
       };
-    case "ask":
+    case "ask": {
+      const sameAsk = state.ask?.item_id === data.item_id && state.ask?.purpose === data.purpose;
       return {
         ...state,
         ask: data as Ask,
-        askSeq:
-          state.ask?.item_id === data.item_id && state.ask?.purpose === data.purpose
-            ? state.askSeq
-            : event.seq,
+        askSeq: sameAsk ? state.askSeq : event.seq,
+        judge: sameAsk ? state.judge : undefined,
         avatar: { ...state.avatar, gen, pose: "listening_empathy" },
       };
+    }
     case "judge": {
       const verdict = typeof data.verdict === "string" ? data.verdict : undefined;
+      if (!verdict) return state;
       const correct = verdict === "correct";
       return {
         ...state,
@@ -187,4 +188,61 @@ export function restoreClassroom(events: readonly LessonEvent[], through: number
     }
     return advanceClassroom(state, event);
   }, initialClassroom);
+}
+
+export type ClassroomStatusKey =
+  | "connecting"
+  | "waitingStart"
+  | "paused"
+  | "listening"
+  | "speaking"
+  | "quietCompanion"
+  | "waiting"
+  | "thinking";
+
+export function resolveClassroomDisplay(input: {
+  connected: boolean;
+  started: boolean;
+  roomSeq: number;
+  recording: boolean;
+  speaking: boolean;
+  quietCompanion: boolean;
+  submitted: boolean;
+  instantAction: InstantAction | null;
+  classroom: ClassroomState;
+}): { awaitingAnswer: boolean; statusKey: ClassroomStatusKey; pose: TutorPose } {
+  const { connected, started, roomSeq, recording, speaking, quietCompanion, submitted, instantAction, classroom } = input;
+  const awaitingAnswer = Boolean(classroom.ask) && !submitted && !classroom.judge;
+  const hasStartedBefore = classroom.paused || roomSeq > 0;
+  const statusKey: ClassroomStatusKey = !connected
+    ? "connecting"
+    : !started
+      ? (hasStartedBefore ? "paused" : "waitingStart")
+      : recording
+        ? "listening"
+        : speaking
+          ? "speaking"
+          : awaitingAnswer
+            ? (quietCompanion ? "quietCompanion" : "waiting")
+            : "thinking";
+
+  const pose: TutorPose = !started
+    ? "idle_companion"
+    : recording
+      ? "listening_empathy"
+      : instantAction
+        ? (instantAction === "board_point" ? "board_guiding" : "feedback_reaction")
+        : speaking
+          ? (classroom.avatar.pose === "board_guiding"
+            ? "board_guiding"
+            : classroom.stage === "opening" && classroom.avatar.seg <= 1
+              ? "greeting"
+              : "lecturing")
+          : awaitingAnswer
+            ? (quietCompanion ? "idle_companion" : "listening_empathy")
+            : (classroom.avatar.pose === "lecturing" || classroom.avatar.pose === "greeting"
+              ? "idle_companion"
+              : classroom.avatar.pose);
+
+  return { awaitingAnswer, statusKey, pose };
 }

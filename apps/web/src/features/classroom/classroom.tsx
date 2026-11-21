@@ -7,7 +7,7 @@ import {
   quickActionToInstantAction,
   verdictToInstantAction,
 } from "@companion-space/avatar-engine/choreographer";
-import type { DecodedSpeechChunk, InstantAction, TutorPose } from "@companion-space/avatar-engine/types";
+import type { DecodedSpeechChunk, InstantAction } from "@companion-space/avatar-engine/types";
 import { TutorVideoBox, type TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import { api, bodyOf } from "../../app/api";
 import { Loading } from "../../app/ui";
@@ -16,7 +16,7 @@ import t from "../../locales/zh-CN.json";
 import { toVideoAvatarConfig, videoBoxLabels } from "../characters/video-config";
 import { createSidecarConnector } from "../characters/sidecar-connector";
 import { BoardBlock } from "./board-block";
-import type { Ask, Prefill } from "./lesson-state";
+import { resolveClassroomDisplay, type Ask, type Prefill } from "./lesson-state";
 import { useClassroom } from "./use-classroom";
 import "./classroom.css";
 
@@ -36,15 +36,15 @@ function useReducedMotion() {
   return reduced;
 }
 
-function Question({ ask, prefill, submit, onActivity }: {
+function Question({ ask, prefill, submitted, submit, onActivity }: {
   ask: Ask;
   prefill?: Prefill;
+  submitted: boolean;
   submit: (value: string | string[], via: "text" | "voice" | "control", unknown?: boolean) => void;
   onActivity: () => void;
 }) {
   const widget = ask.widget!;
   const [edited, setEdited] = useState<string | string[]>();
-  const [submitted, setSubmitted] = useState(false);
   const value = edited ?? prefill?.value ?? (widget.type === "multi" ? [] : "");
   const via = edited === undefined && prefill ? prefill.via : "control";
   const choose = (key: string) => {
@@ -52,7 +52,7 @@ function Question({ ask, prefill, submit, onActivity }: {
     const selected = Array.isArray(value) ? value : [];
     setEdited(widget.type !== "multi" ? key : selected.includes(key) ? selected.filter((item) => item !== key) : [...selected, key]);
   };
-  return <form className="lesson-question" onSubmit={(event) => { event.preventDefault(); submit(value, via); setSubmitted(true); }}>
+  return <form className="lesson-question" onSubmit={(event) => { event.preventDefault(); submit(value, via); }}>
     <fieldset disabled={submitted}>
       <legend>{copy.question}</legend>
       <LessonText source={widget.stem} />
@@ -68,7 +68,7 @@ function Question({ ask, prefill, submit, onActivity }: {
       </label>}
       <div className="actions">
         <button className="button primary" disabled={!value.length}>{copy.submitAnswer}</button>
-        <button className="button quiet" type="button" onClick={() => { submit("", "control", true); setSubmitted(true); }}>{copy.dontKnow}</button>
+        <button className="button quiet" type="button" onClick={() => { submit("", "control", true); }}>{copy.dontKnow}</button>
       </div>
     </fieldset>
   </form>;
@@ -89,13 +89,13 @@ function Lesson({ id }: { id: string }) {
     videoRef.current?.pushSpeechChunk(chunk);
   }, []);
   const triggerFastAction = useCallback((action: InstantAction, gen: number) => {
-    previewJudgeGenRef.current = gen;
     lastActivityRef.current = Date.now();
     setQuietCompanion(false);
     setInstantOverride({ action, until: Date.now() + 2600 });
     videoRef.current?.triggerInstantAction(action, gen);
   }, []);
   const onJudgePreview = useCallback((verdict: string, gen: number) => {
+    previewJudgeGenRef.current = gen;
     const action = verdictToInstantAction(verdict);
     if (action) triggerFastAction(action, gen);
   }, [triggerFastAction]);
@@ -105,6 +105,7 @@ function Lesson({ id }: { id: string }) {
   const [recording, setRecording] = useState(false);
   const [handsFree, setHandsFree] = useState(false);
   const [micMessage, setMicMessage] = useState("");
+  const [submission, setSubmission] = useState<{ askSeq: number; errorSeq: number } | null>(null);
   const capture = useRef<MicrophoneCapture>(null);
   const vad = useRef<HandsFreeVad>(null);
   const vadRequest = useRef(0);
@@ -133,8 +134,26 @@ function Lesson({ id }: { id: string }) {
     return () => window.clearTimeout(timer);
   }, [instantOverride]);
 
+  const submitted = Boolean(
+    submission
+    && live.classroom.askSeq !== undefined
+    && submission.askSeq === live.classroom.askSeq
+    && submission.errorSeq === live.errorSeq,
+  );
+  const display = resolveClassroomDisplay({
+    connected: live.connected,
+    started: live.started,
+    roomSeq: live.room?.seq ?? 0,
+    recording,
+    speaking: live.speaking,
+    quietCompanion,
+    submitted,
+    instantAction: instantOverride?.action ?? null,
+    classroom: live.classroom,
+  });
+
   useEffect(() => {
-    const waitingForStudent = live.started && !live.speaking && !recording && Boolean(live.classroom.ask);
+    const waitingForStudent = live.started && !live.speaking && !recording && display.awaitingAnswer;
     if (!waitingForStudent) return;
     lastActivityRef.current = Date.now();
     const timer = window.setInterval(() => {
@@ -146,7 +165,7 @@ function Lesson({ id }: { id: string }) {
       window.clearInterval(timer);
       setQuietCompanion(false);
     };
-  }, [live.started, live.speaking, recording, live.classroom.ask, live.classroom.askSeq]);
+  }, [live.started, live.speaking, recording, display.awaitingAnswer, live.classroom.askSeq]);
 
   useEffect(() => {
     const action = live.classroom.avatar.instantAction;
@@ -336,29 +355,8 @@ function Lesson({ id }: { id: string }) {
   const ask = classroom.ask;
   const ready = started && connected && !live.resuming;
   const enabled = ready && voice.data?.stt_configured;
-  const status = !connected
-    ? copy.connecting
-    : !started
-      ? copy.paused
-      : recording
-        ? copy.listening
-        : speaking
-          ? copy.speaking
-          : ask
-            ? (quietCompanion ? copy.quietCompanion : copy.waiting)
-            : copy.thinking;
-
-  const resolvedPose: TutorPose = !started
-    ? "idle_companion"
-    : recording
-      ? "listening_empathy"
-      : instantOverride
-        ? (instantOverride.action === "board_point" ? "board_guiding" : "feedback_reaction")
-        : speaking
-          ? (classroom.avatar.pose === "board_guiding" ? "board_guiding" : classroom.stage === "opening" && classroom.avatar.seg <= 1 ? "greeting" : "lecturing")
-          : ask
-            ? (quietCompanion ? "idle_companion" : "listening_empathy")
-            : classroom.avatar.pose;
+  const status = copy[display.statusKey];
+  const resolvedPose = display.pose;
 
   return <section className="lesson-room">
     <header className="lesson-header">
@@ -411,11 +409,14 @@ function Lesson({ id }: { id: string }) {
         </div>}
         {classroom.board.map((block) => <BoardBlock key={block.id} block={block} locate={(target) => ready && action(`locate:${target}`)} />)}
         {ready && ask?.widget ? <Question key={classroom.askSeq} ask={ask} prefill={live.prefill?.item_id === ask.item_id ? live.prefill : undefined}
+          submitted={submitted}
           onActivity={markLearnerActivity}
           submit={(value, via, dont_know) => {
             markLearnerActivity();
             if (dont_know) triggerFastAction("gentle_encourage", currentGen);
-            live.send("student.answer", { item_id: ask.item_id, value, via, dont_know });
+            if (live.send("student.answer", { item_id: ask.item_id, value, via, dont_know }) && classroom.askSeq !== undefined) {
+              setSubmission({ askSeq: classroom.askSeq, errorSeq: live.errorSeq });
+            }
           }} /> : null}
         {ready && ask?.kind === "ack" ? <div className="actions">
           {(["continue", "easier", "end"] as const).map((value) => <button className="button quiet" key={value}

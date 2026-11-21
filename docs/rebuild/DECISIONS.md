@@ -83,3 +83,7 @@
 - 三个历史 VRM 示例模型与角色卡归档至 `assets-archive/retired-vrm/`，旧数据库中的 `schema_version: 2` 角色透明升级，指向退役 VRM 的默认老师或课堂记录自动确定性回退至内置二次元老师（优先沐音 `tutor-echo` / 星澜 `tutor-nova`），绝不删除 `storage/` 或历史行。
 - 画风与模板优先级：**二次元画风优先**（配套 `.tutorpack` 单图/8 片段循环包与 ComfyUI 1→8 工作流模板）；**本地 GPU Sidecar 模板优先**（独立 Apache-2.0 目录 `sidecars/local-gpu-avatar/`，支持 WebRTC + Windows 零编译 `ws_frames` 双传输，主仓严守 Apache-2.0 不引入 GPL/AGPL 代码或 GPU 依赖）。
 - 课堂新增副轨 150ms 抢断微动作与客观题确定性秒判 `judge.preview`（非落库、不泄答案、不改掌握度不变量），以及 15 秒无交互纯视觉安静伴学态 `idle_companion`。
+
+## 体验重塑 U0 执行决定（2026-11-21）
+
+- **`feedback_reaction` 姿态与 `think_chin` 片段播放方式**：`poseToClipSlot("feedback_reaction")` 不再映射到一次性表扬片段，改为返回基础待机片段 `idle_breathe`，且 `LoopPackVideoDriver.setPose("feedback_reaction")` 保持当前正在播放的片段不变；所有一次性反应片段只由 `triggerInstantAction` 决定。`think_chin` 保持**循环播放**（不加入 `ONE_SHOT_CLIPS`），与素材规范（3s loop）、"给点提示 / 举个例子"等待期以及 U2a 的思考相位一致；当老师开始讲解或恢复倾听时平滑切换离开。

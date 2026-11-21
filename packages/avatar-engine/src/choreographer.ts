@@ -97,7 +97,7 @@ export function poseToClipSlot(pose: TutorPose, lectureVariant: 0 | 1): ClipSlot
     case "listening_empathy":
       return "listen_nod";
     case "feedback_reaction":
-      return "react_praise";
+      return "idle_breathe";
     case "idle_companion":
       return "idle_breathe";
   }

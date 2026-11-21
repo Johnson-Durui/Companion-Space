@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Timeline, type LessonEvent } from "../src/features/classroom/timeline";
-import { advanceClassroom, initialClassroom, restoreClassroom } from "../src/features/classroom/lesson-state";
+import { advanceClassroom, initialClassroom, resolveClassroomDisplay, restoreClassroom } from "../src/features/classroom/lesson-state";
 import { boardMarkdown } from "../src/features/classroom/board";
 
 function event(seq: number, type = "say", gen = 1, data: Record<string, unknown> = {}): LessonEvent {
@@ -86,5 +86,84 @@ describe("classroom timeline", () => {
     const retry = advanceClassroom(correct, event(4, "judge", 1, { verdict: "incorrect" }));
     expect(retry.avatar.emotion).toBe("concerned");
     expect(retry.avatar.reactionKey).toBe("teaching:retry:4");
+  });
+
+  it("retains judge across beat.start and clears it only when a new ask arrives", () => {
+    const firstAsk = { kind: "item", purpose: "check", item_id: "q1" };
+    let state = advanceClassroom(initialClassroom, event(1, "ask", 1, firstAsk));
+    state = advanceClassroom(state, event(2, "judge", 1, { verdict: "incorrect" }));
+    expect(state.judge).toBe("incorrect");
+
+    // beat.start clears ask, but MUST NOT clear judge yet.
+    state = advanceClassroom(state, event(3, "beat.start", 2));
+    expect(state.ask).toBeUndefined();
+    expect(state.judge).toBe("incorrect");
+
+    // A new ask (even for the same item_id in the next beat) clears judge.
+    state = advanceClassroom(state, event(4, "ask", 2, firstAsk));
+    expect(state.judge).toBeUndefined();
+    expect(state.askSeq).toBe(4);
+
+    // A judge event without verdict (e.g. show_answer) leaves judge unchanged.
+    state = advanceClassroom(state, event(5, "judge", 2, { correct_answer: "A" }));
+    expect(state.judge).toBeUndefined();
+  });
+
+  it("derives classroom ready, thinking, post-submit, and error-unlock states accurately", () => {
+    // First entry before lesson ever started shows waitingStart, not paused.
+    const prestart = resolveClassroomDisplay({
+      connected: true, started: false, roomSeq: 0, recording: false, speaking: false,
+      quietCompanion: false, submitted: false, instantAction: null, classroom: initialClassroom,
+    });
+    expect(prestart.statusKey).toBe("waitingStart");
+    expect(prestart.pose).toBe("idle_companion");
+
+    // Re-entering a lesson with prior events shows paused.
+    const paused = resolveClassroomDisplay({
+      connected: true, started: false, roomSeq: 5, recording: false, speaking: false,
+      quietCompanion: false, submitted: false, instantAction: null, classroom: initialClassroom,
+    });
+    expect(paused.statusKey).toBe("paused");
+
+    // Thinking after a lecturing beat must not stay in lecturing/greeting pose.
+    const afterSay = advanceClassroom(initialClassroom, event(2, "say", 1, { seg: 2, text: "hello" }));
+    const thinking = resolveClassroomDisplay({
+      connected: true, started: true, roomSeq: 2, recording: false, speaking: false,
+      quietCompanion: false, submitted: false, instantAction: null, classroom: afterSay,
+    });
+    expect(thinking.statusKey).toBe("thinking");
+    expect(thinking.pose).toBe("idle_companion");
+
+    // Submitting an answer or receiving judge leaves awaitingAnswer false until a new ask arrives.
+    const asked = advanceClassroom(afterSay, event(3, "ask", 1, { kind: "item", purpose: "check", item_id: "q1" }));
+    const waiting = resolveClassroomDisplay({
+      connected: true, started: true, roomSeq: 3, recording: false, speaking: false,
+      quietCompanion: false, submitted: false, instantAction: null, classroom: asked,
+    });
+    expect(waiting.statusKey).toBe("waiting");
+    expect(waiting.awaitingAnswer).toBe(true);
+
+    const submittedState = resolveClassroomDisplay({
+      connected: true, started: true, roomSeq: 3, recording: false, speaking: false,
+      quietCompanion: false, submitted: true, instantAction: null, classroom: asked,
+    });
+    expect(submittedState.statusKey).toBe("thinking");
+    expect(submittedState.awaitingAnswer).toBe(false);
+
+    const judged = advanceClassroom(asked, event(4, "judge", 1, { verdict: "incorrect" }));
+    const afterJudge = resolveClassroomDisplay({
+      connected: true, started: true, roomSeq: 4, recording: false, speaking: false,
+      quietCompanion: false, submitted: false, instantAction: null, classroom: judged,
+    });
+    expect(afterJudge.statusKey).toBe("thinking");
+    expect(afterJudge.awaitingAnswer).toBe(false);
+
+    // Unlocking after error (submitted becomes false while no judge arrived) returns to waiting.
+    const unlockedAfterError = resolveClassroomDisplay({
+      connected: true, started: true, roomSeq: 3, recording: false, speaking: false,
+      quietCompanion: false, submitted: false, instantAction: null, classroom: asked,
+    });
+    expect(unlockedAfterError.statusKey).toBe("waiting");
+    expect(unlockedAfterError.awaitingAnswer).toBe(true);
   });
 });
