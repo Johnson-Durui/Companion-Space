@@ -57,7 +57,7 @@ export default function Welcome() {
           {candidate.persona.traits.length ? <ul className="teacher-traits">{candidate.persona.traits.map((trait) => <li key={trait}>{trait}</li>)}</ul> : null}
           <div className="teacher-actions">
             {selected ? <p className="current-teacher" role="status">{t.welcome.chosen}</p> : (
-              <button className="button primary" disabled={save.isPending} onClick={() => save.mutate(candidate.id)}>
+              <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined} onClick={() => save.mutate(candidate.id)}>
                 {save.isPending ? t.common.saving : t.welcome.save}
               </button>
             )}

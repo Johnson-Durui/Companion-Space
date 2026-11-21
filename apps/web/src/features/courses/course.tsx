@@ -72,7 +72,7 @@ function UploadPanel({ courseId }: { courseId: string }) {
               <button className="button quiet" type="button" onClick={() => setPending((items) => items.filter((_, itemIndex) => itemIndex !== index))}>{t.common.remove}</button>
             </div>
           ))}
-          <button className="button primary" disabled={upload.isPending} onClick={() => upload.mutate()}>{upload.isPending ? t.courses.uploading : t.courses.upload}</button>
+          <button className="button primary" disabled={upload.isPending} aria-busy={upload.isPending || undefined} onClick={() => upload.mutate()}>{upload.isPending ? t.courses.uploading : t.courses.upload}</button>
         </div>
       ) : null}
       <details className="paste-material">
@@ -81,7 +81,7 @@ function UploadPanel({ courseId }: { courseId: string }) {
           <label>{t.courses.pasteTitle}<input name="title" maxLength={120} autoComplete="off" required /></label>
           <label>{t.courses.role}<select name="role" defaultValue="notes">{roles.map((role) => <option key={role} value={role}>{t.courses.roles[role]}</option>)}</select></label>
           <label>{t.courses.pasteContent}<textarea name="content" rows={8} required /></label>
-          <button className="button primary" disabled={paste.isPending}>{paste.isPending ? t.common.saving : t.courses.addPaste}</button>
+          <button className="button primary" disabled={paste.isPending} aria-busy={paste.isPending || undefined}>{paste.isPending ? t.common.saving : t.courses.addPaste}</button>
           {paste.isError ? <Problem error={paste.error} /> : null}
         </form>
       </details>
@@ -102,6 +102,7 @@ function Materials({ courseId }: { courseId: string }) {
   if (!materials.data.length) return <p className="hint">{t.courses.noMaterials}</p>;
   return (
     <div className="material-list">
+      {revise.isError ? <Problem error={revise.error} /> : null}
       {materials.data.map((material) => (
         <article key={material.id} data-state={material.parse_status}>
           <div className="material-main"><strong>{material.title || material.filename}</strong><small>{material.page_count ? `${material.page_count} ${t.courses.pageUnit}` : material.filename}</small></div>
@@ -159,9 +160,9 @@ function AnalysisPanel({ courseId }: { courseId: string }) {
   return (
     <section className="course-panel" aria-labelledby="analysis-title">
       <div className="section-heading"><div><p className="eyebrow">{t.courses.analysis}</p><h2 id="analysis-title">{t.courses.analysisHeading}</h2></div>
-        {!job || job.status === "completed" ? <button className="button primary" disabled={start.isPending} onClick={() => start.mutate(false)}>{start.isPending ? t.courses.estimating : job ? t.courses.refresh : t.courses.start}</button> : null}
+        {!job || job.status === "completed" ? <button className="button primary" disabled={start.isPending} aria-busy={start.isPending || undefined} onClick={() => start.mutate(false)}>{start.isPending ? t.courses.estimating : job ? t.courses.refresh : t.courses.start}</button> : null}
       </div>
-      {estimate?.requires_confirmation && !estimate.job ? <div className="notice"><p>{t.courses.confirmTokens.replace("{tokens}", estimate.estimated_tokens.toLocaleString())}</p><button className="button primary" onClick={() => start.mutate(true)}>{t.courses.confirmStart}</button></div> : null}
+      {estimate?.requires_confirmation && !estimate.job ? <div className="notice"><p>{t.courses.confirmTokens.replace("{tokens}", estimate.estimated_tokens.toLocaleString())}</p><button className="button primary" disabled={start.isPending} aria-busy={start.isPending || undefined} onClick={() => start.mutate(true)}>{t.courses.confirmStart}</button></div> : null}
       {job ? (
         <div className="analysis-progress">
           <div className="analysis-summary"><strong>{t.courses.jobStatus[job.status]}</strong><span>{Math.round(job.progress * 100)}%</span><span>{(job.tokens_in + job.tokens_out).toLocaleString()} token</span></div>
@@ -170,11 +171,11 @@ function AnalysisPanel({ courseId }: { courseId: string }) {
             {stages.map((stage, index) => <li key={stage} data-state={index < currentIndex || job.status === "completed" ? "done" : index === currentIndex ? job.status : "waiting"}><span>{index + 1}</span>{t.courses.stages[stage as keyof typeof t.courses.stages]}</li>)}
           </ol>
           <p className="analysis-detail" role="status">{job.detail ?? (job.status === "queued" ? t.courses.queued : "")}</p>
-          {job.status === "failed" ? <div className="notice danger"><p role="alert">{job.error ? publicMessage({ code: job.error }) ?? job.error : t.courses.analysisFailed}</p><button className="button quiet" disabled={retry.isPending} onClick={() => retry.mutate(job.stage || "parse")}>{t.common.retry}</button></div> : null}
+          {job.status === "failed" ? <div className="notice danger"><p role="alert">{job.error ? publicMessage({ code: job.error }) ?? job.error : t.courses.analysisFailed}</p><button className="button quiet" disabled={retry.isPending} aria-busy={retry.isPending || undefined} onClick={() => retry.mutate(job.stage || "parse")}>{t.common.retry}</button></div> : null}
         </div>
       ) : <p className="hint">{t.courses.analysisEmpty}</p>}
       {analysis.isError ? <Problem error={analysis.error} onRetry={() => void analysis.refetch()} /> : null}
-      {start.isError ? <Problem error={start.error} /> : null}
+      {start.isError || retry.isError ? <Problem error={start.error ?? retry.error} /> : null}
     </section>
   );
 }
@@ -216,7 +217,7 @@ function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { cours
       {point.assumed ? <div className="notice"><p>{t.courses.assumed}</p></div> : null}
       <p>{point.summary}</p>
       <div className="actions">
-        <button className="button primary" disabled={lesson.isPending} onClick={() => lesson.mutate()}>
+        <button className="button primary" disabled={lesson.isPending} aria-busy={lesson.isPending || undefined} onClick={() => lesson.mutate()}>
           {lesson.isPending ? t.classroom.preparing : t.classroom.openLesson}
         </button>
       </div>
@@ -234,7 +235,7 @@ function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { cours
           <label>{t.courses.kpName}<input name="name" defaultValue={point.name} required /></label>
           <label>{t.courses.importance}<select name="importance" defaultValue={point.importance}>{Object.entries(t.courses.importanceValue).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <fieldset><legend>{t.courses.prerequisites}</legend>{allPoints.filter((candidate) => candidate.id !== point.id).map((candidate) => <label key={candidate.id}><input type="checkbox" name="prerequisite" value={candidate.id} defaultChecked={point.prerequisite_ids.includes(candidate.id)} />{candidate.name}</label>)}</fieldset>
-          <div className="actions"><button className="button primary" disabled={revise.isPending}>{t.common.save}</button><button type="button" className="button quiet" onClick={() => setEditing(false)}>{t.common.cancel}</button></div>
+          <div className="actions"><button className="button primary" disabled={revise.isPending} aria-busy={revise.isPending || undefined}>{t.common.save}</button><button type="button" className="button quiet" onClick={() => setEditing(false)}>{t.common.cancel}</button></div>
           <details className="danger-zone"><summary>{t.courses.moreRevisions}</summary><label>{t.courses.mergeInto}<select name="merge"><option value="">{t.courses.chooseKp}</option>{allPoints.filter((candidate) => candidate.id !== point.id).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select></label><div className="actions"><button className="button quiet" type="button" onClick={(event) => { const select = event.currentTarget.closest("details")?.querySelector("select"); if (select?.value) revise.mutate({ merge_into: select.value }); }}>{t.courses.merge}</button><button className="button danger-action" type="button" onClick={() => window.confirm(t.courses.deleteConfirm) && revise.mutate({ deleted: true })}>{t.common.remove}</button></div></details>
           {revise.isError ? <Problem error={revise.error} /> : null}
         </form>
@@ -246,15 +247,20 @@ function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { cours
 }
 
 function CourseMapView({ courseId }: { courseId: string }) {
-  const map = useQuery({ queryKey: courseKeys.map(courseId), queryFn: () => getCourseMap(courseId), retry: false });
-  const unmapped = useQuery({ queryKey: courseKeys.unmappedExams(courseId), queryFn: () => listUnmappedExamItems(courseId), retry: false });
+  const analysis = useQuery({ queryKey: courseKeys.analysis(courseId), queryFn: () => getAnalysis(courseId) });
+  const map = useQuery({ queryKey: courseKeys.map(courseId), queryFn: () => getCourseMap(courseId) });
+  const unmapped = useQuery({ queryKey: courseKeys.unmappedExams(courseId), queryFn: () => listUnmappedExamItems(courseId) });
   const [selectedId, setSelectedId] = useState<string>();
   const allPoints = useMemo(() => map.data?.units.flatMap((unit) => unit.knowledge_points) ?? [], [map.data]);
   const selected = allPoints.find((point) => point.id === selectedId) ?? allPoints[0];
   const showUnmapped = selectedId === "unmapped" && Boolean(unmapped.data?.length);
   if (map.isPending) return <Loading />;
-  if (map.isError) return <p className="hint">{t.courses.mapPending}</p>;
-  if (!allPoints.length && !unmapped.data?.length) return <p className="hint">{t.courses.mapEmpty}</p>;
+  if (map.isError) return <Problem error={map.error} onRetry={() => void map.refetch()} />;
+  if (!allPoints.length && !unmapped.data?.length) {
+    if (unmapped.isError) return <Problem error={unmapped.error} onRetry={() => void unmapped.refetch()} />;
+    if (!map.data.brief && analysis.data?.status !== "completed") return <p className="hint">{t.courses.mapPending}</p>;
+    return <p className="hint">{t.courses.mapEmpty}</p>;
+  }
   const support = map.data.brief?.summary_support;
   return (
     <section className="course-panel map-panel" aria-labelledby="map-title">

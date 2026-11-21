@@ -38,7 +38,8 @@ body { min-width: 320px; margin: 0; }
 }
 :where(button, summary, select) { cursor: pointer; }
 :where(button, a, summary, select, label) { touch-action: manipulation; }
-button:disabled { cursor: wait; opacity: .63; }
+button:disabled { cursor: not-allowed; opacity: .63; }
+button[aria-busy="true"] { cursor: progress; }
 :where(input, select, textarea) { min-width: 0; }
 audio { height: 44px; width: min(100%, 390px); }
 audio[hidden] { display: none; }

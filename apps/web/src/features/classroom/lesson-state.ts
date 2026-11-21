@@ -200,6 +200,21 @@ export type ClassroomStatusKey =
   | "waiting"
   | "thinking";
 
+export type SubmissionLock = { askSeq: number; errorSeq: number };
+
+export function isSubmissionLocked(
+  submission: SubmissionLock | null,
+  askSeq: number | undefined,
+  errorSeq: number,
+): boolean {
+  return Boolean(
+    submission
+    && askSeq !== undefined
+    && submission.askSeq === askSeq
+    && submission.errorSeq === errorSeq,
+  );
+}
+
 export function resolveClassroomDisplay(input: {
   connected: boolean;
   started: boolean;

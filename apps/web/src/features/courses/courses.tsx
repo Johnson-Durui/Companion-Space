@@ -37,7 +37,7 @@ export default function Courses() {
           <label>{t.courses.name}<input name="name" maxLength={120} autoComplete="off" required /></label>
           <label>{t.courses.goal}<textarea name="goal" rows={2} maxLength={500} autoComplete="off" /></label>
           <div className="actions">
-            <button className="button primary" disabled={create.isPending}>{create.isPending ? t.common.saving : t.courses.create}</button>
+            <button className="button primary" disabled={create.isPending} aria-busy={create.isPending || undefined}>{create.isPending ? t.common.saving : t.courses.create}</button>
             <button className="button quiet" type="button" onClick={() => setCreating(false)}>{t.common.cancel}</button>
           </div>
           {create.isError ? <Problem error={create.error} /> : null}
@@ -45,6 +45,7 @@ export default function Courses() {
       ) : null}
       {courses.isPending ? <Loading /> : null}
       {courses.isError ? <Problem error={courses.error} onRetry={() => void courses.refetch()} /> : null}
+      {dashboard.isError ? <Problem error={dashboard.error} onRetry={() => void dashboard.refetch()} /> : null}
       {courses.data?.length === 0 ? (
         <section className="course-empty">
           <span aria-hidden="true">＋</span><h2>{t.courses.empty}</h2><p>{t.courses.emptyHint}</p>
@@ -69,7 +70,7 @@ export default function Courses() {
               </Link>
               {summary ? <aside className="course-today" aria-label={t.courses.today}>
                 <div>
-                  <strong>{lesson ? t.courses.today : t.courses.todayClear}</strong>
+                  <strong>{lesson ? t.courses.today : summary.has_plan ? t.courses.todayClear : t.courses.noPlan}</strong>
                   {lesson ? <span>{lesson.title} · {lesson.est_minutes} {t.courses.minutes}</span> : null}
                   <small>{t.courses.dueReviews.replace("{count}", String(summary.due_review_count))}</small>
                   {summary.remaining_days !== null || summary.secured_score !== null ? <small>

@@ -39,6 +39,7 @@
     "open": "打开课程",
       "today": "今天要学",
       "todayClear": "今天的计划已完成",
+      "noPlan": "尚未生成学习计划",
       "minutes": "分钟",
       "dueReviews": "到期复习 {count} 张",
       "remainingDays": "距考试 {count} 天",

@@ -41,7 +41,7 @@ function DataSettings() {
       <form className="fields" onSubmit={submit}>
         <label>{t.settings.parallel}<input key={settings.data.analysis_concurrency} name="concurrency" type="number" min="1" max="16" step="1" defaultValue={settings.data.analysis_concurrency} required /></label>
         <div className="actions">
-          <button className="button primary" disabled={save.isPending}>{t.common.save}</button>
+          <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>{t.common.save}</button>
           {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
         </div>
         {save.isError ? <Problem error={save.error} /> : null}

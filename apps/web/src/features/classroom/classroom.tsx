@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { LessonText } from "@companion-space/board";
 import {
@@ -15,8 +15,10 @@ import { MicrophoneCapture, Pcm16Framer, type HandsFreeVad } from "../../audio";
 import t from "../../locales/zh-CN.json";
 import { toVideoAvatarConfig, videoBoxLabels } from "../characters/video-config";
 import { createSidecarConnector } from "../characters/sidecar-connector";
+import { courseKeys } from "../courses/api";
+import { learnerKeys } from "../learner/api";
 import { BoardBlock } from "./board-block";
-import { resolveClassroomDisplay, type Ask, type Prefill } from "./lesson-state";
+import { isSubmissionLocked, resolveClassroomDisplay, type Ask, type Prefill, type SubmissionLock } from "./lesson-state";
 import { useClassroom } from "./use-classroom";
 import "./classroom.css";
 
@@ -100,12 +102,13 @@ function Lesson({ id }: { id: string }) {
     if (action) triggerFastAction(action, gen);
   }, [triggerFastAction]);
 
+  const queries = useQueryClient();
   const live = useClassroom(id, onSpeechLevel, onSpeechChunk, onJudgePreview);
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
   const [handsFree, setHandsFree] = useState(false);
   const [micMessage, setMicMessage] = useState("");
-  const [submission, setSubmission] = useState<{ askSeq: number; errorSeq: number } | null>(null);
+  const [submission, setSubmission] = useState<SubmissionLock | null>(null);
   const capture = useRef<MicrophoneCapture>(null);
   const vad = useRef<HandsFreeVad>(null);
   const vadRequest = useRef(0);
@@ -134,12 +137,15 @@ function Lesson({ id }: { id: string }) {
     return () => window.clearTimeout(timer);
   }, [instantOverride]);
 
-  const submitted = Boolean(
-    submission
-    && live.classroom.askSeq !== undefined
-    && submission.askSeq === live.classroom.askSeq
-    && submission.errorSeq === live.errorSeq,
-  );
+  const recapCourseId = live.room?.course_id;
+  useEffect(() => {
+    if (!live.recap || !recapCourseId) return;
+    void queries.invalidateQueries({ queryKey: courseKeys.all });
+    void queries.invalidateQueries({ queryKey: learnerKeys.plan(recapCourseId) });
+    void queries.invalidateQueries({ queryKey: ["courses", recapCourseId, "progress"] });
+  }, [live.recap, recapCourseId, queries]);
+
+  const submitted = isSubmissionLocked(submission, live.classroom.askSeq, live.errorSeq);
   const display = resolveClassroomDisplay({
     connected: live.connected,
     started: live.started,
@@ -340,7 +346,7 @@ function Lesson({ id }: { id: string }) {
     [teacher, reducedMotion],
   );
 
-  if (!room) return error ? <div className="notice danger" role="alert">{error}</div> : <Loading />;
+  if (!room) return error ? <div className="notice danger" role="alert">{error} <button className="button quiet" onClick={() => void live.reconnect()}>{copy.retry}</button></div> : <Loading />;
   if (recap || room.status === "done" || room.status === "abandoned") return <section className="lesson-recap">
     <Link className="text-link" to={`/courses/${room.course_id}`}>{copy.back}</Link>
     <h1>{room.title}</h1>
@@ -375,8 +381,8 @@ function Lesson({ id }: { id: string }) {
         }}>{copy.end}</button>
       </div>
     </header>
-    {error ? <div className="notice danger" role="alert">{error} <button className="button quiet" disabled={!connected}
-      onClick={() => void live.start(true)}>{copy.retry}</button></div> : null}
+    {error ? <div className="notice danger" role="alert">{error} <button className="button quiet" disabled={live.resuming} aria-busy={live.resuming || undefined}
+      onClick={() => void (connected ? live.start(live.lastAudio) : live.reconnect())}>{copy.retry}</button></div> : null}
     {live.fallback ? <div className="notice" role="status">{live.fallback}<Link className="text-link" to="/settings#voice">{copy.voiceSettings}</Link></div> : null}
     <div className="lesson-surface">
       <aside className="lesson-stage">

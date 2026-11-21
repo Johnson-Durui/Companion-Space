@@ -13,6 +13,7 @@ type Room = Awaited<ReturnType<typeof fetchLesson>>;
 type Command = (type: string, data?: Record<string, unknown>) => boolean;
 type Connection = {
   start: (audio: boolean) => Promise<void>;
+  reconnect: () => Promise<void>;
   send: Command;
   interrupt: () => boolean;
   pause: () => void;
@@ -40,6 +41,7 @@ export function useClassroom(
   const [started, setStarted] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [lastAudio, setLastAudio] = useState(true);
   const [error, setError] = useState("");
   const [errorSeq, setErrorSeq] = useState(0);
   const [fallback, setFallback] = useState("");
@@ -57,7 +59,7 @@ export function useClassroom(
     let timer = 0;
     let offline = 0;
     let active = false;
-    let audio = false;
+    let audio = true;
     let firstSound = 0;
     let currentCaption: LessonEvent | undefined;
     let previewGen: number | undefined;
@@ -393,6 +395,7 @@ export function useClassroom(
         setError("");
         setFallback("");
         audio = withAudio;
+        setLastAudio(withAudio);
         if (withAudio) {
           try {
             await output.prepare();
@@ -413,6 +416,21 @@ export function useClassroom(
         } catch {
           setError(copy.connectionError);
         }
+      },
+      async reconnect() {
+        window.clearTimeout(timer);
+        offline = 0;
+        setError("");
+        if (socket?.readyState === WebSocket.OPEN) {
+          await connection.current?.start(audio);
+          return;
+        }
+        if (socket && socket.readyState !== WebSocket.CLOSED) {
+          socket.onclose = null;
+          socket.close();
+          socket = undefined;
+        }
+        await connect();
       },
       interrupt,
       pause,
@@ -446,6 +464,7 @@ export function useClassroom(
     started,
     resuming,
     speaking,
+    lastAudio,
     error,
     errorSeq,
     fallback,
@@ -455,6 +474,7 @@ export function useClassroom(
     recap,
     latency,
     start: (audio: boolean) => connection.current?.start(audio),
+    reconnect: () => connection.current?.reconnect(),
     send: (type: string, data?: Record<string, unknown>) => connection.current?.send(type, data) ?? false,
     pause: () => connection.current?.pause(),
     interrupt: () => connection.current?.interrupt() ?? false,

@@ -10,6 +10,19 @@ export const rolesKey = ["model-roles"] as const;
 export const connectionsKey = ["connections"] as const;
 export const avatarDriversKey = ["avatar-drivers"] as const;
 
+export class ApiError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isClientError(error: unknown): boolean {
+  return error instanceof ApiError && error.status !== undefined && error.status >= 400 && error.status < 500;
+}
+
 export function publicMessage(error: unknown) {
   if (error && typeof error === "object" && "code" in error && typeof error.code === "string" && Object.hasOwn(t.errors, error.code)) {
     return t.errors[error.code as keyof typeof t.errors];
@@ -26,7 +39,7 @@ export function publicMessage(error: unknown) {
 }
 
 export function ensureOK(response: Response, error: unknown) {
-  if (!response.ok) throw new Error(publicMessage(error) ?? t.common.error);
+  if (!response.ok) throw new ApiError(publicMessage(error) ?? t.common.error, response.status);
 }
 
 export function bodyOf<T>(result: { data?: T; error?: unknown; response: Response }): T {

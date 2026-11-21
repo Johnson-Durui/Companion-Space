@@ -54,6 +54,7 @@ class TodayLesson(RequestModel):
 
 class CourseDashboard(RequestModel):
     course_id: str
+    has_plan: bool = False
     due_review_count: int
     today_lesson: TodayLesson | None = None
     remaining_days: int | None = None
@@ -76,6 +77,14 @@ def course_dashboard(container: Container) -> list[CourseDashboard]:
     now = datetime.now(timezone.utc).isoformat()
     with container.repository.connection() as conn:
         course_ids = [row["id"] for row in conn.execute("SELECT id FROM study_spaces")]
+        planned = {
+            row["space_id"]
+            for row in conn.execute(
+                """SELECT DISTINCT s.space_id FROM study_plans s
+                   JOIN plan_items p ON p.plan_id = s.id AND p.space_id = s.space_id
+                   WHERE s.status='active'""",
+            )
+        }
         lessons = {}
         for row in conn.execute(
             """WITH eligible AS (
@@ -122,6 +131,7 @@ def course_dashboard(container: Container) -> list[CourseDashboard]:
         lesson = lessons.get(course_id)
         result.append(CourseDashboard(
             course_id=course_id,
+            has_plan=course_id in planned,
             due_review_count=int(reviews.get(course_id, 0)),
             today_lesson=TodayLesson(**lesson) if lesson else None,
             remaining_days=remaining_days,

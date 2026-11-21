@@ -136,19 +136,24 @@ def test_course_dashboard_batches_today_review_and_score_projection(
             "INSERT INTO kp_mastery(space_id,kp_id,p,status) VALUES (?,'kp1',0.5,'learning')",
             (course_id,),
         )
-    response = client.get(
-        "/api/v2/courses/dashboard", headers={"Authorization": f"Bearer {owner_token}"},
-    )
+    auth = {"Authorization": f"Bearer {owner_token}"}
+    unplanned = client.post(
+        "/api/v2/courses", json={"name": "Unplanned"}, headers=auth,
+    ).json()["id"]
+    response = client.get("/api/v2/courses/dashboard", headers=auth)
     assert response.status_code == 200
     summary = next(item for item in response.json() if item["course_id"] == course_id)
     assert summary == {
-        "course_id": course_id, "due_review_count": 2,
+        "course_id": course_id, "has_plan": True, "due_review_count": 2,
         "today_lesson": {
             "id": "today-lesson", "title": "Addition", "est_minutes": 20,
             "status": "todo", "lesson_id": None,
         },
         "remaining_days": 10, "secured_score": 60.0, "score_scale": 120.0,
     }
+    unplanned_summary = next(item for item in response.json() if item["course_id"] == unplanned)
+    assert unplanned_summary["has_plan"] is False
+    assert unplanned_summary["today_lesson"] is None
     assert client.get("/api/v2/courses/dashboard").status_code == 401
 
 

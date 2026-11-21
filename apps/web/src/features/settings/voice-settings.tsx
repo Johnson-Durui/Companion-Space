@@ -124,8 +124,8 @@ function VoiceEditor({ target, initial, characterId, settings }: {
         <label>{t.voiceSettings.pitch}<input type="number" min="-100" max="100" step="1" value={draft.pitch} onChange={(event) => setDraft({ ...draft, pitch: Number(event.target.value) })} /></label>
       </div>
       <div className="actions">
-        <button className="button primary" disabled={save.isPending}>{save.isPending ? t.common.saving : t.common.save}</button>
-        <button type="button" className="button quiet" disabled={!characterId || preview.isPending || save.isPending} onClick={() => preview.mutate()}>{preview.isPending ? t.voice.loading : t.voice.preview}</button>
+        <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>{save.isPending ? t.common.saving : t.common.save}</button>
+        <button type="button" className="button quiet" disabled={!characterId || preview.isPending || save.isPending} aria-busy={preview.isPending || undefined} onClick={() => preview.mutate()}>{preview.isPending ? t.voice.loading : t.voice.preview}</button>
         {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
       </div>
       <audio ref={audio} controls hidden={!preview.data || preview.data.kind !== "audio"} aria-label={t.voice.play} />
@@ -161,8 +161,8 @@ function RecognitionSettings() {
       <p className="hint">{copy.recognitionLocalHint} <a href={current.license_url} target="_blank" rel="noreferrer">{copy.recognitionLicense}</a></p>
       {!current.local_runtime_available ? <p className="hint">{copy.recognitionRuntime} <code>python -m pip install -r services/api/requirements-local-stt.txt</code></p> : null}
       <div className="actions">
-        {local ? <button type="button" className="button quiet" disabled={save.isPending} onClick={() => save.mutate({ engine: "openai_compat" })}>{copy.recognitionEnableOnline}</button> : null}
-        {activate && current.local_runtime_available ? <button type="button" className="button quiet" disabled={save.isPending} onClick={() => save.mutate({ engine: "local_sherpa", download_model: !current.local_model_available })}>
+        {local ? <button type="button" className="button quiet" disabled={save.isPending} aria-busy={save.isPending || undefined} onClick={() => save.mutate({ engine: "openai_compat" })}>{copy.recognitionEnableOnline}</button> : null}
+        {activate && current.local_runtime_available ? <button type="button" className="button quiet" disabled={save.isPending} aria-busy={save.isPending || undefined} onClick={() => save.mutate({ engine: "local_sherpa", download_model: !current.local_model_available })}>
           {current.local_model_available ? copy.recognitionEnableLocal : copy.recognitionDownload.replace("{size}", size)}
         </button> : null}
       </div>

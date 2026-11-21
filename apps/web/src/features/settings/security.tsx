@@ -29,9 +29,9 @@ export function UnlockSession({ session }: { session: SessionStatus }) {
       <form className="fields" onSubmit={unlock}>
         <label>{t.security.password}<input autoComplete="current-password" name="password" type="password" maxLength={200} required /></label>
         <div className="actions">
-          <button className="button primary" disabled={action.isPending}>{migration ? t.security.migrate : t.security.unlock}</button>
+          <button className="button primary" disabled={action.isPending} aria-busy={action.isPending || undefined}>{migration ? t.security.migrate : t.security.unlock}</button>
           {migration ? (
-            <button className="button quiet" type="button" disabled={action.isPending} onClick={() => {
+            <button className="button quiet" type="button" disabled={action.isPending} aria-busy={action.isPending || undefined} onClick={() => {
               if (window.confirm(t.security.skipConfirm)) action.mutate(null);
             }}>{t.security.skipMigration}</button>
           ) : null}
@@ -98,8 +98,8 @@ export function SecuritySettings() {
           <label>{t.security.confirm}<input autoComplete="new-password" name="confirmation" type="password" required={!enabled} /></label>
         </div>
         <div className="actions">
-          <button className="button primary" name="action" value="enable" disabled={update.isPending}>{enabled ? t.security.change : t.security.enable}</button>
-          {enabled ? <button className="button quiet" name="action" value="disable" disabled={update.isPending}>{t.security.disable}</button> : null}
+          <button className="button primary" name="action" value="enable" disabled={update.isPending} aria-busy={update.isPending || undefined}>{enabled ? t.security.change : t.security.enable}</button>
+          {enabled ? <button className="button quiet" name="action" value="disable" disabled={update.isPending} aria-busy={update.isPending || undefined}>{t.security.disable}</button> : null}
           {update.isSuccess ? <span role="status" className="form-success">{t.common.saved}</span> : null}
         </div>
         {validation ? <p role="alert" className="hint">{validation}</p> : null}

@@ -73,7 +73,7 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
       {preset.free_tier_note ? <p className="hint">{preset.free_tier_note}</p> : null}
       {preset.manual_live ? <p className="hint">{preset.manual_live}</p> : null}
       <div className="actions">
-        <button disabled={create.isPending} className="button primary">{t.settings.create}</button>
+        <button disabled={create.isPending} aria-busy={create.isPending || undefined} className="button primary">{t.settings.create}</button>
         {preset.key_url ? <a className="text-link" href={preset.key_url} target="_blank" rel="noreferrer">{t.settings.getKey}<span aria-hidden="true">↗</span></a> : null}
         {create.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
       </div>
@@ -118,10 +118,10 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
       <h3>{connection.label}</h3>
       {connection.base_url ? <p className="hint">{connection.base_url}</p> : null}
       <div className="actions">
-        <button type="button" className="button quiet" disabled={test.isPending || remove.isPending} onClick={() => test.mutate()}>
+        <button type="button" className="button quiet" disabled={test.isPending || remove.isPending} aria-busy={test.isPending || undefined} onClick={() => test.mutate()}>
           {test.isPending ? t.settings.testing : t.settings.test}
         </button>
-        <button type="button" className="button quiet" disabled={discover.isPending || remove.isPending} onClick={() => discover.mutate()}>
+        <button type="button" className="button quiet" disabled={discover.isPending || remove.isPending} aria-busy={discover.isPending || undefined} onClick={() => discover.mutate()}>
           {discover.isPending ? t.settings.fetching : t.settings.discover}
         </button>
       </div>
@@ -157,8 +157,8 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
           <label>{t.settings.baseUrl}<input name="base_url" type="url" defaultValue={connection.base_url ?? ""} /></label>
           <label>{t.settings.rotate}<input name="api_key" type="password" autoComplete="new-password" spellCheck={false} /></label>
           <div className="actions">
-            <button className="button primary" disabled={edit.isPending || remove.isPending}>{t.common.save}</button>
-            <button type="button" className="button danger-action" disabled={remove.isPending || edit.isPending} onClick={() => {
+            <button className="button primary" disabled={edit.isPending || remove.isPending} aria-busy={edit.isPending || undefined}>{t.common.save}</button>
+            <button type="button" className="button danger-action" disabled={remove.isPending || edit.isPending} aria-busy={remove.isPending || undefined} onClick={() => {
               if (window.confirm(t.settings.deleteConfirm)) remove.mutate();
             }}>{t.settings.delete}</button>
             {edit.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
@@ -212,8 +212,8 @@ function RoleRow({ role, value, connections, busy, onSave }: {
           <label>{t.settings.parameters}<textarea key={connectionId} spellCheck={false} name="params" rows={3} defaultValue={JSON.stringify(connectionId === value?.connection_id ? value.params : {}, null, 2)} /></label>
         </details>
         <div className="actions">
-          <button className="button primary" disabled={busy}>{t.settings.roleSave}</button>
-          {value ? <button type="button" className="button quiet" disabled={busy} onClick={() => onSave(role)}>{t.settings.clearRole}</button> : null}
+          <button className="button primary" disabled={busy} aria-busy={busy || undefined}>{t.settings.roleSave}</button>
+          {value ? <button type="button" className="button quiet" disabled={busy} aria-busy={busy || undefined} onClick={() => onSave(role)}>{t.settings.clearRole}</button> : null}
         </div>
         {validation ? <p role="alert" className="hint">{validation}</p> : null}
       </form>

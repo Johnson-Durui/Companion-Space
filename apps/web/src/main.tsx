@@ -2,7 +2,7 @@ import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from "react-router";
-import { api, bodyOf, bootstrapSession, sessionKey } from "./app/api";
+import { api, bodyOf, bootstrapSession, isClientError, sessionKey } from "./app/api";
 import { ErrorBoundary, Loading, Problem } from "./app/ui";
 import { UnlockSession } from "./features/settings/security";
 import Welcome from "./features/onboarding/welcome";
@@ -21,7 +21,16 @@ const TutorLibrary = lazy(() => import("./features/characters/library"));
 const CourseHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.CourseHistoryPage })));
 const LessonHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.LessonHistoryPage })));
 const SampleLesson = lazy(() => import("./features/replay/sample"));
-const queries = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000, refetchOnWindowFocus: false } } });
+const queries = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => failureCount < 1 && !isClientError(error),
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+    mutations: { retry: false },
+  },
+});
 const navigation = [
   ["/courses", t.app.courses],
   ["/welcome", t.app.teachers],

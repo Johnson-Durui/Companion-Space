@@ -31,7 +31,7 @@ export function VoicePreview({ id, text }: { id: string; text?: string }) {
 
   return (
     <div className="voice-preview">
-      <button className="button quiet" disabled={preview.isPending} onClick={() => { setHint(""); preview.mutate(); }}>
+      <button className="button quiet" disabled={preview.isPending} aria-busy={preview.isPending || undefined} onClick={() => { setHint(""); preview.mutate(); }}>
         <span aria-hidden="true">▷</span>{preview.isPending ? t.voice.loading : t.voice.preview}
       </button>
       <audio aria-label={t.voice.play} ref={audio} controls hidden={preview.data?.kind !== "audio"} />

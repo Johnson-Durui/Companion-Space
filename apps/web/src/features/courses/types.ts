@@ -15,6 +15,7 @@ export type Course = { id: string; name: string; goal: string | null; brief: Cou
 
 export type CourseDashboard = {
   course_id: string;
+  has_plan?: boolean;
   due_review_count: number;
   today_lesson: { id: string; title: string; est_minutes: number; status: string; lesson_id: string | null } | null;
   remaining_days: number | null;

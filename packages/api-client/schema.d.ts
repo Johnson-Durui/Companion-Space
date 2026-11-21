@@ -1451,6 +1451,11 @@ export interface components {
             course_id: string;
             /** Due Review Count */
             due_review_count: number;
+            /**
+             * Has Plan
+             * @default false
+             */
+            has_plan: boolean;
             /** Remaining Days */
             remaining_days?: number | null;
             /** Score Scale */

@@ -1,5 +1,6 @@
 import { browserApiFetch } from "@companion-space/api-client";
-import { publicMessage } from "../../app/api";
+import { ApiError, publicMessage } from "../../app/api";
+import t from "../../locales/zh-CN.json";
 import type { AnalysisStart, Course, CourseDashboard, CourseMap, ExamItem, Job, Material, MaterialPage, MaterialRole } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -7,8 +8,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (init?.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const response = await browserApiFetch(path, { ...init, headers });
   const body = response.status === 204 ? undefined : await response.json().catch(() => undefined);
-  const detail = body && typeof body === "object" && "detail" in body ? body.detail : body;
-  if (!response.ok) throw new Error(publicMessage(detail) ?? `HTTP ${response.status}`);
+  if (!response.ok) throw new ApiError(publicMessage(body) ?? t.common.error, response.status);
   return body as T;
 }
 

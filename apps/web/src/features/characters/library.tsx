@@ -131,7 +131,7 @@ function TutorEditor({ character, onDeleted }: { character: Character; onDeleted
       </label>
     ) : null}
     <div className="actions">
-      <button className="button primary" disabled={save.isPending}>{t.common.save}</button>
+      <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>{t.common.save}</button>
       <Link className="button quiet" to={`/settings?teacher=${encodeURIComponent(character.id)}#voice`}>{copy.voice}</Link>
       <Link className="button quiet" to="/settings#avatar">{copy.configureSidecar}</Link>
       <button className="button quiet" type="button" onClick={() => downloadPromptSheet(character)}>{copy.exportPrompts}</button>
@@ -140,6 +140,7 @@ function TutorEditor({ character, onDeleted }: { character: Character; onDeleted
           className="button danger-action"
           type="button"
           disabled={remove.isPending}
+          aria-busy={remove.isPending || undefined}
           onClick={() => { if (window.confirm(copy.deleteConfirm)) remove.mutate(); }}
         >
           {copy.delete}

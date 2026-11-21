@@ -222,6 +222,7 @@ function AvatarSettingsForm({ initial }: { initial: AvatarDriverSettings }) {
                     type="button"
                     className="button quiet"
                     disabled={probe.isPending || !entry.base_url.trim()}
+                    aria-busy={isTesting || undefined}
                     onClick={() => probe.mutate(entry)}
                   >
                     {isTesting ? copy.testing : copy.test}
@@ -332,7 +333,7 @@ function AvatarSettingsForm({ initial }: { initial: AvatarDriverSettings }) {
       </div>
 
       <div className="actions">
-        <button className="button primary" disabled={save.isPending}>
+        <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined}>
           {save.isPending ? t.common.saving : t.common.save}
         </button>
         {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Timeline, type LessonEvent } from "../src/features/classroom/timeline";
-import { advanceClassroom, initialClassroom, resolveClassroomDisplay, restoreClassroom } from "../src/features/classroom/lesson-state";
+import { advanceClassroom, initialClassroom, isSubmissionLocked, resolveClassroomDisplay, restoreClassroom } from "../src/features/classroom/lesson-state";
 import { boardMarkdown } from "../src/features/classroom/board";
 
 function event(seq: number, type = "say", gen = 1, data: Record<string, unknown> = {}): LessonEvent {
@@ -158,10 +158,15 @@ describe("classroom timeline", () => {
     expect(afterJudge.statusKey).toBe("thinking");
     expect(afterJudge.awaitingAnswer).toBe(false);
 
-    // Unlocking after error (submitted becomes false while no judge arrived) returns to waiting.
+    // Submitting locks the question form for the current askSeq + errorSeq, and an error event unlocks it immediately.
+    const lock = { askSeq: 3, errorSeq: 0 };
+    expect(isSubmissionLocked(lock, 3, 0)).toBe(true);
+    expect(isSubmissionLocked(lock, 3, 1)).toBe(false);
+    expect(isSubmissionLocked(lock, 4, 0)).toBe(false);
+
     const unlockedAfterError = resolveClassroomDisplay({
       connected: true, started: true, roomSeq: 3, recording: false, speaking: false,
-      quietCompanion: false, submitted: false, instantAction: null, classroom: asked,
+      quietCompanion: false, submitted: isSubmissionLocked(lock, 3, 1), instantAction: null, classroom: asked,
     });
     expect(unlockedAfterError.statusKey).toBe("waiting");
     expect(unlockedAfterError.awaitingAnswer).toBe(true);
