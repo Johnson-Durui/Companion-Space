@@ -22,7 +22,8 @@
     "generate:api": "node scripts/generate-api-client.mjs",
     "generate:api:check": "node scripts/generate-api-client.mjs --check",
     "test:e2e": "playwright test",
-    "test:startup": "node tests/e2e/startup-check.mjs"
+    "test:startup": "node tests/e2e/startup-check.mjs",
+    "review:tour": "node tests/e2e/ui-tour.mjs"
   },
   "devDependencies": {
     "openapi-typescript": "7.13.0",
