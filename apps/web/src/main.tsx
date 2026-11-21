@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { BrowserRouter, Link, matchPath, Navigate, Route, Routes, useLocation } from "react-router";
 import { api, bodyOf, bootstrapSession, isClientError, sessionKey } from "./app/api";
 import { ErrorBoundary, Loading, Problem } from "./app/ui";
+import { BrandMark } from "./ui/icons";
 import { UnlockSession } from "./features/settings/security";
 import Welcome from "./features/onboarding/welcome";
 import t from "./locales/zh-CN.json";
@@ -162,7 +163,7 @@ function App() {
       <header className="site-header">
         <div className="shell header-row">
           <Link to="/welcome" className="brand">
-            <span className="brand-mark" aria-hidden="true">✦</span>
+            <BrandMark size={36} />
             <span><strong>{t.app.name}</strong><small>Companion Space</small></span>
           </Link>
           <nav className="site-nav" aria-label={t.app.name}>

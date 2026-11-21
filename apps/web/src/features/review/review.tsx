@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { charactersKey, fetchCharacters, fetchSettings, settingsKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { ChevronRight } from "../../ui/icons";
 import { VoicePreview } from "../onboarding/voice-preview";
 import t from "../../locales/zh-CN.json";
 import { answerCard, getMistakes, getReview, mistakesKey, rateCard, reviewKey, startPlannedLesson, type ReviewCard } from "./api";
@@ -59,7 +60,7 @@ export default function Review() {
 
   return (
     <div className="review-page">
-      <div className="course-breadcrumb"><Link to={`/courses/${courseId}`}>{t.review.course}</Link><span aria-hidden="true">/</span><span>{t.review.heading}</span></div>
+      <div className="course-breadcrumb"><Link to={`/courses/${courseId}`}>{t.review.course}</Link><ChevronRight size={14} aria-hidden="true" /><span>{t.review.heading}</span></div>
       <div className="page-title"><div><h1>{plan ? t.review.warmup : t.review.heading}</h1><p>{plan ? t.review.warmupIntro : t.review.lead}</p></div></div>
       {plan ? <div className="actions">
         {preferred && card ? <VoicePreview id={preferred.id} text={`${t.review.warmupCue} ${card.front}`.slice(0, 240)} /> : null}

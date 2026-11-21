@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, bodyOf, connectionsKey, ensureOK, fetchConnections, fetchRoles, publicMessage, rolesKey, type Connection, type ModelRoles } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { ArrowUpRight, ChevronDown } from "../../ui/icons";
 import t from "../../locales/zh-CN.json";
 
 async function fetchPresets() {
@@ -74,7 +75,7 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
       {preset.manual_live ? <p className="hint">{preset.manual_live}</p> : null}
       <div className="actions">
         <button disabled={create.isPending} aria-busy={create.isPending || undefined} className="button primary">{t.settings.create}</button>
-        {preset.key_url ? <a className="text-link" href={preset.key_url} target="_blank" rel="noreferrer">{t.settings.getKey}<span aria-hidden="true">↗</span></a> : null}
+        {preset.key_url ? <a className="text-link" href={preset.key_url} target="_blank" rel="noreferrer">{t.settings.getKey}<ArrowUpRight size={15} aria-hidden="true" /></a> : null}
         {create.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
       </div>
       {create.isError ? <Problem error={create.error} /> : null}
@@ -197,7 +198,7 @@ function RoleRow({ role, value, connections, busy, onSave }: {
   }
   return (
     <details className="role-row" data-testid="role-row">
-      <summary><span className="role-caption"><strong>{roleLabel(role)}</strong><small>{value?.model ?? t.settings.noRole}</small></span></summary>
+      <summary><span className="role-caption"><strong>{roleLabel(role)}</strong><small>{value?.model ?? t.settings.noRole}</small></span><ChevronDown size={16} aria-hidden="true" /></summary>
       <form className="fields" onSubmit={submit}>
         <div className="field-row">
           <label>{t.settings.useConnection}

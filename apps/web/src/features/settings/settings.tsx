@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api, bodyOf, fetchSettings, settingsKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { ArrowUpRight } from "../../ui/icons";
 import t from "../../locales/zh-CN.json";
 import { AvatarSettingsPanel } from "./avatar-settings";
 import { ModelSettings } from "./models";
@@ -82,7 +83,7 @@ export default function Settings() {
       <div className="settings-layout">
         <nav className="settings-nav" aria-label={t.settings.heading}>
           {sections.map(([id, title]) => <a key={id} href={`#${id}`}>{title}</a>)}
-          <Link to="/settings/diagnostics">{t.app.diagnostics}<span aria-hidden="true"> ↗</span></Link>
+          <Link to="/settings/diagnostics">{t.app.diagnostics}<ArrowUpRight size={15} aria-hidden="true" /></Link>
         </nav>
         <div className="settings-sections">
           <section className="settings-section" id="models" aria-label={t.settings.models}><ModelSettings /></section>

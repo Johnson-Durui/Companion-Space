@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api, bodyOf, charactersKey, fetchCharacters, fetchSettings, settingsKey, type Character } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { Check } from "../../ui/icons";
 import { TeacherPreview } from "../characters/teacher-preview";
 import { fetchSample, sampleKey } from "../replay/sample-api";
 import t from "../../locales/zh-CN.json";
@@ -56,7 +57,7 @@ export default function Welcome() {
           <p className="relationship">{candidate.persona.relationship}</p>
           {candidate.persona.traits.length ? <ul className="teacher-traits">{candidate.persona.traits.map((trait) => <li key={trait}>{trait}</li>)}</ul> : null}
           <div className="teacher-actions">
-            {selected ? <p className="current-teacher" role="status">{t.welcome.chosen}</p> : (
+            {selected ? <p className="current-teacher" role="status"><Check size={16} aria-hidden="true" />{t.welcome.chosen}</p> : (
               <button className="button primary" disabled={save.isPending} aria-busy={save.isPending || undefined} onClick={() => save.mutate(candidate.id)}>
                 {save.isPending ? t.common.saving : t.welcome.save}
               </button>

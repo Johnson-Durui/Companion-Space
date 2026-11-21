@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { Loading, Problem } from "../../app/ui";
+import { ArrowRight, Plus } from "../../ui/icons";
 import t from "../../locales/zh-CN.json";
 import { courseKeys, createCourse, listCourseDashboard, listCourses } from "./api";
 
@@ -48,7 +49,7 @@ export default function Courses() {
       {dashboard.isError ? <Problem error={dashboard.error} onRetry={() => void dashboard.refetch()} /> : null}
       {courses.data?.length === 0 ? (
         <section className="course-empty">
-          <span aria-hidden="true">＋</span><h2>{t.courses.empty}</h2><p>{t.courses.emptyHint}</p>
+          <span aria-hidden="true"><Plus size={36} strokeWidth={1.75} /></span><h2>{t.courses.empty}</h2><p>{t.courses.emptyHint}</p>
           <button className="button primary" onClick={() => setCreating(true)}>{t.courses.new}</button>
         </section>
       ) : null}
@@ -66,7 +67,7 @@ export default function Courses() {
                   <div><dt>{t.courses.questions}</dt><dd>{course.brief?.item_count ?? "—"}</dd></div>
                   <div><dt>{t.courses.pages}</dt><dd>{course.brief?.page_count ?? "—"}</dd></div>
                 </dl>
-                <span className="course-open">{t.courses.open}<span aria-hidden="true"> →</span></span>
+                <span className="course-open">{t.courses.open}<ArrowRight size={15} aria-hidden="true" /></span>
               </Link>
               {summary ? <aside className="course-today" aria-label={t.courses.today}>
                 <div>

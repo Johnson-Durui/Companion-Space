@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, bodyOf, publicMessage } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { ChevronRight, DifficultyDots } from "../../ui/icons";
 import t from "../../locales/zh-CN.json";
 import {
   courseKeys, getAnalysis, getCourse, getCourseMap, getMaterialPage, listExamItems, listMaterials,
@@ -225,7 +226,7 @@ function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { cours
       {point.formula ? <pre className="formula">{point.formula}</pre> : null}
       <dl className="kp-stats">
         <div><dt>{t.courses.importance}</dt><dd>{t.courses.importanceValue[point.importance]}</dd></div>
-        <div><dt>{t.courses.difficulty}</dt><dd>{"●".repeat(point.difficulty)}{"○".repeat(3 - point.difficulty)}</dd></div>
+        <div><dt>{t.courses.difficulty}</dt><dd><DifficultyDots value={point.difficulty} label={`${t.courses.difficulty} ${point.difficulty}/3`} /></dd></div>
         <div><dt>{t.courses.examCount}</dt><dd>{point.stats?.n_items ?? 0}</dd></div>
         <div><dt>{t.courses.scoreShare}</dt><dd>{point.stats ? `${(point.stats.score_share * 100).toFixed(1)}%` : "—"}</dd></div>
         <div><dt>{t.courses.trend}</dt><dd>{point.stats ? (t.courses.trendValue[point.stats.trend as keyof typeof t.courses.trendValue] ?? point.stats.trend) || "—" : "—"}</dd></div>
@@ -282,7 +283,7 @@ export default function CourseWorkspace() {
   if (course.isError) return <Problem error={course.error} onRetry={() => void course.refetch()} />;
   return (
     <div className="course-workspace">
-      <div className="course-breadcrumb"><Link to="/courses">{t.courses.heading}</Link><span aria-hidden="true">/</span><span>{course.data.name}</span></div>
+      <div className="course-breadcrumb"><Link to="/courses">{t.courses.heading}</Link><ChevronRight size={14} aria-hidden="true" /><span>{course.data.name}</span></div>
       <div className="page-title course-title"><div><p className="eyebrow">{t.courses.workspace}</p><h1>{course.data.name}</h1><p>{course.data.goal || t.courses.goalEmpty}</p><div className="actions"><Link className="button quiet" to={`/courses/${courseId}/review`}>{t.review.open}</Link><Link className="button quiet" to={`/courses/${courseId}/progress`}>{t.progress.open}</Link><Link className="button quiet" to={`/courses/${courseId}/history`}>{t.history.heading}</Link></div></div>{course.data.brief?.overview || course.data.brief?.summary ? <p className="course-overview">{course.data.brief.overview || course.data.brief.summary}</p> : null}</div>
       <LearnerSetup key={courseId} courseId={courseId} />
       <UploadPanel courseId={courseId} />
