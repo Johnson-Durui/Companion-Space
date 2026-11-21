@@ -2,7 +2,7 @@
 // Usage: npm run review:tour -- U0
 // Do not run concurrently with `npm run test:e2e`.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -20,6 +20,9 @@ const out = isAbsolute(rawOut) || rawOut.includes("/") || rawOut.includes("\\")
   ? resolve(repo, rawOut)
   : join(repo, "docs/rebuild/review", rawOut);
 mkdirSync(out, { recursive: true });
+for (const entry of readdirSync(out)) {
+  if (entry.endsWith(".png")) unlinkSync(join(out, entry));
+}
 
 const port = process.env.REVIEW_TOUR_PORT ?? "8732";
 const base = `http://127.0.0.1:${port}`;

@@ -154,7 +154,7 @@ def seed_stress_course(container):
         "segments": [{
             "id": "seg1",
             "kp_id": kp_ids[0],
-            "keypoints": ["确认闭区间连续与开区间可导前提", "结合二阶导数符号判定唯一极值点", "核对边界端点处的取值比较"],
+            "keypoints": ["确认闭区间连续与开区间可导前提并结合单调性判定唯一极值"],
             "checks": ["q1"],
             "approaches": [{"kind": "visual", "keypoint": "all", "outline": "先列条件，再按单调性逐行推导"}],
         }],
@@ -270,7 +270,7 @@ class BrowserHarnessGateway(LLMGateway):
                 '<board id="b-stress-note" type="text" title="约束条件与边界核对说明">'
                 '在验证闭区间连续性与开区间可导性之后，结合导函数严格单调递增推出驻点左侧导数为负、右侧导数为正，从而严格确定唯一全局最小值。'
                 '</board>'
-                '<say emotion="focused">我们先一起把完整的推导步骤和边界条件理清，再来看下面的综合判定题。</say>'
+                '<say emotion="focused">先看推导步骤。</say>'
             )
             return
         if "recent_board" in prompt and "browser-avatar" in prompt:
