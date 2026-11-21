@@ -58,7 +58,7 @@ export default function Courses() {
             const summary = summaries.get(course.id);
             const lesson = summary?.today_lesson;
             return (
-            <li key={course.id}>
+            <li key={course.id} data-testid="course-card">
               <Link className="course-main" to={`/courses/${course.id}`}>
                 <div><h2>{course.name}</h2><p>{course.goal || t.courses.goalEmpty}</p></div>
                 <dl>

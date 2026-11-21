@@ -55,7 +55,7 @@ function SampleRecording({ sample }: { sample: Sample }) {
           {state.ask?.widget?.options.map((option) => <button key={option.key} type="button" className="button quiet"
             onClick={() => setChoice(option.key)}>{option.key}. {option.text}</button>)}
         </div> : <>
-          {feedback ? <div aria-live="polite">{feedback.map((line, index) => <LessonText key={index} source={line} />)}</div> : null}
+          {feedback ? <div data-testid="sample-feedback" aria-live="polite">{feedback.map((line, index) => <LessonText key={index} source={line} />)}</div> : null}
           <button className="button primary" type="button" onClick={continueLesson}>{copy.continue}</button>
         </>}
       </div> : null}

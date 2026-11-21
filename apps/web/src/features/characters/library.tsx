@@ -217,7 +217,7 @@ export default function TutorLibrary() {
         {roster.data.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
       </select></label></div>
       <section className="teacher-feature" aria-label={teacher.name}>
-        <div className="teacher-stage">
+        <div className="teacher-stage" data-testid="teacher-stage">
           <TeacherPreview
             key={teacher.id}
             character={teacher}

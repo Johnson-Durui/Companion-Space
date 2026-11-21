@@ -19,7 +19,7 @@ test("the prerecorded sample accepts a choice and reaches its recap without mode
   }
   await expect(option).toBeVisible();
   await option.click();
-  await expect(page.locator(".lesson-question [aria-live=polite] p").first()).not.toBeEmpty();
+  await expect(page.getByTestId("sample-feedback").locator("p").first()).not.toBeEmpty();
   const advance = page.getByRole("button", { name: t.sample.continue });
   const recap = page.getByRole("heading", { name: t.classroom.recap });
   for (let step = 0; step < 90 && !await recap.isVisible(); step += 1) {

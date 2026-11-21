@@ -65,7 +65,7 @@ function UploadPanel({ courseId }: { courseId: string }) {
       {pending.length ? (
         <div className="pending-files">
           {pending.map((entry, index) => (
-            <div className="pending-file" key={`${entry.file.name}:${entry.file.lastModified}:${index}`}>
+            <div className="pending-file" data-testid="pending-file" key={`${entry.file.name}:${entry.file.lastModified}:${index}`}>
               <div><strong>{entry.file.name}</strong><small>{(entry.file.size / 1024 / 1024).toFixed(1)} MB</small></div>
               <label>{t.courses.role}<select name={`role-${index}`} value={entry.role} onChange={(event) => setPending((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, role: event.target.value as MaterialRole } : item))}>{roles.map((role) => <option key={role} value={role}>{t.courses.roles[role]}</option>)}</select></label>
               {entry.role === "exam" ? <div className="exam-metadata"><label>{t.courses.year}<input name={`year-${index}`} type="number" min="1900" max="2100" value={entry.year ?? ""} onChange={(event) => setPending((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, year: event.target.value ? Number(event.target.value) : undefined } : item))} /></label><label>{t.courses.examName}<input name={`exam-name-${index}`} autoComplete="off" value={entry.exam_name ?? ""} onChange={(event) => setPending((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, exam_name: event.target.value || undefined } : item))} /></label><label className="check-field"><input name={`has-answers-${index}`} type="checkbox" checked={entry.has_answers ?? false} onChange={(event) => setPending((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, has_answers: event.target.checked } : item))} />{t.courses.hasAnswers}</label></div> : null}
@@ -104,7 +104,7 @@ function Materials({ courseId }: { courseId: string }) {
     <div className="material-list">
       {revise.isError ? <Problem error={revise.error} /> : null}
       {materials.data.map((material) => (
-        <article key={material.id} data-state={material.parse_status}>
+        <article key={material.id} data-testid="material-item" data-state={material.parse_status}>
           <div className="material-main"><strong>{material.title || material.filename}</strong><small>{material.page_count ? `${material.page_count} ${t.courses.pageUnit}` : material.filename}</small></div>
           <label>{t.courses.role}<select name={`role-${material.id}`} value={material.role} disabled={revise.isPending} onChange={(event) => revise.mutate({ materialId: material.id, body: { role: event.target.value as MaterialRole } })}>{roles.map((role) => <option key={role} value={role}>{t.courses.roles[role]}</option>)}</select></label>
           <span className="status-label">{statusText(material.parse_status)}</span>
@@ -165,9 +165,9 @@ function AnalysisPanel({ courseId }: { courseId: string }) {
       {estimate?.requires_confirmation && !estimate.job ? <div className="notice"><p>{t.courses.confirmTokens.replace("{tokens}", estimate.estimated_tokens.toLocaleString())}</p><button className="button primary" disabled={start.isPending} aria-busy={start.isPending || undefined} onClick={() => start.mutate(true)}>{t.courses.confirmStart}</button></div> : null}
       {job ? (
         <div className="analysis-progress">
-          <div className="analysis-summary"><strong>{t.courses.jobStatus[job.status]}</strong><span>{Math.round(job.progress * 100)}%</span><span>{(job.tokens_in + job.tokens_out).toLocaleString()} token</span></div>
+          <div className="analysis-summary" data-testid="analysis-summary"><strong>{t.courses.jobStatus[job.status]}</strong><span>{Math.round(job.progress * 100)}%</span><span>{(job.tokens_in + job.tokens_out).toLocaleString()} token</span></div>
           <progress max="1" value={job.progress}>{Math.round(job.progress * 100)}%</progress>
-          <ol className="stage-rail">
+          <ol className="stage-rail" data-testid="stage-rail">
             {stages.map((stage, index) => <li key={stage} data-state={index < currentIndex || job.status === "completed" ? "done" : index === currentIndex ? job.status : "waiting"}><span>{index + 1}</span>{t.courses.stages[stage as keyof typeof t.courses.stages]}</li>)}
           </ol>
           <p className="analysis-detail" role="status">{job.detail ?? (job.status === "queued" ? t.courses.queued : "")}</p>
@@ -186,11 +186,11 @@ function SourcePage({ courseId, reference }: { courseId: string; reference: { ma
   if (page.isPending) return <Loading />;
   if (page.isError) return <Problem error={page.error} onRetry={() => void page.refetch()} />;
   const material = materials.data?.find((entry) => entry.id === reference.material_id);
-  return <div className="source-page"><strong>{material?.title || material?.filename || t.courses.source} · {t.courses.page.replace("{page}", String(reference.page_no))}</strong>{page.data.has_image ? <img src={materialPageImage(reference.material_id, reference.page_no)} width="1600" height="1200" loading="lazy" alt={t.courses.sourceImage.replace("{page}", String(reference.page_no))} /> : null}<pre>{page.data.markdown}</pre><small>{t.courses.pageSource[page.data.source as keyof typeof t.courses.pageSource] ?? page.data.source} · {Math.round(page.data.quality * 100)}%</small></div>;
+  return <div className="source-page" data-testid="source-page"><strong>{material?.title || material?.filename || t.courses.source} · {t.courses.page.replace("{page}", String(reference.page_no))}</strong>{page.data.has_image ? <img src={materialPageImage(reference.material_id, reference.page_no)} width="1600" height="1200" loading="lazy" alt={t.courses.sourceImage.replace("{page}", String(reference.page_no))} /> : null}<pre>{page.data.markdown}</pre><small>{t.courses.pageSource[page.data.source as keyof typeof t.courses.pageSource] ?? page.data.source} · {Math.round(page.data.quality * 100)}%</small></div>;
 }
 
 function ExamItems({ items }: { items: ExamItem[] }) {
-  return <>{items.map((item) => <article key={item.id}><div><strong>{item.no}</strong><span className="answer-status">{t.courses.answerStatus[item.answer_status as keyof typeof t.courses.answerStatus] ?? item.answer_status}</span></div><p>{item.stem}</p>{Object.entries(item.options).map(([key, value]) => <p key={key}>{key}. {value}</p>)}{item.answer ? <details><summary>{t.courses.answer}</summary><p>{item.answer}</p>{item.solution ? <p>{item.solution}</p> : null}</details> : null}</article>)}</>;
+  return <>{items.map((item) => <article key={item.id} data-testid="exam-item"><div><strong>{item.no}</strong><span className="answer-status">{t.courses.answerStatus[item.answer_status as keyof typeof t.courses.answerStatus] ?? item.answer_status}</span></div><p>{item.stem}</p>{Object.entries(item.options).map(([key, value]) => <p key={key}>{key}. {value}</p>)}{item.answer ? <details><summary>{t.courses.answer}</summary><p>{item.answer}</p>{item.solution ? <p>{item.solution}</p> : null}</details> : null}</article>)}</>;
 }
 
 function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { courseId: string; point: KnowledgePoint; allPoints: KnowledgePoint[]; onChanged: () => void }) {

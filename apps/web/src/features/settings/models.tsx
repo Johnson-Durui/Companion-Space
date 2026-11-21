@@ -114,7 +114,7 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
     onSuccess: refresh,
   });
   return (
-    <article className="connection">
+    <article className="connection" data-testid="connection-card">
       <h3>{connection.label}</h3>
       {connection.base_url ? <p className="hint">{connection.base_url}</p> : null}
       <div className="actions">
@@ -127,7 +127,7 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
       </div>
       {test.data?.length === 0 ? <p role="status" className="hint">{t.settings.testedNone}</p> : null}
       {test.data?.length ? (
-        <ul className="test-results" aria-live="polite">
+        <ul className="test-results" data-testid="test-results" aria-live="polite">
           {test.data.map((result) => {
             const detail = result.ok
               ? (result.code === "stt_verified_silent" ? t.settings.sttVerifiedSilent : "")
@@ -196,7 +196,7 @@ function RoleRow({ role, value, connections, busy, onSave }: {
     if (model && connectionId) onSave(role, { connection_id: connectionId, model, params: { ...params } });
   }
   return (
-    <details className="role-row">
+    <details className="role-row" data-testid="role-row">
       <summary><span className="role-caption"><strong>{roleLabel(role)}</strong><small>{value?.model ?? t.settings.noRole}</small></span></summary>
       <form className="fields" onSubmit={submit}>
         <div className="field-row">

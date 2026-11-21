@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import t from "../../apps/web/src/locales/zh-CN.json";
+import { pick } from "./helpers";
 
 const screenshots = resolve("docs/rebuild/review/M3");
 
@@ -15,7 +16,7 @@ test("learner preferences and course constraints persist", async ({ page, browse
   await expect(page.getByRole("heading", { name: t.learner.heading, exact: true })).toBeVisible();
   await page.getByText(t.learner.heading, { exact: true }).click();
   await page.getByLabel(t.learner.nickname).fill("小林");
-  await page.getByLabel(t.learner.style).selectOption("rigorous");
+  await pick(page, t.learner.style, "rigorous");
   await page.getByRole("button", { name: t.learner.saveProfile }).click();
   await expect(page.getByRole("status").filter({ hasText: t.common.saved })).toBeVisible();
 
@@ -28,11 +29,11 @@ test("learner preferences and course constraints persist", async ({ page, browse
   await page.getByRole("button", { name: t.learner.saveCourse }).click();
   expect((await defaultSave).ok()).toBe(true);
 
-  await page.getByLabel(t.learner.goalType).selectOption("exam");
+  await pick(page, t.learner.goalType, "exam");
   await page.getByLabel(t.learner.examName).fill("期末考试");
   await page.getByLabel(t.learner.examDate).fill("2027-01-15");
   await page.getByLabel(t.learner.targetScore).fill("85");
-  await page.getByLabel(t.learner.selfLevel).selectOption("attended_but_lost");
+  await pick(page, t.learner.selfLevel, "attended_but_lost");
   await page.getByRole("button", { name: t.learner.saveCourse }).click();
   await expect(page.getByRole("status").filter({ hasText: t.common.saved })).toHaveCount(2);
 

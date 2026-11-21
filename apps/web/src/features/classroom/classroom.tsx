@@ -385,7 +385,7 @@ function Lesson({ id }: { id: string }) {
       onClick={() => void (connected ? live.start(live.lastAudio) : live.reconnect())}>{copy.retry}</button></div> : null}
     {live.fallback ? <div className="notice" role="status">{live.fallback}<Link className="text-link" to="/settings#voice">{copy.voiceSettings}</Link></div> : null}
     <div className="lesson-surface">
-      <aside className="lesson-stage">
+      <aside className="lesson-stage" data-testid="lesson-stage">
         {teacherConfig ? (
           <TutorVideoBox
             ref={videoRef}

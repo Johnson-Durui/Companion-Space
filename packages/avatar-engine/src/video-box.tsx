@@ -157,6 +157,7 @@ export function TutorVideoBox({
   return (
     <div
       className={`tvb-frame ${compact ? "tvb-compact" : ""}`}
+      data-testid="tutor-video-box"
       data-aspect={config.aspectRatio}
       data-pose={pose}
       data-emotion={emotion}

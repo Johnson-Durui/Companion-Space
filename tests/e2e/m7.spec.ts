@@ -9,7 +9,7 @@ const screenshots = resolve("docs/rebuild/review/M7");
 test("course home shows today's resumable lesson and batched review summary", async ({ page }) => {
   mkdirSync(screenshots, { recursive: true });
   await page.goto("/courses");
-  const course = page.locator(".course-list li").filter({ has: page.locator('a[href="/courses/browser-today-course"]') });
+  const course = page.getByTestId("course-card").filter({ has: page.locator('a[href="/courses/browser-today-course"]') });
   await expect(course.getByText(t.courses.today, { exact: true })).toBeVisible();
   await expect(course.getByText(t.courses.dueReviews.replace("{count}", "0"))).toBeVisible();
   await expect(course.getByRole("link", { name: t.courses.continueLesson })).toHaveAttribute(

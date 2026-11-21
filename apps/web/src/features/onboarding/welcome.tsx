@@ -47,7 +47,7 @@ export default function Welcome() {
         </nav>
       </div>
       <section id="teacher-picker" className="teacher-feature" aria-labelledby="teacher-name">
-        <div className="teacher-stage">
+        <div className="teacher-stage" data-testid="teacher-stage">
           <TeacherPreview key={candidate.id} character={candidate} />
         </div>
         <div className="teacher-detail">
