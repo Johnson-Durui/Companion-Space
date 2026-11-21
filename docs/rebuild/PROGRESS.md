@@ -280,8 +280,48 @@
 
 ## 体验重塑
 
-### 体验重塑 U0 — 进行中（2026-11-21）
+### 体验重塑 U0 — 代码完成（自动化通过）（2026-11-22）
+
+**怎么验收**
+
+- 前端生产产物 `apps/web/dist` 已在最后一次代码改动后通过完整门禁重新构建（771ms），启动后直接看到最新界面。
+- 启动方式：
+  - 使用日常真实数据：双击 `start.bat`。
+  - 使用全新隔离数据（不触碰真实数据）：运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-review.ps1`。
+- U0 所有者验收清单（共 7 项）与离线截图对照（全部位于 `docs/rebuild/review/U0/`）：
+  1. 课上故意答错、再点「没听懂」均不做点赞，而是安抚动作：**需要真实 AI 服务**；离线先看 `62-lesson-verdict-incorrect.png`（答错安抚）与 `61-lesson-confused-comfort.png`（没听懂安抚）。
+  2. 第一次进入新课，老师画面不再写「已暂停」而是「等你上课」：**无需 AI 服务**；另见 `45-lesson-prestart.png`。
+  3. 新建空课展开「学习设置」并跳过访谈，摸底显示「读完资料后开放」；上传资料分析完成后摸底题出现：前半**无需 AI 服务**（见 `42-empty-course-placement-wait.png`），后半分析完成出现摸底题**需要真实 AI 服务**。
+  4. 无计划课程在课程列表显示「尚未生成学习计划」，不再显示「今天的计划已完成」：**无需 AI 服务**；另见 `05-courses-list.png`。
+  5. 浏览器标签页显示临时品牌图标（`apps/web/public/favicon.svg`），课程 / 老师 / 设置各页标签页标题各不相同：**无需 AI 服务**。
+  6. 地址栏输入不存在路径，显示「这一页不存在」并提供「回到课程列表」按钮：**无需 AI 服务**；另见 `73-not-found-404.png`。
+  7. 画不出来的图提示为中文「这张图没画出来」：**无需 AI 服务**；直接查看 `60-board-blocks-full.png`。
+- 压力内容与手机视口对照截图（供核对观感五问）：`05-courses-list.png`（3+ 门课 + 空课 + 41 字课程名）、`40-stress-course-map.png` / `41-stress-course-map-full.png`（66 知识点地图）、`43-stress-lesson-question.png` / `44-stress-lesson-question-full.png`（37 字课题 + 22 行长公式白板 + 三行题干 + 6 个长选项）、`74-m-welcome.png` 至 `86-m-lesson-question-full.png`（390×844 手机宽度）。
 
 **待完成与待验证**
 
-- U0 止血与准备正在执行中。
+- **所有者手工验收与真实模型核验未做**：清单第 1 条（真实 AI 课堂答错/没听懂）与第 3 条后半（真实资料分析完成后摸底开放）、其余手工点检项以及观感五问仍待所有者验收确认；确认通过前不启动 U1。
+- **设计系统规格 §12（25 条完成定义）逐项核对（U0 仅止血不换肤）**：
+  - 本里程碑已达标或推进：第 15 条（补齐了此前被吞掉的错误态与重连死胡同）、第 16 条部分（五处后端路由 + 视频降级 + 白板失败改为错误码与中文文案，尚缺统一「发生了什么+怎么做+可展开详情」错误组件）、第 20 条（修复首次未开课、思考姿态、答后讲评期状态标签与动作覆盖错误）、第 24 条部分（补齐每路由标题、切页聚焦 `<h1>` 与滚回顶部）。
+  - 尚未达标（按计划归属 U1–U7）：第 1–5 条（按下缩放、延迟加载指示、同形骨架、按钮转圈、toast → U1）、第 6–9 条（动效 token 与减少动态效果按组件降级 → U1/U2a）、第 10–14 条（新间距/圆角/六档字阶/等宽数字/40px 目标/单主按钮 → U1–U3）、第 17–19 条（自定义确认框/下拉/进度条/音频条、学生词表术语清理 → U1/U7）、第 21–23 条（字幕两行限制、片段预取无黑帧、提示音 → U2a/U2b/U6）、第 25 条（八组老师主题色与对比度单测 → U1）。
+
+**已落地**
+
+- **入口与约定（任务 1）**：向根目录 `AGENTS.md` 追加四段 U 阶段约定原文，并在 `PROGRESS.md` 开设「体验重塑」章节；首次先行单独提交了计划书、规格与参考样张（`f814f14`）。
+- **工具与压力内容夹具（任务 2）**：新增纯 ASCII 启动脚本 `scripts/start-review.ps1`、原生下拉封装 `tests/e2e/helpers.ts`、自举夹具服务（端口 8732）与失败非零退出的巡览脚本 `tests/e2e/ui-tour.mjs` 及 `npm run review:tour`；在 `services/api/tests/fakes/e2e.py` 与 `e2e_server.py` 登记空课程、66 知识点压力课程、22 行长公式+6 长选项压力课及独立不变量课堂场景。
+- **E2E 定位迁移与体验不变量（任务 3–4）**：`tests/e2e/m1–m8` 全部移除 CSS 类定位器与旧类不存在断言，改用角色/名称、`data-testid`、`data-*` 状态属性及 `helpers.ts` 的 `pick`；新增 `tests/e2e/ux-invariants.spec.ts` 覆盖 I1、I2（全 18 个路由含空课与压力课）及 I9 前半（答错、我不会、没听懂、给点提示）。
+- **形象与状态止血（任务 5）**：`feedback_reaction` 不再覆写为表扬片段（`choreographer.ts` / `loop-pack-driver.ts`，托腮保持循环记入 `DECISIONS.md`）；`lesson-state.ts` 新增纯函数 `resolveClassroomDisplay` 与 `isSubmissionLocked`，修复首次进课显示「等你上课」、思考时不播讲话姿态、提交/判题后不回显「等你回答」、仅在新 `ask` 到达时清空 `judge`、以及收到错误事件后立即解锁题目表单。
+- **样式清理与自定义属性检查（任务 6）**：定义 `--surface-soft` 与 `--panel`，删除经 grep 核实无引用的旧类与 `packages/board/board.module.css` 死规则，合并重复的窄屏媒体块；新增前端单测 `apps/web/tests/styles-tokens.test.ts`（I4 第一部分）。
+- **英文与原文残留清理（任务 7 / B10 U0 部分）**：白板失败与原页图替代文本改为中文（同步更新 `m4b.spec.ts`）；新增 `apps/web/src/features/plan/item-kind.ts` 集中计划项类型判断与本地化标题；视频降级原因改为 `VideoDriverDegradedCode` 错误码映射；访谈、摸底、练习讲评、模型连接与角色导入五处后端补齐错误码（`CodedValueError`）并由前端 `zh-CN.json` 映射。
+- **吞掉的错误、死胡同与无计划文案（任务 8–9）**：练习保存失败改为就近 `<Problem onRetry>` 可重试；资料修改、分析重试、跳过访谈、结束摸底、计划调整与课程仪表盘错误全部可见；课程地图区分「尚未生成」与「请求失败」；课堂断线后「继续课堂」按钮恢复可点击并重连清零计数，且沿用上次语音/文字方式；后端 `CourseDashboard` 新增 `has_plan` 字段，无计划课程显示「尚未生成学习计划」。
+- **摸底不被永久跳过（任务 10 / B3）**：资料未读完或无诊断题时返回 `status="unavailable"` + `unavailable_reason`，不再持久化为 `skipped`，兼容唤醒历史 `skipped` 记录并新增 `POST /api/v2/courses/{course_id}/placement/restart`；资料分析完成自动失效摸底缓存；未读完资料显示「读完资料后开放」。
+- **按钮语义、文档层与数据新鲜度（任务 11–13）**：禁用按钮光标改为 `not-allowed`，进行中按钮增加 `aria-busy` 与 `progress` 光标；新增临时品牌图标 `apps/web/public/favicon.svg`、全路由独立 `document.title`、切页滚顶并聚焦 `<h1>`、404 页、保留顶栏导航的路由级 `ErrorBoundary` 与子页父导航高亮；React Query 对非 4xx 查询默认重试 1 次（修改不重试）；课堂收到小结时使课程、计划与进度缓存失效。
+
+**本地验证**
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1 -Frontend -Contract` 全绿：
+  - Ruff 检查通过；后端 Pytest **453 通过、0 失败、2 跳过**（Windows 符号链接权限跳过；含新增 B3 测试与仪表盘 `has_plan` 回归，并放宽了 `test_m5_live.py` 预备下一拍轮询上限以消除 Windows 0.55s 偶发超时）。
+  - OpenAPI 契约检查（`npm run generate:api:check`）与防空壳/中文文案扫描（`scripts/check_no_fakes.py`）通过。
+  - 前端 `tsc --noEmit`、`eslint`、Vitest **8 文件 36 项通过**（含新增动作-片段对应、判定清空、出错解锁与自定义属性检查）、`vite build`（771ms）通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**13 项全部通过**（`m1`–`m8` 迁移后全绿，`ux-invariants.spec.ts` I1 / I2 / I9 前半全绿）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U0`：**40 步通过、0 失败**，产出 86 张截图至 `docs/rebuild/review/U0/`，并已人工抽检关键截图与压力内容截图。
