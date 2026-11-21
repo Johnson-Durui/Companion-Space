@@ -132,12 +132,7 @@
 .lesson-board-title h2 { color: var(--ink); font-family: var(--serif); }
 .lesson-start, .lesson-question, .lesson-answer-label { display: grid; gap: 14px; }
 .lesson-block { display: grid; gap: 8px; padding: 4px 0; overflow-wrap: anywhere; }
-.lesson-block[data-kind="title"] { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; }
-.lesson-block[data-marked="true"], .lesson-block[data-kind="callout"] { border-inline-start: 3px solid var(--accent); padding-inline-start: 14px; }
-.lesson-block[data-kind="code"] pre { overflow-x: auto; padding: 12px; background: var(--accent-soft); border-radius: var(--r-sm); }
 .lesson-block ul { list-style: disc; padding-inline-start: 24px; }
-.lesson-line { text-align: start; max-width: 100%; overflow: auto; }
-.lesson-line:hover { background: var(--accent-soft); }
 .lesson-question fieldset { display: grid; gap: 12px; min-width: 0; border: 1px solid var(--line); padding: 14px; border-radius: var(--r-md); }
 .lesson-question legend { padding: 0 6px; font-weight: 700; }
 .lesson-choices { display: grid; gap: 8px; }

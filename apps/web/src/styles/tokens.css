@@ -4,6 +4,8 @@
   color-scheme: light;
   --bg: #f4f0e8;
   --paper: #fffdf7;
+  --panel: var(--paper);
+  --surface-soft: #f8f6ef;
   --ink: #102f34;
   --muted: #596c67;
   --line: #d2dcd6;
@@ -104,12 +106,6 @@ h3 { font-size: 1rem; font-weight: 750; }
   overflow: hidden; isolation: isolate;
 }
 .teacher-stage > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 22%; }
-.stage-model {
-  display: grid; place-items: center; text-align: center; padding: 40px;
-  color: var(--paper); border: 16px solid var(--accent-strong); font-size: 1.125rem;
-}
-.stage-model::before, .stage-model::after { content: ""; position: absolute; inset: 16px; border: 1px solid #ffffff2b; border-radius: 50%; z-index: -1; }
-.stage-model::after { inset: 48px; border-color: #ffffff1a; }
 .teacher-detail { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 16px; min-width: 0; padding: clamp(28px, 4.8vw, 62px); }
 .teacher-type { color: var(--coral-dark); font-size: .875rem; font-weight: 750; letter-spacing: .065em; }
 .teacher-detail h2 { font: 650 clamp(2rem, 4.1vw, 3.5rem)/1.08 var(--serif); overflow-wrap: anywhere; }
@@ -120,7 +116,6 @@ h3 { font-size: 1rem; font-weight: 750; }
 .current-teacher { font-size: .875rem; min-height: 44px; display: flex; align-items: center; border: 1px solid var(--line); padding-inline: 12px; border-radius: var(--r-sm); white-space: nowrap; }
 .current-teacher::before { content: "✓"; color: var(--accent); margin-inline-end: 7px; font-weight: 750; }
 .voice-preview { min-width: 0; display: grid; gap: 12px; justify-items: start; }
-.next-link { margin-top: 4px; }
 .roster { margin-block-start: 24px; display: grid; gap: 16px; }
 .portrait-roster { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .roster-option {
@@ -128,13 +123,9 @@ h3 { font-size: 1rem; font-weight: 750; }
   background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md);
   text-align: left; font-size: .875rem; font-weight: 650; overflow-wrap: anywhere;
 }
-.roster-option:hover, .model-option:hover { border-color: var(--accent); }
-.roster-option[aria-pressed="true"], .model-option[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent) inset; }
+.roster-option:hover { border-color: var(--accent); }
+.roster-option[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent) inset; }
 .roster-option img { width: 44px; height: 44px; flex: none; border-radius: 6px; object-fit: cover; object-position: center 28%; background: var(--accent-soft); }
-.model-roster { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 12px; align-items: center; padding-block: 12px 0; border-top: 1px solid var(--line-strong); }
-.model-roster h2 { font-size: .875rem; letter-spacing: .025em; margin-inline-end: 8px; }
-.model-option { display: grid; gap: 3px; min-width: 0; padding: 10px 12px; min-height: 48px; text-align: left; border: 1px solid var(--line); border-radius: var(--r-sm); font-size: .875rem; }
-.model-option small { color: var(--muted); font-size: .75rem; }
 
 .fields { display: grid; gap: 16px; max-width: 660px; }
 .fields label, .field { display: grid; gap: 6px; min-width: 0; text-align: left; font-size: .875rem; font-weight: 650; }
@@ -212,37 +203,6 @@ details > summary { min-height: 44px; padding-block: 10px; color: var(--accent-s
   .roster-option img { width: 38px; height: 38px; }
 }
 
-@media (width < 760px) {
-  .shell { width: calc(100% - 32px); }
-  .page-title { padding-block: 28px 20px; }
-  .header-row { grid-template-columns: 1fr auto; gap: 12px; min-height: 65px; }
-  .brand-mark { inline-size: 34px; block-size: 34px; border-radius: 9px; }
-  .brand { gap: 7px; }
-  .brand strong { font-size: .95rem; }
-  .brand small { font-size: .7rem; white-space: nowrap; }
-  .local-badge { display: none; }
-  .site-nav { gap: 10px; }
-  .site-nav a { padding-inline: 3px; }
-  .site-nav a[aria-current="page"]::after { inset-inline: 3px; }
-  .teacher-feature { grid-template-columns: 1fr; min-height: auto; }
-  .teacher-stage { min-height: 360px; padding: 12px; }
-  .teacher-stage > img { object-position: center 20%; }
-  .teacher-detail { padding: 22px; gap: 12px; }
-  .teacher-detail h2 { font-size: 2.375rem; }
-  .teacher-actions { padding-block-start: 0; }
-  .portrait-roster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .roster-option { flex-direction: column; align-items: stretch; min-height: 108px; text-align: center; }
-  .roster-option img { width: 100%; height: 66px; }
-  .model-roster { grid-template-columns: 1fr; gap: 8px; }
-  .model-option { grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr); align-items: center; column-gap: 8px; }
-  .settings-layout { grid-template-columns: 1fr; gap: 14px; }
-  .settings-nav { position: static; display: flex; flex-wrap: wrap; padding: 0 0 12px; border-inline-end: 0; border-bottom: 1px solid var(--line-strong); gap: 2px 8px; }
-  .settings-nav a { padding: 4px 8px; }
-  .settings-sections { gap: 16px; }
-  .field-row { grid-template-columns: 1fr; }
-  .role-caption { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
-  .unlock-box { margin-block: 28px; }
-}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
@@ -378,10 +338,33 @@ details > summary { min-height: 44px; padding-block: 10px; color: var(--accent-s
 }
 
 @media (width < 760px) {
-  .header-row { grid-template-columns: 1fr; padding-block: 9px 0; }
-  .brand { justify-self: center; }
+  .shell { width: calc(100% - 32px); }
+  .page-title { padding-block: 28px 20px; }
+  .header-row { grid-template-columns: 1fr; gap: 12px; min-height: 65px; padding-block: 9px 0; }
+  .brand-mark { inline-size: 34px; block-size: 34px; border-radius: 9px; }
+  .brand { gap: 7px; justify-self: center; }
+  .brand strong { font-size: .95rem; }
+  .brand small { font-size: .7rem; white-space: nowrap; }
+  .local-badge { display: none; }
   .site-nav { width: 100%; justify-content: space-around; min-height: 44px; gap: 4px; }
   .site-nav a { padding-inline: 5px; font-size: .8rem; }
+  .site-nav a[aria-current="page"]::after { inset-inline: 3px; }
+  .teacher-feature { grid-template-columns: 1fr; min-height: auto; }
+  .teacher-stage { min-height: 360px; padding: 12px; }
+  .teacher-stage > img { object-position: center 20%; }
+  .teacher-detail { padding: 22px; gap: 12px; }
+  .teacher-detail h2 { font-size: 2.375rem; }
+  .teacher-actions { padding-block-start: 0; }
+  .portrait-roster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .roster-option { flex-direction: column; align-items: stretch; min-height: 108px; text-align: center; }
+  .roster-option img { width: 100%; height: 66px; }
+  .settings-layout { grid-template-columns: 1fr; gap: 14px; }
+  .settings-nav { position: static; display: flex; flex-wrap: wrap; padding: 0 0 12px; border-inline-end: 0; border-bottom: 1px solid var(--line-strong); gap: 2px 8px; }
+  .settings-nav a { padding: 4px 8px; }
+  .settings-sections { gap: 16px; }
+  .field-row { grid-template-columns: 1fr; }
+  .role-caption { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
+  .unlock-box { margin-block: 28px; }
   .title-actions, .course-title, .section-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
   .course-title { padding-block-start: 24px; }
   .course-overview { max-width: none; }
