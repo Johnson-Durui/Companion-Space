@@ -1,16 +1,112 @@
+<div align="center">
+
 # Companion Space
 
-[中文](README.md)
+**A local-first, video-call style anime AI 1-on-1 tutor**
 
-Companion Space is a local-first, single-user AI tutor. Import your own textbooks, slides, exams, and notes; build a source-linked course map; complete a learner interview and placement check; then study in a live classroom with voice, a synchronized board, a WeChat-video-call style animated anime tutor, and review cards.
+Drop in your textbooks, slides, notes, and past exams — study live with six original animated anime tutors, a synchronized blackboard, instant interruptions, and FSRS spaced review on your own machine.
 
-![Six built-in anime tutors](docs/images/six-anime-tutors.jpg)
+[简体中文](README.md) · [English](README.en.md) · [Changelog](CHANGELOG.md) · [Asset Licenses](assets/avatars/LICENSES.md)
 
-Current release: `1.0.0-rc.2` (Apache-2.0 open source). Application data stays on this computer by default. When you use an external model, the text or images required for that operation are sent to the provider you configure.
+[![CI](https://github.com/Johnson-Durui/Companion-Space/actions/workflows/ci.yml/badge.svg)](https://github.com/Johnson-Durui/Companion-Space/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Johnson-Durui/Companion-Space?include_prereleases&label=release)](https://github.com/Johnson-Durui/Companion-Space/releases)
+[![License](https://img.shields.io/badge/License-Apache--2.0-2d6a4f.svg)](LICENSE)
+[![Local-First](https://img.shields.io/badge/Local--First-127.0.0.1-1b4332.svg)](#local-first--privacy)
 
-## Three-command quick start
+</div>
 
-Windows 10/11, Python 3.12+, and Node.js 24 are required. In PowerShell:
+<p align="center">
+  <img src="docs/images/classroom-showcase.png" alt="Companion Space live classroom: 9:16 video-call anime tutor paired with synchronized LaTeX formulas, function plots, and interactive checks" width="960" />
+</p>
+
+---
+
+## Why Companion Space
+
+Most AI study apps are just scrolling chat windows, while browser 3D VRM avatars burn GPU power and still feel stiff.
+
+**Companion Space** takes a lighter, more human approach:
+
+- **Feels like a 1-on-1 video call**: Tutors live inside a vertical **9:16 pure-video frame** (`<TutorVideoBox>`) with 180 ms dual-`<video>` crossfades and 150 ms micro-reactions when you answer right or wrong — zero WebGL/3D overhead.
+- **Built around your own study materials**: Import PDF, PPTX, DOCX, images, Markdown, or plain text as textbooks, lecture notes, or past exams. Models build a source-linked course map that you can inspect and edit anytime, followed by a learner interview and study plan.
+- **Synchronized blackboard + real-time interruptions**: Formulas (KaTeX), function plots, tables, and diagrams appear right as the tutor speaks. Interrupt mid-sentence to ask questions, switch teaching styles, or request an example — then lock in retention with **FSRS review cards** and mistake drills.
+- **Runs locally on your machine**: Single-process loopback server (`127.0.0.1`), no mandatory cloud account, and full ownership over your data and model providers.
+
+---
+
+## Six Built-In Anime Tutors (Animated Out of the Box)
+
+All six built-in tutors are original **Apache-2.0** creations shipping with **complete 8/8 silent VP9 motion loop packs** (`idle_breathe`, `listen_nod`, `think_chin`, `speak_explain_a/b`, `board_point`, `react_praise`, `react_comfort`) plus studio-dry normalized **24 kHz voice-clone reference WAVs** ([`assets/avatars/voices/`](assets/avatars/voices/voices_manifest.json)) ready for custom TTS / voice cloning pipelines.
+
+<p align="center">
+  <img src="docs/images/six-anime-tutors.jpg" alt="Six original built-in anime tutors: Xuechuan, Shenyan, Lanyue, Chutang, Qingheng, Lanyin" width="880" />
+</p>
+
+| Tutor | Persona & Specialty | Default Style | Signature Line | Bundled Assets |
+| :--- | :--- | :--- | :--- | :--- |
+| **雪川 (Xuechuan)** | Clear, patient astronomy TA who maps abstract concepts like star charts | Guided | *"Take your time — let's split this problem into a few anchor stars and connect them."* | 8/8 VP9 clips + 24 kHz ref WAV |
+| **沈砚 (Shenyan)** | Decisive logic & strategy mentor focused on constraints and core conclusions | Direct | *"Check the boundary conditions first, then draw the conclusion straight to the core."* | 8/8 VP9 clips + 24 kHz ref WAV |
+| **岚玥 (Lanyue)** | Graceful literature & imagery tutor who turns dense definitions into vivid mental pictures | Analogy | *"Place a tough definition inside a single image and you'll remember it at a glance."* | 8/8 VP9 clips + 24 kHz ref WAV |
+| **初棠 (Chutang)** | Warm everyday study companion focused on encouragement and untangling tricky traps | Guided | *"No worries — you're already onto the key idea, let's take one small step forward together."* | 8/8 VP9 clips + 24 kHz ref WAV |
+| **青衡 (Qingheng)** | Erudite humanities & deduction scholar emphasizing causal chains and solid proof | Rigorous | *"Everything follows a causal thread; once the reasoning lines up, it clicks."* | 8/8 VP9 clips + 24 kHz ref WAV |
+| **澜音 (Lanyin)** | Sharp acoustics & exam-prep coach targeting high-frequency test signals and scoring points | Exam Prep | *"Catch the signal words in the prompt — that's right where points are won or lost."* | 8/8 VP9 clips + 24 kHz ref WAV |
+
+---
+
+## Interface Tour
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/images/welcome-showcase.png" alt="Welcome page tutor roster and voice preview" />
+      <p align="center"><sub><b>1. Welcome & Tutor Picker</b> — Switch between all six animated tutors, preview voices, or launch the built-in sample lesson with no API key</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/images/characters-showcase.png" alt="Character library with 8/8 slot badges, pose testing, and .tutorpack importer" />
+      <p align="center"><sub><b>2. Tutor Library & <code>.tutorpack</code> Manager</b> — Inspect 8/8 motion slots, test all 7 classroom reactions, drop a single image to create a tutor, or import a <code>.tutorpack</code></sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <img src="docs/images/avatar-settings-showcase.png" alt="Avatar settings with local GPU sidecar drivers and budget guardrails" />
+      <p align="center"><sub><b>3. Avatar Engine & Local GPU Sidecar Settings</b> — Connect local GPU neural drivers with zero per-minute cost, plus hard duration/budget guardrails for optional cloud live drivers</sub></p>
+    </td>
+  </tr>
+</table>
+
+---
+
+## Three-Tier Pure-Video Avatar Architecture
+
+Scales smoothly from an everyday laptop to a local GPU workstation:
+
+| Tier | Mode | Best For | Hardware & Cost |
+| :--- | :--- | :--- | :--- |
+| **Tier 0** | Single-Image Static Portrait | Drop in any PNG / JPG / WebP to spin up a custom tutor instantly | Any browser · Free |
+| **Tier 1 (Default)** | 8-Slot Video Loop Pack (`.tutorpack`) | Dual-`<video>` 180 ms seamless crossfade + 150 ms instant classroom reactions | Any browser · Zero per-minute cost |
+| **Tier 2 (Optional)** | Local GPU Sidecar | Connect `sidecars/local-gpu-avatar/` to local open-source drivers (LivePortrait / Ditto / MuseTalk, etc.) | Your local GPU · Zero per-minute cost |
+
+### Build Your Own `.tutorpack`
+
+Use the standalone [`tools/tutorpack/`](tools/tutorpack/README.md) CLI alongside the bundled per-character 8-clip prompts and ComfyUI start/end-frame workflow:
+
+```bash
+# Validate a tutor pack directory (all 8 motion slots + manifest)
+python tools/tutorpack/cli.py validate assets/avatars/packs/tutor-chutang
+
+# Bundle into a shareable .tutorpack archive
+python tools/tutorpack/cli.py pack ./my-tutor-dir -o my-tutor.tutorpack
+```
+
+---
+
+## Quick Start
+
+### Option 1: Run from Source (Recommended)
+
+Requires **Python 3.12+** and **Node.js 24+**.
+
+**Windows (PowerShell or double-click `start.bat`):**
 
 ```powershell
 git clone https://github.com/Johnson-Durui/Companion-Space.git
@@ -18,68 +114,69 @@ cd Companion-Space
 powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-The browser opens `http://127.0.0.1:8000/welcome`. Open the sample lesson to see the board, answer a question, get feedback, and reach the recap without an API key. The sample plays a recording generated by a real model.
+**macOS / Linux:**
 
-![Sample lesson board and answer feedback](docs/images/sample-lesson.png)
-
-To study your own materials, open Settings → Models, choose a provider, save its API key, and test the analysis, chat, vision, and embedding roles. The preset list can filter for providers with free-tier options. Check the provider's terms for current limits.
-
-## What works now
-
-- PDF, PPTX, DOCX, image, Markdown, and plain-text import with textbook, notes, exam, and other material roles.
-- Course maps, knowledge points, exam links, and answer-review status generated by configured real models and editable by the owner.
-- Learner interview, placement, study plan, live text/voice classroom, synchronized board, interruption, and reconnect handling.
-- FSRS review cards and mistake review after lessons.
-- Vertical video-call style pure-video tutor box (`<TutorVideoBox>`): six original Apache-2.0 9:16 anime tutors (`雪川`, `沈砚`, `岚玥`, `初棠`, `青衡`, `澜音`) shipping with complete **8/8 Tier 1 silent VP9 video loop packs** (180 ms dual-video crossfade and 150 ms instant teaching reactions out of the box) plus dry 24 kHz voice-clone reference WAVs, alongside single-image and `.tutorpack` import in `/characters`. Legacy 3D VRM models and historical portraits are archived under `assets-archive/`.
-- Includes the anime `.tutorpack` CLI toolchain with six character-specific 8-clip prompt sheets (`tools/tutorpack/`) and an independent Apache-2.0 local GPU real-time avatar sidecar template (`sidecars/local-gpu-avatar/`), configurable under Settings → Avatar with zero per-minute cost by default.
-- Edge online speech is the zero-setup default. Local Sherpa STT is an optional source install; its runtime and model weights are not bundled.
-
-## Windows portable package
-
-Maintainers can build and smoke-test a directory archive with embedded CPython 3.14.10 x64:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-portable.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-portable.ps1
+```bash
+git clone https://github.com/Johnson-Durui/Companion-Space.git
+cd Companion-Space
+./start.sh
 ```
 
-The ZIP and its SHA-256 file are written to `outputs/`. Users extract it and double-click `start.bat`; data is stored under the extracted `data/` directory. The application is not code-signed yet, so Windows SmartScreen may report an unknown publisher. Use only a project-release artifact whose SHA-256 matches, then choose More info → Run anyway. Do not use untrusted mirrors.
+The browser opens `http://127.0.0.1:8000/welcome`:
 
-All six active built-in anime tutor anchor portraits are owner-verified under Apache-2.0 and included cleanly in the portable build alongside `PORTABLE-ASSET-STATUS.md`. Retired historical portraits and 3D VRM files remain archived under `assets-archive/` and excluded from distributions.
+1. **Try without an API key**: Click the sample lesson button to experience synchronized board playback, interactive checks, feedback, and recap right away.
+2. **Study your own materials**: Open **Settings → Models**, configure any OpenAI-compatible or supported provider (with a quick filter for free-tier options), test the connection, and start importing your PDF / PPTX / DOCX / image / Markdown materials.
 
-## Docker (optional)
-
-Compose starts one service that serves both the API and web application:
+### Option 2: Single-Container Docker Compose
 
 ```bash
 docker compose up --build -d
-docker compose ps
 curl http://127.0.0.1:8000/healthz
 ```
 
-Data is stored in the `companion_data` volume. The port binds to loopback only. Do not change it to `0.0.0.0` and expose it directly to a LAN or the internet. The optional master password protects model credentials; it is not a reverse-proxy access password. Remote access requires an HTTPS reverse proxy with its own authentication. This Compose file deliberately does not open a remote endpoint.
+Serves both the FastAPI backend and built web frontend in one container, persisting data in the `companion_data` volume and binding strictly to loopback (`127.0.0.1`).
 
-## Optional local speech recognition
+### Optional Extras
 
-Install the Sherpa extension in a source environment with:
+- **Offline Speech Recognition (Sherpa STT)**: Online Edge TTS works with zero setup; to enable local in-memory speech recognition in a source install:
+  ```bash
+  pip install -r services/api/requirements-local-stt.txt
+  ```
+- **Windows Portable ZIP Builder**: Maintainers with Python 3.14 x64 can run `.\scripts\build-portable.ps1` and `.\scripts\smoke-portable.ps1` to generate a self-contained portable archive + SHA-256 checksum under `outputs/`.
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r services/api/requirements-local-stt.txt
+---
+
+## Local-First & Privacy
+
+- **Loopback by default**: Binds to `127.0.0.1:8000` only. Do not expose it directly on `0.0.0.0`; if you need remote access, place it behind your own HTTPS reverse proxy with independent authentication.
+- **You own your files**: Course databases, uploaded files, and settings live locally (`storage/` for source runs, or any custom directory via `COMPANION_DATA_DIR`), with an optional master-password vault protecting stored API keys.
+- **Explicit external calls**: Only the text or image payloads needed for your active request are sent to the model or speech providers you choose to configure.
+
+---
+
+## Project Layout
+
+```text
+Companion-Space/
+├── apps/web/                 # React 19 + TypeScript + Vite web application
+├── packages/
+│   ├── avatar-engine/        # <TutorVideoBox> pure-video choreographer & state machine
+│   ├── board/                # Synchronized blackboard (KaTeX, function plots, Mermaid, tables)
+│   └── api-client/           # OpenAPI-generated typed client
+├── services/api/             # FastAPI backend (course analysis, live WS teaching, FSRS, avatars & voice)
+├── assets/avatars/
+│   ├── portraits/            # 6 original 9:16 anchor portraits (WebP)
+│   ├── packs/                # 6 full 8/8 silent VP9 loop packs (48 .webm clips)
+│   └── voices/               # 6 normalized 24 kHz dry voice-clone reference WAVs + manifest
+├── tools/tutorpack/          # .tutorpack scaffold/validate/pack CLI, prompts & ComfyUI template
+├── sidecars/local-gpu-avatar/# Independent Apache-2.0 local GPU real-time sidecar template
+├── infra/docker/             # Single-service Dockerfile & smoke compose
+└── docker-compose.yml        # Local single-container Docker Compose
 ```
 
-When selecting local recognition for the first time, follow the UI instructions to obtain a model and review its license. Neither Sherpa nor speech-model weights are included in the portable package. Audio is processed in memory and is never written to disk.
+---
 
-## Data, migration, and backup
+## License & Assets
 
-- Source runs default to `storage/`; portable runs use their own `data/`; Docker uses a named volume. Set `COMPANION_DATA_DIR` to choose an isolated directory.
-- Back up the complete old data directory and `vault.json` before upgrading. This RC does not delete or relocate old directories. Never point two running installations at the same data directory.
-- The old mobile shell, adult mode, third-party Live2D/Spine bridges, character builder, and multi-container Caddy deployment were retired. After loading a copy of the old database, export old conversations as Markdown from Course History. Keep the original installation and backup while you verify the migration.
-- Existing password vaults are migrated by the application when opened. If migration or unlock fails, stop writing and restore the backup; do not delete `vault.json` as a guess.
-
-## Limits and release status
-
-- Model quality, latency with a physical microphone and headphones, and the clean-Windows first run still require validation. Material analysis and live lessons require a configured model.
-- The portable executable is unsigned, and no Docker image is currently published.
-- All six built-in anime tutors ship with full 8/8 Tier 1 video loop packs and voice-clone reference WAVs; live browser visual review and optional local GPU sidecar neural drivers remain owner acceptance items.
-
-See [LICENSE](LICENSE), [NOTICE](NOTICE), and [third-party notices](assets/THIRD_PARTY_NOTICES.md). Bug reports should include the launch method, OS version, failing page, and sanitized logs. Never attach API keys, `vault.json`, or private course materials.
+- All repository code plus the six original anime tutors (portraits, 48 VP9 video clips, and 6 voice-clone WAVs) are released under **Apache-2.0**. See [LICENSE](LICENSE), [NOTICE](NOTICE), [`assets/avatars/LICENSES.md`](assets/avatars/LICENSES.md), and [`assets/THIRD_PARTY_NOTICES.md`](assets/THIRD_PARTY_NOTICES.md).
+- Issues and pull requests are welcome — please never attach real API keys, `vault.json`, or private course files to bug reports.

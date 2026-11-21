@@ -116,8 +116,10 @@ Copy-Tree 'NOTICE'
 Copy-Tree 'README.md'
 Copy-Tree 'README.en.md'
 Copy-Tree 'CHANGELOG.md'
-Copy-Tree 'docs\images\sample-lesson.png'
 Copy-Tree 'docs\images\six-anime-tutors.jpg'
+Copy-Tree 'docs\images\classroom-showcase.png'
+Copy-Tree 'docs\images\welcome-showcase.png'
+Copy-Tree 'docs\images\characters-showcase.png'
 New-Item -ItemType Directory -Path (Join-Path $stage 'data') -Force | Out-Null
 
 # All six active built-in anime tutor anchor portraits (xuechuan, shenyan, lanyue,
