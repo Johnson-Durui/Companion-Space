@@ -309,3 +309,29 @@ def test_objective_answer_triggers_on_judge_before_realizer_runs(isolated_settin
     assert order == ["judge:correct", "realizer"]
     assert captured_context.get("recent_avatar_action") == "praise_thumbs_up"
     assert any(row["type"] == "judge" and row["data"]["verdict"] == "correct" for row in rows)
+
+
+def test_builtin_six_teachers_auto_discover_full_loop_packs(client, owner_token):
+    auth = {"Authorization": f"Bearer {owner_token}"}
+    roster = client.get("/api/v2/characters", headers=auth).json()
+    builtin_ids = {
+        "tutor-xuechuan",
+        "tutor-shenyan",
+        "tutor-lanyue",
+        "tutor-chutang",
+        "tutor-qingheng",
+        "tutor-lanyin",
+    }
+    by_id = {entry["id"]: entry for entry in roster}
+    assert builtin_ids <= by_id.keys()
+    for char_id in builtin_ids:
+        teacher = by_id[char_id]
+        assert teacher["appearance"]["kind"] == "video_pack"
+        assert teacher["video_avatar"]["preferred_tier"] == "loop_pack"
+        clips = teacher["video_avatar"]["loop_pack"]["clips"]
+        assert len(clips) == 8
+    sample_url = by_id["tutor-chutang"]["video_avatar"]["loop_pack"]["clips"]["idle_breathe"]
+    resp = client.get(sample_url)
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("video/webm")
+    assert resp.content[:4] == b"\x1a\x45\xdf\xa3"

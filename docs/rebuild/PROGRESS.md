@@ -271,3 +271,9 @@
 - 已将所有者原创的六位 9:16 竖屏二次元老师（`雪川`、`沈砚`、`岚玥`、`初棠`、`青衡`、`澜音`）1080×1920 WebP 锚点图合入 `assets/avatars/portraits/` 与 `content/characters/`，并逐一登记 SHA-256 与 Apache-2.0 许可至 `assets/avatars/LICENSES.md` 和 `assets/THIRD_PARTY_NOTICES.md`；旧六张立绘（含原四张许可待核历史立绘）归档至 `assets-archive/retired-portraits/`，便携包构建脚本现可完整分发全部六位内置老师。
 - 强化 `<TutorVideoBox>` 顶部状态栏与底部字幕条深色保护渐变（`classroom.css`），提升雪川、岚玥等亮色系角色的字幕可读性；`resolve_active_character` 回退序升级为六位新内置角色，旧数据库中的 `tutor-echo` / `tutor-mira` / 退役 VRM 均无缝确定性回退至 `tutor-chutang`。
 - 在 `tools/tutorpack/prompts/characters/` 与 `outputs/数字人角色锚图-20261119/六位角色-8段视频专属提示词/` 交付 6 份中英双语、针对龙角/竹簪/发卡/曝光/肤色防穿模定制的 8 段图生视频提示词，同步接入 `/characters` 页面的「导出 8 段二次元短片提示词」按钮。
+
+### 2026-11-21 六位内置老师全套 8/8 Tier 1 动态短片包与声音克隆干声上线
+
+- 接收所有者本地 MiniMax H3-Base（`H3-Base-FL2VA`）生成的 24 条分段视频（`480×864 @ 24fps`，含 6 条 32 kHz 棚录人声），逐帧抽检全部 6 位老师画面无穿模后，按锚点加权相似度自动定位最佳切点并加入 6 帧余弦锚点柔化过渡，批量转码为 **48 段无声 VP9 `.webm`（总计 48.88 MB，全员 8/8 槽位完整）**，安装至 `assets/avatars/packs/tutor-{xuechuan,shenyan,lanyue,chutang,qingheng,lanyin}/`（均通过 `tools/tutorpack/cli.py validate` 校验，并导出 6 个便携 `.tutorpack` 至 `outputs/`）。
+- 同步从 6 位老师的 `partA-seg2` 原生 32 kHz 立体声音轨裁切静音并峰值归一化至 `-1.5 dBFS`，生成 6 份 6.7–7.2 秒无 BGM 纯干声参考 WAV（`assets/avatars/voices/*-ref-24k.wav` 及 `outputs/.../六位老师声音克隆参考音/` 32 kHz 版）与 `voices_manifest.json`，可直接接入 GPT-SoVITS / CosyVoice / FishSpeech / Qwen3-TTS 替换 Edge 语音。
+- 全部 54 个新增视频/锚图文件与 6 个声音参考文件均已在 `assets/avatars/LICENSES.md` 与 `assets/THIRD_PARTY_NOTICES.md` 登记为项目原创 Apache-2.0 资产；后端目录启动即自动发现并默认启用 Tier 1 `loop_pack`。

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "tutor-xuechuan",
+    "slug": "xuechuan",
+    "name": "雪川",
+    "ref_audio_24k": "assets/avatars/voices/xuechuan-ref-24k.wav",
+    "ref_audio_32k": "E:\\Codex\\Projects\\虚拟形象\\Companion-Space-v2\\outputs\\数字人角色锚图-20261119\\六位老师声音克隆参考音\\01-xuechuan-ref-32k.wav",
+    "prompt_text": "别急，这道题很有规律。我们把已知条件连成星轨，很快就能推出答案。",
+    "prompt_lang": "zh",
+    "duration_sec": 6.69,
+    "rms_dbfs": -15.0
+  },
+  {
+    "id": "tutor-shenyan",
+    "slug": "shenyan",
+    "name": "沈砚",
+    "ref_audio_24k": "assets/avatars/voices/shenyan-ref-24k.wav",
+    "ref_audio_32k": "E:\\Codex\\Projects\\虚拟形象\\Companion-Space-v2\\outputs\\数字人角色锚图-20261119\\六位老师声音克隆参考音\\02-shenyan-ref-32k.wav",
+    "prompt_text": "先理清题目里的核心条件与边界，别被干扰带偏，顺着主线就能破题。",
+    "prompt_lang": "zh",
+    "duration_sec": 6.79,
+    "rms_dbfs": -15.0
+  },
+  {
+    "id": "tutor-lanyue",
+    "slug": "lanyue",
+    "name": "岚玥",
+    "ref_audio_24k": "assets/avatars/voices/lanyue-ref-24k.wav",
+    "ref_audio_32k": "E:\\Codex\\Projects\\虚拟形象\\Companion-Space-v2\\outputs\\数字人角色锚图-20261119\\六位老师声音克隆参考音\\03-lanyue-ref-32k.wav",
+    "prompt_text": "遇到抽象概念，不妨先放进一幅画面里理解，抓住意象脉络便一目了然。",
+    "prompt_lang": "zh",
+    "duration_sec": 6.94,
+    "rms_dbfs": -12.4
+  },
+  {
+    "id": "tutor-chutang",
+    "slug": "chutang",
+    "name": "初棠",
+    "ref_audio_24k": "assets/avatars/voices/chutang-ref-24k.wav",
+    "ref_audio_32k": "E:\\Codex\\Projects\\虚拟形象\\Companion-Space-v2\\outputs\\数字人角色锚图-20261119\\六位老师声音克隆参考音\\04-chutang-ref-32k.wav",
+    "prompt_text": "没关系的，你已经想到关键啦。把易错点轻轻标出来，我们一起再走一遍。",
+    "prompt_lang": "zh",
+    "duration_sec": 7.19,
+    "rms_dbfs": -13.5
+  },
+  {
+    "id": "tutor-qingheng",
+    "slug": "qingheng",
+    "name": "青衡",
+    "ref_audio_24k": "assets/avatars/voices/qingheng-ref-24k.wav",
+    "ref_audio_32k": "E:\\Codex\\Projects\\虚拟形象\\Companion-Space-v2\\outputs\\数字人角色锚图-20261119\\六位老师声音克隆参考音\\05-qingheng-ref-32k.wav",
+    "prompt_text": "凡事皆有因果脉络。先静心把前后逻辑理顺，逐层推演，自然豁然开朗。",
+    "prompt_lang": "zh",
+    "duration_sec": 7.14,
+    "rms_dbfs": -15.2
+  },
+  {
+    "id": "tutor-lanyin",
+    "slug": "lanyin",
+    "name": "澜音",
+    "ref_audio_24k": "assets/avatars/voices/lanyin-ref-24k.wav",
+    "ref_audio_32k": "E:\\Codex\\Projects\\虚拟形象\\Companion-Space-v2\\outputs\\数字人角色锚图-20261119\\六位老师声音克隆参考音\\06-lanyin-ref-32k.wav",
+    "prompt_text": "注意题干里的信号词，这里最容易丢分。抓住节奏对比复盘，就能稳稳拿分。",
+    "prompt_lang": "zh",
+    "duration_sec": 6.99,
+    "rms_dbfs": -15.2
+  }
+]
