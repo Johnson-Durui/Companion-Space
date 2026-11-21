@@ -23,7 +23,8 @@
     "generate:api:check": "node scripts/generate-api-client.mjs --check",
     "test:e2e": "playwright test",
     "test:startup": "node tests/e2e/startup-check.mjs",
-    "review:tour": "node tests/e2e/ui-tour.mjs"
+    "review:tour": "node tests/e2e/ui-tour.mjs",
+    "review:gallery": "node scripts/review-gallery.mjs"
   },
   "devDependencies": {
     "openapi-typescript": "7.13.0",
