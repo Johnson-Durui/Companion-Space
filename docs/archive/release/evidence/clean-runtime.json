@@ -1,8 +1,8 @@
 {
-  "targetRoot": "E:\\Codex\\Verification\\Companion-Space-20261111-final\\Companion-Space",
+  "targetRoot": "<redacted-workspace>/Companion-Space",
   "web": "http://127.0.0.1:3411",
   "api": "http://127.0.0.1:8411",
-  "python": "E:\\Codex\\Verification\\Companion-Space-20261111-final\\Companion-Space\\.venv\\Scripts\\python.exe",
+  "python": "<redacted-workspace>/Companion-Space/.venv/Scripts/python.exe",
   "browser": "Microsoft Edge",
   "screenshots": [
     "room-desktop.png",

@@ -1,5 +1,7 @@
 # 规格 · 角色制作支线（VRoid Studio 出底模 + 代码后处理）
 
+> **状态：已取代（2026-11-19）**。项目已决定全面去除 3D VRM 与 VRoid Studio 制作支线，转向纯视频微信通话框与二次元 `.tutorpack` / 本地 GPU Sidecar 架构。请改为阅读 [`spec/tutor-video-avatar.md`](tutor-video-avatar.md) 与 [`TASK-VIDEO-AVATAR.md`](../TASK-VIDEO-AVATAR.md)，不再执行支线 C。
+
 > 这是一条**与主线并行的支线**：为 6 位立绘老师（澄羽 Mira、曜柚 Kite、凛序 Cael、弦灯 Lyra、星澜 Nova、沐音 Echo）做出好看的 3D 模型。它不阻塞任何主线里程碑；做出来之前，产品使用 6 位立绘老师和 3 个 3D 示例角色。
 > 一句话：**代理在 VRoid Studio 里点界面出底模，所有者挑选定稿，剩下的配色、贴图、压缩、检查全部交给代码。**
 > 为什么这样分：VRoid Studio 没有脚本接口、命令行或批量生成功能，代理只能像人一样看屏幕点鼠标——慢、偶尔点错，所以只让它做"非它不可"的那一小段；而改导出的 VRM 文件是纯代码，可重复、可测试，是代理最拿手的部分。

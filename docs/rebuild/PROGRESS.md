@@ -232,3 +232,48 @@
 - M8 回放测试每轮推进虚拟时钟后，React 才为下一条事件挂计时器。延长测试推进次数后真实 83 条事件到达小结。M4b、M5、M7 浏览器流程分别使用独立课例，M7 验证从课程首页打开未完课堂。
 - Chrome 全套 10 项通过，记录见 `evals/out/final-chrome-r3-20261118.log`。调整截图等待动画展开后，M6 聚焦 3 项重新通过，记录见 `evals/out/final-chrome-m6-20261118.log`。
 - M1 的真实连通和读图已实测。M2 样例质量、M3 访谈阈值、M4 独立评分、M5 现场语音、M6 视觉与许可、M7 所有者学习体验及 M8 干净环境和发布条件按各里程碑单独记录。
+
+## 角色模块纯视频框重塑（V1 → V2 → V3） — 代码完成（自动化通过）（2026-11-19）
+
+**待完成与待验证**
+
+- **二次元角色美术素材与 8 段循环短片待生成**：当前内置 `tutor-echo`（沐音）与 `tutor-nova`（星澜）已具备 Apache-2.0 核验立绘（Tier 0 静态呼吸 + 语音动态光晕），但尚未合入正式批准的 8 段二次元 `.webm` 循环短片（Tier 1）。禁止使用色块或占位视频充当内置角色包；请通过 `tools/tutorpack/` 提示词/工作流或外部生图生视频工具生成素材后直接从 `/characters` 导入。
+- **真实显卡模型联调与桌面视觉验收待执行**：`sidecars/local-gpu-avatar` 已提供 Apache-2.0 协议参考模板（`anime_2d_reference` 与 `gpu_bridge_template`），通过 ASGI 自动化测试验证了全链路协议；真实 RTX 显卡上的开源驱动（如 LivePortrait / Ditto / MuseTalk）挂载、真实帧率及浏览器桌面/手机端实机视觉验收留待所有者执行。
+- **Tier 3 云端实时驱动仅预留护栏与设置位**：`LiveCostGuard`（30 秒静音自动挂起、单节时长与费用上限熔断）及设置页 `#avatar` 护栏表单已就绪，尚未接入任何特定付费云厂商实时视频 API。
+- MIRA、KITE、CAEL、LYRA 四张历史立绘的公开发布许可仍待所有者核验，便携构建继续仅保留已核验立绘。
+
+**已落地（V1 → V2 → V3）**
+
+- **V1 3D VRM 退场与微信视频通话风格 `<TutorVideoBox>`**：
+  - 将 3 个旧 VRM 模型与 `7-constraint`/`8-shino`/`9-fumiriya` 归档至 `assets-archive/retired-vrm/`，移除 `three` / `@pixiv/three-vrm` / `@react-three/*` / `wlipsync` 共 37 个前端 3D 依赖；生产包 `apps/web/dist` 经检索零 3D/VRM/wlipsync 残留，`classroom` 块降至 `29.92 kB`。
+  - 重写 `packages/avatar-engine`（`types.ts`、`choreographer.ts`、`static-driver.ts`、`loop-pack-driver.ts`、`cost-guard.ts`、`sidecar-driver.ts`、`driver-manager.ts`、`video-box.tsx`），实现 9:16 竖屏纯视频框、双 `<video>` 180ms 交叉淡入淡出、缺槽回退链、15 秒静音自动进入安静陪伴、打断瞬间归位及 `prefers-reduced-motion` 降级。
+  - 后端角色目录升级至 `schema_version = 3`（透明兼容旧 v2 读取、屏蔽已退场 VRM 但不删库、`resolve_active_character` 按 `tutor-echo → tutor-nova` 确定性回退），支持单张 PNG/JPG/WebP 秒建老师与 `.tutorpack`/`.zip` 安全校验导入（拦截 Zip-Slip、符号链接、Windows 保留名、可执行文件与伪造魔数）及 Range 206 流式访问。
+- **V2 150ms 即时微动作反馈与二次元 `.tutorpack` 工具链**：
+  - 课堂客观题提交后在模型生成前先下发 `judge.preview` 帧，配合快捷按钮本地即时触发点赞/鼓励/托腮/指白板，并透传 `recent_avatar_action` 避免语言重复。
+  - `SpeechOutput` 移除 `wlipsync`，新增 24kHz PCM16 重采样回调 `onSpeechChunk`，为本地实时驱动预留低延迟音频输入。
+  - 新增纯 Python CLI `tools/tutorpack/cli.py`（`scaffold` / `validate` / `pack`）、8 段二次元提示词模板与 ComfyUI 首尾帧锁定工作流模板；`/characters` 支持导出提示词与动作试演。
+- **V3 本地 GPU Sidecar 协议代理、参考模板与 `#avatar` 设置页**：
+  - 后端新增 `services/api/app/avatar/` 与 `/api/v2/avatar-drivers/*` 路由（设置持久化、回环优先 + 显式私网白名单校验、驱动探活、会话代理与 `TSVA`/`TSVF` 双向 WebSocket 桥接）。
+  - 新增完全独立、Apache-2.0 许可的 `sidecars/local-gpu-avatar/` 模板工程（不污染主后端依赖，含 4 端点服务、`BaseAvatarRenderer` 抽象、2D 协议参考渲染器与本地 GPU 桥接骨架）。
+  - 前端接入 `createSidecarConnector()` 到课堂 `<TutorVideoBox>` 与角色预览，新增「设置 → 视频形象（`#avatar`）」面板管理本地 Sidecar、测试连接与配置云端护栏，并在角色编辑器支持按角色绑定本地驱动。
+
+**本地验证**
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1 -Frontend -Contract` 全绿：
+  - Ruff 通过；后端 Pytest **451 通过、0 失败、2 跳过**（含 `test_tutor_catalog.py`、`test_avatar_drivers.py` 与 `test_avatar_asset_licenses.py`）。
+  - OpenAPI 契约检查（`npm run generate:api:check`）与防空壳/中文文案长度扫描（`scripts/check_no_fakes.py`）通过。
+  - 前端 `tsc --noEmit`、`eslint`（React 19 规则）、Vitest **7 文件 32 项通过**、`vite build` 922ms 通过。
+- 独立 Sidecar 测试 `.venv\Scripts\python.exe -m pytest sidecars/local-gpu-avatar/tests -q`：**2 通过**；`ruff check tools/tutorpack sidecars/local-gpu-avatar` 全绿。
+- 生产构建产物 `apps/web/dist/assets/*.js` 零 `three-vrm`/`wlipsync`/`VRMLoaderPlugin` 引用。
+
+### 2026-11-20 六位原创二次元老师锚图上线与专属视频提示词
+
+- 已将所有者原创的六位 9:16 竖屏二次元老师（`雪川`、`沈砚`、`岚玥`、`初棠`、`青衡`、`澜音`）1080×1920 WebP 锚点图合入 `assets/avatars/portraits/` 与 `content/characters/`，并逐一登记 SHA-256 与 Apache-2.0 许可至 `assets/avatars/LICENSES.md` 和 `assets/THIRD_PARTY_NOTICES.md`；旧六张立绘（含原四张许可待核历史立绘）归档至 `assets-archive/retired-portraits/`，便携包构建脚本现可完整分发全部六位内置老师。
+- 强化 `<TutorVideoBox>` 顶部状态栏与底部字幕条深色保护渐变（`classroom.css`），提升雪川、岚玥等亮色系角色的字幕可读性；`resolve_active_character` 回退序升级为六位新内置角色，旧数据库中的 `tutor-echo` / `tutor-mira` / 退役 VRM 均无缝确定性回退至 `tutor-chutang`。
+- 在 `tools/tutorpack/prompts/characters/` 与 `outputs/数字人角色锚图-20261119/六位角色-8段视频专属提示词/` 交付 6 份中英双语、针对龙角/竹簪/发卡/曝光/肤色防穿模定制的 8 段图生视频提示词，同步接入 `/characters` 页面的「导出 8 段二次元短片提示词」按钮。
+
+### 2026-11-21 六位内置老师全套 8/8 Tier 1 动态短片包与声音克隆干声上线
+
+- 接收所有者本地 MiniMax H3-Base（`H3-Base-FL2VA`）生成的 24 条分段视频（`480×864 @ 24fps`，含 6 条 32 kHz 棚录人声），逐帧抽检全部 6 位老师画面无穿模后，按锚点加权相似度自动定位最佳切点并加入 6 帧余弦锚点柔化过渡，批量转码为 **48 段无声 VP9 `.webm`（总计 48.88 MB，全员 8/8 槽位完整）**，安装至 `assets/avatars/packs/tutor-{xuechuan,shenyan,lanyue,chutang,qingheng,lanyin}/`（均通过 `tools/tutorpack/cli.py validate` 校验，并导出 6 个便携 `.tutorpack` 至 `outputs/`）。
+- 同步从 6 位老师的 `partA-seg2` 原生 32 kHz 立体声音轨裁切静音并峰值归一化至 `-1.5 dBFS`，生成 6 份 6.7–7.2 秒无 BGM 纯干声参考 WAV（`assets/avatars/voices/*-ref-24k.wav` 及 `outputs/.../六位老师声音克隆参考音/` 32 kHz 版）与 `voices_manifest.json`，可直接接入 GPT-SoVITS / CosyVoice / FishSpeech / Qwen3-TTS 替换 Edge 语音。
+- 全部 54 个新增视频/锚图文件与 6 个声音参考文件均已在 `assets/avatars/LICENSES.md` 与 `assets/THIRD_PARTY_NOTICES.md` 登记为项目原创 Apache-2.0 资产；后端目录启动即自动发现并默认启用 Tier 1 `loop_pack`。

@@ -1,17 +1,19 @@
-# Companion Space 1.0 RC
+# Companion Space
 
 [English](README.en.md)
 
-Companion Space 是本地优先、单用户的 AI 家教。你可以导入自己的教材、讲义、试卷和笔记，生成可核对来源的课程地图，完成学情访谈与摸底，再进入带语音、黑板和复习卡的实时课堂。
+Companion Space 是本地优先、单用户的 AI 家教。你可以导入自己的教材、讲义、试卷和笔记，生成可核对来源的课程地图，完成学情访谈与摸底，再进入带语音、黑板、微信视频通话风格二次元动态老师与复习卡的实时课堂。
 
-这是 `1.0.0-rc.1` 候选版本，不是已签名的正式发行版。应用数据默认只写入本机；使用外部模型时，完成当前操作所需的文本或图片会发送给你配置的服务商。
+![六位内置二次元老师阵容](docs/images/six-anime-tutors.jpg)
+
+当前发布版本为 `1.0.0-rc.2`（Apache-2.0 开源）。应用数据默认只写入本机；使用外部模型时，完成当前操作所需的文本或图片会发送给你配置的服务商。
 
 ## 三条命令快速开始
 
 需要 Windows 10/11、Python 3.12+ 和 Node.js 24。PowerShell 中运行：
 
 ```powershell
-git clone --branch v1.0.0-rc.1 https://github.com/Johnson-Durui/Companion-Space.git
+git clone https://github.com/Johnson-Durui/Companion-Space.git
 cd Companion-Space
 powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 ```
@@ -28,12 +30,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 - 用配置的真实模型生成课程地图、知识点、题目关联和答案复核状态；所有自动结果都可人工修正。
 - 学情访谈、摸底、学习计划、实时语音/文字课堂、黑板同步、打断与断线恢复。
 - 课堂后的 FSRS 复习卡与错题复盘。
-- 两位 2D 老师和三位许可已核验的 VRM 示例角色。
+- 微信视频通话风格的竖屏纯视频框老师（`<TutorVideoBox>`）：内置六位原创 Apache-2.0 二次元老师（雪川、沈砚、岚玥、初棠、青衡、澜音），均已完成 **Tier 1 全 8 段无声 VP9 循环短片包**（开箱即用双视频交叉淡入淡出与 150ms 即时微动作反应）及 24 kHz 棚录声音克隆参考音，支持在角色库拖入单张图片秒建老师或导入 `.tutorpack`；旧版 3D VRM 与历史立绘已归档至 `assets-archive/`。
+- 内置二次元 `.tutorpack` 制作脚手架与六位角色专属 8 段视频提示词（`tools/tutorpack/`），以及完全独立的本地 GPU 实时驱动参考模板（`sidecars/local-gpu-avatar/`），可在「设置 → 视频形象」按需接入本地显卡开源驱动，默认零按分钟计费。
 - Edge 在线语音为零配置默认。可选本地 Sherpa STT 需在源码环境单独安装，模型权重不会随发行包分发。
 
 ## Windows 便携包
-
-可以从 [GitHub 预发布页面](https://github.com/Johnson-Durui/Companion-Space/releases/tag/v1.0.0-rc.1) 下载 ZIP 和 SHA-256 校验文件。
 
 维护者可构建内置 CPython 3.14.10 x64 的目录式压缩包：
 
@@ -44,7 +45,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\smoke-portable.ps1
 
 压缩包和 SHA-256 文件输出到 `outputs/`。用户解压后双击 `start.bat`；数据写入解压目录的 `data/`。程序目前未做代码签名，Windows SmartScreen 可能显示“未知发布者”；只使用项目发布页提供且 SHA-256 匹配的包，选择“更多信息 → 仍要运行”。不要从来源不明的镜像下载。
 
-四张历史立绘的再分发许可尚待核验，公开源码和便携包均排除了立绘及对应角色条目。包内的 `PORTABLE-ASSET-STATUS.md` 记录了随包分发的角色。
+全部六位内置二次元老师锚点图均已完成 Apache-2.0 登记并随便携包完整分发，构建脚本会写入 `PORTABLE-ASSET-STATUS.md`；已退役的旧立绘与 3D VRM 均留在 `assets-archive/` 而不打入发行包。
 
 ## Docker（可选）
 
@@ -79,6 +80,6 @@ curl http://127.0.0.1:8000/healthz
 
 - 课程分析和实时教学的模型质量、真人麦克风与耳机延迟、干净 Windows 新用户流程仍需验收。实时资料分析和实时课堂需要配置模型。
 - 便携包未签名；Docker 镜像当前不发布到公共仓库。
-- MIRA、KITE、CAEL、LYRA 四张立绘的公开再分发许可仍待核验。
+- 六位内置二次元老师均已配备完整 8/8 Tier 1 循环短片包与声音克隆干声参考，真实浏览器课堂观感与本地 GPU Sidecar 神经驱动留待所有者实机体验。
 
 许可详情见 [LICENSE](LICENSE)、[NOTICE](NOTICE) 和 [第三方素材清单](assets/THIRD_PARTY_NOTICES.md)。问题报告请附启动方式、系统版本、失败页面和去敏后的日志，绝不要提交 API Key、`vault.json` 或个人教材。

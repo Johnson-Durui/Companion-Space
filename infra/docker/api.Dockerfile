@@ -37,18 +37,6 @@ COPY assets/avatars assets/avatars
 COPY assets/THIRD_PARTY_NOTICES.md assets/THIRD_PARTY_NOTICES.md
 COPY --from=web-build /src/apps/web/dist apps/web/dist
 
-# These four portraits remain blocked from release artifacts until their
-# redistribution terms are independently verified.
-RUN rm -f \
-      assets/avatars/portraits/mira.png \
-      assets/avatars/portraits/kite.png \
-      assets/avatars/portraits/cael.png \
-      assets/avatars/portraits/lyra.png \
-      content/characters/1-mira.json \
-      content/characters/2-kite.json \
-      content/characters/3-cael.json \
-      content/characters/4-lyra.json
-
 USER companion
 EXPOSE 8000
 VOLUME ["/data"]

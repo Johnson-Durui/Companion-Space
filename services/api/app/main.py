@@ -146,7 +146,7 @@ def create_app(gateway_factory: GatewayFactory | None = None, *, settings: Setti
             await container.aclose()
             container_factory.cache_clear()
 
-    application = FastAPI(title="Companion Space API", version="1.0.0-rc.1", lifespan=lifespan)
+    application = FastAPI(title="Companion Space API", version="1.0.0-rc.2", lifespan=lifespan)
     if container_factory is not get_container:
         application.dependency_overrides[get_container] = container_factory
 

@@ -1,50 +1,154 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { browserApiFetch } from "@companion-space/api-client";
 import type { components } from "@companion-space/api-client/schema";
-import { api, bodyOf, charactersKey, ensureOK, fetchCharacters, type Character } from "../../app/api";
+import { CLIP_SLOTS, type InstantAction, type TutorEmotion, type TutorPose, type VideoAvatarTier } from "@companion-space/avatar-engine/types";
+import type { TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
+import {
+  api,
+  avatarDriversKey,
+  bodyOf,
+  charactersKey,
+  ensureOK,
+  fetchAvatarDriverSettings,
+  fetchCharacters,
+  settingsKey,
+  type Character,
+} from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
 import { TeacherPreview } from "./teacher-preview";
+import { buildAnimeLoopPromptSheet } from "./video-config";
 
 const copy = t.characters;
 const styles = t.learner.styles;
 type TutorUpdate = components["schemas"]["TutorUpdate"];
 
-function TutorEditor({ character }: { character: Character }) {
+type PosePreset = {
+  key: keyof typeof copy.poses;
+  pose: TutorPose;
+  emotion: TutorEmotion;
+  action?: InstantAction;
+};
+
+const POSE_PRESETS: readonly PosePreset[] = [
+  { key: "idle", pose: "idle_companion", emotion: "neutral" },
+  { key: "listen", pose: "listening_empathy", emotion: "warm", action: "empathy_nod" },
+  { key: "think", pose: "feedback_reaction", emotion: "curious", action: "think_chin" },
+  { key: "speak", pose: "lecturing", emotion: "warm" },
+  { key: "point", pose: "board_guiding", emotion: "focused", action: "board_point" },
+  { key: "praise", pose: "feedback_reaction", emotion: "cheerful", action: "praise_thumbs_up" },
+  { key: "comfort", pose: "feedback_reaction", emotion: "warm", action: "gentle_encourage" },
+];
+
+function downloadPromptSheet(character: Character) {
+  const content = buildAnimeLoopPromptSheet(character);
+  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${character.id}-anime-8-clips-prompts.md`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function TutorEditor({ character, onDeleted }: { character: Character; onDeleted: () => void }) {
   const queries = useQueryClient();
+  const [tier, setTier] = useState<VideoAvatarTier>(
+    (character.video_avatar?.preferred_tier ?? "static") as VideoAvatarTier,
+  );
+  const avatarDrivers = useQuery({
+    queryKey: avatarDriversKey,
+    queryFn: fetchAvatarDriverSettings,
+  });
   const save = useMutation({
     mutationFn: async (body: TutorUpdate) => bodyOf(await api.PUT("/api/v2/characters/{character_id}", {
       params: { path: { character_id: character.id } }, body,
     })),
     onSuccess: (result) => queries.setQueryData<Character[]>(charactersKey, (items) => items?.map((entry) => entry.id === result.id ? result : entry)),
   });
+  const remove = useMutation({
+    mutationFn: async () => {
+      const response = await api.DELETE("/api/v2/characters/{character_id}", {
+        params: { path: { character_id: character.id } },
+      });
+      ensureOK(response.response, response.error);
+    },
+    onSuccess: () => {
+      queries.setQueryData<Character[]>(charactersKey, (items) => items?.filter((entry) => entry.id !== character.id));
+      void queries.invalidateQueries({ queryKey: settingsKey });
+      onDeleted();
+    },
+  });
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (key: string) => String(form.get(key) ?? "").trim();
     const lines = (key: string) => text(key).split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+    const nextTier = text("tier") as VideoAvatarTier;
+    const selectedSidecar = nextTier === "local_sidecar"
+      ? (text("sidecar_driver") || null)
+      : (character.video_avatar?.local_sidecar?.driver_id ?? null);
     save.mutate({
-      name: text("name"), relationship: text("relationship"), address_user_as: text("address"),
-      default_style_id: text("style") as TutorUpdate["default_style_id"], traits: lines("traits"), catchphrases: lines("phrases"),
+      name: text("name"),
+      relationship: text("relationship"),
+      address_user_as: text("address"),
+      default_style_id: text("style") as TutorUpdate["default_style_id"],
+      preferred_tier: nextTier,
+      local_sidecar_driver_id: selectedSidecar,
+      traits: lines("traits"),
+      catchphrases: lines("phrases"),
     });
   }
+
+  const canDelete = character.pack_metadata?.source_kind !== "builtin";
+  const sidecars = avatarDrivers.data?.local_sidecars ?? [];
+
   return <form className="fields" onSubmit={submit}>
     <label>{copy.name}<input name="name" maxLength={160} required defaultValue={character.name} /></label>
     <label>{copy.relationship}<input name="relationship" maxLength={160} defaultValue={character.persona.relationship} /></label>
     <label>{copy.address}<input name="address" maxLength={160} defaultValue={character.persona.address_user_as} /></label>
     <label>{copy.traits}<textarea name="traits" rows={3} maxLength={1280} defaultValue={character.persona.traits.join("\n")} /></label>
     <label>{copy.catchphrases}<textarea name="phrases" rows={3} maxLength={1280} defaultValue={character.persona.catchphrases.join("\n")} /></label>
-    <label>{copy.style}<select name="style" defaultValue={character.default_style_id}>
-      {Object.entries(styles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-    </select></label>
+    <div className="field-row">
+      <label>{copy.style}<select name="style" defaultValue={character.default_style_id}>
+        {Object.entries(styles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select></label>
+      <label>{copy.tier}<select name="tier" value={tier} onChange={(event) => setTier(event.target.value as VideoAvatarTier)}>
+        {Object.entries(copy.tiers).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      </select></label>
+    </div>
+    {tier === "local_sidecar" ? (
+      <label>{copy.sidecarDriver}
+        <select name="sidecar_driver" defaultValue={character.video_avatar?.local_sidecar?.driver_id ?? ""}>
+          <option value="">{copy.sidecarDefault}</option>
+          {sidecars.map((entry) => (
+            <option key={entry.id} value={entry.id}>{entry.label} ({entry.base_url})</option>
+          ))}
+        </select>
+      </label>
+    ) : null}
     <div className="actions">
       <button className="button primary" disabled={save.isPending}>{t.common.save}</button>
       <Link className="button quiet" to={`/settings?teacher=${encodeURIComponent(character.id)}#voice`}>{copy.voice}</Link>
+      <Link className="button quiet" to="/settings#avatar">{copy.configureSidecar}</Link>
+      <button className="button quiet" type="button" onClick={() => downloadPromptSheet(character)}>{copy.exportPrompts}</button>
+      {canDelete ? (
+        <button
+          className="button danger-action"
+          type="button"
+          disabled={remove.isPending}
+          onClick={() => { if (window.confirm(copy.deleteConfirm)) remove.mutate(); }}
+        >
+          {copy.delete}
+        </button>
+      ) : null}
     </div>
     {save.isSuccess ? <p className="form-success" role="status">{t.common.saved}</p> : null}
     {save.isError ? <Problem error={save.error} /> : null}
+    {remove.isError ? <Problem error={remove.error} /> : null}
   </form>;
 }
 
@@ -52,10 +156,17 @@ export default function TutorLibrary() {
   const queries = useQueryClient();
   const roster = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
   const [selected, setSelected] = useState<string>();
+  const [previewPose, setPreviewPose] = useState<TutorPose>("idle_companion");
+  const [previewEmotion, setPreviewEmotion] = useState<TutorEmotion>("warm");
+  const [previewGen, setPreviewGen] = useState(1);
+  const previewVideoRef = useRef<TutorVideoBoxHandle>(null);
+
   const upload = useMutation({
     mutationFn: async (file: File) => {
       const response = await browserApiFetch("/api/v2/characters/import", {
-        method: "POST", body: file, headers: { "X-Filename": encodeURIComponent(file.name) },
+        method: "POST",
+        body: file,
+        headers: { "X-Filename": encodeURIComponent(file.name) },
       });
       const payload = await response.json();
       ensureOK(response, payload);
@@ -66,20 +177,33 @@ export default function TutorLibrary() {
       queries.setQueryData<Character[]>(charactersKey, (items) => [...(items ?? []), character]);
     },
   });
+
   if (roster.isPending) return <Loading />;
   if (roster.isError) return <Problem error={roster.error} onRetry={() => void roster.refetch()} />;
   const teacher = roster.data.find((entry) => entry.id === selected) ?? roster.data[0];
-  const meta = teacher?.model_metadata;
+  const meta = teacher?.pack_metadata;
+  const clips = teacher?.video_avatar?.loop_pack?.clips ?? {};
+  const clipCount = CLIP_SLOTS.filter((slot) => Boolean(clips[slot])).length;
 
   function importFile(file?: File) {
     if (file && !upload.isPending) upload.mutate(file);
+  }
+
+  function triggerPreset(preset: PosePreset) {
+    const nextGen = previewGen + 1;
+    setPreviewGen(nextGen);
+    setPreviewPose(preset.pose);
+    setPreviewEmotion(preset.emotion);
+    if (preset.action) {
+      previewVideoRef.current?.triggerInstantAction(preset.action, nextGen);
+    }
   }
 
   return <>
     <div className="page-title"><h1>{copy.heading}</h1></div>
     <section className="settings-section fields" aria-label={copy.import} onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => { event.preventDefault(); importFile(event.dataTransfer.files[0]); }}>
-      <label>{copy.import}<input type="file" accept=".vrm" disabled={upload.isPending} onChange={(event) => {
+      <label>{copy.import}<input type="file" accept=".tutorpack,.zip,.png,.jpg,.jpeg,.webp" disabled={upload.isPending} onChange={(event) => {
         importFile(event.currentTarget.files?.[0]);
         event.currentTarget.value = "";
       }} /></label>
@@ -92,18 +216,46 @@ export default function TutorLibrary() {
         {roster.data.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
       </select></label></div>
       <section className="teacher-feature" aria-label={teacher.name}>
-        <div className={`teacher-stage ${teacher.appearance.kind === "vrm" ? "stage-model" : ""}`}><TeacherPreview key={teacher.id} character={teacher} /></div>
+        <div className="teacher-stage">
+          <TeacherPreview
+            key={teacher.id}
+            character={teacher}
+            pose={previewPose}
+            emotion={previewEmotion}
+            gen={previewGen}
+            videoRef={previewVideoRef}
+          />
+        </div>
         <div className="teacher-detail">
+          <p className="teacher-type">{copy.tiers[(teacher.video_avatar?.preferred_tier ?? "static") as VideoAvatarTier]}</p>
           <h2>{teacher.name}</h2>
-          <p>{copy.license} · {teacher.license}{meta ? ` · VRM ${meta.spec_version}` : ""}</p>
+          <p>{copy.license} · {teacher.license}</p>
           {meta ? <>
-            <p className="hint">{copy.author} · {meta.authors.join("、") || copy.unknown}</p>
-            <p className="hint">{meta.redistribution_allowed ? copy.redistributionAllowed : copy.redistributionRestricted}</p>
+            <p className="hint">{copy.author} · {meta.author || copy.unknown}</p>
+            <p className="hint">{meta.allow_redistribution ? copy.redistributionAllowed : copy.redistributionRestricted}</p>
             {meta.license_url ? <a className="text-link" href={meta.license_url} target="_blank" rel="noreferrer">{copy.license}</a> : null}
-            {meta.other_license_url ? <a className="text-link" href={meta.other_license_url} target="_blank" rel="noreferrer">{copy.otherLicense}</a> : null}
-            {meta.missing_expressions.length ? <p className="hint">{copy.missingExpressions} {meta.missing_expressions.join(", ")}</p> : null}
           </> : null}
-          <TutorEditor key={teacher.id} character={teacher} />
+          <div>
+            <p className="hint">{copy.clipCoverage} · {clipCount}/{CLIP_SLOTS.length}</p>
+            <ul className="clip-coverage-list">
+              {CLIP_SLOTS.map((slot) => (
+                <li key={slot} className="clip-badge" data-present={Boolean(clips[slot])}>
+                  {copy.clips[slot]}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="hint">{copy.previewPoses}</p>
+            <div className="pose-preview-bar">
+              {POSE_PRESETS.map((preset) => (
+                <button key={preset.key} type="button" className="button quiet" onClick={() => triggerPreset(preset)}>
+                  {copy.poses[preset.key]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <TutorEditor key={teacher.id} character={teacher} onDeleted={() => setSelected(undefined)} />
         </div>
       </section>
     </> : null}

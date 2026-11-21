@@ -1,6 +1,5 @@
 import { CSA1_FLAG_LAST, OrderedGenerationQueue, parseCsa1Frame } from "./protocol";
-import { createAudioLipSync, type AudioLipSync } from "@companion-space/avatar-engine/audio-lip-sync";
-import type { VisemeWeights } from "@companion-space/avatar-engine/viseme";
+import type { DecodedSpeechChunk } from "@companion-space/avatar-engine/types";
 
 export type SpeechFormat = "mp3" | "pcm_s16le";
 
@@ -25,7 +24,7 @@ export interface PlayOptions {
 export interface SpeechOutputCallbacks {
   onError?: (error: Error) => void;
   onLevel?: (level: number) => void;
-  onVisemes?: (weights: VisemeWeights | null) => void;
+  onSpeechChunk?: (chunk: DecodedSpeechChunk) => void;
   onSegmentEnd?: (gen: number, seg: number) => void;
   onSegmentStart?: (gen: number, seg: number) => void;
 }
@@ -63,6 +62,28 @@ function decodePcm16(context: AudioContext, payload: ArrayBuffer, sampleRate: nu
   return buffer;
 }
 
+export function resampleBufferToPcm16_24k(buffer: AudioBuffer): ArrayBuffer {
+  const source = buffer.getChannelData(0);
+  const sourceRate = buffer.sampleRate || 24000;
+  const targetRate = 24000;
+  if (!source.length) return new ArrayBuffer(0);
+  const targetLength = sourceRate === targetRate
+    ? source.length
+    : Math.max(1, Math.round((source.length * targetRate) / sourceRate));
+  const pcm = new Int16Array(targetLength);
+  const ratio = sourceRate / targetRate;
+  for (let index = 0; index < targetLength; index += 1) {
+    const position = index * ratio;
+    const low = Math.min(source.length - 1, Math.floor(position));
+    const high = Math.min(source.length - 1, low + 1);
+    const frac = position - low;
+    const sample = source[low] * (1 - frac) + source[high] * frac;
+    const clamped = Math.max(-1, Math.min(1, sample));
+    pcm[index] = clamped < 0 ? Math.round(clamped * 0x8000) : Math.round(clamped * 0x7fff);
+  }
+  return pcm.buffer;
+}
+
 export class SpeechOutput {
   private context: AudioContext | null = null;
   private active: ActivePlayback | null = null;
@@ -79,8 +100,6 @@ export class SpeechOutput {
   private playbackToken = 0;
   private levelFrame = 0;
   private levelSamples: Float32Array<ArrayBuffer> | null = null;
-  private lipSync: AudioLipSync | null = null;
-  private lipSyncPromise: Promise<AudioLipSync | null> | null = null;
 
   analyser: AnalyserNode | null = null;
 
@@ -89,7 +108,6 @@ export class SpeechOutput {
   async prepare() {
     const context = this.getContext();
     if (context.state === "suspended") await context.resume();
-    await this.prepareLipSync();
   }
 
   setGeneration(gen: number, firstSeg = 1) {
@@ -210,9 +228,6 @@ export class SpeechOutput {
     const context = this.context;
     this.context = null;
     this.analyser = null;
-    this.lipSync?.dispose();
-    this.lipSync = null;
-    this.lipSyncPromise = null;
     if (context && context.state !== "closed") await context.close();
   }
 
@@ -225,17 +240,6 @@ export class SpeechOutput {
       this.scheduledUntil = this.context.currentTime;
     }
     return this.context;
-  }
-
-  private prepareLipSync() {
-    if (this.lipSync) return Promise.resolve(this.lipSync);
-    if (!this.callbacks.onVisemes || !this.context || globalThis.isSecureContext === false) {
-      return Promise.resolve(null);
-    }
-    this.lipSyncPromise ??= createAudioLipSync(this.context)
-      .then((lipSync) => (this.lipSync = lipSync))
-      .catch(() => null);
-    return this.lipSyncPromise;
   }
 
   private async consume(packet: AudioPacket) {
@@ -311,7 +315,19 @@ export class SpeechOutput {
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(this.analyser!);
-    if (this.lipSync) source.connect(this.lipSync.input);
+    if (this.callbacks.onSpeechChunk) {
+      const pcm16 =
+        packet.format === "pcm_s16le" && (packet.sampleRate ?? 24000) === 24000
+          ? packet.payload
+          : resampleBufferToPcm16_24k(buffer);
+      this.callbacks.onSpeechChunk({
+        gen: packet.gen,
+        seg: packet.seg,
+        pcm16,
+        sampleRate: 24000,
+        last: packet.last,
+      });
+    }
     const startAt = Math.max(context.currentTime + 0.01, this.scheduledUntil);
     const token = this.playbackToken;
     this.scheduledUntil = startAt + buffer.duration;
@@ -417,7 +433,7 @@ export class SpeechOutput {
   }
 
   private startLevelMeter() {
-    if ((!this.callbacks.onLevel && !this.callbacks.onVisemes) || this.levelFrame || !this.analyser) return;
+    if (!this.callbacks.onLevel || this.levelFrame || !this.analyser) return;
     this.levelSamples ??= new Float32Array(this.analyser.fftSize);
     const sample = () => {
       if (!this.sources.size || !this.analyser || !this.levelSamples) {
@@ -428,7 +444,6 @@ export class SpeechOutput {
       let energy = 0;
       for (const value of this.levelSamples) energy += value * value;
       this.callbacks.onLevel?.(Math.min(1, Math.sqrt(energy / this.levelSamples.length) * 4));
-      this.callbacks.onVisemes?.(this.lipSync?.read().weights ?? null);
       this.levelFrame = requestAnimationFrame(sample);
     };
     this.levelFrame = requestAnimationFrame(sample);
@@ -438,6 +453,5 @@ export class SpeechOutput {
     if (this.levelFrame) cancelAnimationFrame(this.levelFrame);
     this.levelFrame = 0;
     this.callbacks.onLevel?.(0);
-    this.callbacks.onVisemes?.(null);
   }
 }

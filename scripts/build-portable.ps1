@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$version = '1.0.0-rc.1'
+$version = '1.0.0-rc.2'
 $pythonVersion = '3.14.10'
 $pythonArchive = "python-$pythonVersion-embed-amd64.zip"
 $pythonUrl = "https://www.python.org/ftp/python/$pythonVersion/$pythonArchive"
@@ -117,36 +117,21 @@ Copy-Tree 'README.md'
 Copy-Tree 'README.en.md'
 Copy-Tree 'CHANGELOG.md'
 Copy-Tree 'docs\images\sample-lesson.png'
+Copy-Tree 'docs\images\six-anime-tutors.jpg'
 New-Item -ItemType Directory -Path (Join-Path $stage 'data') -Force | Out-Null
 
-# Four retained v0.x portraits still need owner redistribution verification.
-# Keep the release candidate usable with the five independently verified teachers
-# and fail closed instead of silently redistributing assets with unknown terms.
-foreach ($file in @(
-    'assets\avatars\portraits\mira.png'
-    'assets\avatars\portraits\kite.png'
-    'assets\avatars\portraits\cael.png'
-    'assets\avatars\portraits\lyra.png'
-    'content\characters\1-mira.json'
-    'content\characters\2-kite.json'
-    'content\characters\3-cael.json'
-    'content\characters\4-lyra.json'
-)) {
-    $path = Join-Path $stage $file
-    if (Test-Path -LiteralPath $path -PathType Leaf) {
-        Remove-Item -LiteralPath $path -Force
-    }
-}
+# All six active built-in anime tutor anchor portraits (xuechuan, shenyan, lanyue,
+# chutang, qingheng, lanyin) are owner-created original assets registered under Apache-2.0.
 @'
 # Portable asset eligibility
 
-This local release-candidate package intentionally omits the MIRA, KITE, CAEL,
-and LYRA portraits and their catalog entries. Their authorship and redistribution
-terms remain pending owner verification. Do not add those files to a public
-artifact until `assets/avatars/LICENSES.md` records a verified distribution grant.
+All six active built-in anime tutor anchor portraits (`xuechuan.webp`,
+`shenyan.webp`, `lanyue.webp`, `chutang.webp`, `qingheng.webp`, `lanyin.webp`)
+and any verified `.tutorpack` clips registered under `assets/avatars/packs/`
+are covered by `assets/avatars/LICENSES.md` and `assets/THIRD_PARTY_NOTICES.md`.
 
-The included NOVA and ECHO portraits and the three included VRM models are covered
-by the notices shipped with this package.
+Retired 3D VRM models (`assets-archive/retired-vrm/`) and retired legacy
+portraits (`assets-archive/retired-portraits/`) are excluded from this package.
 '@ | Set-Content -LiteralPath (Join-Path $stage 'PORTABLE-ASSET-STATUS.md') -Encoding utf8
 
 $portableStart = @'

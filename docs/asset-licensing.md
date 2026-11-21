@@ -15,16 +15,12 @@ Every bundled asset pack should ship a manifest with:
 - attribution required: `yes` or `no`
 - usage restrictions
 
-## VRM-Specific Notes
+## Built-In Pure-Video Anime Tutor Packs (`1.0.0-rc.2+`)
 
-- The six featured 3D bodies are project-owned original VRM files
-  (`mira`, `kite`, `cael`, `lyra`, `nova`, `echo`). MIRA/KITE/CAEL/LYRA are
-  painted-blender bodies; NOVA/ECHO are procedural `original-vrm` prototypes.
-  They are not the bundled licensed samples.
-- The public release includes Sendagaya Shino, Sakurada Fumiriya, and
-  Constraint Twist. Keep their embedded metadata.
-- Respect embedded VRM metadata and license tags.
-- Do not export or redistribute assets whose metadata forbids redistribution.
+- The six built-in tutors (`xuechuan`, `shenyan`, `lanyue`, `chutang`, `qingheng`, `lanyin`) ship with original 9:16 anime anchor portraits (`assets/avatars/portraits/*.webp`), complete 8/8 silent VP9 `.webm` loop packs (`assets/avatars/packs/`), and normalized 24 kHz dry voice-clone reference WAVs (`assets/avatars/voices/`).
+- Every built-in asset file is owner-created and registered under Apache-2.0 in `assets/avatars/LICENSES.md` and `assets/THIRD_PARTY_NOTICES.md`.
+- Historical 3D VRM models (`Seed-san.vrm`, `Sendagaya-Shino.vrm`, `Sakurada-Fumiriya.vrm`, `VRM1_Constraint_Twist_Sample.vrm`, and prototype VRM bodies) and legacy v0.x portraits (`mira`, `kite`, `cael`, `lyra`, `nova`, `echo`) were retired and removed from the public repository tree.
+- Do not export or redistribute third-party `.tutorpack` archives, portraits, or voice references whose terms forbid redistribution.
 - Do not strip attribution or usage restrictions from imported assets.
 
 ## Suggested Manifest Template

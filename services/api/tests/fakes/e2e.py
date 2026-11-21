@@ -34,8 +34,8 @@ def seed_classroom(container, scenario: str):
                VALUES (?, ?, ?, 'generated', 'check', 'choice', '{}', 'verified', ?)""",
             (bank_id, course_id, kp_id, now),
         )
-    appearance = "vrm" if scenario.startswith("avatar") else "portrait"
-    teacher = next(character for character in container.tutors.list_characters() if character.appearance.kind == appearance)
+    teacher = container.tutors.resolve_active_character("tutor-chutang")
+    assert teacher is not None
     plan = {
         "title": "关系判断", "est_minutes": 10,
         "segments": [{

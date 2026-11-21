@@ -64,7 +64,7 @@ def _view(container: ServiceContainer, space_id: str, lesson: dict) -> LessonVie
     character_id = lesson["character_id"] or get_setting(container.repository, "default_character_id", None)
     return LessonView(
         id=lesson["id"], course_id=space_id, title=item["title"] if item else "",
-        teacher=container.tutors.get_character(character_id) if character_id else None,
+        teacher=container.tutors.resolve_active_character(character_id),
         status=lesson["status"], seq=lesson["seq"], gen=lesson["gen"], recap=lesson["recap"],
         playback_after_seq=lesson["state"].get("playback_after_seq"),
     )
@@ -92,11 +92,9 @@ async def _open_plan_item(container: ServiceContainer, course_id: str, item_id: 
         if saved is None:
             saved = await LessonPlanner(repository, container.gateway).prepare(course_id, item_id)
         profile = await asyncio.to_thread(repository.get_learner_profile)
-        character = await asyncio.to_thread(get_setting, repository, "default_character_id", None)
-        if character is None:
-            catalog = await asyncio.to_thread(container.tutors.list_characters)
-            character = catalog[0].id if catalog else None
-        tutor = await asyncio.to_thread(container.tutors.get_character, character) if character else None
+        saved_character = await asyncio.to_thread(get_setting, repository, "default_character_id", None)
+        tutor = await asyncio.to_thread(container.tutors.resolve_active_character, saved_character)
+        character = tutor.id if tutor else None
         explicit_fields = await asyncio.to_thread(
             get_setting, repository, "learner_profile_explicit_fields", None,
         )

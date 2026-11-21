@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import type { DecodedSpeechChunk } from "@companion-space/avatar-engine/types";
 import { SpeechOutput, parseCsa1Frame, type BrowserVoice, type SpeechFormat } from "../../audio";
-import type { VisemeWeights } from "@companion-space/avatar-engine/viseme";
 import { publicMessage } from "../../app/api";
 import t from "../../locales/zh-CN.json";
 import { fetchLesson, fetchLessonEvents, openLessonSocket } from "./lesson-api";
@@ -11,20 +11,29 @@ type Format = SpeechFormat | "text" | "browser";
 type AudioMeta = { format: Format; rate: number; browserVoice?: BrowserVoice };
 type Room = Awaited<ReturnType<typeof fetchLesson>>;
 type Command = (type: string, data?: Record<string, unknown>) => boolean;
-type Connection = { start: (audio: boolean) => Promise<void>; send: Command; interrupt: () => boolean;
-  pause: () => void; upload: (frame: ArrayBuffer) => void };
+type Connection = {
+  start: (audio: boolean) => Promise<void>;
+  send: Command;
+  interrupt: () => boolean;
+  pause: () => void;
+  upload: (frame: ArrayBuffer) => void;
+};
 const copy = t.classroom;
 
 export function useClassroom(
   id: string,
   onSpeechLevel?: (level: number) => void,
-  onSpeechVisemes?: (weights: VisemeWeights | null) => void,
+  onSpeechChunk?: (chunk: DecodedSpeechChunk) => void,
+  onJudgePreview?: (verdict: string, gen: number) => void,
 ) {
   const connection = useRef<Connection>(null);
   const onSpeechLevelRef = useRef(onSpeechLevel);
   onSpeechLevelRef.current = onSpeechLevel;
-  const onSpeechVisemesRef = useRef(onSpeechVisemes);
-  onSpeechVisemesRef.current = onSpeechVisemes;
+  const onSpeechChunkRef = useRef(onSpeechChunk);
+  onSpeechChunkRef.current = onSpeechChunk;
+  const onJudgePreviewRef = useRef(onJudgePreview);
+  onJudgePreviewRef.current = onJudgePreview;
+
   const [room, setRoom] = useState<Room>();
   const [classroom, setClassroom] = useState(initialClassroom);
   const [connected, setConnected] = useState(false);
@@ -62,7 +71,7 @@ export function useClassroom(
     const waiting = new Map<string, () => void>();
     const output = new SpeechOutput({
       onLevel: (level) => onSpeechLevelRef.current?.(level),
-      onVisemes: (weights) => onSpeechVisemesRef.current?.(weights),
+      onSpeechChunk: (chunk) => onSpeechChunkRef.current?.(chunk),
       onSegmentStart: (gen, seg) => {
         if (firstSound) {
           setLatency(Math.round(performance.now() - firstSound));
@@ -121,7 +130,10 @@ export function useClassroom(
       if (closed) return;
       current = lesson;
       for (const event of latest) {
-        if (event.seq > seq) { events.push(event); seq = event.seq; }
+        if (event.seq > seq) {
+          events.push(event);
+          seq = event.seq;
+        }
       }
       setRoom(lesson);
       if (lesson.recap) setRecap(lesson.recap);
@@ -224,12 +236,22 @@ export function useClassroom(
           if (meta?.format === "mp3" || meta?.format === "pcm_s16le") {
             output.pushFrame(packet.data, { format: meta.format, sampleRate: meta.rate });
           }
-        } catch { setFallback(copy.textFallback); }
+        } catch {
+          setFallback(copy.textFallback);
+        }
         return;
       }
       const event: LessonEvent = JSON.parse(packet.data);
       if (event.lesson_id !== id) return;
       switch (event.type) {
+        case "judge.preview": {
+          if (cancelled.has(event.gen)) return;
+          const verdict = typeof event.data.verdict === "string" ? event.data.verdict : "";
+          if (verdict) {
+            onJudgePreviewRef.current?.(verdict, event.gen);
+          }
+          return;
+        }
         case "board.preview": {
           if (!audio || cancelled.has(event.gen)) return;
           const type = String(event.data.type);
@@ -259,10 +281,13 @@ export function useClassroom(
         }
         case "audio": {
           if (cancelled.has(event.gen)) return;
-          const seg = Number(event.data.seg), format = event.data.format as Format;
+          const seg = Number(event.data.seg);
+          const format = event.data.format as Format;
           const key = `${event.gen}:${seg}`;
           formats.set(key, {
-            format, rate: Number(event.data.sample_rate), browserVoice: event.data.browser_voice as BrowserVoice | undefined,
+            format,
+            rate: Number(event.data.sample_rate),
+            browserVoice: event.data.browser_voice as BrowserVoice | undefined,
           });
           waiting.get(key)?.();
           if (event.data.last) {
@@ -274,7 +299,13 @@ export function useClassroom(
         case "voice.fallback":
           if (!cancelled.has(event.gen)) {
             const engine = event.data.engine;
-            setFallback(engine === "browser" ? copy.browserFallback : engine === "text" ? copy.textFallback : copy.engineFallback);
+            setFallback(
+              engine === "browser"
+                ? copy.browserFallback
+                : engine === "text"
+                  ? copy.textFallback
+                  : copy.engineFallback,
+            );
           }
           return;
         case "voice.transcript":
@@ -301,7 +332,10 @@ export function useClassroom(
           stop(event.gen);
           break;
       }
-      if (event.seq > seq) { events.push(event); seq = event.seq; }
+      if (event.seq > seq) {
+        events.push(event);
+        seq = event.seq;
+      }
       if (active) timeline?.append(event);
     }
 
@@ -310,7 +344,10 @@ export function useClassroom(
         await history();
         if (closed || !current || current.status === "done" || current.status === "abandoned") return;
         const next = await openLessonSocket(id);
-        if (closed) { next.addEventListener("open", () => next.close(), { once: true }); return; }
+        if (closed) {
+          next.addEventListener("open", () => next.close(), { once: true });
+          return;
+        }
         socket = next;
         next.onmessage = receive;
         next.onopen = () => {
@@ -326,8 +363,14 @@ export function useClassroom(
           setConnected(false);
           timeline?.dispose();
           stop();
-          if (event.code === 4409) { setError(copy.otherTab); return; }
-          if (++offline > 5) { setError(copy.connectionError); return; }
+          if (event.code === 4409) {
+            setError(copy.otherTab);
+            return;
+          }
+          if (++offline > 5) {
+            setError(copy.connectionError);
+            return;
+          }
           timer = window.setTimeout(() => void connect(), Math.min(2400, offline * 400));
         };
       } catch (cause) {
@@ -346,8 +389,12 @@ export function useClassroom(
         setFallback("");
         audio = withAudio;
         if (withAudio) {
-          try { await output.prepare(); }
-          catch { audio = false; setFallback(copy.textFallback); }
+          try {
+            await output.prepare();
+          } catch {
+            audio = false;
+            setFallback(copy.textFallback);
+          }
         }
         try {
           await history();
@@ -358,13 +405,19 @@ export function useClassroom(
             setStarted(true);
             setClassroom((state) => ({ ...state, paused: false }));
           }
-        } catch { setError(copy.connectionError); }
+        } catch {
+          setError(copy.connectionError);
+        }
       },
       interrupt,
       pause,
-      upload: (frame) => { if (socket?.readyState === WebSocket.OPEN && socket.bufferedAmount < 128_000) socket.send(frame); },
+      upload: (frame) => {
+        if (socket?.readyState === WebSocket.OPEN && socket.bufferedAmount < 128_000) socket.send(frame);
+      },
     };
-    const hidden = () => { if (document.hidden && active) pause(); };
+    const hidden = () => {
+      if (document.hidden && active) pause();
+    };
     document.addEventListener("visibilitychange", hidden);
     void connect();
     return () => {
@@ -381,10 +434,24 @@ export function useClassroom(
     };
   }, [id]);
 
-  return { room, classroom, connected, started, resuming, speaking, error, fallback, prefill, transcript, echoProtected, recap, latency,
+  return {
+    room,
+    classroom,
+    connected,
+    started,
+    resuming,
+    speaking,
+    error,
+    fallback,
+    prefill,
+    transcript,
+    echoProtected,
+    recap,
+    latency,
     start: (audio: boolean) => connection.current?.start(audio),
     send: (type: string, data?: Record<string, unknown>) => connection.current?.send(type, data) ?? false,
     pause: () => connection.current?.pause(),
     interrupt: () => connection.current?.interrupt() ?? false,
-    upload: (frame: ArrayBuffer) => connection.current?.upload(frame) };
+    upload: (frame: ArrayBuffer) => connection.current?.upload(frame),
+  };
 }
