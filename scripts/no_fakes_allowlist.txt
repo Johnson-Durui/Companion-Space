@@ -5,4 +5,4 @@ services/api/app/api/routes/learner.py Reads the existing reserved practice-exam
 services/api/app/learning/practice.py Implements the real reserved practice-exam plan item flow.
 apps/web/src/features/practice/practice.tsx Renders the real reserved practice-exam category.
 apps/web/src/locales/zh-CN.json Labels the real reserved practice-exam category.
-apps/web/src/features/learner/setup.tsx Links real reserved practice-exam plan items to timed runs.
+apps/web/src/features/plan/item-kind.ts Centralizes plan item kind checks for the real reserved practice-exam type.

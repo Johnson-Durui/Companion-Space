@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { browserApiFetch } from "@companion-space/api-client";
-import { ensureOK } from "../../app/api";
+import { ensureOK, publicMessage } from "../../app/api";
 import { Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
 import "./practice.css";
@@ -10,7 +10,7 @@ import "./practice.css";
 type Item = { id: string; type: string; stem: string; options?: Record<string, string> | Array<{ key: string; text: string }> };
 type Move = "SHOW_SOLUTION" | "REEXPLAIN" | "CHECK";
 type Debrief = { item_id: string; verdict: string; score: number; max_score: number; answer: unknown; solution: string; moves: Move[] };
-type Commentary = { available: boolean; commentary: string | null; reason: string | null; browser_voice?: { lang?: string; voice_id?: string; rate?: number; pitch?: number } };
+type Commentary = { available: boolean; commentary: string | null; code?: string | null; reason: string | null; browser_voice?: { lang?: string; voice_id?: string; rate?: number; pitch?: number } };
 type Run = { id: string; space_id: string; kind: "practice" | "mock"; status: string; deadline_at: string; score?: number; max_score?: number; items: Item[]; debrief?: Debrief[] };
 async function request<T>(path: string, init?: RequestInit) { const response = await browserApiFetch(path, { ...init, headers: { "Content-Type": "application/json", ...init?.headers } }); const body = await response.json(); ensureOK(response, body); return body as T; }
 function options(item: Item) { return !item.options ? [] : Array.isArray(item.options) ? item.options : Object.entries(item.options).map(([key, text]) => ({ key, text })); }
@@ -42,7 +42,10 @@ export default function Practice() {
     mutationFn: ({ itemId, move }: { itemId: string; move: Move }) => request<Commentary>(`/api/v2/practice/${run?.id}/debrief/${itemId}`, { method: "POST", body: JSON.stringify({ move }) }),
     onSuccess: (result, variables) => {
       setCommentary((current) => ({ ...current, [variables.itemId]: result }));
-      setCommentaryError((current) => ({ ...current, [variables.itemId]: result.reason ?? "" }));
+      setCommentaryError((current) => ({
+        ...current,
+        [variables.itemId]: result.available ? "" : (publicMessage({ code: result.code }) ?? t.practice.debriefUnavailable),
+      }));
       if (result.commentary) speak(result.commentary, result.browser_voice);
     },
     onError: (error, variables) => setCommentaryError((current) => ({ ...current, [variables.itemId]: error instanceof Error ? error.message : t.common.error })),

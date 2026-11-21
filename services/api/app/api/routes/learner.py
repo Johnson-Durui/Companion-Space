@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.analysis.results import CourseResults
 from app.api.deps import ServiceContainer, get_container, require_owner
-from app.core.errors import ResourceNotFoundError
+from app.core.errors import CodedValueError, ResourceNotFoundError
 from app.learning.interview import (
     InterviewAnswer, TOPICS, allowed_fields, extract_slots, map_teacher_hints, merge_answer,
     render_question,
@@ -102,7 +102,7 @@ def put_learner_profile(payload: LearnerProfile, container: Container) -> Learne
 def get_course_enrollment(course_id: str, container: Container) -> CourseEnrollment:
     enrollment = container.repository.get_course_enrollment(course_id)
     if enrollment is None:
-        raise ResourceNotFoundError("Course not found")
+        raise ResourceNotFoundError("Course not found", code="course_not_found")
     return CourseEnrollment.model_validate({**enrollment, "course_id": course_id})
 
 
@@ -110,14 +110,14 @@ def get_course_enrollment(course_id: str, container: Container) -> CourseEnrollm
 def put_course_enrollment(course_id: str, payload: EnrollmentSettings, container: Container) -> CourseEnrollment:
     enrollment = container.repository.upsert_course_enrollment(course_id, payload.model_dump(mode="json"))
     if enrollment is None:
-        raise ResourceNotFoundError("Course not found")
+        raise ResourceNotFoundError("Course not found", code="course_not_found")
     return CourseEnrollment.model_validate({**enrollment, "course_id": course_id})
 
 
 def _course_or_404(container: ServiceContainer, course_id: str) -> dict:
     enrollment = container.repository.get_course_enrollment(course_id)
     if enrollment is None:
-        raise ResourceNotFoundError("Course not found")
+        raise ResourceNotFoundError("Course not found", code="course_not_found")
     return enrollment
 
 
@@ -157,7 +157,7 @@ async def answer_interview(course_id: str, payload: InterviewAnswer, container: 
     enrollment = _course_or_404(container, course_id)
     interview_state = container.repository.get_interview_state(course_id)
     if payload.topic != interview_state.get("current", TOPICS[0]):
-        raise ValueError("Answer the current interview topic before continuing.")
+        raise CodedValueError("interview_topic_mismatch", "Answer the current interview topic before continuing.")
     if payload.text:
         scope: dict[str, object] = {"allowed_fields": allowed_fields(payload.topic)}
         if payload.topic == "hard_parts":
@@ -203,7 +203,7 @@ async def answer_interview(course_id: str, payload: InterviewAnswer, container: 
 @router.post("/courses/{course_id}/interview/skip")
 def skip_interview(course_id: str, container: Container) -> InterviewState:
     if container.repository.update_enrollment_progress(course_id, interview_status="skipped") is None:
-        raise ResourceNotFoundError("Course not found")
+        raise ResourceNotFoundError("Course not found", code="course_not_found")
     return InterviewState(topics=list(TOPICS), completed=[], current=None, status="skipped")
 
 
@@ -332,7 +332,7 @@ def answer_placement(course_id: str, payload: PlacementAnswer, container: Contai
     enrollment = _course_or_404(container, course_id)
     item = next((entry for entry in container.repository.diagnostic_items(course_id) if entry["id"] == payload.item_id), None)
     if item is None or payload.item_id in container.repository.answered_diagnostic_items(course_id):
-        raise ResourceNotFoundError("Diagnostic item not found")
+        raise ResourceNotFoundError("Diagnostic item not found", code="diagnostic_item_not_found")
     points = {point["id"]: point for point in _initial_points(container, course_id, enrollment)}
     point = points[item["kp_id"]]
     verdict = "dont_know" if payload.dont_know else ("correct" if _is_correct(item, payload.answer) else "incorrect")
@@ -439,12 +439,12 @@ async def replan(course_id: str, payload: PlanRequest, container: Container) -> 
 @router.patch("/plan-items/{item_id}")
 def adjust_plan_item(item_id: str, payload: PlanItemPatch, container: Container) -> dict:
     if payload.direction is None and payload.pinned is None:
-        raise ValueError("Choose a plan item adjustment.")
+        raise CodedValueError("plan_adjustment_required", "Choose a plan item adjustment.")
     plan = container.repository.adjust_plan_item(
         item_id, direction=payload.direction, pinned=payload.pinned,
     )
     if plan is None:
-        raise ResourceNotFoundError("Plan item not found")
+        raise ResourceNotFoundError("Plan item not found", code="plan_item_not_found")
     return plan
 
 
@@ -452,7 +452,7 @@ def adjust_plan_item(item_id: str, payload: PlanItemPatch, container: Container)
 def skip_quiz(item_id: str, payload: SkipQuizRequest, container: Container) -> dict:
     plan_item = container.repository.locate_plan_item(item_id)
     if plan_item is None:
-        raise ResourceNotFoundError("Plan item not found")
+        raise ResourceNotFoundError("Plan item not found", code="plan_item_not_found")
     questions = container.repository.skip_quiz_items(plan_item["space_id"], plan_item["kp_ids"])
     if len(questions) != len(plan_item["kp_ids"]):
         return {"available": False, "passed": False, "questions": []}

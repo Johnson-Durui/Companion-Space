@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 
 from app.api.deps import ServiceContainer, get_container, require_owner
 from app.api.routes._shared import _read_limited_body
-from app.core.errors import ResourceNotFoundError
+from app.core.errors import CodedValueError, ResourceNotFoundError
 from app.services.tutor_catalog import Character, TutorUpdate
 from app.services.tutorpack import ARCHIVE_SUFFIXES, IMAGE_SUFFIXES, MAX_ARCHIVE_BYTES, MAX_IMAGE_BYTES
 
@@ -29,7 +29,7 @@ async def import_tutor(
     elif suffix in ARCHIVE_SUFFIXES:
         limit = min(MAX_ARCHIVE_BYTES, container.settings.max_character_pack_size_bytes)
     else:
-        raise ValueError("Choose a .tutorpack, .zip, .png, .jpg, or .webp file.")
+        raise CodedValueError("tutor_unsupported_file", "Choose a .tutorpack, .zip, .png, .jpg, or .webp file.")
     data = await _read_limited_body(request, max_bytes=limit)
     return await asyncio.to_thread(container.tutors.import_upload, filename, data)
 
@@ -38,7 +38,7 @@ async def import_tutor(
 async def update_tutor(character_id: str, payload: TutorUpdate, container: Container) -> Character:
     character = await asyncio.to_thread(container.tutors.update_character, character_id, payload)
     if character is None:
-        raise ResourceNotFoundError("Teacher is unavailable.")
+        raise ResourceNotFoundError("Teacher is unavailable.", code="tutor_not_found")
     return character
 
 
@@ -46,7 +46,7 @@ async def update_tutor(character_id: str, payload: TutorUpdate, container: Conta
 async def delete_tutor(character_id: str, container: Container) -> Response:
     deleted = await asyncio.to_thread(container.tutors.delete_character, character_id)
     if not deleted:
-        raise ResourceNotFoundError("Teacher is unavailable.")
+        raise ResourceNotFoundError("Teacher is unavailable.", code="tutor_not_found")
     return Response(status_code=204)
 
 

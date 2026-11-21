@@ -87,7 +87,9 @@ async def character_in_use(_: Request, exc: CharacterInUseError) -> JSONResponse
 
 
 async def invalid_request(_: Request, exc: ValueError) -> JSONResponse:
-    return _error(400, "invalid_request", str(exc))
+    code = getattr(exc, "code", "invalid_request")
+    status = getattr(exc, "status_code", 400)
+    return _error(status, code, str(exc))
 
 
 class _WebRoute(APIRoute):
@@ -99,7 +101,7 @@ class _WebRoute(APIRoute):
 
 
 async def missing_resource(_: Request, exc: ResourceNotFoundError) -> JSONResponse:
-    return _error(404, "not_found", str(exc))
+    return _error(404, getattr(exc, "code", "not_found"), str(exc))
 
 
 def _serve_web(app: FastAPI, root: Path) -> None:

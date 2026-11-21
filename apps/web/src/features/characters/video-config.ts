@@ -57,6 +57,8 @@ export function videoBoxLabels(): TutorVideoBoxLabels {
     toggleCaption: t.classroom.toggleCaption,
     switchToFree: t.classroom.switchToFree,
     degradedPrefix: t.classroom.degradedPrefix,
+    degradedReasons: t.classroom.videoDegraded,
+    degradedFallback: t.classroom.videoDegraded.fallback,
     dismissNotice: t.classroom.dismissNotice,
   };
 }

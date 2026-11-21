@@ -8,7 +8,7 @@ test("renders validated math, table, and plot blocks while invalid diagrams fail
   await expect(page.locator('[data-kind="math"] .katex')).toBeVisible();
   await expect(page.locator('[data-kind="table"] table')).toBeVisible();
   await expect(page.locator('[data-kind="plot"] svg')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('[data-kind="diagram"]')).toContainText("Render failed", { timeout: 15_000 });
+  await expect(page.locator('[data-kind="diagram"]')).toContainText(t.classroom.boardRenderError, { timeout: 15_000 });
   await expect(page.locator('[data-kind="diagram"]')).toContainText("flowchart TD");
 });
 

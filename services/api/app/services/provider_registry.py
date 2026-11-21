@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, TypeAdapter
 
-from app.core.errors import ResourceNotFoundError
+from app.core.errors import CodedValueError, ResourceNotFoundError
 from app.llm.presets import Role, RoleAssignment, get_preset
 from app.models.domain import ModelAssignment, ProviderCapability, ProviderConnection
 from app.providers.base import LLMProvider, LLMRequest, Message, ProviderAdapter
@@ -155,22 +155,22 @@ class ProviderRegistryService:
         preset = get_preset(preset_id) if preset_id is not None else None
         if preset is not None:
             if provider is not None and provider != preset.adapter:
-                raise ValueError("This preset uses a different provider adapter.")
+                raise CodedValueError("provider_preset_mismatch", "This preset uses a different provider adapter.")
             provider = preset.adapter
             label = label or preset.label
             base_url = base_url if base_url is not None else preset.base_url
             if preset.id == "custom" and base_url is None:
-                raise ValueError("Enter this connection's base URL.")
+                raise CodedValueError("provider_base_url_required", "Enter this connection's base URL.")
         if provider not in _CAPABILITIES:
-            raise ValueError("Select a supported provider.")
+            raise CodedValueError("provider_unsupported", "Select a supported provider.")
         if not label or not label.strip():
-            raise ValueError("Enter a name for the connection.")
+            raise CodedValueError("provider_label_required", "Enter a name for the connection.")
         base_url = _base_url(base_url, provider)
         api_key = api_key.strip()
         if _requires_key(provider, base_url) and not api_key:
-            raise ValueError("Enter an API key for this connection.")
+            raise CodedValueError("provider_api_key_required", "Enter an API key for this connection.")
         if provider == "local-neural" and api_key:
-            raise ValueError("The local TTS sidecar does not accept an API key.")
+            raise CodedValueError("provider_api_key_not_supported", "The local TTS sidecar does not accept an API key.")
         now = datetime.now(timezone.utc)
         connection = ProviderConnection(
             id=str(uuid4()), provider=provider, label=label.strip(),
@@ -215,18 +215,18 @@ class ProviderRegistryService:
             fields = {}
             if label is not None:
                 if not label.strip():
-                    raise ValueError("Enter a name for the connection.")
+                    raise CodedValueError("provider_label_required", "Enter a name for the connection.")
                 fields["label"] = label.strip()
             if not isinstance(base_url, _Unset):
                 fields["base_url"] = _base_url(base_url, existing.provider)
             old_secret = None
             if "base_url" in fields and api_key is None and _requires_key(existing.provider, fields["base_url"]):
                 if not self.vault.get_provider_secret(connection_id):
-                    raise ValueError("Enter an API key for this connection.")
+                    raise CodedValueError("provider_api_key_required", "Enter an API key for this connection.")
             if api_key is not None:
                 api_key = api_key.strip()
                 if not api_key or existing.provider == "local-neural":
-                    raise ValueError("Enter a key for a connection that accepts API keys.")
+                    raise CodedValueError("provider_api_key_not_supported", "Enter a key for a connection that accepts API keys.")
                 old_secret = self.vault.get_provider_secret(connection_id)
                 self.vault.put_provider_secret(connection_id, api_key)
             try:
@@ -328,7 +328,11 @@ class ProviderRegistryService:
                     code="provider_timeout", message="The connection test timed out.",
                 )
             return RoleTestResult(
-                role=role, ok=True, latency_ms=round((monotonic() - started) * 1000), message=message,
+                role=role,
+                ok=True,
+                latency_ms=round((monotonic() - started) * 1000),
+                code="stt_verified_silent" if message else "ok",
+                message=message,
             )
 
         return await asyncio.gather(*(probe(role, binding) for role, binding in selected))
@@ -353,7 +357,7 @@ class ProviderRegistryService:
         connection = self._require_connection(provider_connection_id)
         self._ensure_capability(connection, capability)
         if not model_name.strip():
-            raise ValueError("Enter a model name.")
+            raise CodedValueError("provider_model_required", "Enter a model name.")
         now = datetime.now(timezone.utc)
         existing = self._find_assignment(space_id, capability)
         return self.repository.upsert_model_assignment(ModelAssignment(

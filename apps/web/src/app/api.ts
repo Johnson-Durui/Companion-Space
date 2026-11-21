@@ -14,6 +14,12 @@ export function publicMessage(error: unknown) {
   if (error && typeof error === "object" && "code" in error && typeof error.code === "string" && Object.hasOwn(t.errors, error.code)) {
     return t.errors[error.code as keyof typeof t.errors];
   }
+  if (
+    error && typeof error === "object" && "detail" in error && error.detail && typeof error.detail === "object"
+    && "code" in error.detail && typeof error.detail.code === "string" && Object.hasOwn(t.errors, error.detail.code)
+  ) {
+    return t.errors[error.detail.code as keyof typeof t.errors];
+  }
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
   if (error && typeof error === "object" && "detail" in error && typeof error.detail === "string") return error.detail;
   return undefined;

@@ -58,7 +58,7 @@ def get_connections(container: Container):
 def get_connection(connection_id: str, container: Container):
     connection = container.providers.get_connection(connection_id)
     if connection is None:
-        raise HTTPException(404, "Model connection not found")
+        raise HTTPException(404, detail={"code": "provider_connection_not_found", "message": "Model connection not found"})
     return connection
 
 
@@ -82,7 +82,7 @@ def patch_connection(connection_id: str, payload: ConnectionPatch, container: Co
 @router.delete("/providers/connections/{connection_id}", status_code=204)
 def delete_connection(connection_id: str, container: Container) -> Response:
     if not container.providers.delete_connection(connection_id):
-        raise HTTPException(404, "Model connection not found")
+        raise HTTPException(404, detail={"code": "provider_connection_not_found", "message": "Model connection not found"})
     return Response(status_code=204)
 
 

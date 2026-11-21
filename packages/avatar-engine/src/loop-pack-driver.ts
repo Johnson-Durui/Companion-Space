@@ -106,6 +106,7 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
       this.emitStatus({
         state: "degraded",
         tier: "loop_pack",
+        code: "loop_pack_empty",
         reason: "No playable video clips in loop pack.",
         fallbackTier: "static",
       });
@@ -234,6 +235,7 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
         this.emitStatus({
           state: "degraded",
           tier: "loop_pack",
+          code: "loop_pack_playback_failed",
           reason: "Video clip playback failed.",
           fallbackTier: "static",
         });

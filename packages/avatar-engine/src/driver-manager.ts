@@ -10,6 +10,7 @@ import type {
   TutorPose,
   VideoAvatarRuntimeConfig,
   VideoAvatarTier,
+  VideoDriverDegradedCode,
   VideoDriverStatusEvent,
 } from "./types";
 
@@ -44,11 +45,11 @@ export class VideoDriverManager {
     await this.activateTier(initialTier, version);
   }
 
-  async switchToFreeTier(reason = "Switched to local free tier."): Promise<void> {
+  async switchToFreeTier(reason = "Switched to local free tier.", code: VideoDriverDegradedCode = "switched_to_free"): Promise<void> {
     if (!this.config || !this.container) return;
     const target = this.hasPlayableClips(this.config) ? "loop_pack" : "static";
     const version = ++this.mountVersion;
-    await this.activateTier(target, version, reason);
+    await this.activateTier(target, version, reason, code);
   }
 
   async unmount(): Promise<void> {
@@ -143,7 +144,12 @@ export class VideoDriverManager {
     return new StaticPortraitDriver();
   }
 
-  private async activateTier(tier: VideoAvatarTier, version: number, degradedReason?: string): Promise<void> {
+  private async activateTier(
+    tier: VideoAvatarTier,
+    version: number,
+    degradedReason?: string,
+    degradedCode?: VideoDriverDegradedCode,
+  ): Promise<void> {
     if (!this.container || !this.config || version !== this.mountVersion) return;
 
     this.unsubscribe?.();
@@ -165,15 +171,16 @@ export class VideoDriverManager {
         this.options.onStatusChange?.({
           state: "degraded",
           tier,
+          code: event.code,
           reason: event.reason,
           fallbackTier: fallback,
         });
-        void this.activateTier(fallback, version, event.reason);
+        void this.activateTier(fallback, version, event.reason, event.code);
         return;
       }
       this.options.onStatusChange?.(
-        degradedReason && event.state === "ready"
-          ? { ...event, reason: degradedReason }
+        (degradedReason || degradedCode) && event.state === "ready"
+          ? { ...event, code: degradedCode ?? event.code, reason: degradedReason ?? event.reason }
           : event,
       );
     });

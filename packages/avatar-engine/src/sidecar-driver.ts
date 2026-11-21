@@ -8,6 +8,7 @@ import type {
   TutorPose,
   VideoAvatarRuntimeConfig,
   VideoDriverCapabilities,
+  VideoDriverDegradedCode,
   VideoDriverStatusEvent,
 } from "./types";
 
@@ -170,7 +171,10 @@ export class LocalSidecarVideoDriver implements ITutorVideoDriver {
       this.lastActivityMs = Date.now();
 
       await new Promise<void>((resolve, reject) => {
-        const timeout = window.setTimeout(() => reject(new Error("Sidecar stream connect timed out.")), 4000);
+        const timeout = window.setTimeout(
+          () => reject(Object.assign(new Error("Sidecar stream connect timed out."), { code: "sidecar_timeout" as const })),
+          4000,
+        );
         ws.onopen = () => {
           window.clearTimeout(timeout);
           this.lastActivityMs = Date.now();
@@ -180,24 +184,27 @@ export class LocalSidecarVideoDriver implements ITutorVideoDriver {
         };
         ws.onerror = () => {
           window.clearTimeout(timeout);
-          reject(new Error("Sidecar stream connection failed."));
+          reject(Object.assign(new Error("Sidecar stream connection failed."), { code: "sidecar_connect_failed" as const }));
         };
       });
 
       ws.onmessage = (event) => this.handleMessage(event);
       ws.onclose = () => {
         if (!this.degraded && this.root === root) {
-          this.triggerDegrade("Local GPU sidecar stream disconnected.");
+          this.triggerDegrade("sidecar_disconnected", "Local GPU sidecar stream disconnected.");
         }
       };
       ws.onerror = () => {
         if (!this.degraded && this.root === root) {
-          this.triggerDegrade("Local GPU sidecar stream error.");
+          this.triggerDegrade("sidecar_stream_error", "Local GPU sidecar stream error.");
         }
       };
     } catch (error) {
+      const code = (error && typeof error === "object" && "code" in error && typeof error.code === "string"
+        ? error.code
+        : "sidecar_unavailable") as VideoDriverDegradedCode;
       const reason = error instanceof Error ? error.message : "Local GPU sidecar unavailable.";
-      this.triggerDegrade(reason);
+      this.triggerDegrade(code, reason);
     }
   }
 
@@ -311,7 +318,7 @@ export class LocalSidecarVideoDriver implements ITutorVideoDriver {
       try {
         const msg = JSON.parse(event.data) as { type?: string; message?: string };
         if (msg.type === "error") {
-          this.triggerDegrade(msg.message || "Local GPU sidecar reported an error.");
+          this.triggerDegrade("sidecar_remote_error", msg.message || "Local GPU sidecar reported an error.");
         }
       } catch {
         // Ignore malformed control responses.
@@ -360,7 +367,7 @@ export class LocalSidecarVideoDriver implements ITutorVideoDriver {
     }, heartbeatMs);
     this.watchdogTimer = window.setInterval(() => {
       if (Date.now() - this.lastActivityMs > watchdogMs) {
-        this.triggerDegrade("Local GPU sidecar heartbeat timed out.");
+        this.triggerDegrade("sidecar_heartbeat_timeout", "Local GPU sidecar heartbeat timed out.");
       }
     }, 500);
   }
@@ -376,13 +383,14 @@ export class LocalSidecarVideoDriver implements ITutorVideoDriver {
     }
   }
 
-  private triggerDegrade(reason: string): void {
+  private triggerDegrade(code: VideoDriverDegradedCode, reason: string): void {
     if (this.degraded) return;
     this.degraded = true;
     this.stopTimers();
     this.emitStatus({
       state: "degraded",
       tier: "local_sidecar",
+      code,
       reason,
       fallbackTier: "loop_pack",
     });

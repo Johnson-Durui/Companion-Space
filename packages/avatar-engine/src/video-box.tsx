@@ -9,6 +9,7 @@ import type {
   VideoAvatarRuntimeConfig,
   VideoAvatarTier,
   VideoDriverCostEvent,
+  VideoDriverDegradedCode,
   VideoDriverStatusEvent,
 } from "./types";
 
@@ -17,6 +18,8 @@ export interface TutorVideoBoxLabels {
   toggleCaption: string;
   switchToFree: string;
   degradedPrefix: string;
+  degradedReasons?: Partial<Record<VideoDriverDegradedCode, string>>;
+  degradedFallback?: string;
   dismissNotice: string;
 }
 
@@ -116,12 +119,19 @@ export function TutorVideoBox({
           const fallback = event.fallbackTier ?? "static";
           setActiveTier(fallback);
           onTierChangeRef.current?.(fallback);
-          if (event.reason) setNotice(event.reason);
+          const mapped = (event.code && labels.degradedReasons?.[event.code])
+            || labels.degradedFallback
+            || "";
+          if (mapped) setNotice(mapped);
           return;
         }
         if (event.state === "ready" || event.state === "connecting") {
           setActiveTier(event.tier);
           onTierChangeRef.current?.(event.tier);
+          if (event.code) {
+            const mapped = labels.degradedReasons?.[event.code] || labels.degradedFallback || "";
+            if (mapped) setNotice(mapped);
+          }
         }
       },
     });

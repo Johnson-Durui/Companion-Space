@@ -34,7 +34,7 @@ class DebriefRequest(BaseModel):
 def start_practice(item_id: str, container: Container) -> dict:
     result = start_run(container.repository, item_id)
     if result is None:
-        raise ResourceNotFoundError("Practice is unavailable")
+        raise ResourceNotFoundError("Practice is unavailable", code="practice_unavailable")
     return result
 
 
@@ -42,14 +42,17 @@ def start_practice(item_id: str, container: Container) -> dict:
 def read_practice(run_id: str, container: Container) -> dict:
     result = get_run(container.repository, run_id, reveal=False)
     if result is None:
-        raise ResourceNotFoundError("Practice not found")
+        raise ResourceNotFoundError("Practice not found", code="practice_not_found")
     return result
 
 
 @router.put("/practice/{run_id}/answer")
 def put_practice_answer(run_id: str, payload: PracticeAnswer, container: Container) -> dict:
     if not save_answer(container.repository, run_id, payload.item_id, payload.answer):
-        raise HTTPException(status_code=409, detail="Practice has ended or the item is unavailable")
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "practice_answer_closed", "message": "Practice has ended or the item is unavailable"},
+        )
     return {"saved": True}
 
 
@@ -57,7 +60,7 @@ def put_practice_answer(run_id: str, payload: PracticeAnswer, container: Contain
 def finish_practice(run_id: str, container: Container) -> dict:
     result = submit_run(container.repository, run_id)
     if result is None:
-        raise ResourceNotFoundError("Practice not found")
+        raise ResourceNotFoundError("Practice not found", code="practice_not_found")
     return result
 
 
@@ -65,11 +68,17 @@ def finish_practice(run_id: str, container: Container) -> dict:
 async def explain_practice_item(run_id: str, item_id: str, payload: DebriefRequest, container: Container) -> dict:
     source = await asyncio.to_thread(get_debrief_item, container.repository, run_id, item_id)
     if source is None:
-        raise HTTPException(status_code=409, detail="Submit this practice before requesting commentary")
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "practice_not_submitted", "message": "Submit this practice before requesting commentary"},
+        )
     item = source["item"]
     allowed = ["CHECK"] if source["verdict"] == "correct" else ["SHOW_SOLUTION", "REEXPLAIN", "CHECK"]
     if payload.move not in allowed:
-        raise HTTPException(status_code=409, detail="That commentary is unavailable for this result")
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "practice_move_unavailable", "message": "That commentary is unavailable for this result"},
+        )
     context = {
         "mode": "practice_debrief", "pace": "normal", "style_id": "direct",
         "verdict": source["verdict"], "learner_answer": source["learner_answer"],
@@ -90,6 +99,7 @@ async def explain_practice_item(run_id: str, item_id: str, payload: DebriefReque
         _LOG.exception("Practice debrief commentary failed", extra={"run_id": run_id, "item_id": item_id})
         return {
             "available": False, "commentary": None,
+            "code": "practice_debrief_unavailable",
             "reason": "Live teacher commentary is temporarily unavailable. The verified solution remains available.",
         }
     voice = None
@@ -98,4 +108,4 @@ async def explain_practice_item(run_id: str, item_id: str, payload: DebriefReque
     if character:
         voice = {"lang": "zh-CN", "voice_id": character.voice.voice_id,
                  "rate": character.voice.rate, "pitch": character.voice.pitch}
-    return {"available": True, "commentary": commentary, "reason": None, "browser_voice": voice}
+    return {"available": True, "commentary": commentary, "code": None, "reason": None, "browser_voice": voice}

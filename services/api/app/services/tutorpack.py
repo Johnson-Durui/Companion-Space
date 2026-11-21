@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.core.errors import CodedValueError
 from app.services.character_modules.paths import CharacterPathMixin
 
 VideoTier = Literal["static", "loop_pack", "local_sidecar", "cloud_live"]
@@ -118,13 +119,13 @@ class ParsedTutorPack:
 
 def sanitize_anchor_image(data: bytes) -> bytes:
     if not data or len(data) > MAX_IMAGE_BYTES:
-        raise ValueError("Choose an image file up to 10 MB.")
+        raise CodedValueError("tutor_image_too_large", "Choose an image file up to 10 MB.")
     original_limit = Image.MAX_IMAGE_PIXELS
     Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
     try:
         with Image.open(io.BytesIO(data)) as img:
             if img.format not in {"PNG", "JPEG", "WEBP"}:
-                raise ValueError("Unsupported image format. Use PNG, JPEG, or WebP.")
+                raise CodedValueError("tutor_image_format_invalid", "Unsupported image format. Use PNG, JPEG, or WebP.")
             width, height = img.size
             if (
                 width < MIN_IMAGE_DIM
@@ -133,16 +134,19 @@ def sanitize_anchor_image(data: bytes) -> bytes:
                 or height > MAX_IMAGE_DIM
                 or width * height > MAX_IMAGE_PIXELS
             ):
-                raise ValueError("Image dimensions must be between 256 and 4096 pixels.")
+                raise CodedValueError(
+                    "tutor_image_dimensions_invalid",
+                    "Image dimensions must be between 256 and 4096 pixels.",
+                )
             normalized = ImageOps.exif_transpose(img)
             converted = normalized.convert("RGBA" if "A" in normalized.getbands() else "RGB")
             out = io.BytesIO()
             converted.save(out, format="WEBP", quality=90, method=4)
             return out.getvalue()
     except Image.DecompressionBombError as exc:
-        raise ValueError("Image exceeds the allowed pixel limit.") from exc
+        raise CodedValueError("tutor_image_dimensions_invalid", "Image exceeds the allowed pixel limit.") from exc
     except (UnidentifiedImageError, OSError) as exc:
-        raise ValueError("The uploaded file is not a valid image.") from exc
+        raise CodedValueError("tutor_image_format_invalid", "The uploaded file is not a valid image.") from exc
     finally:
         Image.MAX_IMAGE_PIXELS = original_limit
 
@@ -150,22 +154,22 @@ def sanitize_anchor_image(data: bytes) -> bytes:
 def validate_video_clip_bytes(filename: str, data: bytes) -> str:
     suffix = Path(filename).suffix.lower()
     if suffix not in VIDEO_SUFFIXES:
-        raise ValueError(f"Unsupported clip format for {filename}. Use .webm or .mp4.")
+        raise CodedValueError("tutor_archive_invalid", f"Unsupported clip format for {filename}. Use .webm or .mp4.")
     if not data or len(data) > MAX_CLIP_BYTES:
-        raise ValueError(f"Video clip {filename} must be non-empty and at most 15 MB.")
+        raise CodedValueError("tutor_archive_invalid", f"Video clip {filename} must be non-empty and at most 15 MB.")
     if suffix == ".webm":
         if not data.startswith(b"\x1a\x45\xdf\xa3"):
-            raise ValueError(f"Video clip {filename} does not have a valid WebM header.")
+            raise CodedValueError("tutor_archive_invalid", f"Video clip {filename} does not have a valid WebM header.")
         return "video/webm"
     if len(data) < 12 or data[4:8] != b"ftyp":
-        raise ValueError(f"Video clip {filename} does not have a valid MP4 header.")
+        raise CodedValueError("tutor_archive_invalid", f"Video clip {filename} does not have a valid MP4 header.")
     return "video/mp4"
 
 
 def parse_single_image_upload(filename: str, data: bytes) -> ParsedTutorPack:
     suffix = Path(filename).suffix.lower()
     if suffix not in IMAGE_SUFFIXES:
-        raise ValueError("Choose a PNG, JPG, or WebP image.")
+        raise CodedValueError("tutor_unsupported_file", "Choose a PNG, JPG, or WebP image.")
     clean_webp = sanitize_anchor_image(data)
     stem = Path(filename).stem.strip() or "Custom tutor"
     safe_name = stem[:160]
@@ -194,14 +198,14 @@ def _is_zip_symlink(info: zipfile.ZipInfo) -> bool:
 def parse_tutorpack_archive(filename: str, data: bytes) -> ParsedTutorPack:
     suffix = Path(filename).suffix.lower()
     if suffix not in ARCHIVE_SUFFIXES:
-        raise ValueError("Choose a .tutorpack or .zip archive.")
+        raise CodedValueError("tutor_unsupported_file", "Choose a .tutorpack or .zip archive.")
     if not data or len(data) > MAX_ARCHIVE_BYTES:
-        raise ValueError("The .tutorpack archive must be non-empty and at most 100 MB.")
+        raise CodedValueError("tutor_archive_invalid", "The .tutorpack archive must be non-empty and at most 100 MB.")
 
     try:
         archive = zipfile.ZipFile(io.BytesIO(data), "r")
     except zipfile.BadZipFile as exc:
-        raise ValueError("The uploaded file is not a valid .tutorpack ZIP archive.") from exc
+        raise CodedValueError("tutor_archive_invalid", "The uploaded file is not a valid .tutorpack ZIP archive.") from exc
 
     with archive:
         entries: dict[str, bytes] = {}
@@ -212,60 +216,72 @@ def parse_tutorpack_archive(filename: str, data: bytes) -> ParsedTutorPack:
             if info.is_dir():
                 continue
             if _is_zip_symlink(info):
-                raise ValueError("Symbolic links are not allowed in a .tutorpack archive.")
+                raise CodedValueError("tutor_archive_invalid", "Symbolic links are not allowed in a .tutorpack archive.")
             if len(entries) >= MAX_ARCHIVE_FILES:
-                raise ValueError("The .tutorpack archive contains too many files.")
-            normalized = CharacterPathMixin._normalize_relative_posix_path(
-                info.filename,
-                traversal_message="Archive entry path is invalid or attempts path traversal.",
-            )
+                raise CodedValueError("tutor_archive_invalid", "The .tutorpack archive contains too many files.")
+            try:
+                normalized = CharacterPathMixin._normalize_relative_posix_path(
+                    info.filename,
+                    traversal_message="Archive entry path is invalid or attempts path traversal.",
+                )
+            except ValueError as exc:
+                raise CodedValueError("tutor_archive_invalid", str(exc)) from exc
             if CharacterPathMixin._is_executable_name(normalized):
-                raise ValueError(f"Executable files are not allowed in a .tutorpack archive: {normalized}")
+                raise CodedValueError("tutor_archive_invalid", f"Executable files are not allowed in a .tutorpack archive: {normalized}")
             portable_key = CharacterPathMixin._portable_path_key(normalized)
             if portable_key in seen_keys:
-                raise ValueError(f"Duplicate archive entry path: {normalized}")
+                raise CodedValueError("tutor_archive_invalid", f"Duplicate archive entry path: {normalized}")
             seen_keys.add(portable_key)
 
             if info.file_size > MAX_UNCOMPRESSED_BYTES:
-                raise ValueError("Archive entry exceeds the allowed uncompressed size limit.")
+                raise CodedValueError("tutor_archive_invalid", "Archive entry exceeds the allowed uncompressed size limit.")
             with archive.open(info, "r") as stream:
                 remaining = MAX_UNCOMPRESSED_BYTES - total_uncompressed
                 chunk = stream.read(remaining + 1)
             if len(chunk) > remaining:
-                raise ValueError("Archive uncompressed size exceeds the 150 MB safety limit.")
+                raise CodedValueError("tutor_archive_invalid", "Archive uncompressed size exceeds the 150 MB safety limit.")
             total_uncompressed += len(chunk)
             entries[normalized] = chunk
 
     manifest_raw = entries.get("manifest.json")
     if manifest_raw is None:
-        raise ValueError("The .tutorpack archive is missing manifest.json.")
+        raise CodedValueError("tutor_archive_invalid", "The .tutorpack archive is missing manifest.json.")
     try:
         manifest_obj = json.loads(manifest_raw.decode("utf-8-sig"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError("manifest.json must be valid UTF-8 JSON.") from exc
+        raise CodedValueError("tutor_archive_invalid", "manifest.json must be valid UTF-8 JSON.") from exc
     if not isinstance(manifest_obj, dict):
-        raise ValueError("manifest.json must be a JSON object.")
-    manifest = TutorPackManifest.model_validate(manifest_obj)
+        raise CodedValueError("tutor_archive_invalid", "manifest.json must be a JSON object.")
+    try:
+        manifest = TutorPackManifest.model_validate(manifest_obj)
+    except ValueError as exc:
+        raise CodedValueError("tutor_archive_invalid", str(exc)) from exc
 
-    anchor_path = CharacterPathMixin._normalize_relative_posix_path(
-        manifest.anchor,
-        traversal_message="Invalid anchor image path in manifest.json.",
-    )
+    try:
+        anchor_path = CharacterPathMixin._normalize_relative_posix_path(
+            manifest.anchor,
+            traversal_message="Invalid anchor image path in manifest.json.",
+        )
+    except ValueError as exc:
+        raise CodedValueError("tutor_archive_invalid", str(exc)) from exc
     anchor_bytes = entries.get(anchor_path)
     if anchor_bytes is None:
-        raise ValueError(f"Anchor image is missing from archive: {anchor_path}")
+        raise CodedValueError("tutor_archive_invalid", f"Anchor image is missing from archive: {anchor_path}")
     clean_anchor = sanitize_anchor_image(anchor_bytes)
 
     asset_files: dict[str, bytes] = {"anchor.webp": clean_anchor}
     clip_rel_paths: dict[ClipSlot, str] = {}
     for slot, raw_clip_path in manifest.clips.items():
-        clip_path = CharacterPathMixin._normalize_relative_posix_path(
-            raw_clip_path,
-            traversal_message=f"Invalid clip path for {slot} in manifest.json.",
-        )
+        try:
+            clip_path = CharacterPathMixin._normalize_relative_posix_path(
+                raw_clip_path,
+                traversal_message=f"Invalid clip path for {slot} in manifest.json.",
+            )
+        except ValueError as exc:
+            raise CodedValueError("tutor_archive_invalid", str(exc)) from exc
         clip_bytes = entries.get(clip_path)
         if clip_bytes is None:
-            raise ValueError(f"Video clip for {slot} is missing from archive: {clip_path}")
+            raise CodedValueError("tutor_archive_invalid", f"Video clip for {slot} is missing from archive: {clip_path}")
         validate_video_clip_bytes(clip_path, clip_bytes)
         clip_suffix = Path(clip_path).suffix.lower()
         target_rel = f"clips/{slot}{clip_suffix}"

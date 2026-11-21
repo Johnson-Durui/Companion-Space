@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, bodyOf, connectionsKey, ensureOK, fetchConnections, fetchRoles, rolesKey, type Connection, type ModelRoles } from "../../app/api";
+import { api, bodyOf, connectionsKey, ensureOK, fetchConnections, fetchRoles, publicMessage, rolesKey, type Connection, type ModelRoles } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import t from "../../locales/zh-CN.json";
 
@@ -128,12 +128,19 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
       {test.data?.length === 0 ? <p role="status" className="hint">{t.settings.testedNone}</p> : null}
       {test.data?.length ? (
         <ul className="test-results" aria-live="polite">
-          {test.data.map((result) => (
-            <li key={result.role} data-failed={!result.ok}>
-              <strong>{roleLabel(result.role)} · {result.ok ? t.settings.passed : t.settings.failed}</strong>
-              <small>{result.message}{typeof result.latency_ms === "number" ? ` · ${Math.round(result.latency_ms)} ms` : ""}</small>
-            </li>
-          ))}
+          {test.data.map((result) => {
+            const detail = result.ok
+              ? (result.code === "stt_verified_silent" ? t.settings.sttVerifiedSilent : "")
+              : (publicMessage({ code: result.code }) ?? t.common.error);
+            const latency = typeof result.latency_ms === "number" ? `${Math.round(result.latency_ms)} ms` : "";
+            const meta = [detail, latency].filter(Boolean).join(" · ");
+            return (
+              <li key={result.role} data-failed={!result.ok}>
+                <strong>{roleLabel(result.role)} · {result.ok ? t.settings.passed : t.settings.failed}</strong>
+                {meta ? <small>{meta}</small> : null}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
       {discover.data ? <p role="status" className="hint">{discover.data.models.length ? t.settings.modelCount : t.settings.discoverEmpty}</p> : null}

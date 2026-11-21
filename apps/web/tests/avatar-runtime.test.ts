@@ -348,7 +348,11 @@ describe("LiveCostGuard and Sidecar Protocol + Fallback", () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(events.some((e) => e.state === "degraded" && e.fallbackTier === "static")).toBe(true);
+    expect(
+      events.some(
+        (e) => e.state === "degraded" && e.fallbackTier === "static" && e.code === "sidecar_unavailable",
+      ),
+    ).toBe(true);
     expect(manager.currentTier).toBe("static");
     await manager.unmount();
   });

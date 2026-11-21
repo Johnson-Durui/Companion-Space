@@ -89,9 +89,22 @@ export interface VideoDriverCapabilities {
   hasMeteredCost: boolean;
 }
 
+export type VideoDriverDegradedCode =
+  | "loop_pack_empty"
+  | "loop_pack_playback_failed"
+  | "sidecar_timeout"
+  | "sidecar_connect_failed"
+  | "sidecar_disconnected"
+  | "sidecar_stream_error"
+  | "sidecar_unavailable"
+  | "sidecar_remote_error"
+  | "sidecar_heartbeat_timeout"
+  | "switched_to_free";
+
 export interface VideoDriverStatusEvent {
   state: "connecting" | "ready" | "suspended" | "degraded";
   tier: VideoAvatarTier;
+  code?: VideoDriverDegradedCode;
   reason?: string;
   fallbackTier?: VideoAvatarTier;
 }

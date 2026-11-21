@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.core.errors import CodedValueError
 from app.services.character_modules.common import _existing_io_file, _windows_io_path
 from app.services.character_modules.paths import CharacterPathMixin
 from app.services.repository import SQLiteRepository
@@ -330,7 +331,7 @@ class TutorCatalog:
         elif suffix in ARCHIVE_SUFFIXES:
             parsed = parse_tutorpack_archive(filename, data)
         else:
-            raise ValueError("Choose a .tutorpack, .zip, .png, .jpg, or .webp file.")
+            raise CodedValueError("tutor_unsupported_file", "Choose a .tutorpack, .zip, .png, .jpg, or .webp file.")
         return self._store_parsed_pack(parsed)
 
     def update_character(self, identifier: str, payload: TutorUpdate) -> Character | None:
@@ -368,7 +369,7 @@ class TutorCatalog:
             if character is None:
                 return False
             if character.pack_metadata.source_kind == "builtin" or identifier in self._builtin_ids():
-                raise ValueError("Built-in teachers cannot be deleted.")
+                raise CodedValueError("tutor_builtin_delete_forbidden", "Built-in teachers cannot be deleted.")
             conn.execute("DELETE FROM character_packs WHERE id = ?", (identifier,))
 
         asset_root = CharacterPathMixin._contained_child(self.repository.settings.characters_root, identifier)
