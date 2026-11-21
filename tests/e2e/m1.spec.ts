@@ -14,7 +14,7 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   await expect(page.getByRole("heading", { name: t.welcome.heading })).toBeVisible();
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   await expect(page.locator(".roster-option")).toHaveCount(6);
-  await expect(page.locator(".model-option")).toHaveCount(3);
+  await expect(page.locator(".model-option")).toHaveCount(0);
   await expect(page.locator(".teacher-stage img")).toBeVisible();
   await expect.poll(() => page.locator(".teacher-stage img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
   await page.screenshot({ path: resolve(screenshots, "welcome-desktop.png") });
@@ -44,10 +44,6 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   await expect(page.getByText(t.welcome.chosen)).toBeVisible();
 
-  const firstModel = page.locator(".model-option").first();
-  const modelName = await firstModel.locator("span").textContent();
-  await firstModel.click();
-  await expect(page.getByRole("heading", { name: modelName ?? "", exact: true })).toBeVisible();
   await page.getByRole("button", { name: t.voice.preview }).click();
   await expect(page.getByRole("button", { name: t.voice.browser })).toBeVisible();
 

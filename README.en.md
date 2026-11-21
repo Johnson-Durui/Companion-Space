@@ -1,10 +1,12 @@
-# Companion Space 1.0 RC
+# Companion Space
 
 [中文](README.md)
 
-Companion Space is a local-first, single-user AI tutor. Import your own textbooks, slides, exams, and notes; build a source-linked course map; complete a learner interview and placement check; then study in a live classroom with voice, a synchronized board, and review cards.
+Companion Space is a local-first, single-user AI tutor. Import your own textbooks, slides, exams, and notes; build a source-linked course map; complete a learner interview and placement check; then study in a live classroom with voice, a synchronized board, a WeChat-video-call style animated anime tutor, and review cards.
 
-This is the `1.0.0-rc.1` release candidate, not a signed general release. Application data stays on this computer by default. When you use an external model, the text or images required for that operation are sent to the provider you configure.
+![Six built-in anime tutors](docs/images/six-anime-tutors.jpg)
+
+Current release: `1.0.0-rc.2` (Apache-2.0 open source). Application data stays on this computer by default. When you use an external model, the text or images required for that operation are sent to the provider you configure.
 
 ## Three-command quick start
 

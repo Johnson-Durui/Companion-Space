@@ -12,18 +12,24 @@
 .lesson-stage {
   position: relative; min-height: 520px; padding: 14px; isolation: isolate;
   background: linear-gradient(160deg, #132c30 0%, #0a1b1f 100%); color: #fffdf7;
-  display: flex; align-items: stretch; justify-content: center;
+  display: flex; align-items: start; justify-content: center;
 }
 
 /* WeChat-style vertical video call frame */
 .tvb-frame {
-  position: relative; width: 100%; height: 100%; min-height: 360px;
+  position: relative; width: 100%; aspect-ratio: 9 / 16; height: auto;
+  min-height: 360px; max-height: min(680px, calc(100vh - 120px));
   border-radius: 16px; overflow: hidden; isolation: isolate;
   background: radial-gradient(circle at 50% 34%, #225456 0%, #0d2226 62%, #071316 100%);
   box-shadow: inset 0 0 0 1px #ffffff24, 0 14px 36px #0000004d;
   color: #fffdf7;
 }
-.tvb-frame.tvb-compact { border-radius: 0; box-shadow: none; min-height: 100%; }
+.lesson-stage .tvb-frame { position: sticky; top: 14px; }
+.tvb-frame.tvb-compact {
+  width: min(100%, 312px); aspect-ratio: 9 / 16; height: auto;
+  min-height: 360px; max-height: 556px; border-radius: 14px;
+  box-shadow: inset 0 0 0 1px #ffffff24, 0 12px 30px #00000044;
+}
 .tvb-media-host, .tvb-surface { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
 .tvb-anchor, .tvb-video, .tvb-canvas {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -166,8 +172,9 @@
   .lesson-room, .lesson-recap { gap: 12px; padding-top: 16px; }
   .lesson-header { align-items: start; flex-direction: column; gap: 10px; }
   .lesson-surface { grid-template-columns: minmax(0, 1fr); min-height: auto; overflow: visible; }
-  .lesson-stage { position: sticky; top: 8px; z-index: 10; min-height: 0; padding: 8px; aspect-ratio: 4 / 3; max-height: 300px; border-radius: var(--r-lg) var(--r-lg) 0 0; }
-  .tvb-frame { min-height: 220px; }
+  .lesson-stage { position: sticky; top: 8px; z-index: 10; min-height: 0; padding: 8px; aspect-ratio: 4 / 3; max-height: 300px; border-radius: var(--r-lg) var(--r-lg) 0 0; align-items: stretch; }
+  .lesson-stage .tvb-frame { position: relative; top: auto; aspect-ratio: auto; height: 100%; max-height: none; min-height: 220px; }
+  .tvb-frame.tvb-compact { width: min(100%, 240px); min-height: 340px; max-height: 420px; }
   .tvb-anchor, .tvb-video { object-position: center 14%; }
   .tvb-bottom-bar { padding: 24px 10px 8px; }
   .tvb-caption { min-height: 2em; font-size: .875rem; }

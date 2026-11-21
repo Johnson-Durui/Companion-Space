@@ -1,26 +1,17 @@
 # Archived assets
 
-This directory preserves pre-rebuild files for review. Exclude its contents from
-product distributions. The active asset collection is in [assets/avatars](../assets/avatars/).
+This directory preserves lightweight non-restricted historical metadata and
+CC0 motion fixtures used by legacy compatibility tests. Exclude its contents
+from product distributions. The active Apache-2.0 anime tutor assets live in
+[assets/avatars](../assets/avatars/).
 
-- `models/` holds the six retired Companion Space VRM prototypes. Their
-  visual quality fell below the target for the tutor experience. The original
-  manifest is a historical record and lists earlier bundled samples as well.
-- `motions/` holds the four generated VRMA clips, their manifest, and the
-  original CC0 dedication.
-- `pets/` holds the retired Mori and Yuzu sprite sheets and metadata.
-- `scripts/` holds the old production and validation scripts for these
-  assets. The scripts retain their historical source paths.
-- `not-for-distribution/Seed-san.vrm` is the VirtualCast, Inc. sample from
-  the [VRM specification repository](https://github.com/vrm-c/vrm-specification/tree/master/samples/Seed-san).
-  The embedded metadata allows redistribution. VirtualCast's separate terms
-  restrict redistribution of unmodified model data, so the product excludes
-  this file.
+- `motions/` holds four CC0 VRMA clips (`LICENSE-CC0.txt`) retained for
+  historical compatibility tests (`services/api/tests/test_m5_character_service.py`).
+- `pets/` holds historical Mori and Yuzu sprite sheets and metadata.
+- `scripts/` holds legacy asset utility scripts for reference.
 
-- `retired-vrm/` holds the 3D VRM sample models and catalog entries retired on
-  2026-11-19 when the character subsystem moved to `<TutorVideoBox>`.
-- `retired-portraits/` holds the six pre-2026-11-19 built-in portraits
-  (`mira/kite/cael/lyra/nova/echo`) and their catalog JSONs replaced by the
-  owner-verified six-character anime roster (`xuechuan/shenyan/lanyue/chutang/qingheng/lanyin`).
-- The complete pre-rebuild notices are available under the local snapshot tag:
-`git show pre-rebuild-20261116:assets/THIRD_PARTY_NOTICES.md`.
+Heavy retired 3D VRM binaries (`models/`, `retired-vrm/`), VirtualCast's
+non-redistributable sample (`not-for-distribution/Seed-san.vrm`), and
+unverified legacy portraits (`retired-portraits/`) were removed from the public
+repository tree prior to open-source release. Historical pre-rebuild notices
+remain recorded under local snapshot tag `pre-rebuild-20261116`.

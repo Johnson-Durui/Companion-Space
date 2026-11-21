@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import t from "../../apps/web/src/locales/zh-CN.json";
 
 const screenshots = resolve("docs/rebuild/review/V1");
-const samplePortrait = resolve("assets/avatars/portraits/echo.png");
+const samplePortrait = resolve("assets/avatars/portraits/chutang.webp");
 
 test("an imported anime portrait can be previewed with pose controls, edited, and deleted", async ({ page }) => {
   mkdirSync(screenshots, { recursive: true });
@@ -12,7 +12,7 @@ test("an imported anime portrait can be previewed with pose controls, edited, an
   const upload = page.waitForResponse(
     (response) => response.url().endsWith("/api/v2/characters/import") && response.request().method() === "POST",
   );
-  await page.getByLabel(t.characters.import).setInputFiles(samplePortrait);
+  await page.locator('input[type="file"]').setInputFiles(samplePortrait);
   expect((await upload).status()).toBe(201);
   await expect(page.locator(".teacher-stage .tvb-frame")).toBeVisible();
   await page.getByRole("button", { name: t.characters.poses.praise, exact: true }).click();
