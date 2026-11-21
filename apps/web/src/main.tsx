@@ -11,6 +11,7 @@ import { UnlockSession } from "./features/settings/security";
 import Welcome from "./features/onboarding/welcome";
 import t from "./locales/zh-CN.json";
 import { scheduleFontPrefetch } from "./styles/prefetch-fonts";
+import { useTutorThemeSync } from "./styles/use-tutor-theme";
 
 scheduleFontPrefetch();
 
@@ -152,6 +153,7 @@ function Home() {
 function App() {
   const location = useLocation();
   const session = useQuery({ queryKey: sessionKey, queryFn: bootstrapSession, staleTime: Infinity });
+  useTutorThemeSync(session.data?.state === "ready");
 
   return (
     <>

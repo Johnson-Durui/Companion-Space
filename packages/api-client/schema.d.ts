@@ -1328,6 +1328,8 @@ export interface components {
              * @constant
              */
             schema_version: 3;
+            /** @default default */
+            theme: components["schemas"]["TutorThemeId"];
             video_avatar: components["schemas"]["VideoAvatarConfig"];
             voice: components["schemas"]["Voice"];
         };
@@ -2589,6 +2591,8 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** @enum {string} */
+        TutorThemeId: "default" | "xuechuan" | "shenyan" | "lanyue" | "chutang" | "qingheng" | "lanyin" | "neutral";
         /** TutorUpdate */
         TutorUpdate: {
             /** Address User As */
@@ -2604,6 +2608,7 @@ export interface components {
             preferred_tier?: ("static" | "loop_pack" | "local_sidecar" | "cloud_live") | null;
             /** Relationship */
             relationship: string;
+            theme?: components["schemas"]["TutorThemeId"] | null;
             /** Traits */
             traits: string[];
         };

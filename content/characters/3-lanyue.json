@@ -47,6 +47,7 @@
     "address_user_as": "你"
   },
   "default_style_id": "analogy",
+  "theme": "lanyue",
   "license": "Apache-2.0",
   "pack_metadata": {
     "author": "Companion Space",

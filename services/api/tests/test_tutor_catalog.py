@@ -335,3 +335,68 @@ def test_builtin_six_teachers_auto_discover_full_loop_packs(client, owner_token)
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("video/webm")
     assert resp.content[:4] == b"\x1a\x45\xdf\xa3"
+
+
+def test_builtin_themes_default_merge_and_preserve_user_edits(client, owner_token):
+    container = get_container()
+    auth = {"Authorization": f"Bearer {owner_token}"}
+    expected = {
+        "tutor-xuechuan": "xuechuan",
+        "tutor-shenyan": "shenyan",
+        "tutor-lanyue": "lanyue",
+        "tutor-chutang": "chutang",
+        "tutor-qingheng": "qingheng",
+        "tutor-lanyin": "lanyin",
+    }
+
+    # Simulate an existing installation where stored built-in recipe JSON lacks "theme"
+    # and user has already customized the teacher's name.
+    with container.repository.connection() as conn:
+        row = conn.execute("SELECT recipe_json FROM character_packs WHERE id = 'tutor-xuechuan'").fetchone()
+        legacy_recipe = json.loads(row["recipe_json"])
+        legacy_recipe.pop("theme", None)
+        legacy_recipe["name"] = "雪川学长"
+        conn.execute(
+            "UPDATE character_packs SET name = ?, recipe_json = ? WHERE id = 'tutor-xuechuan'",
+            (legacy_recipe["name"], json.dumps(legacy_recipe)),
+        )
+
+    roster = client.get("/api/v2/characters", headers=auth).json()
+    by_id = {entry["id"]: entry for entry in roster}
+    for char_id, theme_id in expected.items():
+        assert by_id[char_id]["theme"] == theme_id
+    # User's edited name was preserved while missing theme was merged from defaults.
+    assert by_id["tutor-xuechuan"]["name"] == "雪川学长"
+
+    # Explicit theme edit persists and is not overwritten by subsequent unrelated edits.
+    updated = client.put(
+        "/api/v2/characters/tutor-xuechuan",
+        headers=auth,
+        json={
+            "name": "雪川学长",
+            "relationship": by_id["tutor-xuechuan"]["persona"]["relationship"],
+            "traits": by_id["tutor-xuechuan"]["persona"]["traits"],
+            "catchphrases": by_id["tutor-xuechuan"]["persona"]["catchphrases"],
+            "address_user_as": by_id["tutor-xuechuan"]["persona"]["address_user_as"],
+            "default_style_id": "guided",
+            "theme": "neutral",
+        },
+    )
+    assert updated.status_code == 200
+    assert updated.json()["theme"] == "neutral"
+
+    # Subsequent edit without theme keeps user's chosen theme.
+    updated2 = client.put(
+        "/api/v2/characters/tutor-xuechuan",
+        headers=auth,
+        json={
+            "name": "雪川",
+            "relationship": by_id["tutor-xuechuan"]["persona"]["relationship"],
+            "traits": by_id["tutor-xuechuan"]["persona"]["traits"],
+            "catchphrases": by_id["tutor-xuechuan"]["persona"]["catchphrases"],
+            "address_user_as": by_id["tutor-xuechuan"]["persona"]["address_user_as"],
+            "default_style_id": "guided",
+        },
+    )
+    assert updated2.status_code == 200
+    assert updated2.json()["theme"] == "neutral"

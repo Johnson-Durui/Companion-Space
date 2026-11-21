@@ -29,6 +29,12 @@ from app.services.tutorpack import (
 )
 
 type StyleId = Literal["guided", "direct", "analogy", "exam", "rigorous"]
+type TutorThemeId = Literal[
+    "default", "xuechuan", "shenyan", "lanyue", "chutang", "qingheng", "lanyin", "neutral"
+]
+_VALID_THEMES: frozenset[str] = frozenset({
+    "default", "xuechuan", "shenyan", "lanyue", "chutang", "qingheng", "lanyin", "neutral"
+})
 ShortLine = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)]
 _FALLBACK_ORDER = (
     "tutor-chutang",
@@ -107,6 +113,7 @@ class Character(BaseModel):
     voice: Voice
     persona: Persona
     default_style_id: str
+    theme: TutorThemeId = "default"
     license: str
     pack_metadata: PackMetadata = Field(default_factory=PackMetadata)
 
@@ -118,6 +125,7 @@ class TutorUpdate(BaseModel):
     catchphrases: list[ShortLine] = Field(max_length=8)
     address_user_as: str = Field(max_length=160)
     default_style_id: StyleId
+    theme: TutorThemeId | None = None
     preferred_tier: VideoTier | None = None
     local_sidecar_driver_id: str | None = Field(default=None, max_length=120)
 
@@ -138,17 +146,20 @@ class TutorCatalog:
     def __init__(self, repository: SQLiteRepository) -> None:
         self.repository = repository
 
-    def _builtin_ids(self) -> set[str]:
+    def _builtin_manifests(self) -> dict[str, dict]:
         root = self.repository.settings.repo_root
-        ids: set[str] = set()
-        for path in (root / "content/characters").glob("*.json"):
+        manifests: dict[str, dict] = {}
+        for path in sorted((root / "content/characters").glob("*.json")):
             try:
                 raw = json.loads(path.read_text(encoding="utf-8-sig"))
                 if isinstance(raw, dict) and isinstance(raw.get("id"), str):
-                    ids.add(raw["id"])
+                    manifests[raw["id"]] = raw
             except (OSError, json.JSONDecodeError):
                 continue
-        return ids
+        return manifests
+
+    def _builtin_ids(self) -> set[str]:
+        return set(self._builtin_manifests().keys())
 
     def _normalize_recipe(self, raw: dict) -> Character | None:
         version = raw.get("schema_version")
@@ -212,6 +223,12 @@ class TutorCatalog:
         }
         normalized["video_avatar"] = video_raw
         normalized["pack_metadata"] = pack_meta_raw
+        raw_theme = normalized.get("theme")
+        if isinstance(raw_theme, str) and raw_theme in _VALID_THEMES:
+            normalized["theme"] = raw_theme
+        else:
+            builtin_default = self._builtin_manifests().get(char_id, {}).get("theme")
+            normalized["theme"] = builtin_default if isinstance(builtin_default, str) and builtin_default in _VALID_THEMES else "default"
         normalized.pop("model_metadata", None)
         return Character.model_validate(normalized)
 
@@ -339,21 +356,26 @@ class TutorCatalog:
             row = conn.execute("SELECT recipe_json FROM character_packs WHERE id = ?", (identifier,)).fetchone()
             if row is None:
                 return None
-            existing = self._normalize_recipe(json.loads(row["recipe_json"]))
+            raw_stored = json.loads(row["recipe_json"])
+            existing = self._normalize_recipe(raw_stored)
             if existing is None:
                 return None
             data = existing.model_dump()
             data["name"] = payload.name
             data["default_style_id"] = payload.default_style_id
             data["persona"] = payload.model_dump(include={"relationship", "traits", "catchphrases", "address_user_as"})
+            if payload.theme is not None:
+                data["theme"] = payload.theme
             if payload.preferred_tier is not None:
                 data["video_avatar"]["preferred_tier"] = payload.preferred_tier
             if "local_sidecar_driver_id" in payload.model_fields_set:
                 data["video_avatar"]["local_sidecar"]["driver_id"] = payload.local_sidecar_driver_id
             character = Character.model_validate(data)
             stored = character.model_dump()
-            if payload.preferred_tier is not None:
+            if payload.preferred_tier is not None or raw_stored.get("_tier_explicit"):
                 stored["_tier_explicit"] = True
+            if payload.theme is not None or raw_stored.get("_theme_explicit"):
+                stored["_theme_explicit"] = True
             conn.execute(
                 "UPDATE character_packs SET name = ?, recipe_json = ?, updated_at = ? WHERE id = ?",
                 (character.name, json.dumps(stored), datetime.now(timezone.utc).isoformat(), identifier),
