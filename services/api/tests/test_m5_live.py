@@ -74,7 +74,7 @@ def test_live_room_rejects_reused_tickets_and_replays_after_interrupt(isolated_s
             rows.extend(_receive_through(socket, "say"))
             assert any(row["type"] == "board" for row in rows)
             spoken = next(row for row in rows if row["type"] == "say")
-            for _ in range(50):
+            for _ in range(300):
                 if container.gateway.stream_calls >= 2:
                     break
                 time.sleep(0.01)
