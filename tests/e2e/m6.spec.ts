@@ -13,7 +13,7 @@ test("an imported anime portrait can be previewed with pose controls, edited, an
   const upload = page.waitForResponse(
     (response) => response.url().endsWith("/api/v2/characters/import") && response.request().method() === "POST",
   );
-  await page.getByLabel(t.characters.import).setInputFiles(samplePortrait);
+  await page.getByRole("button", { name: t.characters.import }).setInputFiles(samplePortrait);
   expect((await upload).status()).toBe(201);
   await expect(page.getByTestId("teacher-stage").getByTestId("tutor-video-box")).toBeVisible();
   await page.getByRole("button", { name: t.characters.poses.praise, exact: true }).click();

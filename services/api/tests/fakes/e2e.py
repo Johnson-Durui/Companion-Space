@@ -66,7 +66,7 @@ def seed_empty_course(container):
     with repository.connection() as connection:
         connection.execute(
             """INSERT INTO study_spaces(id, name, topic, goal, created_at, updated_at)
-               VALUES ('browser-empty-course', '线性代数基础（待上传资料）', '线性代数', NULL, ?, ?)""",
+               VALUES ('browser-empty-course', '线性代数基础（待上传资料）', '线性代数', '', ?, ?)""",
             (now, now),
         )
 
