@@ -38,9 +38,7 @@ VRM 验证等待模型真正加载后才开始试听，播放时实际口型权�
 
 机器可读汇总见 [本轮验证记录](evidence/character-voice-20261111.json)。上一轮的 API 548 项、移动构建、安全审计和独立安装验证仍记录于 [上一轮交付记录](delivery-20261111.md)，不重复标为本轮测试结果。
 
-以下为测试数据下的真实浏览器截图，分别展示 2D 和已加载 VRM 的试听状态：
-
-![2D 试听与停止控件](screenshots/voice-preview-portrait.png)
+以下截图展示测试时已加载 VRM 的试听状态。
 
 ![VRM 试听与停止控件](screenshots/voice-preview-vrm.png)
 

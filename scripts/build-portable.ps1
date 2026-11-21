@@ -9,7 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$version = '1.0.0-rc.1'
+$version = '1.0.0-rc.2'
 $pythonVersion = '3.14.10'
 $pythonArchive = "python-$pythonVersion-embed-amd64.zip"
 $pythonUrl = "https://www.python.org/ftp/python/$pythonVersion/$pythonArchive"
@@ -97,7 +97,10 @@ $pipArgs = @(
 if ($Mirror -eq 'cn') { $pipArgs += @('--index-url', 'https://pypi.tuna.tsinghua.edu.cn/simple') }
 Invoke-Checked { & $hostPython @pipArgs } 'Portable dependency installation failed'
 
-Copy-Tree 'services\api\app'
+$copyApplication = "import shutil, sys; shutil.copytree(sys.argv[1], sys.argv[2], ignore=shutil.ignore_patterns('__pycache__', '*.py[co]'))"
+Invoke-Checked {
+    & $hostPython -c $copyApplication (Join-Path $root 'services\api\app') (Join-Path $stage 'services\api\app')
+} 'Application source copy failed'
 Copy-Tree 'services\api\requirements.txt'
 Copy-Tree 'services\api\requirements-local-stt.txt'
 Copy-Tree 'apps\web\dist'
@@ -114,6 +117,7 @@ Copy-Tree 'README.md'
 Copy-Tree 'README.en.md'
 Copy-Tree 'CHANGELOG.md'
 Copy-Tree 'docs\images\sample-lesson.png'
+Copy-Tree 'docs\images\six-anime-tutors.jpg'
 New-Item -ItemType Directory -Path (Join-Path $stage 'data') -Force | Out-Null
 
 # All six active built-in anime tutor anchor portraits (xuechuan, shenyan, lanyue,

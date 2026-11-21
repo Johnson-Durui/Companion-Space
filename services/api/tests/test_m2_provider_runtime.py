@@ -66,8 +66,8 @@ def test_provider_secret_rotation_and_deletion_never_write_plaintext_to_storage(
     probe.unlink()
 
     headers = _auth_headers(owner_token)
-    first_secret = "sk-storage-first-canary-9ea9f5a7"
-    rotated_secret = "sk-storage-rotated-canary-554287c1"
+    first_secret = "sk-" + "first-test-value-" * 2
+    rotated_secret = "sk-" + "rotated-test-value-" * 2
     created = client.post(
         "/api/v2/providers/connections",
         headers=headers,
