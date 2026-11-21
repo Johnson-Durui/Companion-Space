@@ -30,6 +30,7 @@ export type InterviewState = {
 };
 export type Placement = {
   status: string;
+  unavailable_reason?: "materials_not_ready" | "no_questions" | null;
   question: null | { item_id: string; kp_id: string; type: string; stem: string; options: Record<string, string> | Array<{ key: string; text: string }>; answered: number; started_at: string };
   mastery: Array<{ kp_id: string; name: string; unit_id: string | null; probability: number; status: string | null; inferred: boolean }>;
   summary: null | { strongest_name: string; strongest_probability: number; priority_name: string; priority_probability: number; inferred_count: number };
@@ -55,6 +56,9 @@ export const answerPlacement = (courseId: string, body: { item_id: string; answe
 );
 export const finishPlacement = (courseId: string) => request<Placement>(
   `/api/v2/courses/${courseId}/placement/finish`, { method: "POST", body: "{}" },
+);
+export const restartPlacement = (courseId: string) => request<Placement>(
+  `/api/v2/courses/${courseId}/placement/restart`, { method: "POST", body: "{}" },
 );
 export const getPlan = (courseId: string) => request<StudyPlan>(`/api/v2/courses/${courseId}/plan`);
 export const createPlan = (courseId: string) => request<StudyPlan>(

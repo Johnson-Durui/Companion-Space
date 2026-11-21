@@ -192,6 +192,8 @@
     "interviewSkip": "跳过访谈，使用默认值",
     "interviewTopics": { "identity": "怎么称呼你、现在什么阶段", "goal": "这门课的目标", "schedule": "每周的学习时间", "starting_point": "现在的基础", "hard_parts": "最头疼的内容和老师划的重点", "teaching": "喜欢的讲法和反馈方式" },
     "placementHeading": "起点诊断",
+    "placementWaitMaterials": "读完资料后开放",
+    "placementNoQuestions": "当前资料暂无可用诊断题，可直接生成学习计划。",
     "answer": "答案",
     "submitAnswer": "提交答案",
     "dontKnow": "不会，跳过",

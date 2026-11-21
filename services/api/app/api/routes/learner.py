@@ -17,6 +17,7 @@ from app.learning.placement import PlacementCandidate, inferred_updates, select_
 from app.learning.planner import PlanningPoint, build_plan, persist_plan, stabilize_plan
 from app.learning.profiles import CourseEnrollment, EnrollmentSettings, LearnerProfile
 from app.providers.errors import ProviderError
+from app.services.jobs import latest_analysis_job
 from app.services.settings_store import get_setting, put_setting
 from app.teaching.preparation import queue_upcoming_lessons
 
@@ -57,6 +58,7 @@ class PlacementResult(BaseModel):
     question: PlacementQuestion | None
     mastery: list[dict]
     summary: "PlacementSummary | None" = None
+    unavailable_reason: Literal["materials_not_ready", "no_questions"] | None = None
 
 
 class PlacementSummary(BaseModel):
@@ -206,11 +208,14 @@ def skip_interview(course_id: str, container: Container) -> InterviewState:
 
 
 def _initial_points(container: ServiceContainer, course_id: str, enrollment: dict) -> list[dict]:
+    settings = EnrollmentSettings.model_validate({
+        key: value for key, value in enrollment.items() if key in EnrollmentSettings.model_fields
+    })
     points = container.repository.learning_points(course_id)
     for point in points:
         if point["p"] is None:
             probability = initial_mastery_probability(
-                enrollment["self_level"], hard_unit=point["unit_id"] in enrollment["hard_units"],
+                settings.self_level, hard_unit=point["unit_id"] in settings.hard_units,
             )
             container.repository.save_mastery(course_id, point["id"], probability=probability, inferred=False)
             point.update(p=probability, status="unseen", inferred=0, evidence_count=0)
@@ -254,15 +259,24 @@ def _placement_result(container: ServiceContainer, course_id: str, started_at: d
     candidate = select_candidate(candidates)
     max_weight = max((item.weight + 0.5 * item.successor_weight for item in candidates), default=0)
     max_information = max((item.information / max_weight for item in candidates), default=None) if max_weight else None
-    done = not items or candidate is None or should_stop(
+    if not items:
+        job = latest_analysis_job(container.repository, course_id)
+        analyzed = bool(points) or (job is not None and job.status == "completed")
+        return PlacementResult(
+            status="unavailable",
+            question=None,
+            mastery=_mastery(points),
+            summary=_placement_summary(points),
+            unavailable_reason="no_questions" if analyzed else "materials_not_ready",
+        )
+    done = candidate is None or should_stop(
         answered=len(answered), started_at=started_at, now=datetime.now(timezone.utc),
         max_information=max_information,
     )
     if done:
-        status = "skipped" if not items else "done"
-        container.repository.update_enrollment_progress(course_id, placement_status=status)
+        container.repository.update_enrollment_progress(course_id, placement_status="done")
         return PlacementResult(
-            status=status, question=None, mastery=_mastery(points), summary=_placement_summary(points),
+            status="done", question=None, mastery=_mastery(points), summary=_placement_summary(points),
         )
     container.repository.update_enrollment_progress(course_id, placement_status="active")
     item = by_kp[candidate.kp_id]
@@ -280,10 +294,20 @@ def _placement_result(container: ServiceContainer, course_id: str, started_at: d
 @router.get("/courses/{course_id}/placement")
 def get_placement(course_id: str, container: Container) -> PlacementResult:
     enrollment = _course_or_404(container, course_id)
-    if enrollment["placement_status"] in {"done", "skipped"}:
+    if enrollment["placement_status"] == "done":
         points = _initial_points(container, course_id, enrollment)
         return PlacementResult(
-            status=enrollment["placement_status"], question=None, mastery=_mastery(points),
+            status="done", question=None, mastery=_mastery(points),
+            summary=_placement_summary(points),
+        )
+    if enrollment["placement_status"] == "skipped":
+        items = container.repository.diagnostic_items(course_id)
+        answered = container.repository.answered_diagnostic_items(course_id)
+        if not items or any(item["id"] not in answered for item in items):
+            return _placement_result(container, course_id, datetime.now(timezone.utc))
+        points = _initial_points(container, course_id, enrollment)
+        return PlacementResult(
+            status="skipped", question=None, mastery=_mastery(points),
             summary=_placement_summary(points),
         )
     return _placement_result(container, course_id, datetime.now(timezone.utc))
@@ -340,6 +364,13 @@ def finish_placement(course_id: str, container: Container) -> PlacementResult:
     container.repository.update_enrollment_progress(course_id, placement_status="done")
     points = _initial_points(container, course_id, enrollment)
     return PlacementResult(status="done", question=None, mastery=_mastery(points), summary=_placement_summary(points))
+
+
+@router.post("/courses/{course_id}/placement/restart")
+def restart_placement(course_id: str, container: Container) -> PlacementResult:
+    _course_or_404(container, course_id)
+    container.repository.update_enrollment_progress(course_id, placement_status="todo")
+    return _placement_result(container, course_id, datetime.now(timezone.utc))
 
 
 @router.get("/courses/{course_id}/plan")

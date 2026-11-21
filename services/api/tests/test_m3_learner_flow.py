@@ -227,3 +227,64 @@ def test_role_rendered_interview_slot_extraction_hint_mapping_and_gold_fixture()
     gold = json.loads((Path(__file__).parents[3] / "evals/gold/interview/cases.json").read_text(encoding="utf-8"))
     assert len(gold) == 30
     assert all(case["topic"] in TOPICS and case["text"] and case["expected"] is not None for case in gold)
+
+
+def test_placement_is_not_permanently_skipped_and_supports_restart(client, owner_token, isolated_settings):
+    repository = SQLiteRepository(isolated_settings)
+    headers = {"Authorization": f"Bearer {owner_token}"}
+    course_id = client.post("/api/v2/courses", headers=headers, json={"name": "No Materials Yet"}).json()["id"]
+    assert client.post(f"/api/v2/courses/{course_id}/interview/skip", headers=headers).status_code == 200
+
+    # 1. Before materials are analyzed, placement is unavailable (materials_not_ready) and NOT persisted as skipped.
+    before = client.get(f"/api/v2/courses/{course_id}/placement", headers=headers)
+    assert before.status_code == 200
+    assert before.json()["status"] == "unavailable"
+    assert before.json()["unavailable_reason"] == "materials_not_ready"
+    assert before.json()["question"] is None
+    assert client.get(f"/api/v2/courses/{course_id}/enrollment", headers=headers).json()["placement_status"] == "todo"
+
+    # 2. After KPs exist without diagnostic questions, placement is unavailable (no_questions) and still NOT skipped.
+    now = utcnow().isoformat()
+    with repository.connection() as connection:
+        connection.execute("INSERT INTO units(id, space_id, title, ord) VALUES ('u1', ?, 'Unit', 1)", (course_id,))
+        connection.execute(
+            """INSERT INTO knowledge_points(id, space_id, unit_id, name, norm_name, kind, summary,
+                   importance, difficulty, ord, created_at, updated_at)
+               VALUES ('kp1', ?, 'u1', 'Concept A', 'concept a', 'concept', 'Summary', 'core', 2, 1, ?, ?)""",
+            (course_id, now, now),
+        )
+    no_q = client.get(f"/api/v2/courses/{course_id}/placement", headers=headers)
+    assert no_q.status_code == 200
+    assert no_q.json()["status"] == "unavailable"
+    assert no_q.json()["unavailable_reason"] == "no_questions"
+    assert client.get(f"/api/v2/courses/{course_id}/enrollment", headers=headers).json()["placement_status"] == "todo"
+
+    # 3. Once verified diagnostic items appear, placement automatically becomes active.
+    item = {"stem": "Pick B.", "options": {"A": "no", "B": "yes"}, "answer": "B"}
+    with repository.connection() as connection:
+        connection.execute(
+            """INSERT INTO item_bank(id, space_id, kp_id, origin, purpose, type, difficulty,
+                                      item_json, verify_status, reserved, created_at)
+               VALUES ('diag-late-1', ?, 'kp1', 'generated', 'diagnostic', 'choice', 2, ?, 'verified', 0, ?)""",
+            (course_id, json.dumps(item), now),
+        )
+    active = client.get(f"/api/v2/courses/{course_id}/placement", headers=headers)
+    assert active.status_code == 200
+    assert active.json()["status"] == "active"
+    assert active.json()["question"]["item_id"] == "diag-late-1"
+
+    # 4. Legacy rows erroneously marked skipped with unanswered items resume automatically.
+    repository.update_enrollment_progress(course_id, placement_status="skipped")
+    recovered = client.get(f"/api/v2/courses/{course_id}/placement", headers=headers)
+    assert recovered.status_code == 200
+    assert recovered.json()["status"] == "active"
+    assert recovered.json()["question"]["item_id"] == "diag-late-1"
+
+    # 5. Finishing early marks done, and restart reopens unanswered diagnostic questions.
+    finished = client.post(f"/api/v2/courses/{course_id}/placement/finish", headers=headers)
+    assert finished.status_code == 200
+    assert finished.json()["status"] == "done"
+    restarted = client.post(f"/api/v2/courses/{course_id}/placement/restart", headers=headers)
+    assert restarted.status_code == 200
+    assert restarted.json()["status"] == "active"
+    assert restarted.json()["question"]["item_id"] == "diag-late-1"

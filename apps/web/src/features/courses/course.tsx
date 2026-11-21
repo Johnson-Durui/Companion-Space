@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { inferMaterial } from "./materials";
 import type { AnalysisStart, ExamItem, Job, KnowledgePoint, Material, MaterialRole } from "./types";
+import { learnerKeys } from "../learner/api";
 import { LearnerSetup } from "../learner/setup";
 
 const roles = Object.keys(t.courses.roles) as MaterialRole[];
@@ -129,6 +130,7 @@ function useAnalysisEvents(courseId: string, job: Job | null | undefined) {
         source.close();
         void queries.invalidateQueries({ queryKey: courseKeys.map(courseId) });
         void queries.invalidateQueries({ queryKey: courseKeys.materials(courseId) });
+        void queries.invalidateQueries({ queryKey: learnerKeys.placement(courseId) });
       }
     });
     source.onerror = () => void queries.invalidateQueries({ queryKey: courseKeys.analysis(courseId) });
