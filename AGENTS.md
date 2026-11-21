@@ -1,7 +1,8 @@
 # AGENTS.md — Companion Space 仓库约定（重塑期）
 
-> 面向在本仓库工作的编码代理。**先读 `docs/rebuild/PLAN.md`，再读 `docs/rebuild/PROGRESS.md`，然后只做当前里程碑（`docs/rebuild/MILESTONES.md`）。**
+> 面向在本仓库工作的编码代理。**先读 `docs/rebuild/PLAN.md`，再读 `docs/rebuild/PROGRESS.md`，然后只做当前里程碑（`docs/rebuild/MILESTONES.md`）。** **体验重塑阶段（U0–U7）**：先读 `docs/rebuild/UX-PLAN.md` 与 `docs/rebuild/TASK-UX-UPGRADE.md`，只做所有者点名的那个 U 里程碑；`MILESTONES.md` 只作为通用规则与历史的参考。
 > 文件之间有冲突时：`MILESTONES.md`（做什么、何时做）> `docs/rebuild/spec/*`（怎么做）> `PLAN.md` > 本文件之外的任何旧文档。
+> 体验重塑阶段的冲突顺序：`TASK-UX-UPGRADE.md` > `spec/experience-design.md` > `spec/design-system.md` > 其余 `spec/*` 中关于界面布局的段落。本文件的防空壳规则、安全与隐私红线、Git 规则，以及其余 `spec/*` 中关于协议、驱动、许可、安全的条款始终有效，任何 U 文件都不能放宽它们。
 
 ## 这是什么
 
@@ -44,8 +45,8 @@ $env:PYTHONPATH = "services/api"; .venv\Scripts\python.exe -m uvicorn app.main:a
 4. **错误不静默**：不得空 `except`、不得吞掉失败、不得静默降级。任何降级都要在界面上让用户看见原因和修复入口。
 5. **测试要能失败**：先让新测试红，再让它绿。断言行为与不变量；**不得断言常量、文件哈希、接口清单快照、文案或截图像素**。
 6. **删除要删干净**：删一组代码时，把它的导入、路由注册、依赖装配和测试在同一提交里一起处理；删完门必须全绿——若因后面才删的东西而变红，调整分组顺序，不要去修将被删除的测试。历史迁移函数只增不改。
-7. **不扩大范围**：`PLAN.md` §6 的"不做"清单与 `MILESTONES.md` 末尾的待议清单，未经所有者批准不得开工。顺手发现的问题记到 `PROGRESS.md`。
-8. **依赖**：许可必须是 MIT/BSD/Apache/MPL/ISC（LGPL 仅可作为未修改的包依赖）；用途、许可、替代方案写入 `DECISIONS.md`；锁定版本。禁止 GPL/AGPL 代码与依赖、Live2D/Cubism、PostgreSQL/Redis/Celery、Electron。
+7. **不扩大范围**：`PLAN.md` §6 的"不做"清单与 `MILESTONES.md` 末尾的待议清单，未经所有者批准不得开工。顺手发现的问题记到 `PROGRESS.md`。U 阶段另外适用 `spec/experience-design.md` §10 与 `TASK-UX-UPGRADE.md` 附录 B。
+8. **依赖**：许可必须是 MIT/BSD/Apache/MPL/ISC（LGPL 仅可作为未修改的包依赖）；用途、许可、替代方案写入 `DECISIONS.md`；锁定版本。禁止 GPL/AGPL 代码与依赖、Live2D/Cubism、PostgreSQL/Redis/Celery、Electron。字体按"素材与许可"处理，允许 SIL OFL 1.1。
 9. **文档**：只维护 `docs/rebuild/PROGRESS.md`、`DECISIONS.md`、`HUMAN-TASKS.md` 与随代码更新的产品文档。**不得创建"发布证据""验收记录"之类的过程文书**；评审用截图输出到 `docs/rebuild/review/`（已忽略，不提交）。
 
 ## 防空壳规则（违反任何一条都视为里程碑未完成）
