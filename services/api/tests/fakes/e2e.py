@@ -163,7 +163,7 @@ def seed_stress_course(container):
                 "type": "choice",
                 "kp_id": kp_ids[0],
                 "bank_id": f"{lesson_id}-question",
-                "keypoints": [0, 1],
+                "keypoints": [0],
                 "stem": (
                     "设函数 $f(x)$ 在闭区间 $[a, b]$ 上连续，在开区间 $(a, b)$ 内可导，且满足端点条件 $f(a)=f(b)=0$。\n"
                     "若进一步已知导函数 $f'(x)$ 在 $(a, b)$ 内严格单调递增，并且存在唯一驻点 $c \\in (a, b)$ 使 $f'(c)=0$。\n"
