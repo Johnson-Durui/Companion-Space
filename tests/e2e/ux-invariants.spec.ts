@@ -170,7 +170,7 @@ test("I3: destructive flows use in-app ConfirmDialog with safe cancel focus and 
   });
 
   // 1. Classroom end confirmation uses AlertDialog and focuses the safe keep-lesson button.
-  await page.goto("/lessons/browser-avatar-teaching-lesson");
+  await page.goto("/lessons/browser-avatar-inv-dialog-lesson");
   await page.getByRole("button", { name: t.classroom.startText }).click();
   await expect(page.getByRole("button", { name: t.classroom.end })).toBeEnabled({ timeout: 20_000 });
   await page.getByRole("button", { name: t.classroom.end }).click();
@@ -204,4 +204,198 @@ test("I5: saving settings emits an accessible status toast that auto-dismisses",
   await expect(statusToast).toHaveAttribute("role", "status");
   // Wait for auto-dismiss (~5s default).
   await expect(statusToast).toBeHidden({ timeout: 8_000 });
+});
+
+test("I6 & I10: classroom has zero page scroll across 4 desktop viewports and all dock controls are >= 44x44", async ({ page }) => {
+  const viewports = [
+    { width: 1440, height: 900 },
+    { width: 1280, height: 720 },
+    { width: 1366, height: 633 },
+    { width: 1280, height: 585 },
+  ];
+
+  async function assertSingleScreenAndDock(label: string) {
+    await expect.poll(
+      () => page.evaluate(() => Math.abs(document.documentElement.scrollHeight - window.innerHeight)),
+      { message: `${label}: document height should equal viewport height (no page scrollbar)` },
+    ).toBeLessThanOrEqual(2);
+
+    const dock = page.getByTestId("classroom-dock");
+    await expect(dock, `${label}: dock should be visible`).toBeVisible();
+    const box = await dock.boundingBox();
+    const vp = page.viewportSize()!;
+    expect(box, `${label}: dock bounding box`).not.toBeNull();
+    expect(box!.x, `${label}: dock left >= 0`).toBeGreaterThanOrEqual(-1);
+    expect(box!.y, `${label}: dock top >= 0`).toBeGreaterThanOrEqual(-1);
+    expect(box!.x + box!.width, `${label}: dock right <= viewport`).toBeLessThanOrEqual(vp.width + 1);
+    expect(box!.y + box!.height, `${label}: dock bottom <= viewport`).toBeLessThanOrEqual(vp.height + 1);
+
+    // I10: Every visible interactive control inside the dock must be >= 44x44px
+    const undersized = await dock.evaluate((el) => {
+      const items = el.querySelectorAll<HTMLElement>("button, a, input, [role='button']");
+      const bad: Array<{ tag: string; label: string; w: number; h: number }> = [];
+      for (const item of items) {
+        const rect = item.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) continue;
+        if (rect.width < 43.5 || rect.height < 43.5) {
+          bad.push({
+            tag: item.tagName,
+            label: item.getAttribute("aria-label") || item.textContent?.trim() || "",
+            w: Math.round(rect.width),
+            h: Math.round(rect.height),
+          });
+        }
+      }
+      return bad;
+    });
+    expect(undersized, `${label}: all visible dock controls >= 44x44px`).toEqual([]);
+  }
+
+  await page.setViewportSize(viewports[0]);
+  await page.goto("/lessons/browser-avatar-inv-viewports-lesson");
+  const shell = page.getByTestId("classroom-stage-shell");
+  await expect(shell).toHaveAttribute("data-phase", "lobby", { timeout: 15_000 });
+
+  for (const vp of viewports) {
+    await page.setViewportSize(vp);
+    await assertSingleScreenAndDock(`lobby ${vp.width}x${vp.height}`);
+  }
+
+  // Start lesson (text mode) and wait for question tray
+  await page.setViewportSize(viewports[0]);
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 20_000 });
+
+  for (const vp of viewports) {
+    await page.setViewportSize(vp);
+    await assertSingleScreenAndDock(`awaiting ${vp.width}x${vp.height}`);
+  }
+
+  // Pause and verify paused phase across viewports
+  await page.setViewportSize(viewports[0]);
+  await page.getByRole("button", { name: t.classroom.pause }).click();
+  await expect(shell).toHaveAttribute("data-phase", "paused", { timeout: 10_000 });
+  for (const vp of viewports) {
+    await page.setViewportSize(vp);
+    await assertSingleScreenAndDock(`paused ${vp.width}x${vp.height}`);
+  }
+});
+
+test("I7: stress lesson keeps tray footer + first option in viewport and supports board auto-follow + manual scroll", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/lessons/browser-stress-lesson");
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+
+  // Wait for 6-option question tray and 22-line board blocks
+  const tray = page.getByTestId("answer-tray");
+  await expect(tray).toBeVisible({ timeout: 25_000 });
+  const firstOption = tray.getByRole("radio").first();
+  await expect(firstOption).toBeVisible({ timeout: 15_000 });
+  const footer = page.getByTestId("answer-tray-footer");
+  await expect(footer).toBeVisible();
+
+  const vp = page.viewportSize()!;
+  const optBox = (await firstOption.boundingBox())!;
+  const footBox = (await footer.boundingBox())!;
+  expect(optBox.y).toBeGreaterThanOrEqual(0);
+  expect(optBox.y + optBox.height).toBeLessThanOrEqual(vp.height + 1);
+  expect(footBox.y).toBeGreaterThanOrEqual(0);
+  expect(footBox.y + footBox.height).toBeLessThanOrEqual(vp.height + 1);
+
+  // Verify newest board block scrolled into board viewport within 600ms
+  const board = page.getByTestId("lesson-board");
+  const lastBlock = board.locator("[data-block-id]").last();
+  await expect(lastBlock).toBeVisible({ timeout: 10_000 });
+  await expect.poll(async () => {
+    const info = await board.evaluate((el) => {
+      const blocks = el.querySelectorAll<HTMLElement>("[data-block-id]");
+      const target = blocks[blocks.length - 1];
+      if (!target) return { inView: false, reason: "no-target" };
+      const bRect = el.getBoundingClientRect();
+      const tRect = target.getBoundingClientRect();
+      const inView = tRect.top < bRect.bottom + 8 && tRect.bottom > bRect.top - 8;
+      return {
+        inView,
+        scrollTop: Math.round(el.scrollTop),
+        clientHeight: Math.round(el.clientHeight),
+        scrollHeight: Math.round(el.scrollHeight),
+      };
+    });
+    return info.inView ? "OK" : JSON.stringify(info);
+  }, { timeout: 2000 }).toBe("OK");
+
+  // Manually scroll board to top -> must NOT yank back, and must show "回到最新"
+  await board.evaluate((el) => {
+    el.scrollTop = 0;
+    el.dispatchEvent(new Event("scroll"));
+  });
+  await page.waitForTimeout(550);
+  await board.evaluate((el) => {
+    el.scrollTop = 0;
+    el.dispatchEvent(new Event("scroll"));
+  });
+  const backToLatest = page.getByTestId("back-to-latest");
+  await expect(backToLatest).toBeVisible({ timeout: 5_000 });
+  const stayedTop = await board.evaluate((el) => el.scrollTop);
+  expect(stayedTop).toBeLessThan(80);
+
+  // Clicking "回到最新" jumps back down and hides button
+  await backToLatest.click();
+  await expect(backToLatest).toBeHidden({ timeout: 5_000 });
+});
+
+test("I8 & I9 (U2a): explicit phase transitions and non-speaking clip during thinking/buffering", async ({ page }) => {
+  await page.goto("/lessons/browser-avatar-inv-phases-lesson");
+  const shell = page.getByTestId("classroom-stage-shell");
+  await expect(shell).toHaveAttribute("data-phase", "lobby", { timeout: 15_000 });
+
+  // Install observer tracking every (phase, clip) pair
+  await page.evaluate(() => {
+    const root = document.querySelector<HTMLElement>('[data-testid="classroom-stage-shell"]');
+    const clipEl = document.querySelector<HTMLElement>('[data-testid="lesson-stage"] [data-clip]');
+    const win = window as unknown as {
+      __phaseHistory?: string[];
+      __badThinkingClips?: Array<{ phase: string; clip: string }>;
+    };
+    win.__phaseHistory = [];
+    win.__badThinkingClips = [];
+    const record = () => {
+      const ph = root?.getAttribute("data-phase") ?? "";
+      const clip = clipEl?.getAttribute("data-clip") ?? "";
+      if (ph && win.__phaseHistory?.[win.__phaseHistory.length - 1] !== ph) {
+        win.__phaseHistory?.push(ph);
+      }
+      if ((ph === "thinking" || ph === "buffering") && (clip === "speak_explain_a" || clip === "speak_explain_b")) {
+        win.__badThinkingClips?.push({ phase: ph, clip });
+      }
+    };
+    record();
+    const obs = new MutationObserver(record);
+    if (root) obs.observe(root, { attributes: true, attributeFilter: ["data-phase"] });
+    if (clipEl) obs.observe(clipEl, { attributes: true, attributeFilter: ["data-clip"] });
+  });
+
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 20_000 });
+  await expect(shell).toHaveAttribute("data-phase", "awaiting", { timeout: 10_000 });
+
+  // Submit objective answer -> enters judging before feedback, and does not remain awaiting after verdict
+  await page.getByRole("radio", { name: "A 按条件推导" }).check();
+  await page.getByRole("button", { name: t.classroom.submitAnswer }).click();
+  await expect(page.getByRole("status").filter({ hasText: t.classroom.verdicts.correct })).toBeVisible({ timeout: 15_000 });
+
+  const { history, badClips } = await page.evaluate(() => {
+    const win = window as unknown as {
+      __phaseHistory?: string[];
+      __badThinkingClips?: Array<{ phase: string; clip: string }>;
+    };
+    return { history: win.__phaseHistory ?? [], badClips: win.__badThinkingClips ?? [] };
+  });
+
+  expect(history).toContain("lobby");
+  expect(history).toContain("awaiting");
+  expect(history).toContain("judging");
+  expect(history).toContain("feedback");
+  expect(await shell.getAttribute("data-phase")).not.toBe("awaiting");
+  expect(badClips, "thinking/buffering must never display speaking clip").toEqual([]);
 });

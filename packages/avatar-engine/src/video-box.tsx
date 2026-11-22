@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from "react";
 import { VideoDriverManager } from "./driver-manager";
 import type {
   DecodedSpeechChunk,
@@ -170,11 +170,11 @@ export function TutorVideoBox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     managerRef.current?.setMood(emotion, 1, gen);
   }, [emotion, gen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     managerRef.current?.setPose(pose, gen);
   }, [pose, gen]);
 

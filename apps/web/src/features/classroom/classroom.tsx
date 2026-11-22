@@ -728,10 +728,12 @@ function Lesson({ id }: { id: string }) {
 
       <div className="flex shrink-0 items-center gap-2">
         {adaptBanner ? (
-          <Badge tone="accent" className="hidden md:inline-flex">
-            <Sparkles size={12} aria-hidden="true" />
-            <span>{adaptBanner}</span>
-          </Badge>
+          <span className="hidden md:inline-flex">
+            <Badge tone="accent">
+              <Sparkles size={12} aria-hidden="true" />
+              <span>{adaptBanner}</span>
+            </Badge>
+          </span>
         ) : null}
 
         <Popover
@@ -913,7 +915,7 @@ function Lesson({ id }: { id: string }) {
 
   const stageNode = (
     <>
-      <div className="relative flex min-h-0 flex-1 w-full items-center justify-center">
+      <div className="relative flex h-full min-h-0 flex-none items-center justify-center sm:flex-1 sm:w-full">
         {teacherConfig ? (
           <TutorVideoBox
             ref={videoRef}
@@ -954,14 +956,14 @@ function Lesson({ id }: { id: string }) {
         <section
           data-testid="text-mode-log"
           aria-label={copy.teacherSaid}
-          className="flex h-[176px] w-full shrink-0 flex-col rounded-md border border-line-subtle bg-surface-card"
+          className="flex h-full min-w-0 flex-1 flex-col rounded-md border border-line-subtle bg-surface-card sm:h-[176px] sm:w-full sm:flex-none sm:shrink-0"
         >
-          <header className="flex items-center justify-between gap-2 border-b border-line-subtle px-3 py-1.5">
-            <span className="inline-flex items-center gap-1.5 text-caption font-semibold text-fg-secondary">
-              <MessageSquareText size={13} aria-hidden="true" />
-              <span>{copy.teacherSaid}</span>
+          <header className="flex flex-wrap items-center justify-between gap-1.5 border-b border-line-subtle px-2.5 py-1.5 sm:px-3">
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-caption font-semibold text-fg-secondary">
+              <MessageSquareText size={13} aria-hidden="true" className="shrink-0" />
+              <span className="truncate">{copy.teacherSaid}</span>
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
                 disabled={!ready}

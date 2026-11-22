@@ -31,6 +31,9 @@ if __name__ == "__main__":
             "avatar-inv-incorrect",
             "avatar-inv-dontknow",
             "avatar-inv-actions",
+            "avatar-inv-viewports",
+            "avatar-inv-phases",
+            "avatar-inv-dialog",
         ):
             seed_classroom(container, scenario)
         seed_stress_course(container)

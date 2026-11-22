@@ -348,3 +348,24 @@
 - `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **454 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **10 文件 52 项通过**、`vite build` 886ms 通过。
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**15 / 15 全部通过**（含 I1–I5、I9）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U1`：**40 步通过、0 失败、87 张截图**输出至 `docs/rebuild/review/U1/`；`npm run review:gallery -- U1` 输出 7 张陈列页与字体对比截图至 `docs/rebuild/review/U1/gallery/`，并已人工抽检视觉效果（同时顺手修复了深色舞台下 `--accent-strong` / `--accent-soft` 的对比度适配）。
+
+### 体验重塑 U2a — 代码完成（自动化通过）（2026-11-22）
+
+**待完成与待验证**
+
+- **真实 AI 课堂与真实麦克风验收未做**：U2a 所有者验收清单第 4–9 条（用真实资料上完整一节有长选项题的课、按住麦克风/免提说话与音量响应、真实换讲法）及课堂纸面亮度拍板（暗一档防夜间刺眼）与 U2a 观感五问仍待所有者核对。
+- **按计划留待 U2b / U6 的课堂条目**：候课面板、备课等待与接通过渡（U2b）、顶栏要点进度与已上时长（U2b）、片段空闲预取与解码首帧后再切换（U2b）、无上限指数退避重连与接管（U2b）、示例课与回放接入舞台（U2b）、多步推导逐行显现/标记三样式/清板分页/对话记录完整抽屉/手机双模式通话布局/提示音（U6）。
+
+**已落地**
+
+- **课堂外壳与一屏零滚动（任务 1、10）**：新增 `apps/web/src/shell/StageShell.tsx` 与 `stage-shell.css`（`100dvh` 三行网格：48px 顶栏 / 左右双列主区 / 76px 控制坞，容器查询覆盖 1280×585–1440×900 与超矮视口自动角窗、390×844 手机单列竖屏视频与底部控制坞）；将 `/lessons/:lessonId` 移出 `AppShell`（不再渲染站点导航）；结课后过渡至浅色专注容器 `RecapView`（允许纵向滚动）。
+- **显式相位状态机与思考姿态（任务 2、3）**：新建纯函数 `lessonPhase()` 与 `resolvePhasePose()`（`apps/web/src/features/classroom/lesson-phase.ts`），16 个显式相位覆盖 `loading` 至 `failed`、`judging` 20 秒超时保护、`audioSpeaking`/`audioBuffering` 分离、以及 30 秒切标签页自动恢复/暂停规则；在 `packages/avatar-engine` 新增 `"thinking"` 姿态、`phaseToTutorPose()` 统一编排映射（替代孤立 `reduceChoreographer`）、循环短片档语音光环、以及向本地实时驱动发送姿态时把 `"thinking"` 映射到协议既有取值；`TutorVideoBox` 改用 `useLayoutEffect` 同步姿态与片段属性，消除思考相位下短时残留讲话片段的竞态；将 `video-box.css` 从 `classroom.css` 迁出并把 `classroom.css` 移出十六进制遗留白名单。
+- **舞台叠层、文字上课与音量链路（任务 4、5、8）**：`TutorVideoBox` 叠层精简为左上状态标识（含声波条/转圈/三点跳动）与底部两行限宽字幕，档位与延迟收进顶栏「画质与性能」浮层，降级原因改为 toast 提示；文字上课左侧下方新增「老师刚才说的」只读滚动记录与「等一下 / 下一句」节奏控制；`SpeechOutput` 在 `AnalyserNode` 之后增加 `GainNode` 支持实时音量调节与静音（驱动形象的语音电平取自增益前），并记住每节课的字幕开关与音量。
+- **白板、作答托盘与控制坞（任务 6、7、8、9）**：新增 `ChoiceCard` / `ChoiceCardGroup`、`Slider`、`LevelMeter` 三个组件；`packages/board` 渲染失败改为中文「这张图没画出来」+ 折叠「查看原始内容」；实现 `BoardPanel`（开场封面、自动跟随 + `ResizeObserver` 托盘伸缩重跟、手动上滚暂停与「回到最新」未读计数、阶段与换讲法/回补分节线、已作答卡片、纸面表格样式）、`AnswerTray`（三段固定布局、`min(60%, 100%-160px)` 高度上限、选项卡片七态、A–H/1–9 快捷键与回车提交、预填提示、20 秒判题超时解锁、看答案规则提示）与 `ControlDock`（单行三组、≥ 44×44 目标、容器查询折叠芯片、固定占位打断、按住/空格说话脉动外环、讲法与快慢浮层、应用内下课/离开确认框）。
+- **测试与巡览（任务 11、12）**：补齐 `lesson-phase.test.ts`、`board-follow.test.ts`、`audio.test.ts`（音量/静音）、`board.test.tsx`、`ui-components.test.tsx` 单测；更新 `m4b`、`m5`、`ui-tour.mjs`（新增 1280×720 压力课长白板与 6 长选项截图）；`ux-invariants.spec.ts` 新增 **I6、I7、I8、I9（U2a）、I10**。
+
+**本地验证**
+
+- `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **454 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **12 文件 63 项通过**、`vite build` 通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**18 / 18 全部通过**（含 I1–I3、I5–I10）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U2a`：**40 步通过、0 失败、88 张截图**输出至 `docs/rebuild/review/U2a/`；实测 1440×900、1280×720 压力课与 390×844 手机课全部活动相位均无页面滚动条；人工抽检桌面与手机截图并修复了顶栏右对齐、带图标徽标折行与手机控制坞 `hidden`/`inline-flex` 优先级冲突。

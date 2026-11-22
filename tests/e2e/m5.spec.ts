@@ -22,7 +22,7 @@ test("classroom timeline survives reload and reaches an honest recap", async ({ 
 
   await page.reload();
   await expect(page.getByText(t.classroom.waitingResume)).toBeVisible();
-  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await page.getByRole("button", { name: t.classroom.resumeLesson }).click();
   await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 20_000 });
   await page.getByRole("radio", { name: "A 按条件推导" }).check();
   await page.getByRole("button", { name: t.classroom.submitAnswer }).click();

@@ -119,7 +119,7 @@ export function ControlDock({
   ];
 
   const dockBtnBase =
-    "inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-md border border-line-subtle bg-surface-card text-fg-primary text-caption font-medium transition-[background-color,border-color,color,transform] duration-fast ease-out hover:border-line-control hover:bg-surface-sunken active:not-disabled:scale-[0.97] disabled:opacity-45 disabled:cursor-not-allowed";
+    "min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-md border border-line-subtle bg-surface-card text-fg-primary text-caption font-medium transition-[background-color,border-color,color,transform] duration-fast ease-out hover:border-line-control hover:bg-surface-sunken active:not-disabled:scale-[0.97] disabled:opacity-45 disabled:cursor-not-allowed";
 
   return (
     <div className="flex h-full w-full items-center justify-between gap-2 overflow-x-clip">
@@ -216,7 +216,7 @@ export function ControlDock({
           type="button"
           disabled={!ready}
           onClick={() => fireQuick("confused")}
-          className={clsx(dockBtnBase, "cs-dock-chip-inline px-3")}
+          className={clsx(dockBtnBase, "cs-dock-chip-inline inline-flex px-3")}
         >
           <span>{recentChip === "confused" ? copy.sentTag : copy.quick.confused}</span>
         </button>
@@ -224,7 +224,7 @@ export function ControlDock({
           type="button"
           disabled={!ready}
           onClick={() => fireQuick("example")}
-          className={clsx(dockBtnBase, "cs-dock-chip-inline px-3")}
+          className={clsx(dockBtnBase, "cs-dock-chip-inline inline-flex px-3")}
         >
           <span>{recentChip === "example" ? copy.sentTag : copy.quick.example}</span>
         </button>
@@ -236,7 +236,7 @@ export function ControlDock({
               type="button"
               disabled={!ready}
               aria-label={copy.moreActions}
-              className={clsx(dockBtnBase, "px-2.5")}
+              className={clsx(dockBtnBase, "inline-flex px-2.5")}
             >
               <MoreHorizontal size={18} aria-hidden="true" />
               <span className="hidden xl:inline">{copy.more}</span>
@@ -316,7 +316,7 @@ export function ControlDock({
               disabled={!ready}
               aria-label={copy.classroomSettings}
               title={copy.classroomSettings}
-              className={dockBtnBase}
+              className={clsx(dockBtnBase, "inline-flex")}
             >
               <SlidersHorizontal size={18} aria-hidden="true" />
             </button>

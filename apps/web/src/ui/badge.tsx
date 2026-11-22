@@ -29,7 +29,7 @@ export function Badge({ tone = "neutral", icon, className, children, ...rest }: 
       {...rest}
     >
       {icon}
-      <span>{children}</span>
+      <span className="inline-flex items-center gap-1">{children}</span>
     </span>
   );
 }

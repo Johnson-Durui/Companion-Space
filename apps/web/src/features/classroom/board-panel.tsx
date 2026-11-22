@@ -64,25 +64,52 @@ export function BoardPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeBlockRef = useRef<HTMLDivElement>(null);
   const programmaticUntilRef = useRef(0);
+  const lastClientHeightRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
   const [follow, setFollow] = useState(INITIAL_BOARD_FOLLOW);
 
   const totalItems = board.length + answeredCards.length + dividers.length;
   const effectiveFollow = updateFollowOnContent(follow, totalItems);
+  const autoFollowRef = useRef(effectiveFollow.autoFollow);
   const stageLabel = copy.stages[stage as keyof typeof copy.stages] ?? stage;
+
+  useEffect(() => {
+    autoFollowRef.current = effectiveFollow.autoFollow;
+  }, [effectiveFollow.autoFollow]);
 
   const scrollToLatest = useCallback(
     (instant = false) => {
       const container = scrollRef.current;
       if (!container) return;
-      programmaticUntilRef.current = performance.now() + 450;
       const behavior: ScrollBehavior = instant || reducedMotion ? "instant" : "smooth";
-      if (activeBlockRef.current) {
-        activeBlockRef.current.scrollIntoView({ block: "nearest", behavior });
-      }
+      programmaticUntilRef.current = behavior === "instant" ? 0 : performance.now() + 900;
       container.scrollTo({ top: container.scrollHeight, behavior });
+      lastClientHeightRef.current = container.clientHeight;
+      if (behavior === "instant") {
+        lastScrollTopRef.current = container.scrollTop;
+      }
     },
     [reducedMotion],
   );
+
+  // Keep latest / active content visible when board height shrinks (e.g. AnswerTray slides open)
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    lastClientHeightRef.current = container.clientHeight;
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      const nextH = container.clientHeight;
+      if (nextH !== lastClientHeightRef.current) {
+        lastClientHeightRef.current = nextH;
+        if (autoFollowRef.current) {
+          scrollToLatest(true);
+        }
+      }
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [scrollToLatest]);
 
   useEffect(() => {
     if (!effectiveFollow.autoFollow || totalItems === 0) return;
@@ -93,13 +120,38 @@ export function BoardPanel({
   const handleScroll = useCallback(() => {
     const container = scrollRef.current;
     if (!container) return;
-    if (performance.now() < programmaticUntilRef.current) return;
-    const near = isNearBottom(container.scrollTop, container.clientHeight, container.scrollHeight);
-    setFollow((prev) => {
-      const synced = updateFollowOnContent(prev, totalItems);
-      return updateFollowOnScroll(synced, near);
-    });
-  }, [totalItems]);
+    const curHeight = container.clientHeight;
+    const curTop = container.scrollTop;
+    const prevTop = lastScrollTopRef.current;
+    if (curHeight !== lastClientHeightRef.current) {
+      lastClientHeightRef.current = curHeight;
+      if (autoFollowRef.current) {
+        scrollToLatest(true);
+      }
+      return;
+    }
+    const near = isNearBottom(curTop, curHeight, container.scrollHeight);
+    const scrolledUp = curTop < prevTop - 2;
+    lastScrollTopRef.current = curTop;
+
+    if (near) {
+      programmaticUntilRef.current = 0;
+      setFollow((prev) => {
+        const synced = updateFollowOnContent(prev, totalItems);
+        return updateFollowOnScroll(synced, true);
+      });
+      return;
+    }
+
+    // Only pause auto-follow on genuine upward scroll, never mid-flight during downward smooth scroll
+    if (scrolledUp) {
+      programmaticUntilRef.current = 0;
+      setFollow((prev) => {
+        const synced = updateFollowOnContent(prev, totalItems);
+        return updateFollowOnScroll(synced, false);
+      });
+    }
+  }, [scrollToLatest, totalItems]);
 
   const handleJumpLatest = useCallback(() => {
     setFollow(jumpToLatestFollow(totalItems));

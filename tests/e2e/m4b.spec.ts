@@ -10,7 +10,10 @@ test("renders validated math, table, and plot blocks while invalid diagrams fail
   await expect(page.locator('[data-kind="math"] math')).toHaveCount(1);
   await expect(page.locator('[data-kind="table"] table')).toBeVisible();
   await expect(page.locator('[data-kind="plot"] svg')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('[data-kind="diagram"]')).toContainText(t.classroom.boardRenderError, { timeout: 15_000 });
-  await expect(page.locator('[data-kind="diagram"]')).toContainText("flowchart TD");
+  const diagram = page.locator('[data-kind="diagram"]');
+  await expect(diagram).toContainText(t.classroom.boardRenderError, { timeout: 15_000 });
+  await expect(diagram.getByText("flowchart TD")).not.toBeVisible();
+  await diagram.locator("summary", { hasText: t.classroom.boardViewSource }).click();
+  await expect(diagram.getByText("flowchart TD")).toBeVisible();
 });
 

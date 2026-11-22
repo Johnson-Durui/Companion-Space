@@ -46,7 +46,11 @@ export function StageShell({
           >
             {stage}
           </aside>
-          <section className="cs-stage-right" aria-label="白板与作答区">
+          <section
+            className="cs-stage-right cs-board-paper"
+            data-surface="paper"
+            aria-label="白板与作答区"
+          >
             {board}
           </section>
         </main>

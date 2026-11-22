@@ -226,6 +226,8 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     }
 
     const seq = ++this.transitionSeq;
+    this.currentSlot = resolved.slot;
+    this.root.dataset.clip = resolved.slot;
     const nextIndex: 0 | 1 = this.activeSlotIndex === 0 ? 1 : 0;
     const prevVideo = this.players[this.activeSlotIndex];
     const nextVideo = this.players[nextIndex];

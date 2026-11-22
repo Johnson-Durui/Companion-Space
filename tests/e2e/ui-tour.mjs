@@ -324,6 +324,11 @@ try {
     await page.getByRole("radio", { name: /^F / }).waitFor({ timeout: 25_000 });
     await settle(800);
     await shot(page, "stress-lesson-question");
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await settle(400);
+    await shot(page, "stress-lesson-question-1280x720");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await settle(300);
     await shot(page, "stress-lesson-question-full", { full: true });
   });
 
@@ -344,10 +349,10 @@ try {
     await shot(page, "lesson-question-full", { full: true });
   });
   await step("lesson quick actions", async () => {
-    await page.getByText(t.classroom.more, { exact: true }).click();
+    await button(page, t.classroom.moreActions).click();
     await settle(400);
     await shot(page, "lesson-more-open");
-    await page.getByText(t.classroom.more, { exact: true }).click();
+    await page.keyboard.press("Escape");
   });
   await step("lesson answer correct", async () => {
     await page.getByRole("radio", { name: "A 按条件推导" }).check();
@@ -365,7 +370,7 @@ try {
     await button(page, t.classroom.pause).click();
     await settle(1000);
     await shot(page, "lesson-paused");
-    await button(page, t.classroom.startText).click();
+    await button(page, t.classroom.resumeLesson).click();
     await settle(2000);
   });
   await step("lesson end + recap", async () => {

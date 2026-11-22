@@ -21,6 +21,7 @@
 .cs-stage-topbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   padding: 0 16px;
   min-width: 0;
@@ -73,19 +74,45 @@
 }
 
 .cs-stage-right {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-page);
+  color: var(--text-primary);
+}
+
+.cs-stage-board-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(16px, 2.4vw, 28px);
+  background-color: var(--surface-page);
+  color: var(--text-primary);
+}
+
+.cs-stage-tray {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  flex: 0 0 auto;
+  max-height: min(60%, calc(100% - 160px));
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-subtle);
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 0.14);
+  z-index: var(--z-sticky);
 }
 
 .cs-stage-dock {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  width: 100%;
   height: 76px;
   padding: 0 14px;
   background-color: var(--surface-card);
