@@ -348,7 +348,7 @@ export default function LessonLobby() {
   const statusLabel = connecting
     ? copy.connectingLesson
     : isPreparing
-      ? `${copy.preparingTitle} ${copy.waitedFor.replace("{time}", formatWait(waitSec))}`
+      ? copy.preparingTitle
       : isFailed
         ? copy.failed
         : copy.waitingStart;

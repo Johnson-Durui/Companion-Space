@@ -115,3 +115,11 @@
 - **单一编排映射层（删除 `reduceChoreographer`）**：原 `packages/avatar-engine/src/choreographer.ts` 中仅由单测调用的 `reduceChoreographer` 状态机已移除，统一改为由纯函数 `lessonPhase(input)` 决定 16 个显式课堂相位，再经 `choreographer.ts` 的唯一映射函数 `phaseToTutorPose(phase, ctx)` 驱动姿态与 `poseToClipSlot` 片段，消除双状态机并存。
 - **新增 `"thinking"` 姿态与外部 Sidecar 协议兼容**：`TutorPose` 新增 `"thinking"` 并映射到 `think_chin` 循环片段；`LocalSidecarVideoDriver.setPose` 向外部 Sidecar 进程发送控制消息时将 `"thinking"` 映射为协议已有的 `"idle_companion"`，不改动对外 Sidecar 协议。
 - **视频框样式迁入形象包**：原 `apps/web/src/features/classroom/classroom.css` 中的 `.tvb-*` 样式已迁移至 `packages/avatar-engine/src/video-box.css` 并经 `@companion-space/avatar-engine/video-box.css` 导出，且全量使用语义 token（零硬编码十六进制色）。
+
+## 体验重塑 U2b 执行决定（2026-11-22）
+
+- **后端进程重启后的课堂恢复核实（任务 5）**：已在 `services/api/tests/test_u2b_lobby_resilience.py` 用全新的 `ServiceContainer` 挂载同一 SQLite 数据库完成两种模式的验证：
+  - **未设主密码**：`lessons`（含 `state`、`board`、`seq`、`gen`）与 `lesson_events` 完整持久化在 SQLite；进程重启后前端在重连前调用 `POST /api/v2/session/bootstrap` 返回 `state="ready"` 并重新签发会话 Cookie，随后按既有 `after_seq` 重连 WebSocket，直接从断线前的要点与作答态无缝继续。
+  - **已设主密码**：进程重启后主密钥（DEK）不在内存，原请求返回 `401` 且 `bootstrap` 返回 `state="locked"`；前端识别后退出无休止重连，在舞台遮罩给出明确的「服务已重启，需要重新解锁」提示与「去解锁」按钮（失效会话缓存切入解锁屏，解锁成功后自动回到原 `/lessons/:lessonId` 课堂并续上事件流）。
+- **循环短片空闲预取与解码首帧再切换（任务 4）**：`LoopPackVideoDriver` 在挂载后利用空闲时机预取全部已就绪槽位片段（卸载时通过 `AbortController` 取消），切换槽位时保持前一个 `<video>` 可见直至新 `<video>` 触发 `loadeddata`/`canplay`（附 3 秒防卡死兜底），同时完整保留基于 `gen` 的过期指令丢弃与测试覆盖。
+- **示例课声音（默认决定 D11）**：本里程碑暂通过免配置试听通路 `/api/v2/tts/preview` 逐句合成当前所选老师的语音；离线或不可用时降级为浏览器朗读并在顶栏标注「浏览器朗读」，待 U3 统一迁入 B13 课堂外老师语音接口。

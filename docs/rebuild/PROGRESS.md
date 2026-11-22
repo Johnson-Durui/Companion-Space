@@ -369,3 +369,26 @@
 - `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **454 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **12 文件 63 项通过**、`vite build` 通过。
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**18 / 18 全部通过**（含 I1–I3、I5–I10）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U2a`：**40 步通过、0 失败、88 张截图**输出至 `docs/rebuild/review/U2a/`；实测 1440×900、1280×720 压力课与 390×844 手机课全部活动相位均无页面滚动条；人工抽检桌面与手机截图并修复了顶栏右对齐、带图标徽标折行与手机控制坞 `hidden`/`inline-flex` 优先级冲突。
+
+### 体验重塑 U2b — 代码完成（自动化通过）（2026-11-22）
+
+**待完成与待验证**
+
+- **真实 AI 备课与真进程重启实测未做**：U2b 所有者验收清单第 2–5 条（用真实 AI 备第三节或按知识点开课、真实关掉 `start.bat` 命令行窗口 5 秒后重启并观察自动续接或重新解锁）以及联网环境下示例课走在线老师语音的听感与 U2b 观感五问仍待所有者在真实环境核对。
+- **按计划留待 U3–U7 的条目**：课堂外统一老师语音接口 B13 替换示例课试听通路（U3）、课后小结 B2 重做（U3）、今天页与五步准备旅程（U3）、老师画廊与 6 音色（U4）、手写 SVG 图表与复习闭环（U5）、白板逐行书写与手机通话布局（U6）、设置分区与全站术语清理（U7）。
+
+**已落地**
+
+- **候课与备课后端（任务 1 / B12）**：先补齐 `services/api/tests/test_u2b_lobby_resilience.py` 测试，新增 `POST /api/v2/courses/{course_id}/point-plan-items`、`POST /api/v2/plan-items/{plan_item_id}/prepare`（幂等且不返回百分比）与 `GET /api/v2/plan-items/{plan_item_id}/prepare-status` 三个接口；扩展 `locate_teachable_plan_item` 覆盖生效计划与按知识点临时计划；既有 `POST /courses/{course_id}/lessons` 与 `POST /plan-items/{plan_item_id}/lesson` 保持原语义并在备课冲突时返回结构化 `409 lesson_preparing`；夹具新增「尚未备好的课」（`browser-unprepared-item`）与热身闪卡。
+- **课堂视图与接管后端（任务 2、5 / B1、B14、B10 U2）**：`LessonView` 新增只读字段 `est_minutes`、`outline`、`progress`、`style_id`、`active_ms`，实时状态事件补充 `kp_cursor` 与 `style_id`；WebSocket `/api/v2/lessons/{lesson_id}/live?takeover=1` 支持接管旧连接（以 `4409 taken_over` 关闭旧端，不带参数返回 `4409 other_tab`）；课堂内全部错误统一走结构化错误码与中文文案映射；修复 Python 3.14 / AnyIO 下 `LiveLesson.run()` 清理分支的 `CancelledError` 传播问题；核实并测试了后端进程重启在无主密码与有主密码两种模式下的课堂恢复路径（写入 `DECISIONS.md`）。
+- **候课面板、开场封面与接通过渡（任务 1–3）**：新增 `/plan-items/:itemId/lesson` 候课路由与 `LessonLobby`（大号老师视频框、课题与预计时长、要点列表、无百分比已等待计时、可跳过且≤5张的嵌入式热身复习卡、声音试听、无语音识别提示及新标签页去设置、回车开课、340ms 接通过渡、重排后条目失效自动回退）；全站所有「开始上课」及按知识点开课入口统一改走候课路由，旧 `?plan=` 地址自动重定向；白板开场页接入真实课题与要点列表，课堂顶栏接入分段要点进度、`要点 k/N` 与实时已上时长，讲法菜单同步后端 `style_id`。
+- **片段空闲预取与无黑帧切换（任务 4）**：`LoopPackVideoDriver` 实现空闲批量预取与新片段解码首帧（`loadeddata`/`canplay`）后再淡入切换，保留过期 `gen` 指令丢弃；`avatar-runtime.test.ts` 补齐 9 项单测覆盖。
+- **断线重连与接管交互（任务 5）**：课堂采用无上限指数退避重连（上限 15 秒）+ 舞台遮罩 + 「立即重试」，重连前自动探测 `bootstrap` 区分无密码自动续接与主密码锁定（显示「去解锁」），并支持双标签页「在这里继续」接管与「已在别处继续」提示。
+- **示例课与课程回放迁入舞台外壳（任务 6）**：新增 `ReplayStage` 与纯函数时间轴 `replay-timeline.ts`，`/sample-lesson` 与 `/lessons/:lessonId/history` 共用 `StageShell` 与 `<TutorVideoBox>`（回放事件驱动姿态、按 `mm:ss / mm:ss` 拖动进度、倍速、字幕开关、下载白板）；示例课顶栏常驻「预生成内容 · 可离线回放」，交互分支改用 `ChoiceCardGroup`，按 D11 逐句试听合成并在离线时标注「浏览器朗读」。
+- **测试与巡览（任务 7、8）**：更新 `m8.spec.ts`（符合 I11）、`ux-invariants.spec.ts`（新增 **I11**、候课备课到就绪与 WS 服务端主动断线无刷新重连恢复 E2E 用例）与 `ui-tour.mjs`（新增候课备课中/就绪截图）。
+
+**本地验证**
+
+- `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **460 通过 / 2 跳过**（含新增 6 项 U2b B1/B12/B14/重启恢复测试）、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **12 文件 65 项通过**、`vite build` 通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**21 / 21 全部通过**（含 I1–I3、I5–I11、候课备课流与 WS 无刷新重连恢复）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U2b`：**41 步通过、0 失败、90 张截图**输出至 `docs/rebuild/review/U2b/`；人工抽检候课（备课中/就绪）、课堂顶栏要点进度、历史回放与示例课截图，并顺手修复了候课备课中视频左上角状态徽标文案过长截断的问题。

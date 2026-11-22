@@ -9,7 +9,7 @@ const ALL_ROUTES = [
   "/courses/browser-today-course",
   "/courses/browser-today-course/history",
   "/courses/browser-today-course/review",
-  "/courses/browser-today-course/review?plan=browser-today-lesson-item",
+  "/plan-items/browser-today-lesson-item/lesson",
   "/courses/browser-today-course/progress",
   "/plan-items/browser-today-lesson-item/practice",
   "/lessons/browser-avatar-teaching-lesson",
@@ -398,4 +398,82 @@ test("I8 & I9 (U2a): explicit phase transitions and non-speaking clip during thi
   expect(history).toContain("feedback");
   expect(await shell.getAttribute("data-phase")).not.toBe("awaiting");
   expect(badClips, "thinking/buffering must never display speaking clip").toEqual([]);
+});
+
+test("I11: sample lesson and lesson history replay render TutorVideoBox with time scrubber and zero business writes", async ({ page }) => {
+  const sockets: string[] = [];
+  const forbiddenWrites: string[] = [];
+  page.on("websocket", (ws) => sockets.push(ws.url()));
+  page.on("request", (req) => {
+    const url = req.url();
+    if (
+      req.method() !== "GET" &&
+      req.method() !== "HEAD" &&
+      !url.endsWith("/api/v2/session/bootstrap") &&
+      !url.endsWith("/api/v2/tts/preview")
+    ) {
+      forbiddenWrites.push(`${req.method()} ${url}`);
+    }
+  });
+
+  await page.goto("/sample-lesson");
+  await expect(page.getByTestId("tutor-video-box")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("sample-prerecorded-badge")).toBeVisible();
+  await expect(page.getByTestId("replay-time-display")).toContainText(/\d{2}:\d{2}\s*\/\s*\d{2}:\d{2}/);
+  expect(sockets).toEqual([]);
+  expect(forbiddenWrites).toEqual([]);
+
+  await page.goto("/lessons/browser-avatar-teaching-lesson/history");
+  await expect(page.getByTestId("tutor-video-box")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("replay-time-display")).toContainText(/\d{2}:\d{2}\s*\/\s*\d{2}:\d{2}/);
+});
+
+test("U2b lobby: legacy ?plan= redirects, unprepared lesson prepares without percent, and enters classroom with B1 progress", async ({ page }) => {
+  // Legacy ?plan= route redirects to /plan-items/:id/lesson
+  await page.goto("/courses/browser-today-course/review?plan=browser-today-lesson-item");
+  await expect(page).toHaveURL(/\/plan-items\/browser-today-lesson-item\/lesson$/, { timeout: 10_000 });
+  await expect(page.getByTestId("lesson-lobby")).toBeVisible();
+
+  // Unprepared lesson shows lobby immediately, prepares asynchronously without percentage, renders warmup, then enters classroom
+  await page.goto("/plan-items/browser-unprepared-item/lesson");
+  const lobby = page.getByTestId("lesson-lobby");
+  await expect(lobby).toBeVisible({ timeout: 15_000 });
+  await expect(lobby.getByTestId("tutor-video-box")).toBeVisible();
+  const lobbyText = await lobby.innerText();
+  expect(lobbyText).not.toMatch(/\d+%/);
+  await expect(page.getByTestId("lobby-warmup")).toBeVisible({ timeout: 15_000 });
+
+  // Once background prepare finishes, outline appears and Start button becomes enabled
+  await expect(page.getByTestId("lobby-outline")).toBeVisible({ timeout: 20_000 });
+  const startTextBtn = page.getByRole("button", { name: t.classroom.startText });
+  await expect(startTextBtn).toBeEnabled({ timeout: 15_000 });
+  await startTextBtn.click();
+
+  await expect(page).toHaveURL(/\/lessons\/[^/]+$/, { timeout: 15_000 });
+  await expect(page.getByTestId("lesson-outline-progress")).toBeVisible({ timeout: 20_000 });
+});
+
+test("U2b resilience: server-dropped WebSocket shows reconnecting overlay and auto-recovers without page reload", async ({ page }) => {
+  await page.goto("/lessons/browser-avatar-inv-reconnect-lesson");
+  const shell = page.getByTestId("classroom-stage-shell");
+  await expect(shell).toHaveAttribute("data-phase", "lobby", { timeout: 15_000 });
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 20_000 });
+  await expect(shell).toHaveAttribute("data-phase", "awaiting", { timeout: 10_000 });
+
+  await page.evaluate(() => {
+    (window as unknown as { __u2bReloadSentinel?: string }).__u2bReloadSentinel = "alive";
+  });
+
+  // Force server-side drop on this classroom's WebSocket
+  const drop = await page.request.post("/__test__/disconnect-lesson/browser-avatar-inv-reconnect-lesson");
+  expect(drop.ok()).toBe(true);
+  expect((await drop.json()).closed).toBe(true);
+
+  // Reconnecting overlay appears, then classroom automatically recovers to awaiting without reloading
+  await expect(page.getByTestId("stage-overlay-reconnecting")).toBeVisible({ timeout: 5_000 });
+  await expect(shell).toHaveAttribute("data-phase", "awaiting", { timeout: 15_000 });
+  await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 10_000 });
+  const sentinel = await page.evaluate(() => (window as unknown as { __u2bReloadSentinel?: string }).__u2bReloadSentinel);
+  expect(sentinel).toBe("alive");
 });

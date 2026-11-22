@@ -332,7 +332,16 @@ try {
     await shot(page, "stress-lesson-question-full", { full: true });
   });
 
-  // ---------- D. classroom: full lesson ----------
+  // ---------- D. classroom lobby + full lesson ----------
+  await step("lesson lobby (unprepared -> ready + warmup)", async () => {
+    await page.goto("/plan-items/browser-unprepared-item/lesson");
+    await page.getByTestId("lesson-lobby").waitFor({ timeout: 15_000 });
+    await settle(200);
+    await shot(page, "lesson-lobby-preparing");
+    await page.getByTestId("lobby-outline").waitFor({ timeout: 20_000 });
+    await settle(600);
+    await shot(page, "lesson-lobby-ready");
+  });
   await step("lesson prestart", async () => {
     await page.goto("/lessons/browser-voice-lesson");
     await button(page, t.classroom.startText).waitFor({ timeout: 15_000 });
