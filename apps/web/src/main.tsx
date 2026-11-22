@@ -31,6 +31,7 @@ const PlanPage = lazy(() => import("./features/plan/plan-page"));
 const Classroom = lazy(() => import("./features/classroom/classroom"));
 const LessonLobby = lazy(() => import("./features/classroom/lobby"));
 const Review = lazy(() => import("./features/review/review"));
+const ReviewSession = lazy(() => import("./features/review/review-session"));
 const Practice = lazy(() => import("./features/practice/practice"));
 const ProgressPage = lazy(() => import("./features/progress/progress"));
 const TutorsGallery = lazy(() => import("./features/tutors/tutors-gallery"));
@@ -64,6 +65,7 @@ function pageTitleFor(pathname: string, search: string): string {
   if (matchPath("/courses/:courseId/map", pathname)) return titles.courseMap;
   if (matchPath("/courses/:courseId/materials", pathname)) return titles.courseMaterials;
   if (matchPath("/courses/:courseId/history", pathname)) return titles.courseHistory;
+  if (matchPath("/courses/:courseId/review/session", pathname)) return titles.reviewSession;
   if (matchPath("/courses/:courseId/review", pathname)) {
     return new URLSearchParams(search).has("plan") ? titles.warmup : titles.review;
   }
@@ -153,6 +155,8 @@ function App() {
     matchPath("/lessons/:lessonId", location.pathname) ||
     matchPath("/lessons/:lessonId/history", location.pathname) ||
     matchPath("/plan-items/:itemId/lesson", location.pathname) ||
+    matchPath("/plan-items/:itemId/practice", location.pathname) ||
+    matchPath("/courses/:courseId/review/session", location.pathname) ||
     matchPath("/sample-lesson", location.pathname) ||
     matchPath("/welcome", location.pathname) ||
     matchPath("/courses/:courseId/setup", location.pathname),
@@ -167,9 +171,11 @@ function App() {
             <Routes>
               <Route path="/welcome" element={<Welcome />} />
               <Route path="/courses/:courseId/setup" element={<CourseSetup />} />
+              <Route path="/courses/:courseId/review/session" element={<ReviewSession />} />
               <Route path="/lessons/:lessonId" element={<Classroom />} />
               <Route path="/lessons/:lessonId/history" element={<LessonHistory />} />
               <Route path="/plan-items/:itemId/lesson" element={<LessonLobby />} />
+              <Route path="/plan-items/:itemId/practice" element={<Practice />} />
               <Route path="/sample-lesson" element={<SampleLesson />} />
             </Routes>
           </Suspense>
@@ -209,7 +215,6 @@ function App() {
                 <Route path="/courses/:courseId/history" element={<CourseHub><CourseHistory embedded /></CourseHub>} />
                 <Route path="/courses/:courseId/review" element={<CourseHub><Review embedded /></CourseHub>} />
                 <Route path="/courses/:courseId/progress" element={<CourseHub><ProgressPage embedded /></CourseHub>} />
-                <Route path="/plan-items/:itemId/practice" element={<Practice />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/diagnostics" element={<Diagnostics />} />
                 <Route path="*" element={<NotFound />} />

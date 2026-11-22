@@ -13,7 +13,9 @@ import {
   RotateCcw,
 } from "../../ui";
 import { isLessonItem, isTimedPracticeItem, planItemDisplayTitle } from "../plan/item-kind";
+import { PlanDiffList, summarizePlanDiff } from "../plan/plan-diff";
 import { masteryLabel } from "../plan/why-sentence";
+import type { PlanDiff } from "../learner/api";
 import { boardMarkdown, type Block } from "./board";
 import { BoardBlock } from "./board-block";
 import { createPointPlanItem, fetchLessonRecapSummary } from "./lesson-api";
@@ -216,11 +218,19 @@ export function RecapView({ lessonId, courseId, title, summary, board }: RecapVi
             <Card padding="lg" className="grid gap-4">
               <h2 className="text-title font-semibold text-fg-primary">{recapCopy.nextTitle}</h2>
               {data?.plan_change?.changed ? (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-accent-soft/50 px-3.5 py-2 text-ui text-fg-primary">
-                  <span>{recapCopy.planAdjusted}</span>
-                  <Link className="font-medium text-accent-strong hover:underline" to={`/courses/${courseId}/plan`}>
-                    {recapCopy.viewPlan}
-                  </Link>
+                <div className="grid gap-1.5 rounded-md bg-accent-soft/50 px-3.5 py-2.5 text-ui text-fg-primary">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      {recapCopy.planAdjusted}
+                      {summarizePlanDiff(data.plan_change.diff as PlanDiff | null | undefined)
+                        ? `：${summarizePlanDiff(data.plan_change.diff as PlanDiff | null | undefined)}`
+                        : ""}
+                    </span>
+                    <Link className="font-medium text-accent-strong hover:underline" to={`/courses/${courseId}/plan`}>
+                      {recapCopy.viewPlan}
+                    </Link>
+                  </div>
+                  <PlanDiffList diff={data.plan_change.diff as PlanDiff | null | undefined} compact />
                 </div>
               ) : null}
               <div className="flex flex-wrap items-center gap-3">

@@ -449,3 +449,34 @@
 - `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **468 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **13 文件 76 项通过**、`vite build`（1.12s）通过。
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**24 / 24 全部通过**（含 I1–I3、I5–I13、I16）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U4`：**39 步通过、0 失败、92 张截图**输出至 `docs/rebuild/review/U4/`，已人工抽检画廊、详情页、今天页、404 与手机端截图。
+
+### 体验重塑 U5 — 代码完成（自动化通过）（2026-11-22）
+
+**待完成与待验证**
+
+- **真实学过课程的闭环观感与在线讲评实测未做**：U5 所有者验收清单第 1–9 条中基于真实学过课程的进度方格图、真实多日复习归档、真实 AI 练习讲评与老师在线声音、以及 U5 观感五问与截图评审（`docs/rebuild/review/U5/`）仍待所有者核对。
+- **按计划留待 U6–U7 的条目**：白板多步推导逐行显现、标记三样式、指向到行、清板分页、块级工具与行级入口、函数图/流程图主题、完整对话记录抽屉、WebAudio 提示音与手机双模式通话布局（U6）；设置分区重排、学生词表全站术语清零与巡览扫描、删除 `legacy` 层与遗留色值白名单、对外文档截图更新与便携包冒烟（U7）。
+
+**已落地**
+
+- **后端 B4b / B5 / B6 / B7 / B15-复习**：
+  - **B4b**：`services/api/app/learning/planner.py` 新增纯函数 `compute_plan_diff` 按 `(kind, kp_ids)` 比对上一版计划，`current_plan()` 与 `GET /api/v2/lessons/{lesson_id}/recap-summary` 读取时返回 `moved_earlier` / `moved_later` / `added` / `deferred`（不落库、不增列）。
+  - **B5**：`GET /api/v2/courses/{course_id}/progress` 补充 8 周 `weekly_minutes`、`lessons_completed`、`target_score`、`has_exam_stats` 以及知识点的 `unit_title` / `weight` / `evidence_count`；新增按课程隔离的 `GET /api/v2/courses/{course_id}/kps/{kp_id}/timeline` 与跨课程只读 `GET /api/v2/learner/week-summary`。
+  - **B6**：`GET /api/v2/courses/{course_id}/history` 补充每节课 `active_ms`、`summary_first_line`、`keypoints_done`、`keypoints_total`。
+  - **B7**：新增 `GET /api/v2/plan-items/{item_id}/practice/preview`（题量、时长、覆盖知识点与已有作答状态）；`get_run` 补充 `saved_answer` 支持刷新回填；`submit_run` / `get_run(..., reveal=True)` 的每条 `debrief` 补充 `stem`、`learner_answer`、`kp_id`、`kp_name`。
+  - **B15-复习**：`answer_item` 与 `rate_flashcard` 返回 `before_mastery`、`kp_name` 与参考答案，`mistake_cards` 附带脱敏题干选项供直接重做；新增 5 项后端测试 `services/api/tests/test_u5_loop.py` 并重新生成 OpenAPI 契约。
+- **手写无障碍 SVG 图表库（设计系统 §11）**：在 `apps/web/src/ui/charts/` 实现 `MasteryGrid`（按单元分组、四态颜色 + 独立几何形状 + 高频角标/描边、可点击）、`WeightBar` / `MasteryBar`、`ScoreBar`（带目标虚线与分差）、`ScoreRing`、`StudyCalendar`（8 周 + `computeStreakDays`）、`WeeklyMinutes`、`SegmentProgress`、`PrereqChain`，全部具备 `role="img"` / `aria-label`、文字等价物与空状态，零外部图表库、零硬编码十六进制色。
+- **六大闭环页面升级**：
+  - **计划页与变动联动**：`PlanPage` 展示 B4b 变化清单（提前/新排/延后/暂缓）、老师划重点标记、置顶/顺延乐观更新与位移高亮反馈；课程今日页与课后小结同步展示计划变化摘要。
+  - **课程地图**：新增「按章节 / 按考试权重」切换、`MasteryShapeGlyph` 与 `WeightBar`、可点击 `PrereqChain` 前置与后续链、常见题型分布、可折叠「查看依据」、修订操作收进 `<Menu>`，并保留「再讲一遍」直达候课通道。
+  - **进度页与今天页「这一周」**：无证据时显示老师口吻空状态（不显示一排 0）；有证据时呈现三项核心计数、`ScoreBar`、点击弹窗看 B5 作答历史并可「再讲一遍」的 `MasteryGrid`、`StudyCalendar` 与 `WeeklyMinutes`；今天页补齐「这一周」7 日活跃格 + 时长 + 连续天数条。
+  - **复习与错题本（I14）**：新建独立专注路由 `/courses/:courseId/review/session` 与共享 `ReviewCardRunner`（同步接入候课嵌入式热身与错题本「现在重做」对话框），作答/自评后停留在结果反馈态展示判定、解析、下次复习天数、B15 掌握度变化与归档庆祝，点击「下一张」才推进，完成后进入本轮小结页；错题本按知识点分组（筛选选项取自未过滤数据）并提供「现在重做」与「让老师再讲一遍」。
+  - **限时练习 FocusShell（B7）**：迁入专注外壳，落地开始预览页、一题一屏 + 底部题号条（已答/未答/标记）、保存状态可见与失败重试、刷新恢复当前题号与已选答案、倒计时仅在整分钟与最后 10 秒通过 `aria-live` 播报、结果页 `ScoreRing` + 按知识点统计 + 逐题原题/你的答案/解析 + B13 老师语音讲评。
+  - **课程记录（B6）**：按日期分组的时间线卡片（状态、时长、要点数、小结首句与回放入口），无旧版对话时整块隐藏旧区块。
+- **测试、巡览与目视打磨**：新增 `apps/web/tests/u5-charts.test.tsx`（6 项）、`seed_u5_loop_course` 夹具、`ux-invariants.spec.ts` 新增 **I14** 与 U5 闭环综合端到端用例，同步更新 `m2.spec.ts`、`I3` 与 `ui-tour.mjs`；目视抽检 `docs/rebuild/review/U5/` 后修复了 `.unit-map button span` 旧规则挤压知识点名称、`Badge` 带图标换行与趋势英文键值三处细节。
+
+**本地验证**
+
+- `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **473 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **14 文件 82 项通过**、`vite build` 通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**26 / 26 全部通过**（含 I1–I3、I5–I14、I16 与 U5 闭环回归）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U5`：**41 步通过、0 失败、95 张截图**输出至 `docs/rebuild/review/U5/`。

@@ -15,9 +15,10 @@ const ALL_ROUTES = [
   "/courses/browser-today-course/materials",
   "/courses/browser-today-course/history",
   "/courses/browser-today-course/review",
+  "/courses/browser-loop-course/review/session",
   "/plan-items/browser-today-lesson-item/lesson",
   "/courses/browser-today-course/progress",
-  "/plan-items/browser-today-lesson-item/practice",
+  "/plan-items/browser-loop-practice-item/practice",
   "/lessons/browser-avatar-teaching-lesson",
   "/lessons/browser-avatar-teaching-lesson/history",
   "/settings",
@@ -188,8 +189,7 @@ test("I3: destructive flows use in-app ConfirmDialog with safe cancel focus and 
   // 2. Course knowledge-point delete confirmation uses AlertDialog.
   await page.goto("/courses/browser-today-course/map");
   await page.getByRole("button", { name: t.courses.revise }).first().click();
-  await page.getByText(t.courses.moreRevisions, { exact: true }).click();
-  await page.getByRole("button", { name: t.common.remove }).last().click();
+  await page.getByRole("menuitem", { name: t.common.remove }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await page.getByRole("alertdialog").getByRole("button", { name: t.common.keep }).click();
   await expect(page.getByRole("alertdialog")).toBeHidden();
@@ -596,4 +596,94 @@ test("I16: at most one tutor <video> plays simultaneously on any page including 
   await expect(page.getByTestId("lesson-stage")).toBeVisible();
   await page.waitForTimeout(250);
   expect(await countPlayingVideos()).toBeLessThanOrEqual(1);
+});
+
+test("I14: review answering pauses in feedback state until clicking Next and reaches summary", async ({ page }) => {
+  await page.goto("/courses/browser-loop-course/review");
+  await expect(page.getByTestId("review-due-card")).toBeVisible();
+  await expect(page.getByTestId("mistake-book")).toBeVisible();
+  await expect(page.getByTestId("mistake-item")).toHaveCount(1);
+
+  await page.getByTestId("start-review-session").click();
+  await expect(page).toHaveURL(/\/courses\/browser-loop-course\/review\/session/);
+  await expect(page.getByTestId("review-session-active")).toBeVisible();
+
+  // Card 1: choice item — answer wrong intentionally and confirm feedback pause (I14)
+  await page.locator('[data-choice-key="A"]').click();
+  await page.getByRole("button", { name: t.review.submit }).click();
+  const feedback1 = page.getByTestId("review-feedback");
+  await expect(feedback1).toBeVisible();
+  await expect(feedback1).toContainText(t.loopViz.reviewIncorrect);
+  await expect(feedback1).toContainText("罗尔定理");
+  await expect(page.getByTestId("review-mastery-delta")).toBeVisible();
+
+  // Wait briefly to guarantee it never auto-advances without explicit click
+  await page.waitForTimeout(450);
+  await expect(feedback1).toBeVisible();
+  await page.getByTestId("review-next-btn").click();
+
+  // Card 2: flashcard — reveal, rate, pause in feedback state, then reach summary
+  await page.getByRole("button", { name: t.review.reveal }).click();
+  await page.getByRole("button", { name: t.review.ratings.good }).click();
+  const feedback2 = page.getByTestId("review-feedback");
+  await expect(feedback2).toBeVisible();
+  await expect(feedback2).toContainText(t.loopViz.reviewRated);
+  await page.getByTestId("review-next-btn").click();
+
+  await expect(page.getByTestId("review-summary")).toBeVisible();
+  await expect(page.getByTestId("review-summary")).toContainText("2");
+});
+
+test("U5 loop visualization: plan diff, map weight view, progress charts/timeline, practice reload, and history B6", async ({ page }) => {
+  // 1. Plan page with B4b diff
+  await page.goto("/courses/browser-loop-course/plan");
+  await expect(page.getByTestId("plan-diff-list")).toBeVisible();
+  await expect(page.getByTestId("plan-diff-list")).toContainText(t.loopViz.diffEarlier);
+  await expect(page.getByTestId("plan-diff-list")).toContainText(t.loopViz.diffDeferred);
+
+  // 2. Map page: switch to weight view + verify prereq chain + URL ?kp= sync
+  await page.goto("/courses/browser-loop-course/map");
+  await page.getByRole("radio", { name: t.loopViz.mapByWeight }).click();
+  await expect(page.getByTestId("prereq-chain")).toBeVisible();
+
+  // 3. Progress page: ScoreBar, MasteryGrid, StudyCalendar, WeeklyMinutes + clickable KP timeline
+  await page.goto("/courses/browser-loop-course/progress");
+  await expect(page.getByTestId("score-bar")).toBeVisible();
+  await expect(page.getByTestId("mastery-grid")).toBeVisible();
+  await expect(page.getByTestId("study-calendar")).toBeVisible();
+  await expect(page.getByTestId("weekly-minutes")).toBeVisible();
+  await page.getByTestId("mastery-tile-loop-kp-1").click();
+  await expect(page.getByTestId("kp-timeline-dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // 4. History page: B6 duration/summary + legacy section hidden when empty
+  await page.goto("/courses/browser-loop-course/history");
+  await expect(page.getByTestId("history-lesson-card")).toHaveCount(2);
+  await expect(page.getByTestId("legacy-history-section")).toHaveCount(0);
+
+  // 5. Practice B7: start preview -> single question -> save -> reload preserves index & answer -> submit -> ScoreRing + debrief
+  await page.goto("/plan-items/browser-loop-practice-item/practice");
+  await expect(page.getByTestId("practice-start")).toBeVisible();
+  await expect(page.getByTestId("practice-start")).toContainText("共 2 题");
+  await page.getByRole("button", { name: t.practice.start }).click();
+  await expect(page.getByTestId("practice-active")).toBeVisible();
+  await page.locator('[data-choice-key="A"]').click();
+  await expect(page.getByTestId("practice-save-status")).toContainText(t.loopViz.practiceSaved);
+
+  // Move to Q2, select B, wait saved, then reload and verify Q2 + B are restored!
+  await page.getByRole("button", { name: t.loopViz.practiceNext }).click();
+  await page.locator('[data-choice-key="B"]').click();
+  await expect(page.getByTestId("practice-save-status")).toContainText(t.loopViz.practiceSaved);
+
+  await page.reload();
+  await expect(page.getByTestId("practice-active")).toBeVisible();
+  await expect(page.locator('[data-choice-key="B"]')).toHaveAttribute("aria-checked", "true");
+
+  // Submit via ConfirmDialog -> verify ScoreRing + debrief stem & learner answer
+  await page.getByRole("button", { name: t.practice.submit }).click();
+  await page.getByRole("button", { name: t.loopViz.practiceConfirmSubmit }).click();
+  await expect(page.getByTestId("practice-result")).toBeVisible();
+  await expect(page.getByTestId("score-ring")).toBeVisible();
+  await expect(page.getByTestId("debrief-item")).toHaveCount(2);
+  await expect(page.getByTestId("debrief-item").first()).toContainText("极限存在的充要条件");
 });

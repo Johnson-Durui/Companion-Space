@@ -10,10 +10,12 @@ import {
   ChevronDown,
   ChevronUp,
   EmptyState,
+  MasteryBar,
   Pin,
   PinOff,
   Play,
   RefreshCw,
+  WeightBar,
   toast,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
@@ -22,6 +24,7 @@ import { adjustPlanItem, getEnrollment, getPlan, learnerKeys, replan, type Study
 import { ConnectWizardDialog } from "../settings/connect-wizard";
 import { useReadiness } from "../settings/use-readiness";
 import { isLessonItem, isTimedPracticeItem, planItemDisplayTitle, planItemKindLabel } from "./item-kind";
+import { PlanDiffList } from "./plan-diff";
 import { buildPlanWhySentence, masteryLabel, masteryLevel, weightLabel } from "./why-sentence";
 
 const copy = t.planView;
@@ -66,46 +69,30 @@ export function PlanItemWhyPanel({ why }: { why: StudyPlan["items"][number]["why
   if (!why.length) return null;
   return (
     <div className="mt-3 grid gap-2.5 border-t border-line-subtle pt-3">
-      {why.map((entry) => {
-        const wPct = Math.min(100, Math.max(8, Math.round(entry.weight * 100)));
-        const mPct = Math.min(100, Math.max(5, Math.round(entry.mastery * 100)));
-        const mLevel = masteryLevel(entry.mastery);
-        const mColor =
-          mLevel === "mastered"
-            ? "bg-mastery-mastered"
-            : mLevel === "shaky"
-              ? "bg-mastery-fragile"
-              : mLevel === "learning"
-                ? "bg-mastery-learning"
-                : "bg-mastery-unseen";
-        return (
-          <div key={entry.kp_id} className="grid gap-1.5 rounded-md bg-surface-sunken/60 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <strong className="text-ui font-medium text-fg-primary">
-                {entry.kp_name || entry.kp_id}
-              </strong>
-              {entry.highlighted ? <Badge tone="accent">{copy.teacherHintBadge}</Badge> : null}
-            </div>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-caption text-fg-secondary">
-              <span className="inline-flex items-center gap-2">
-                <span>{t.today.weightLabel}</span>
-                <span className="block h-1.5 w-20 overflow-hidden rounded-full bg-surface-card">
-                  <span className="block h-full rounded-full bg-accent" style={{ width: `${wPct}%` }} />
-                </span>
-                <span className="font-medium text-fg-primary">{weightLabel(entry.weight)}</span>
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span>{t.today.masteryLabel}</span>
-                <span className="block h-1.5 w-20 overflow-hidden rounded-full bg-surface-card">
-                  <span className={clsx("block h-full rounded-full", mColor)} style={{ width: `${mPct}%` }} />
-                </span>
-                <span className="font-medium text-fg-primary">{masteryLabel(entry.mastery)}</span>
-              </span>
-            </div>
-            <p className="text-ui text-fg-secondary">{buildPlanWhySentence(entry)}</p>
+      {why.map((entry) => (
+        <div key={entry.kp_id} className="grid gap-1.5 rounded-md bg-surface-sunken/60 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <strong className="text-ui font-medium text-fg-primary">
+              {entry.kp_name || entry.kp_id}
+            </strong>
+            {entry.highlighted ? <Badge tone="accent">{copy.teacherHintBadge}</Badge> : null}
           </div>
-        );
-      })}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5">
+            <WeightBar
+              weight={entry.weight}
+              label={t.today.weightLabel}
+              valueText={weightLabel(entry.weight)}
+            />
+            <MasteryBar
+              probability={entry.mastery}
+              status={masteryLevel(entry.mastery)}
+              label={t.today.masteryLabel}
+              valueText={masteryLabel(entry.mastery)}
+            />
+          </div>
+          <p className="text-ui text-fg-secondary">{buildPlanWhySentence(entry)}</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -116,6 +103,7 @@ export default function PlanPage() {
   const readiness = useReadiness();
   const [connectOpen, setConnectOpen] = useState(false);
   const [expandedWhy, setExpandedWhy] = useState<Record<string, boolean>>({});
+  const [recentMovedId, setRecentMovedId] = useState<string | null>(null);
 
   const plan = useQuery({
     queryKey: learnerKeys.plan(courseId),
@@ -131,6 +119,31 @@ export default function PlanPage() {
   const adjust = useMutation({
     mutationFn: ({ itemId, action }: { itemId: string; action: "first" | "later" | "unpin" }) =>
       adjustPlanItem(itemId, action === "unpin" ? { pinned: false } : { direction: action }),
+    onMutate: async ({ itemId, action }) => {
+      await queries.cancelQueries({ queryKey: learnerKeys.plan(courseId) });
+      const previous = queries.getQueryData<StudyPlan>(learnerKeys.plan(courseId));
+      if (previous) {
+        const items = [...previous.items];
+        const idx = items.findIndex((entry) => entry.id === itemId);
+        if (idx >= 0) {
+          const target =
+            action === "first" ? 0 : action === "later" ? Math.min(items.length - 1, idx + 1) : idx;
+          if (target !== idx) {
+            const [moved] = items.splice(idx, 1);
+            items.splice(target, 0, { ...moved, pinned: 1 });
+          } else if (action === "unpin") {
+            items[idx] = { ...items[idx], pinned: 0 };
+          }
+          queries.setQueryData<StudyPlan>(learnerKeys.plan(courseId), { ...previous, items });
+        }
+      }
+      setRecentMovedId(itemId);
+      window.setTimeout(() => setRecentMovedId((cur) => (cur === itemId ? null : cur)), 700);
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) queries.setQueryData(learnerKeys.plan(courseId), ctx.previous);
+    },
     onSuccess: (next) => {
       queries.setQueryData(learnerKeys.plan(courseId), next);
       void queries.invalidateQueries({ queryKey: courseKeys.all });
@@ -182,36 +195,39 @@ export default function PlanPage() {
 
   return (
     <div className="grid gap-5" data-testid="course-plan-page">
-      {/* Explanation Bar */}
-      <Card padding="md" className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-1">
-          {createdText ? (
-            <p className="text-ui font-medium text-fg-primary">
-              {copy.reasonBar.replace("{time}", createdText).replace("{reason}", reasonText)}
-            </p>
-          ) : null}
-          {!hasExamDate && enrollment.data ? (
-            <p className="text-caption text-fg-secondary">
-              {t.setup.step5SummaryNoExam
-                .replace("{daysPerWeek}", String((enrollment.data.weekly_days ?? []).length))
-                .replace("{min}", String(enrollment.data.session_minutes ?? 30))}
-            </p>
-          ) : null}
-          {data.params?.hints_mapping === "unavailable" ? (
-            <p className="text-caption text-warn-text" role="status">
-              {t.learner.hintsMappingUnavailable}
-            </p>
-          ) : null}
+      {/* Explanation Bar + B4b Diff List */}
+      <Card padding="md" className="grid gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-1">
+            {createdText ? (
+              <p className="text-ui font-medium text-fg-primary">
+                {copy.reasonBar.replace("{time}", createdText).replace("{reason}", reasonText)}
+              </p>
+            ) : null}
+            {!hasExamDate && enrollment.data ? (
+              <p className="text-caption text-fg-secondary">
+                {t.setup.step5SummaryNoExam
+                  .replace("{daysPerWeek}", String((enrollment.data.weekly_days ?? []).length))
+                  .replace("{min}", String(enrollment.data.session_minutes ?? 30))}
+              </p>
+            ) : null}
+            {data.params?.hints_mapping === "unavailable" ? (
+              <p className="text-caption text-warn-text" role="status">
+                {t.learner.hintsMappingUnavailable}
+              </p>
+            ) : null}
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<RefreshCw size={14} aria-hidden="true" />}
+            pending={rebuild.isPending}
+            onClick={() => rebuild.mutate()}
+          >
+            {t.learner.rebuildPlan}
+          </Button>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          leftIcon={<RefreshCw size={14} aria-hidden="true" />}
-          pending={rebuild.isPending}
-          onClick={() => rebuild.mutate()}
-        >
-          {t.learner.rebuildPlan}
-        </Button>
+        <PlanDiffList diff={data.diff} />
       </Card>
 
       {adjust.isError ? <Problem error={adjust.error} /> : null}
@@ -226,6 +242,8 @@ export default function PlanPage() {
               const isToday = Boolean(item.scheduled_date && item.scheduled_date <= todayIso && item.status !== "done" && item.status !== "skipped");
               const isFirst = item.id === firstActionableId;
               const isDone = item.status === "done" || item.status === "skipped";
+              const isHighlighted = item.why.some((entry) => entry.highlighted);
+              const isRecentlyMoved = recentMovedId === item.id;
               const whyOpen = Boolean(expandedWhy[item.id]);
               const lessonTarget =
                 item.status === "active" && item.lesson_id
@@ -238,8 +256,9 @@ export default function PlanPage() {
                   data-testid="plan-item"
                   data-status={item.status}
                   className={clsx(
-                    "rounded-lg border bg-surface-card p-4 shadow-1 transition-colors duration-fast ease-out",
+                    "rounded-lg border bg-surface-card p-4 shadow-1 transition-[transform,background-color,border-color,box-shadow] duration-base ease-out",
                     isToday ? "border-accent/50 bg-accent-soft/20" : "border-line-subtle",
+                    isRecentlyMoved && "ring-2 ring-accent/45 -translate-y-0.5 shadow-2",
                     isDone && "opacity-75",
                   )}
                 >
@@ -257,6 +276,7 @@ export default function PlanPage() {
                           {planItemKindLabel(item.kind)}
                         </Badge>
                         <span>{t.today.estMinutes.replace("{min}", String(item.est_minutes))}</span>
+                        {isHighlighted ? <Badge tone="accent">{copy.teacherHintBadge}</Badge> : null}
                         {item.pinned ? <Badge tone="neutral">{t.learner.pinned}</Badge> : null}
                         {item.status === "done" ? <Badge tone="ok">{copy.statusDone}</Badge> : null}
                         {item.status === "skipped" ? <Badge tone="neutral">{copy.statusSkipped}</Badge> : null}

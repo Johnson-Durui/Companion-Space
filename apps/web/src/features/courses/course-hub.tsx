@@ -1,7 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
-import clsx from "clsx";
 import { Loading, Problem } from "../../app/ui";
 import {
   ArrowRight,
@@ -15,11 +14,16 @@ import {
   DifficultyDots,
   Field,
   FileDropzone,
+  MasteryBar,
+  MasteryShapeGlyph,
   Menu,
   MoreHorizontal,
   Pencil,
   Play,
+  PrereqChain,
+  RotateCcw,
   RouteTabs,
+  SegmentedControl,
   Select,
   Settings,
   Stepper,
@@ -27,13 +31,17 @@ import {
   Textarea,
   Trash2,
   TutorAvatar,
+  WeightBar,
+  normalizeMasteryStatus,
   toast,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { createPointPlanItem } from "../classroom/lesson-api";
 import { getPlan, learnerKeys } from "../learner/api";
 import { isLessonItem, planItemDisplayTitle, planItemKindLabel } from "../plan/item-kind";
+import { PlanDiffList, summarizePlanDiff } from "../plan/plan-diff";
 import { buildPlanWhySentence, masteryLabel, masteryLevel, weightLabel } from "../plan/why-sentence";
+import { fetchCourseProgress, progressKeys } from "../progress/api";
 import { ConnectWizardDialog } from "../settings/connect-wizard";
 import { useReadiness } from "../settings/use-readiness";
 import { tutorGreeting, tutorLine, useActiveTutor } from "../tutors/use-active-tutor";
@@ -448,11 +456,20 @@ export function CourseTodayTab() {
       ) : null}
 
       {planUpdatedRecently ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-accent/30 bg-accent-soft/50 px-4 py-2.5 text-ui text-fg-primary">
-          <span>{t.courseHub.planAdjustedNotice}</span>
-          <Link className="font-medium text-accent-strong hover:underline" to={`/courses/${courseId}/plan`}>
-            {t.courseHub.viewFullPlan}
-          </Link>
+        <div
+          data-testid="course-plan-adjusted"
+          className="grid gap-1.5 rounded-md border border-accent/30 bg-accent-soft/50 px-4 py-2.5 text-ui text-fg-primary"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              {t.courseHub.planAdjustedNotice}
+              {summarizePlanDiff(plan.data?.diff) ? ` ${summarizePlanDiff(plan.data?.diff)}` : ""}
+            </span>
+            <Link className="font-medium text-accent-strong hover:underline" to={`/courses/${courseId}/plan`}>
+              {t.courseHub.viewFullPlan}
+            </Link>
+          </div>
+          <PlanDiffList diff={plan.data?.diff} compact />
         </div>
       ) : null}
 
@@ -486,31 +503,18 @@ export function CourseTodayTab() {
           )}
         </div>
         {why ? (
-          <div className="grid gap-2 border-t border-line-subtle pt-4 text-caption text-fg-secondary sm:grid-cols-[auto_auto_1fr] sm:items-center sm:gap-x-6">
-            <span className="inline-flex items-center gap-2">
-              <span>{t.today.weightLabel}</span>
-              <span className="block h-1.5 w-20 overflow-hidden rounded-full bg-surface-sunken">
-                <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.min(100, Math.max(8, Math.round(why.weight * 100)))}%` }} />
-              </span>
-              <strong className="text-fg-primary">{weightLabel(why.weight)}</strong>
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span>{t.today.masteryLabel}</span>
-              <span className="block h-1.5 w-20 overflow-hidden rounded-full bg-surface-sunken">
-                <span
-                  className={clsx(
-                    "block h-full rounded-full",
-                    masteryLevel(why.mastery) === "mastered"
-                      ? "bg-mastery-mastered"
-                      : masteryLevel(why.mastery) === "shaky"
-                        ? "bg-mastery-fragile"
-                        : "bg-mastery-learning",
-                  )}
-                  style={{ width: `${Math.min(100, Math.max(5, Math.round(why.mastery * 100)))}%` }}
-                />
-              </span>
-              <strong className="text-fg-primary">{masteryLabel(why.mastery)}</strong>
-            </span>
+          <div className="grid gap-2 border-t border-line-subtle pt-4 sm:grid-cols-[auto_auto_1fr] sm:items-center sm:gap-x-6">
+            <WeightBar
+              weight={why.weight}
+              label={t.today.weightLabel}
+              valueText={weightLabel(why.weight)}
+            />
+            <MasteryBar
+              probability={why.mastery}
+              status={masteryLevel(why.mastery)}
+              label={t.today.masteryLabel}
+              valueText={masteryLabel(why.mastery)}
+            />
             <p className="text-ui text-fg-secondary">{buildPlanWhySentence(why)}</p>
           </div>
         ) : null}
@@ -625,19 +629,26 @@ function KnowledgePointDetail({
   courseId,
   point,
   allPoints,
+  mastery,
   hasPlan,
+  onSelectPoint,
   onChanged,
 }: {
   courseId: string;
   point: KnowledgePoint;
   allPoints: KnowledgePoint[];
+  mastery?: { probability: number; status: string };
   hasPlan: boolean;
+  onSelectPoint: (id: string) => void;
   onChanged: () => void;
 }) {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [mergeTarget, setMergeTarget] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [source, setSource] = useState(point.source_refs[0]);
+  const [evidenceOpen, setEvidenceOpen] = useState(point.source_refs.length > 0);
   const [examOpen, setExamOpen] = useState(false);
 
   const exams = useQuery({
@@ -649,6 +660,7 @@ function KnowledgePointDetail({
     mutationFn: (body: Parameters<typeof updateKnowledgePoint>[2]) => updateKnowledgePoint(courseId, point.id, body),
     onSuccess: () => {
       setEditing(false);
+      setMergeOpen(false);
       setDeleteOpen(false);
       toast.success(t.common.saved);
       onChanged();
@@ -669,25 +681,104 @@ function KnowledgePointDetail({
     });
   }
 
+  const byId = useMemo(() => new Map(allPoints.map((entry) => [entry.id, entry])), [allPoints]);
+  const prereqNodes = point.prerequisite_ids
+    .map((id) => byId.get(id))
+    .filter((entry): entry is KnowledgePoint => Boolean(entry))
+    .map((entry) => ({ id: entry.id, name: entry.name }));
+  const dependentNodes = allPoints
+    .filter((entry) => entry.prerequisite_ids.includes(point.id))
+    .map((entry) => ({ id: entry.id, name: entry.name }));
+
+  const normStatus = normalizeMasteryStatus(mastery?.status ?? "unseen");
+  const examTypeEntries = Object.entries(point.stats?.types ?? {}).filter(([, count]) => Number(count) > 0);
+
   return (
-    <article className="kp-detail">
-      <div className="kp-heading">
-        <div>
-          <span className="kp-kind">{t.courses.kinds[point.kind as keyof typeof t.courses.kinds] ?? point.kind}</span>
-          <h3>{point.name}</h3>
+    <article className="kp-detail grid min-w-0 gap-4">
+      <div className="kp-heading flex flex-wrap items-start justify-between gap-3">
+        <div className="grid min-w-0 gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="kp-kind">{t.courses.kinds[point.kind as keyof typeof t.courses.kinds] ?? point.kind}</span>
+            <span className="inline-flex items-center gap-1 text-caption font-medium text-fg-secondary">
+              <MasteryShapeGlyph status={normStatus} size={14} />
+              <span>{t.loopViz.masteryStatuses[normStatus]}</span>
+            </span>
+          </div>
+          <h3 className="text-title font-semibold text-fg-primary">{point.name}</h3>
         </div>
-        <button className="button quiet revise-button" onClick={() => setEditing((value) => !value)}>
-          {t.courses.revise}
-        </button>
+        <Menu
+          trigger={
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={t.courses.revise}
+              leftIcon={<MoreHorizontal size={15} aria-hidden="true" />}
+            >
+              {t.courses.revise}
+            </Button>
+          }
+          items={[
+            {
+              id: "edit",
+              label: t.courses.revise,
+              icon: <Pencil size={14} aria-hidden="true" />,
+              onSelect: () => setEditing((value) => !value),
+            },
+            {
+              id: "merge",
+              label: t.courses.merge,
+              onSelect: () => setMergeOpen(true),
+            },
+            {
+              id: "delete",
+              label: t.common.remove,
+              icon: <Trash2 size={14} aria-hidden="true" />,
+              danger: true,
+              onSelect: () => setDeleteOpen(true),
+            },
+          ]}
+        />
       </div>
+
       {point.assumed ? <div className="notice"><p>{t.courses.assumed}</p></div> : null}
-      <p>{point.summary}</p>
+      <p className="text-body text-fg-primary">{point.summary}</p>
+
+      {/* Weight + Mastery bars */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <WeightBar
+          weight={point.stats?.weight ?? 0}
+          label={t.today.weightLabel}
+          valueText={weightLabel(point.stats?.weight ?? 0)}
+        />
+        <MasteryBar
+          probability={mastery?.probability ?? 0}
+          status={normStatus}
+          label={t.today.masteryLabel}
+          valueText={t.loopViz.masteryStatuses[normStatus]}
+        />
+      </div>
+
+      {/* Prerequisite -> Current -> Dependent Chain */}
+      <PrereqChain
+        prereqs={prereqNodes}
+        current={{ id: point.id, name: point.name }}
+        dependents={dependentNodes}
+        prereqLabel={t.loopViz.mapPrereqs}
+        dependentLabel={t.loopViz.mapDependents}
+        emptyLabel={t.loopViz.mapNoPrereq}
+        onSelect={onSelectPoint}
+      />
 
       {/* D5: Demoted KP entry — never primary; when no plan yet, guide to setup first */}
       {hasPlan ? (
         <div className="actions">
-          <Button variant="secondary" pending={lesson.isPending} onClick={() => lesson.mutate()}>
-            {t.courseHub.mapStudyPoint}
+          <Button
+            variant="secondary"
+            pending={lesson.isPending}
+            leftIcon={<RotateCcw size={14} aria-hidden="true" />}
+            onClick={() => lesson.mutate()}
+          >
+            {t.loopViz.mapReteach}
           </Button>
         </div>
       ) : (
@@ -710,46 +801,94 @@ function KnowledgePointDetail({
         <div><dt>{t.courses.trend}</dt><dd>{point.stats ? (t.courses.trendValue[point.stats.trend as keyof typeof t.courses.trendValue] ?? point.stats.trend) || "—" : "—"}</dd></div>
       </dl>
 
+      {examTypeEntries.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 text-caption text-fg-secondary">
+          <span>{t.loopViz.mapExamTypes}</span>
+          {examTypeEntries.map(([kind, count]) => (
+            <Badge key={kind} tone="neutral">
+              {kind} · {String(count)}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+
       {editing ? (
-        <form className="kp-edit fields" onSubmit={submit}>
+        <form className="kp-edit fields rounded-md border border-line-subtle bg-surface-page p-4" onSubmit={submit}>
           <label>{t.courses.kpName}<input name="name" defaultValue={point.name} required /></label>
           <label>{t.courses.importance}<select name="importance" defaultValue={point.importance}>{Object.entries(t.courses.importanceValue).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <fieldset><legend>{t.courses.prerequisites}</legend>{allPoints.filter((candidate) => candidate.id !== point.id).map((candidate) => <label key={candidate.id}><input type="checkbox" name="prerequisite" value={candidate.id} defaultChecked={point.prerequisite_ids.includes(candidate.id)} />{candidate.name}</label>)}</fieldset>
           <div className="actions"><button className="button primary" disabled={revise.isPending} aria-busy={revise.isPending || undefined}>{t.common.save}</button><button type="button" className="button quiet" onClick={() => setEditing(false)}>{t.common.cancel}</button></div>
-          <details className="danger-zone"><summary>{t.courses.moreRevisions}</summary><label>{t.courses.mergeInto}<select name="merge"><option value="">{t.courses.chooseKp}</option>{allPoints.filter((candidate) => candidate.id !== point.id).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select></label><div className="actions"><button className="button quiet" type="button" onClick={(event) => { const select = event.currentTarget.closest("details")?.querySelector("select"); if (select?.value) revise.mutate({ merge_into: select.value }); }}>{t.courses.merge}</button><Button variant="danger" onClick={() => setDeleteOpen(true)}>{t.common.remove}</Button></div></details>
-          <ConfirmDialog
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            title={t.courses.deleteTitle}
-            description={t.courses.deleteConfirm}
-            confirmLabel={t.courses.confirmDelete}
-            cancelLabel={t.common.keep}
-            pending={revise.isPending}
-            onConfirm={() => revise.mutate({ deleted: true })}
-          />
           {revise.isError ? <Problem error={revise.error} /> : null}
         </form>
       ) : null}
 
-      <section className="provenance">
-        <h3>{t.courses.provenance}</h3>
-        {point.source_refs.length ? (
-          <div className="source-tabs">
-            {point.source_refs.map((reference) => (
-              <button
-                className="button quiet"
-                aria-pressed={source?.material_id === reference.material_id && source.page_no === reference.page_no}
-                key={`${reference.material_id}:${reference.page_no}`}
-                onClick={() => setSource(reference)}
-              >
-                {t.courses.page.replace("{page}", String(reference.page_no))}
-              </button>
-            ))}
+      <Dialog open={mergeOpen} onOpenChange={setMergeOpen} title={t.courses.merge} size="sm">
+        <div className="grid gap-4">
+          <Field label={t.courses.mergeInto}>
+            <Select
+              value={mergeTarget}
+              onValueChange={setMergeTarget}
+              placeholder={t.courses.chooseKp}
+              options={allPoints
+                .filter((candidate) => candidate.id !== point.id)
+                .map((candidate) => ({ value: candidate.id, label: candidate.name }))}
+            />
+          </Field>
+          {revise.isError ? <Problem error={revise.error} /> : null}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setMergeOpen(false)}>{t.common.cancel}</Button>
+            <Button
+              variant="primary"
+              pending={revise.isPending}
+              disabled={!mergeTarget}
+              onClick={() => revise.mutate({ merge_into: mergeTarget })}
+            >
+              {t.courses.merge}
+            </Button>
           </div>
-        ) : (
+        </div>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t.courses.deleteTitle}
+        description={t.courses.deleteConfirm}
+        confirmLabel={t.courses.confirmDelete}
+        cancelLabel={t.common.keep}
+        pending={revise.isPending}
+        onConfirm={() => revise.mutate({ deleted: true })}
+      />
+
+      {/* Provenance ("查看依据") */}
+      <section className="provenance grid gap-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-ui font-semibold text-fg-primary">{t.courses.provenance}</h3>
+          {point.source_refs.length > 0 ? (
+            <Button variant="ghost" size="sm" onClick={() => setEvidenceOpen((open) => !open)}>
+              {evidenceOpen ? t.loopViz.mapHideEvidence : t.loopViz.mapShowEvidence}
+            </Button>
+          ) : null}
+        </div>
+        {point.source_refs.length === 0 ? (
           <p className="hint">{t.courses.noSource}</p>
-        )}
-        {source ? <SourcePage courseId={courseId} reference={source} /> : null}
+        ) : evidenceOpen ? (
+          <>
+            <div className="source-tabs">
+              {point.source_refs.map((reference) => (
+                <button
+                  className="button quiet"
+                  aria-pressed={source?.material_id === reference.material_id && source.page_no === reference.page_no}
+                  key={`${reference.material_id}:${reference.page_no}`}
+                  onClick={() => setSource(reference)}
+                >
+                  {t.courses.page.replace("{page}", String(reference.page_no))}
+                </button>
+              ))}
+            </div>
+            {source ? <SourcePage courseId={courseId} reference={source} /> : null}
+          </>
+        ) : null}
       </section>
 
       <section className="exam-browser">
@@ -767,14 +906,41 @@ function KnowledgePointDetail({
 export function CourseMapTab() {
   const courseId = useParams().courseId ?? "";
   const [searchParams, setSearchParams] = useSearchParams();
+  const [viewMode, setViewMode] = useState<"unit" | "weight">("unit");
   const analysis = useQuery({ queryKey: courseKeys.analysis(courseId), queryFn: () => getAnalysis(courseId) });
   const map = useQuery({ queryKey: courseKeys.map(courseId), queryFn: () => getCourseMap(courseId) });
   const journey = useQuery({ queryKey: courseKeys.journey(courseId), queryFn: () => getCourseJourney(courseId) });
+  const progress = useQuery({
+    queryKey: progressKeys.course(courseId),
+    queryFn: () => fetchCourseProgress(courseId),
+    enabled: Boolean(courseId),
+  });
   const unmapped = useQuery({ queryKey: courseKeys.unmappedExams(courseId), queryFn: () => listUnmappedExamItems(courseId) });
 
   const selectedId = searchParams.get("kp") ?? undefined;
   const allPoints = useMemo(() => map.data?.units.flatMap((unit) => unit.knowledge_points) ?? [], [map.data]);
-  const selected = allPoints.find((point) => point.id === selectedId) ?? allPoints[0];
+  const sortedByWeight = useMemo(
+    () =>
+      [...allPoints].sort((a, b) => {
+        const wa = a.stats?.weight ?? a.stats?.score_share ?? 0;
+        const wb = b.stats?.weight ?? b.stats?.score_share ?? 0;
+        if (wb !== wa) return wb - wa;
+        return (b.stats?.n_items ?? 0) - (a.stats?.n_items ?? 0);
+      }),
+    [allPoints],
+  );
+  const masteryById = useMemo(
+    () =>
+      new Map(
+        (progress.data?.points ?? []).map((entry) => [
+          entry.id,
+          { probability: entry.probability, status: entry.status },
+        ]),
+      ),
+    [progress.data],
+  );
+
+  const selected = allPoints.find((point) => point.id === selectedId) ?? (viewMode === "weight" ? sortedByWeight[0] : allPoints[0]);
   const showUnmapped = selectedId === "unmapped" && Boolean(unmapped.data?.length);
 
   function selectPoint(id: string) {
@@ -804,14 +970,48 @@ export function CourseMapTab() {
   const support = map.data.brief?.summary_support;
   const hasPlan = Boolean(journey.data?.has_plan);
 
+  function renderPointButton(point: KnowledgePoint) {
+    const m = masteryById.get(point.id);
+    const norm = normalizeMasteryStatus(m?.status ?? "unseen");
+    const w = point.stats?.weight ?? 0;
+    return (
+      <button
+        key={point.id}
+        type="button"
+        aria-current={!showUnmapped && selected?.id === point.id ? "true" : undefined}
+        onClick={() => selectPoint(point.id)}
+      >
+        <MasteryShapeGlyph status={norm} size={14} />
+        <strong className="min-w-0 flex-1 truncate text-left font-medium">{point.name}</strong>
+        {viewMode === "weight" && w > 0 ? (
+          <small className="shrink-0 tabular-nums">{Math.round(w * 100)}%</small>
+        ) : (
+          <small className="shrink-0">{point.stats?.n_items ? `${point.stats.n_items} ${t.courses.questionUnit}` : ""}</small>
+        )}
+      </button>
+    );
+  }
+
   return (
-    <section className="course-panel map-panel" aria-labelledby="map-title">
-      <div className="section-heading">
+    <section className="course-panel map-panel" aria-labelledby="map-title" data-testid="course-map-tab">
+      <div className="section-heading flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="eyebrow">{t.courses.map}</p>
           <h2 id="map-title">{t.courses.mapHeading}</h2>
         </div>
-        <span>{allPoints.length} {t.courses.kpUnit}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <SegmentedControl
+            size="sm"
+            aria-label={t.courses.mapHeading}
+            value={viewMode}
+            onValueChange={(next) => setViewMode(next as "unit" | "weight")}
+            options={[
+              { value: "unit", label: t.loopViz.mapByUnit },
+              { value: "weight", label: t.loopViz.mapByWeight },
+            ]}
+          />
+          <span className="text-caption text-fg-tertiary">{allPoints.length} {t.courses.kpUnit}</span>
+        </div>
       </div>
       {support && support.checked > 0 ? (
         <p className="hint">
@@ -823,26 +1023,23 @@ export function CourseMapTab() {
       ))}
       <div className="map-layout">
         <nav className="unit-map" aria-label={t.courses.mapHeading}>
-          {map.data.units.map((unit) => (
-            <section key={unit.id}>
-              <h3>{unit.title}</h3>
-              {unit.knowledge_points.map((point) => (
-                <button
-                  key={point.id}
-                  aria-current={!showUnmapped && selected?.id === point.id ? "true" : undefined}
-                  onClick={() => selectPoint(point.id)}
-                >
-                  <span data-importance={point.importance} />
-                  {point.name}
-                  <small>{point.stats?.n_items ? `${point.stats.n_items} ${t.courses.questionUnit}` : ""}</small>
-                </button>
-              ))}
+          {viewMode === "weight" ? (
+            <section>
+              <h3>{t.loopViz.mapByWeight}</h3>
+              {sortedByWeight.map((point) => renderPointButton(point))}
             </section>
-          ))}
+          ) : (
+            map.data.units.map((unit) => (
+              <section key={unit.id}>
+                <h3>{unit.title}</h3>
+                {unit.knowledge_points.map((point) => renderPointButton(point))}
+              </section>
+            ))
+          )}
           {unmapped.data?.length ? (
             <section>
               <h3>{t.courses.unmapped}</h3>
-              <button aria-current={showUnmapped ? "true" : undefined} onClick={() => selectPoint("unmapped")}>
+              <button type="button" aria-current={showUnmapped ? "true" : undefined} onClick={() => selectPoint("unmapped")}>
                 <span />
                 {t.courses.unmapped}
                 <small>{unmapped.data.length} {t.courses.questionUnit}</small>
@@ -862,7 +1059,9 @@ export function CourseMapTab() {
             courseId={courseId}
             point={selected}
             allPoints={allPoints}
+            mastery={masteryById.get(selected.id)}
             hasPlan={hasPlan}
+            onSelectPoint={selectPoint}
             onChanged={() => void map.refetch()}
           />
         ) : null}

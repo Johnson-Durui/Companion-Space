@@ -15,8 +15,11 @@ import {
   Button,
   Card,
   CheckCircle2,
+  Flame,
+  MasteryBar,
   Play,
   Volume2,
+  WeightBar,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { courseKeys, listCourseDashboard, listCourses } from "../courses/api";
@@ -25,6 +28,7 @@ import type { Course, CourseDashboard } from "../courses/types";
 import { getLearnerProfile, learnerKeys } from "../learner/api";
 import { resolveLearnerNickname } from "../learner/nickname";
 import { buildPlanWhySentence, masteryLabel, masteryLevel, weightLabel } from "../plan/why-sentence";
+import { fetchLearnerWeekSummary, progressKeys } from "../progress/api";
 import { fetchSample, sampleKey } from "../replay/sample-api";
 import { ConnectWizardDialog } from "../settings/connect-wizard";
 import { useReadiness } from "../settings/use-readiness";
@@ -62,34 +66,19 @@ function sortByExamDate(
 }
 
 function WhyBarsRow({ entry }: { entry: NonNullable<CourseDashboard["today_lesson_why"]>[number] }) {
-  const weightPct = Math.min(100, Math.max(8, Math.round(entry.weight * 100)));
-  const masteryPct = Math.min(100, Math.max(5, Math.round(entry.mastery * 100)));
-  const mLevel = masteryLevel(entry.mastery);
-  const masteryBarColor =
-    mLevel === "mastered"
-      ? "bg-mastery-mastered"
-      : mLevel === "shaky"
-        ? "bg-mastery-fragile"
-        : mLevel === "learning"
-          ? "bg-mastery-learning"
-          : "bg-mastery-unseen";
-
   return (
     <div className="grid gap-2.5 border-t border-line-subtle pt-4 text-ui text-fg-secondary sm:grid-cols-[auto_auto_1fr] sm:items-center sm:gap-x-6">
-      <div className="flex items-center gap-2.5 text-caption">
-        <span>{copy.weightLabel}</span>
-        <span className="block h-1.5 w-24 overflow-hidden rounded-full bg-surface-sunken">
-          <span className="block h-full rounded-full bg-accent" style={{ width: `${weightPct}%` }} />
-        </span>
-        <span className="font-medium text-fg-primary">{weightLabel(entry.weight)}</span>
-      </div>
-      <div className="flex items-center gap-2.5 text-caption">
-        <span>{copy.masteryLabel}</span>
-        <span className="block h-1.5 w-24 overflow-hidden rounded-full bg-surface-sunken">
-          <span className={clsx("block h-full rounded-full", masteryBarColor)} style={{ width: `${masteryPct}%` }} />
-        </span>
-        <span className="font-medium text-fg-primary">{masteryLabel(entry.mastery)}</span>
-      </div>
+      <WeightBar
+        weight={entry.weight}
+        label={copy.weightLabel}
+        valueText={weightLabel(entry.weight)}
+      />
+      <MasteryBar
+        probability={entry.mastery}
+        status={masteryLevel(entry.mastery)}
+        label={copy.masteryLabel}
+        valueText={masteryLabel(entry.mastery)}
+      />
       <p className="text-ui text-fg-secondary">{buildPlanWhySentence(entry)}</p>
     </div>
   );
@@ -102,6 +91,7 @@ export default function TodayPage() {
   const dashboard = useQuery({ queryKey: courseKeys.dashboard, queryFn: listCourseDashboard });
   const characters = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
   const profile = useQuery({ queryKey: learnerKeys.profile, queryFn: getLearnerProfile });
+  const weekSummary = useQuery({ queryKey: progressKeys.weekSummary, queryFn: fetchLearnerWeekSummary });
   const sample = useQuery({ queryKey: sampleKey, queryFn: fetchSample, staleTime: Infinity });
   const readiness = useReadiness();
   const speech = useTutorSpeech();
@@ -529,6 +519,55 @@ export default function TodayPage() {
               )}
             </Card>
           </section>
+
+          {/* This week strip (U5) */}
+          {weekSummary.data ? (
+            <Card
+              padding="md"
+              data-testid="today-week-row"
+              className="flex flex-wrap items-center justify-between gap-4"
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-caption font-semibold text-fg-secondary">
+                  {t.loopViz.todayWeekTitle}
+                </span>
+                <div className="flex items-center gap-1.5" aria-label={t.loopViz.todayWeekTitle}>
+                  {weekSummary.data.days.map((entry) => (
+                    <span
+                      key={entry.day}
+                      title={`${entry.day}: ${entry.minutes} ${t.learner.minutes}`}
+                      className={clsx(
+                        "inline-block h-3.5 w-3.5 rounded-[4px] border transition-colors",
+                        entry.active
+                          ? "border-accent bg-accent"
+                          : "border-line-subtle bg-surface-sunken",
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-fg-secondary">
+                {weekSummary.data.total_minutes > 0 || weekSummary.data.lessons_completed > 0 || weekSummary.data.streak_days > 0 ? (
+                  <>
+                    <span className="tabular-nums font-medium text-fg-primary">
+                      {t.loopViz.todayWeekMinutes.replace("{min}", String(weekSummary.data.total_minutes))}
+                    </span>
+                    <span className="tabular-nums">
+                      {t.loopViz.todayWeekLessons.replace("{count}", String(weekSummary.data.lessons_completed))}
+                    </span>
+                    {weekSummary.data.streak_days > 0 ? (
+                      <span className="inline-flex items-center gap-1 font-medium text-accent-strong">
+                        <Flame size={13} aria-hidden="true" />
+                        <span>{t.loopViz.todayWeekStreak.replace("{days}", String(weekSummary.data.streak_days))}</span>
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  <span>{t.loopViz.todayWeekEmpty}</span>
+                )}
+              </div>
+            </Card>
+          ) : null}
         </>
       ) : null}
 

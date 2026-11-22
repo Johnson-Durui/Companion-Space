@@ -16,6 +16,7 @@ from fakes.e2e import (
     seed_classroom,
     seed_empty_course,
     seed_stress_course,
+    seed_u5_loop_course,
     seed_unprepared_lesson,
 )
 
@@ -57,4 +58,5 @@ if __name__ == "__main__":
         seed_stress_course(container)
         seed_empty_course(container)
         seed_unprepared_lesson(container)
+        seed_u5_loop_course(container)
         uvicorn.run(application, host="127.0.0.1", port=port, proxy_headers=False, access_log=False)

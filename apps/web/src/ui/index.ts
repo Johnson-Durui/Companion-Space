@@ -38,4 +38,5 @@ export { Tooltip, TooltipProvider, type TooltipProps, type TooltipProviderProps 
 export { TutorAvatar, type TutorAvatarProps, type TutorAvatarSize } from "./tutor-avatar";
 export { TutorChip, type TutorChipProps } from "./tutor-chip";
 export { useTransientSaved } from "./use-transient-saved";
+export * from "./charts";
 export * from "./icons";

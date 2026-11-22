@@ -300,14 +300,15 @@ try {
     await shot(page, "course-materials");
   });
 
-  // ---------- C. seeded "today", empty, and stress content scenarios ----------
+  // ---------- C. seeded "today", loop (U5), empty, and stress content scenarios ----------
   for (const [name, path] of [
+    ["loop-plan-diff", "/courses/browser-loop-course/plan"],
+    ["loop-map", "/courses/browser-loop-course/map"],
+    ["loop-progress", "/courses/browser-loop-course/progress"],
+    ["loop-review", "/courses/browser-loop-course/review"],
+    ["loop-history", "/courses/browser-loop-course/history"],
+    ["loop-practice", "/plan-items/browser-loop-practice-item/practice"],
     ["today-course", "/courses/browser-today-course"],
-    ["today-course-plan", "/courses/browser-today-course/plan"],
-    ["progress", "/courses/browser-today-course/progress"],
-    ["review", "/courses/browser-today-course/review"],
-    ["course-history", "/courses/browser-today-course/history"],
-    ["practice", "/plan-items/browser-today-lesson-item/practice"],
     ["empty-course", "/courses/browser-empty-course"],
     ["stress-course-map", "/courses/browser-stress-course/map"],
   ]) {
@@ -319,6 +320,17 @@ try {
       await shot(page, `${name}-full`, { full: true });
     });
   }
+
+  await step("loop-review-session-i14", async () => {
+    await page.goto("/courses/browser-loop-course/review/session");
+    await page.getByTestId("review-session-active").waitFor({ timeout: 15_000 });
+    await settle(500);
+    await page.locator('[data-choice-key="A"]').click();
+    await button(page, t.review.submit).click();
+    await page.getByTestId("review-feedback").waitFor({ timeout: 10_000 });
+    await settle(400);
+    await shot(page, "loop-review-feedback");
+  });
 
   await step("empty-course placement locked (wait materials)", async () => {
     await page.goto("/courses/browser-empty-course/setup?step=placement");

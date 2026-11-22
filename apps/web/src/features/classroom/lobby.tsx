@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
 import type { LessonPhase } from "@companion-space/avatar-engine/types";
@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   Badge,
   Button,
-  ChoiceCardGroup,
   ErrorState,
   Mic,
   RefreshCw,
@@ -22,7 +21,8 @@ import {
 import t from "../../locales/zh-CN.json";
 import { toVideoAvatarConfig, videoBoxLabels } from "../characters/video-config";
 import { VoicePreview } from "../onboarding/voice-preview";
-import { answerCard, getReview, rateCard, reviewKey, type ReviewCard } from "../review/api";
+import { getReview } from "../review/api";
+import { ReviewCardRunner } from "../review/review-card-runner";
 import {
   fetchPlanItemPrepareStatus,
   openPlanItemLesson,
@@ -38,12 +38,6 @@ function formatWait(seconds: number): string {
   return `${mins}:${String(rem).padStart(2, "0")}`;
 }
 
-function cardOptions(card: ReviewCard) {
-  const raw = card.item?.options;
-  if (!raw) return [];
-  return Array.isArray(raw) ? raw : Object.entries(raw).map(([key, text]) => ({ key, text }));
-}
-
 function LobbyWarmup({
   courseId,
   planItemId,
@@ -53,52 +47,20 @@ function LobbyWarmup({
 }) {
   const queries = useQueryClient();
   const [skipped, setSkipped] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-  const [reviewed, setReviewed] = useState(0);
-  const [choice, setChoice] = useState<string>("");
-  const [multiChoice, setMultiChoice] = useState<string[]>([]);
-  const [textAns, setTextAns] = useState("");
-  const limitReached = skipped || reviewed >= 5;
+  const [cursor, setCursor] = useState(0);
 
   const queue = useQuery({
-    queryKey: reviewKey(courseId, planItemId),
+    queryKey: ["lobby-warmup-snapshot", courseId, planItemId],
     queryFn: () => getReview(courseId, planItemId),
-    enabled: Boolean(courseId) && !limitReached,
+    enabled: Boolean(courseId) && !skipped,
+    staleTime: Infinity,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
   });
 
-  const advance = () => {
-    setRevealed(false);
-    setChoice("");
-    setMultiChoice([]);
-    setTextAns("");
-    setReviewed((count) => count + 1);
-    void queries.invalidateQueries({ queryKey: ["courses", courseId, "review"] });
-  };
-
-  const rate = useMutation({
-    mutationFn: ({ id, rating }: { id: string; rating: string }) => rateCard(id, rating),
-    onSuccess: advance,
-  });
-  const answer = useMutation({
-    mutationFn: ({ id, value, dontKnow }: { id: string; value: unknown; dontKnow?: boolean }) =>
-      answerCard(id, value, dontKnow),
-    onSuccess: advance,
-  });
-
-  const cards = queue.data?.cards ?? [];
-  const card = limitReached ? undefined : cards[0];
+  const cards = (queue.data?.cards ?? []).slice(0, 5);
+  const card = skipped || cursor >= cards.length ? undefined : cards[cursor];
   if (skipped || (!queue.isPending && !card)) return null;
-
-  const opts = card ? cardOptions(card) : [];
-  const isMulti = card?.item?.type === "multi";
-
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!card) return;
-    const value = opts.length ? (isMulti ? multiChoice : choice) : textAns.trim();
-    if (!value || (Array.isArray(value) && value.length === 0)) return;
-    answer.mutate({ id: card.id, value });
-  };
 
   return (
     <section
@@ -118,78 +80,17 @@ function LobbyWarmup({
 
       {queue.isPending ? (
         <Loading />
-      ) : card?.kind === "flashcard" ? (
-        <div className="grid gap-3">
-          <p className="text-body font-medium text-fg-primary">{card.front}</p>
-          {revealed ? (
-            <div className="grid gap-3 rounded-md bg-surface-sunken p-3">
-              <p className="text-ui text-fg-primary">{card.back}</p>
-              <div className="flex flex-wrap gap-2">
-                {(["again", "hard", "good", "easy"] as const).map((rating) => (
-                  <Button
-                    key={rating}
-                    variant="secondary"
-                    size="sm"
-                    pending={rate.isPending}
-                    onClick={() => rate.mutate({ id: card.id, rating })}
-                  >
-                    {t.review.ratings[rating]}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <Button variant="secondary" size="sm" onClick={() => setRevealed(true)}>
-                {t.review.reveal}
-              </Button>
-            </div>
-          )}
-        </div>
-      ) : card?.kind === "item" ? (
-        <form onSubmit={handleSubmit} className="grid gap-3">
-          <p className="text-body font-medium text-fg-primary">{card.item?.stem || card.front}</p>
-          {opts.length ? (
-            <ChoiceCardGroup
-              options={opts}
-              mode={isMulti ? "multi" : "single"}
-              value={isMulti ? multiChoice : choice}
-              disabled={answer.isPending}
-              label={t.review.answer}
-              onChange={(next) => {
-                if (isMulti) setMultiChoice(Array.isArray(next) ? next : [next]);
-                else setChoice(Array.isArray(next) ? (next[0] ?? "") : next);
-              }}
-            />
-          ) : (
-            <input
-              type="text"
-              value={textAns}
-              onChange={(event) => setTextAns(event.target.value)}
-              aria-label={t.review.answer}
-              className="min-h-10 rounded-md border border-line-default bg-surface-page px-3 text-ui text-fg-primary"
-            />
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="submit"
-              variant="secondary"
-              size="sm"
-              pending={answer.isPending}
-              disabled={opts.length ? (isMulti ? multiChoice.length === 0 : !choice) : !textAns.trim()}
-            >
-              {t.review.submit}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={answer.isPending}
-              onClick={() => answer.mutate({ id: card.id, value: null, dontKnow: true })}
-            >
-              {t.review.dontKnow}
-            </Button>
-          </div>
-        </form>
+      ) : card ? (
+        <ReviewCardRunner
+          key={card.id}
+          card={card}
+          nextLabel={cursor + 1 >= cards.length ? t.loopViz.reviewFinish : t.loopViz.reviewNextCard}
+          onSettled={() => {
+            void queries.invalidateQueries({ queryKey: ["courses", courseId, "review"] });
+            void queries.invalidateQueries({ queryKey: ["courses", courseId, "mistakes"] });
+          }}
+          onAdvance={() => setCursor((idx) => idx + 1)}
+        />
       ) : null}
     </section>
   );

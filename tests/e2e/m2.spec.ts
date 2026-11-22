@@ -80,6 +80,7 @@ test("materials become a resumable course map with provenance and exams", async 
   await expect(page.getByRole("link", { name: t.courseHub.mapGoSetup })).toBeVisible();
 
   await page.getByRole("button", { name: t.courses.revise }).click();
+  await page.getByRole("menuitem", { name: t.courses.revise }).click();
   await page.getByLabel(t.courses.kpName).fill("条件关系（已校对）");
   await page.getByRole("button", { name: t.common.save }).click();
   await expect(page.getByRole("heading", { name: "条件关系（已校对）" })).toBeVisible();

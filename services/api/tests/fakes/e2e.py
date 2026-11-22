@@ -278,6 +278,196 @@ def seed_unprepared_lesson(container):
         )
 
 
+def seed_u5_loop_course(container):
+    """Seed a rich learning-loop course for U5 charts, plan diff, review I14, practice B7, and history B6."""
+    from datetime import timedelta
+
+    course_id = "browser-loop-course"
+    practice_item_id = "browser-loop-practice-item"
+    repository = container.repository
+    now_dt = utcnow()
+    now = now_dt.isoformat()
+    day_1 = (now_dt - timedelta(days=3)).isoformat()
+    day_2 = (now_dt - timedelta(days=2)).isoformat()
+    day_3 = (now_dt - timedelta(days=1)).isoformat()
+
+    with repository.connection() as conn:
+        conn.execute(
+            """INSERT INTO study_spaces(id, name, topic, goal, created_at, updated_at)
+               VALUES (?, '微积分闭环进阶（U5演示）', '微积分', '期末稳过 85 分', ?, ?)""",
+            (course_id, day_1, now),
+        )
+        conn.execute(
+            """INSERT INTO course_enrollment(space_id, enrollment_json, interview_status, placement_status, updated_at)
+               VALUES (?, ?, 'done', 'done', ?)""",
+            (
+                course_id,
+                json.dumps(
+                    {
+                        "goal": "exam",
+                        "exam_name": "期末考试",
+                        "exam_date": (now_dt + timedelta(days=24)).date().isoformat(),
+                        "full_score": 100,
+                        "target_score": 85,
+                        "weekly_days": [1, 3, 5, 6],
+                        "session_minutes": 30,
+                    },
+                    ensure_ascii=False,
+                ),
+                now,
+            ),
+        )
+        conn.executemany(
+            "INSERT INTO units(id, space_id, title, ord) VALUES (?, ?, ?, ?)",
+            [
+                ("loop-u1", course_id, "第一章 极限与连续", 1),
+                ("loop-u2", course_id, "第二章 导数与中值定理", 2),
+            ],
+        )
+        kps = [
+            ("loop-kp-1", "loop-u1", "函数极限定义", "concept", "core", 1, 1, 0.90, "mastered", 4, 0.28, 0.28),
+            ("loop-kp-2", "loop-u1", "无穷小等价替换", "method", "core", 2, 2, 0.56, "learning", 2, 0.30, 0.30),
+            ("loop-kp-3", "loop-u2", "罗尔与拉格朗日中值定理", "theorem", "core", 3, 3, 0.34, "shaky", 2, 0.26, 0.26),
+            ("loop-kp-4", "loop-u2", "泰勒展开误差估计", "formula", "important", 3, 4, 0.15, "unseen", 0, 0.16, 0.16),
+        ]
+        for kp_id, u_id, name, kind, imp, diff_lv, ord_no, prob, status, ev_cnt, share, weight in kps:
+            conn.execute(
+                """INSERT INTO knowledge_points
+                   (id, space_id, unit_id, name, norm_name, kind, summary, importance, difficulty, ord, source_refs_json, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?)""",
+                (kp_id, course_id, u_id, name, kp_id, kind, f"{name}的核心定义与适用边界。", imp, diff_lv, ord_no, day_1, now),
+            )
+            conn.execute(
+                """INSERT INTO kp_exam_stats
+                   (kp_id, space_id, n_items, score_share, recency_weight, trend, types_json, novel_json, weight, updated_at)
+                   VALUES (?, ?, ?, ?, 0.9, 'rising', ?, '[]', ?, ?)""",
+                (kp_id, course_id, 4, share, json.dumps({"选择题": 2, "计算题": 2}, ensure_ascii=False), weight, now),
+            )
+            conn.execute(
+                """INSERT INTO kp_mastery(space_id, kp_id, p, status, evidence_count, inferred, last_evidence_at)
+                   VALUES (?, ?, ?, ?, ?, 0, ?)""",
+                (course_id, kp_id, prob, status, ev_cnt, now if ev_cnt else None),
+            )
+        conn.executemany(
+            "INSERT INTO kp_edges(space_id, from_kp, to_kp, source) VALUES (?, ?, ?, 'extracted')",
+            [
+                (course_id, "loop-kp-1", "loop-kp-2"),
+                (course_id, "loop-kp-2", "loop-kp-3"),
+                (course_id, "loop-kp-3", "loop-kp-4"),
+            ],
+        )
+
+        # Evidence across multiple days for StudyCalendar, WeeklyMinutes & KP timeline
+        conn.executemany(
+            """INSERT INTO evidence
+               (id, space_id, kp_id, item_ref, source, verdict, item_type, judged_by, via, p_before, p_after, detail_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, 'choice', 'exact', 'control', ?, ?, ?, ?)""",
+            [
+                ("loop-ev-1", course_id, "loop-kp-1", "loop-q1", "classroom", "correct", 0.55, 0.78, json.dumps({"answer": "A"}), day_1),
+                ("loop-ev-2", course_id, "loop-kp-1", "loop-q1", "review", "correct", 0.78, 0.90, json.dumps({"answer": "A"}), day_2),
+                ("loop-ev-3", course_id, "loop-kp-2", "loop-q2", "classroom", "correct", 0.35, 0.56, json.dumps({"answer": "B"}), day_3),
+                ("loop-ev-4", course_id, "loop-kp-3", "loop-mistake-q", "practice", "incorrect", 0.52, 0.34, json.dumps({"answer": "A", "gap": "未核对闭区间连续条件"}, ensure_ascii=False), now),
+            ],
+        )
+
+        # Verified item bank for practice & review
+        items_seed = [
+            ("loop-q1", "loop-kp-1", "practice", {"stem": "函数在一点处极限存在的充要条件是？", "options": {"A": "左右极限存在且相等", "B": "该点函数值存在"}, "answer": "A", "solution": "按极限定义，左右极限存在且相等即可。"}),
+            ("loop-q2", "loop-kp-2", "practice", {"stem": "当 x→0 时，sin(x) 与下列哪一项等价？", "options": {"A": "x²", "B": "x"}, "answer": "B", "solution": "lim(sin x / x) = 1，故 sin x ~ x。"}),
+            ("loop-mistake-q", "loop-kp-3", "check", {"stem": "应用罗尔定理前，函数在 [a, b] 上必须满足？", "options": {"A": "仅在开区间有界", "B": "闭区间连续、开区间可导且端点相等"}, "answer": "B", "solution": "罗尔定理要求闭区间连续、开区间可导且 f(a)=f(b)。"}),
+        ]
+        for bid, kpid, purpose, payload in items_seed:
+            conn.execute(
+                """INSERT INTO item_bank(id, space_id, kp_id, origin, purpose, type, difficulty, item_json, verify_status, reserved, created_at)
+                   VALUES (?, ?, ?, 'generated', ?, 'choice', 2, ?, 'verified', 0, ?)""",
+                (bid, course_id, kpid, purpose, json.dumps(payload, ensure_ascii=False), day_1),
+            )
+
+        # Plan v1 (superseded) & Plan v2 (active, reason=lesson_finished) -> produces B4b diff!
+        conn.execute(
+            """INSERT INTO study_plans(id, space_id, version, status, reason, params_json, deferred_json, created_at)
+               VALUES ('loop-plan-v1', ?, 1, 'superseded', 'setup', '{}', '[]', ?)""",
+            (course_id, day_1),
+        )
+        conn.executemany(
+            """INSERT INTO plan_items(id, plan_id, space_id, ord, kind, title, kp_ids_json, est_minutes, scheduled_date, why_text, status)
+               VALUES (?, 'loop-plan-v1', ?, ?, ?, ?, ?, ?, ?, '[]', 'todo')""",
+            [
+                ("loop-v1-1", course_id, 0, "lesson", "函数极限定义", json.dumps(["loop-kp-1"]), 20, now_dt.date().isoformat()),
+                ("loop-v1-2", course_id, 1, "lesson", "无穷小等价替换", json.dumps(["loop-kp-2"]), 25, (now_dt + timedelta(days=2)).date().isoformat()),
+                ("loop-v1-3", course_id, 2, "lesson", "罗尔与拉格朗日中值定理", json.dumps(["loop-kp-3"]), 30, (now_dt + timedelta(days=4)).date().isoformat()),
+            ],
+        )
+        conn.execute(
+            """INSERT INTO study_plans(id, space_id, version, status, reason, params_json, deferred_json, created_at)
+               VALUES ('loop-plan-v2', ?, 2, 'active', 'lesson_finished', ?, ?, ?)""",
+            (
+                course_id,
+                json.dumps({"highlighted_kp_ids": ["loop-kp-3"], "deferred_weight": 0.16, "over_capacity": False}, ensure_ascii=False),
+                json.dumps(["loop-kp-4"]),
+                now,
+            ),
+        )
+        conn.executemany(
+            """INSERT INTO plan_items(id, plan_id, space_id, ord, kind, title, kp_ids_json, est_minutes, scheduled_date, why_text, status)
+               VALUES (?, 'loop-plan-v2', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [
+                ("loop-v2-done", course_id, 0, "lesson", "函数极限定义", json.dumps(["loop-kp-1"]), 20, (now_dt - timedelta(days=1)).date().isoformat(), json.dumps([{"kp_id": "loop-kp-1", "weight": 0.28, "mastery": 0.9}]), "done"),
+                ("loop-v2-earlier", course_id, 1, "lesson", "罗尔与拉格朗日中值定理", json.dumps(["loop-kp-3"]), 30, now_dt.date().isoformat(), json.dumps([{"kp_id": "loop-kp-3", "weight": 0.26, "mastery": 0.34}]), "todo"),
+                ("loop-v2-later", course_id, 2, "lesson", "无穷小等价替换", json.dumps(["loop-kp-2"]), 25, (now_dt + timedelta(days=2)).date().isoformat(), json.dumps([{"kp_id": "loop-kp-2", "weight": 0.30, "mastery": 0.56}]), "todo"),
+                (practice_item_id, course_id, 3, "practice", "极限与等价替换限时练习", json.dumps(["loop-kp-1", "loop-kp-2"]), 15, (now_dt + timedelta(days=3)).date().isoformat(), "[]", "todo"),
+            ],
+        )
+
+        # Completed & abandoned lessons for B6 History + B5 WeeklyMinutes
+    lp_done = repository.save_lesson_plan(
+        course_id,
+        "loop-v2-done",
+        plan={"title": "函数极限定义", "est_minutes": 20, "segments": [{"id": "s1", "kp_id": "loop-kp-1", "keypoints": ["左右极限存在", "左右极限相等"], "checks": []}], "items": {}},
+    )
+    lp_later = repository.save_lesson_plan(
+        course_id,
+        "loop-v2-later",
+        plan={"title": "无穷小等价替换", "est_minutes": 25, "segments": [{"id": "s1", "kp_id": "loop-kp-2", "keypoints": ["常见等价替换", "加减替换条件"], "checks": []}], "items": {}},
+    )
+    with repository.connection() as conn:
+        conn.execute(
+            """INSERT INTO lessons(id, space_id, plan_item_id, lesson_plan_id, status, started_at, ended_at, state_json, recap_json)
+               VALUES ('loop-lesson-done', ?, 'loop-v2-done', ?, 'done', ?, ?, ?, ?)""",
+            (
+                course_id,
+                lp_done["id"],
+                (now_dt - timedelta(days=1, minutes=22)).isoformat(),
+                day_3,
+                json.dumps({"active_ms": 1_320_000}),
+                json.dumps({"summary": "今天把左右极限存在且相等的判定彻底理顺了。\n下次继续推进中值定理。"}, ensure_ascii=False),
+            ),
+        )
+        conn.execute(
+            """INSERT INTO lessons(id, space_id, plan_item_id, lesson_plan_id, status, started_at, ended_at, state_json, recap_json)
+               VALUES ('loop-lesson-abandoned', ?, 'loop-v2-later', ?, 'abandoned', ?, ?, ?, ?)""",
+            (
+                course_id,
+                lp_later["id"],
+                (now_dt - timedelta(days=2, minutes=9)).isoformat(),
+                day_2,
+                json.dumps({"active_ms": 540_000, "seg_idx": 0, "kp_cursor": 1}),
+                json.dumps({"summary": "中途暂停在常见等价无穷小替换。"}, ensure_ascii=False),
+            ),
+        )
+
+        # Due review cards (1 item card that is also a mistake card + 1 flashcard)
+        due_past = "2020-01-01T00:00:00+00:00"
+        conn.executemany(
+            """INSERT INTO review_cards(id, space_id, kp_id, kind, front, back, item_ref, fsrs_json, due_at, state, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, '{}', ?, 'active', ?, ?)""",
+            [
+                ("loop-card-item", course_id, "loop-kp-3", "item", "应用罗尔定理前，函数在 [a, b] 上必须满足？", "罗尔定理要求闭区间连续、开区间可导且 f(a)=f(b)。", "loop-mistake-q", due_past, day_3, now),
+                ("loop-card-flash", course_id, "loop-kp-2", "flashcard", "当 x→0 时，ln(1+x) 的等价无穷小是什么？", "当 x→0 时，ln(1+x) ~ x。", None, due_past, day_3, now),
+            ],
+        )
+
+
 class BrowserHarnessGateway(LLMGateway):
     async def complete_tagged(self, role, prompt_name, variables, *, parse, **options):
         if prompt_name == "analysis/kp_extract":

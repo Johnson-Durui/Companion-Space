@@ -140,3 +140,9 @@
 - **局部更新与内置恢复默认**：`PUT /api/v2/characters/{character_id}` 改为完整局部更新，不提交 `preferred_tier` 时绝不篡改 `_tier_explicit`；新增 `POST /api/v2/characters/{character_id}/reset` 恢复内置清单默认人设与音色并清除该角色在 `voice_settings.characters` 中的旧覆写，自定义角色返回结构化 `400 tutor_reset_builtin_only`。
 - **同屏单视频协调器（I16）**：在 `packages/avatar-engine/src/video-coordinator.ts` 新增全局 `tutorVideoCoordinator`，由 `LoopPackVideoDriver`（附 `IntersectionObserver` 离屏暂停与 `visibilitychange` 后台暂停）与画廊卡片悬停预览共同抢占释放，保证任一页面同时播放的老师 `<video>` 不超过一个。
 - **Tailwind v4 断点统一使用 `rem`**：`apps/web/src/styles/theme.css` 将自定义断点从 `px` 统一改为等价的 `rem`（`md: 48rem` / `lg: 68.75rem` / `2xl: 100rem`），避免 Tailwind v4 因混用 `rem` 与 `px` 导致 `sm:` 媒体查询晚于 `lg:` 生效。
+
+## 体验重塑 U5 执行决定（2026-11-22）
+
+- **复习会话独立快照查询键（I14 防早退）**：复习会话 `/courses/:courseId/review/session` 与候课热身分别使用独立查询键 `["review-session-snapshot", courseId]` 与 `["lobby-warmup-snapshot", courseId, planItemId]`，确保单张卡片答后触发 `["courses", courseId, "review"]` 缓存失效时不会卸载当前卡片、打断答后反馈停顿（I14）。
+- **手写 SVG 图表全量语义变量化**：`apps/web/src/ui/charts/` 8 个组件（`MasteryGrid`、`WeightBar`/`MasteryBar`、`ScoreBar`、`ScoreRing`、`StudyCalendar`、`WeeklyMinutes`、`SegmentProgress`、`PrereqChain`）零第三方图表库、零硬编码十六进制色，四态掌握度同步区分颜色与独立 SVG 几何形状（实心勾圆 / 半实圆 / 警告三角 / 虚线空圆）。
+- **跨课程「这一周」汇总接口**：新增只读 `GET /api/v2/learner/week-summary` 一次返回近 7 天学习活跃格、本周总分钟数、已完成节数与连续学习天数，避免今天页对多门课程发起 N+1 进度查询。

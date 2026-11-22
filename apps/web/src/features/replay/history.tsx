@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { api, bodyOf, type Character } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { EmptyState, TutorAvatar } from "../../ui";
+import { Badge, Card, Clock, EmptyState, Play, TutorAvatar } from "../../ui";
 import { fetchLesson, fetchLessonEvents } from "../classroom/lesson-api";
 import { captionDelay, type LessonEvent } from "../classroom/timeline";
 import { useActiveTutor } from "../tutors/use-active-tutor";
@@ -11,7 +11,19 @@ import t from "../../locales/zh-CN.json";
 import { ReplayStage } from "./replay-stage";
 
 const copy = t.history;
-const dateFormat = new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+const viz = t.loopViz;
+const dateTimeFmt = new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+const timeOnlyFmt = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" });
+const dayGroupFmt = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short" });
+
+function dayGroupLabel(iso: string, today = new Date()): string {
+  const date = new Date(iso);
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(today) - startOfDay(date)) / 86_400_000);
+  if (diffDays === 0) return viz.historyToday;
+  if (diffDays === 1) return viz.historyYesterday;
+  return dayGroupFmt.format(date);
+}
 
 export function LessonRecording({
   events,
@@ -128,48 +140,112 @@ export function CourseHistoryPage({ embedded = false }: { embedded?: boolean } =
         .GET("/api/v2/courses/{course_id}/history", { params: { path: { course_id: courseId! } } })
         .then(bodyOf),
   });
+
+  const lessonRows = history.data?.lessons;
+  const groupedLessons = useMemo(() => {
+    const groups: Array<{ dayKey: string; label: string; lessons: NonNullable<typeof lessonRows> }> = [];
+    const byKey = new Map<string, (typeof groups)[number]>();
+    for (const lesson of lessonRows ?? []) {
+      const dayKey = String(lesson.updated_at).slice(0, 10);
+      let group = byKey.get(dayKey);
+      if (!group) {
+        group = { dayKey, label: dayGroupLabel(lesson.updated_at), lessons: [] };
+        byKey.set(dayKey, group);
+        groups.push(group);
+      }
+      group.lessons.push(lesson);
+    }
+    return groups;
+  }, [lessonRows]);
+
   if (history.isPending) return <Loading />;
   if (history.isError) return <Problem error={history.error} onRetry={() => void history.refetch()} />;
+
   return (
-    <div className="lesson-recap">
+    <div className="grid min-w-0 gap-5" data-testid="course-history-page">
       {!embedded ? (
-        <>
-          <Link className="text-link" to={`/courses/${courseId}`}>
+        <div className="grid gap-1">
+          <Link className="text-caption font-medium text-fg-secondary hover:text-fg-primary" to={`/courses/${courseId}`}>
             {history.data.title}
           </Link>
-          <h1>{copy.heading}</h1>
-        </>
+          <h1 className="text-headline font-semibold text-fg-primary">{copy.heading}</h1>
+        </div>
       ) : null}
-      <section className="settings-section">
-        <h2>{copy.classroomRecords}</h2>
-        {history.data.lessons.length ? (
-          <ul>
-            {history.data.lessons.map((lesson) => (
-              <li key={lesson.id}>
-                <Link className="text-link" to={`/lessons/${lesson.id}/history`}>
-                  {lesson.title}
-                </Link>{" "}
-                · {dateFormat.format(new Date(lesson.updated_at))}
-              </li>
-            ))}
-          </ul>
+
+      <section className="grid gap-4">
+        {groupedLessons.length > 0 ? (
+          groupedLessons.map((group) => (
+            <div key={group.dayKey} className="grid gap-2.5">
+              <h2 className="text-caption font-semibold text-fg-secondary">{group.label}</h2>
+              <ol className="grid gap-3">
+                {group.lessons.map((lesson) => {
+                  const mins = lesson.active_ms > 0 ? Math.max(1, Math.round(lesson.active_ms / 60_000)) : null;
+                  const doneStatus = lesson.status === "done";
+                  return (
+                    <li key={lesson.id} data-testid="history-lesson-card">
+                      <Card padding="md" className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="grid min-w-0 flex-1 gap-1.5">
+                          <div className="flex flex-wrap items-center gap-2 text-caption text-fg-tertiary">
+                            <Badge tone={doneStatus ? "ok" : "warn"}>
+                              {doneStatus ? viz.historyStatusDone : viz.historyStatusAbandoned}
+                            </Badge>
+                            <time>{timeOnlyFmt.format(new Date(lesson.updated_at))}</time>
+                            {mins ? (
+                              <span className="inline-flex items-center gap-1 tabular-nums">
+                                <Clock size={12} aria-hidden="true" />
+                                <span>{viz.historyMinutes.replace("{min}", String(mins))}</span>
+                              </span>
+                            ) : null}
+                            {lesson.keypoints_total > 0 ? (
+                              <span className="tabular-nums">
+                                {viz.historyKeypoints
+                                  .replace("{done}", String(lesson.keypoints_done))
+                                  .replace("{total}", String(lesson.keypoints_total))}
+                              </span>
+                            ) : null}
+                          </div>
+                          <h3 className="text-body font-semibold text-fg-primary">{lesson.title}</h3>
+                          {lesson.summary_first_line ? (
+                            <p className="line-clamp-2 text-ui text-fg-secondary">
+                              {lesson.summary_first_line}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Link
+                          className="button quiet shrink-0"
+                          to={`/lessons/${lesson.id}/history`}
+                        >
+                          <Play size={14} aria-hidden="true" />
+                          <span>{viz.historyReplay}</span>
+                        </Link>
+                      </Card>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          ))
         ) : (
-          <EmptyState
-            visual={tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="lg" /> : undefined}
-            title={copy.emptyLessons}
-            description={t.tutorsGallery.emptyHistoryLine}
-          />
+          <Card padding="lg">
+            <EmptyState
+              visual={tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="lg" /> : undefined}
+              title={copy.emptyLessons}
+              description={t.tutorsGallery.emptyHistoryLine}
+            />
+          </Card>
         )}
       </section>
-      <section className="settings-section">
-        <h2>{copy.legacy}</h2>
-        {history.data.legacy.length ? (
-          <ul>
+
+      {/* Hide legacy conversations completely when there are none (U5 §5.8) */}
+      {history.data.legacy.length > 0 ? (
+        <Card padding="lg" className="grid gap-3" data-testid="legacy-history-section">
+          <h2 className="text-title font-semibold text-fg-primary">{copy.legacy}</h2>
+          <ul className="grid gap-2 text-ui text-fg-secondary">
             {history.data.legacy.map((session) => (
-              <li key={session.id}>
-                {dateFormat.format(new Date(session.updated_at))} ·{" "}
+              <li key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-page px-3 py-2">
+                <span>{dateTimeFmt.format(new Date(session.updated_at))}</span>
                 <a
-                  className="text-link"
+                  className="font-medium text-accent-strong hover:underline"
                   href={`/api/v2/courses/${encodeURIComponent(courseId!)}/legacy/${encodeURIComponent(session.id)}/markdown`}
                 >
                   {copy.exportLegacy}
@@ -177,10 +253,8 @@ export function CourseHistoryPage({ embedded = false }: { embedded?: boolean } =
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="hint">{copy.emptyLegacy}</p>
-        )}
-      </section>
+        </Card>
+      ) : null}
     </div>
   );
 }

@@ -35,10 +35,26 @@ export type Placement = {
   mastery: Array<{ kp_id: string; name: string; unit_id: string | null; probability: number; status: string | null; inferred: boolean }>;
   summary: null | { strongest_name: string; strongest_probability: number; priority_name: string; priority_probability: number; inferred_count: number };
 };
+export type PlanDiffEntry = {
+  title: string;
+  kind: string;
+  kp_ids: string[];
+  from_ord?: number;
+  to_ord?: number;
+};
+
+export type PlanDiff = {
+  moved_earlier: PlanDiffEntry[];
+  moved_later: PlanDiffEntry[];
+  added: PlanDiffEntry[];
+  deferred: Array<{ kp_id: string; kp_name: string }>;
+};
+
 export type StudyPlan = {
   version: number;
   reason?: string;
   created_at?: string;
+  diff?: PlanDiff | null;
   deferred: string[];
   deferred_items?: Array<{ kp_id: string; kp_name: string }>;
   deferred_weight?: number | null;
