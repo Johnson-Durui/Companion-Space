@@ -8,6 +8,7 @@ import {
 import { LiveCostGuard } from "@companion-space/avatar-engine/cost-guard";
 import { VideoDriverManager } from "@companion-space/avatar-engine/driver-manager";
 import { LoopPackVideoDriver, resolveClipUrl } from "@companion-space/avatar-engine/loop-pack-driver";
+import { tutorVideoCoordinator } from "@companion-space/avatar-engine/video-coordinator";
 import { decodeTsvfFrame, encodeTsvaFrame, TSVF_MAGIC } from "@companion-space/avatar-engine/sidecar-driver";
 import type { VideoAvatarRuntimeConfig, VideoDriverStatusEvent } from "@companion-space/avatar-engine/types";
 
@@ -446,5 +447,26 @@ describe("LiveCostGuard and Sidecar Protocol + Fallback", () => {
     ).toBe(true);
     expect(manager.currentTier).toBe("static");
     await manager.unmount();
+  });
+
+  it("enforces I16 single active video playback via tutorVideoCoordinator", () => {
+    const primary = { pause: vi.fn(), resume: vi.fn(), isVisible: () => true };
+    const tile = { pause: vi.fn(), resume: vi.fn(), isVisible: () => true };
+
+    tutorVideoCoordinator.claim(primary, { primary: true });
+    expect(tutorVideoCoordinator.getActiveOwner()).toBe(primary);
+
+    // Hovering a tile pauses the primary showcase immediately
+    tutorVideoCoordinator.claim(tile);
+    expect(primary.pause).toHaveBeenCalledTimes(1);
+    expect(tutorVideoCoordinator.getActiveOwner()).toBe(tile);
+
+    // Leaving the tile restores the primary showcase automatically
+    tutorVideoCoordinator.release(tile);
+    expect(primary.resume).toHaveBeenCalledTimes(1);
+    expect(tutorVideoCoordinator.getActiveOwner()).toBe(primary);
+
+    tutorVideoCoordinator.unregister(primary);
+    expect(tutorVideoCoordinator.getActiveOwner()).toBeNull();
   });
 });

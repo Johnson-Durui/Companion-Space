@@ -4,17 +4,18 @@ import "./styles/tokens.css";
 import { lazy, StrictMode, Suspense, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { BrowserRouter, Link, matchPath, Route, Routes, useLocation } from "react-router";
+import { BrowserRouter, Link, matchPath, Navigate, Route, Routes, useLocation } from "react-router";
 import { bootstrapSession, isClientError, sessionKey } from "./app/api";
 import { ErrorBoundary, Loading, Problem } from "./app/ui";
 import { AppShell } from "./shell/AppShell";
 import { UnlockSession } from "./features/settings/security";
+import { useActiveTutor } from "./features/tutors/use-active-tutor";
 import Welcome from "./features/onboarding/welcome";
 import TodayPage from "./features/today/today";
 import t from "./locales/zh-CN.json";
 import { scheduleFontPrefetch } from "./styles/prefetch-fonts";
 import { useTutorThemeSync } from "./styles/use-tutor-theme";
-import { Button } from "./ui";
+import { Button, TutorAvatar } from "./ui";
 
 scheduleFontPrefetch();
 
@@ -32,8 +33,8 @@ const LessonLobby = lazy(() => import("./features/classroom/lobby"));
 const Review = lazy(() => import("./features/review/review"));
 const Practice = lazy(() => import("./features/practice/practice"));
 const ProgressPage = lazy(() => import("./features/progress/progress"));
-const TutorsLegacy = lazy(() => import("./features/tutors/tutors-legacy"));
-const TutorLibrary = lazy(() => import("./features/characters/library"));
+const TutorsGallery = lazy(() => import("./features/tutors/tutors-gallery"));
+const TutorDetail = lazy(() => import("./features/tutors/tutor-detail"));
 const CourseHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.CourseHistoryPage })));
 const LessonHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.LessonHistoryPage })));
 const SampleLesson = lazy(() => import("./features/replay/sample"));
@@ -53,6 +54,7 @@ function pageTitleFor(pathname: string, search: string): string {
   const titles = t.app.titles;
   if (matchPath("/", pathname)) return titles.today;
   if (matchPath("/welcome", pathname)) return titles.welcome;
+  if (matchPath("/tutors/:tutorId", pathname)) return titles.tutorDetail;
   if (matchPath("/tutors", pathname)) return titles.tutors;
   if (matchPath("/sample-lesson", pathname)) return titles.sample;
   if (matchPath("/characters", pathname)) return titles.characters;
@@ -115,10 +117,14 @@ function RouteEffects() {
 }
 
 function NotFound() {
+  const { tutor } = useActiveTutor(true);
   return (
-    <section className="error-screen">
-      <h1>{t.app.notFoundTitle}</h1>
-      <p className="hint">{t.app.notFoundHint}</p>
+    <section className="mx-auto grid max-w-md justify-items-center gap-4 py-16 text-center">
+      {tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="xl" /> : null}
+      <h1 className="text-headline font-semibold text-fg-primary">{t.app.notFoundTitle}</h1>
+      <p className="text-body text-fg-secondary">
+        {tutor ? `${tutor.name}：${t.tutorsGallery.notFoundLine}` : t.app.notFoundHint}
+      </p>
       <Link className="button primary" to="/">{t.app.backToday}</Link>
     </section>
   );
@@ -172,20 +178,29 @@ function App() {
     );
   }
 
+  if (session.data?.state !== undefined && session.data.state !== "ready") {
+    return (
+      <>
+        <RouteEffects />
+        <UnlockSession session={session.data} />
+      </>
+    );
+  }
+
   return (
     <>
       <RouteEffects />
       <AppShell sessionReady={ready}>
         {session.isPending ? <Loading text={t.app.loading} /> : null}
         {session.isError ? <Problem error={session.error} onRetry={() => void session.refetch()} /> : null}
-        {session.data?.state !== undefined && session.data.state !== "ready" ? <UnlockSession session={session.data} /> : null}
         {ready ? (
           <ErrorBoundary key={location.pathname} fallback={<RouteFallback />}>
             <Suspense fallback={<Loading />}>
               <Routes>
                 <Route path="/" element={<TodayPage />} />
-                <Route path="/tutors" element={<TutorsLegacy />} />
-                <Route path="/characters" element={<TutorLibrary />} />
+                <Route path="/tutors" element={<TutorsGallery />} />
+                <Route path="/tutors/:tutorId" element={<TutorDetail />} />
+                <Route path="/characters" element={<Navigate to="/tutors" replace />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/courses/:courseId" element={<CourseHub><CourseTodayTab /></CourseHub>} />
                 <Route path="/courses/:courseId/plan" element={<CourseHub><PlanPage /></CourseHub>} />

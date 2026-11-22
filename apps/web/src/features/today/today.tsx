@@ -28,15 +28,21 @@ import { buildPlanWhySentence, masteryLabel, masteryLevel, weightLabel } from ".
 import { fetchSample, sampleKey } from "../replay/sample-api";
 import { ConnectWizardDialog } from "../settings/connect-wizard";
 import { useReadiness } from "../settings/use-readiness";
+import { tutorGreeting, tutorLine } from "../tutors/use-active-tutor";
 import { useTutorSpeech } from "../voice/use-tutor-speech";
 
 const copy = t.today;
 
-function timePeriodGreeting(): string {
+function timePeriodKey(): "morning" | "afternoon" | "evening" {
   const hour = new Date().getHours();
-  if (hour < 12) return copy.morning;
-  if (hour < 18) return copy.afternoon;
-  return copy.evening;
+  if (hour < 12) return "morning";
+  if (hour < 18) return "afternoon";
+  return "evening";
+}
+
+function timePeriodGreeting(): string {
+  const key = timePeriodKey();
+  return copy[key];
 }
 
 function sortByExamDate(
@@ -197,7 +203,7 @@ export default function TodayPage() {
   const primaryWhy = primarySummary?.today_lesson_why?.[0];
   const primaryJourney = primarySummary?.journey;
 
-  const teacherQuote = teacher?.persona.catchphrases?.[0] || "";
+  const teacherQuote = tutorGreeting(teacher) || tutorLine(teacher, timePeriodKey(), "");
 
   return (
     <div className="grid min-w-0 gap-5 py-6 sm:py-8" data-testid="today-page">

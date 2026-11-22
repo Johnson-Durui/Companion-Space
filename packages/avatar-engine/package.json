@@ -15,6 +15,7 @@
     "./sidecar-driver": "./src/sidecar-driver.ts",
     "./cost-guard": "./src/cost-guard.ts",
     "./driver-manager": "./src/driver-manager.ts",
+    "./video-coordinator": "./src/video-coordinator.ts",
     "./video-box": "./src/video-box.tsx",
     "./video-box.css": "./src/video-box.css"
   },

@@ -28,9 +28,10 @@ import { courseKeys, createCourse } from "../courses/api";
 import { getLearnerProfile, learnerKeys, saveLearnerProfile } from "../learner/api";
 import { fetchSample, sampleKey } from "../replay/sample-api";
 import { ConnectWizard } from "../settings/connect-wizard";
+import { TutorRoster, TutorShowcase } from "../tutors/tutor-showcase";
+import { tutorGreeting } from "../tutors/use-active-tutor";
 import { useTutorSpeech } from "../voice/use-tutor-speech";
 import t from "../../locales/zh-CN.json";
-import { VoicePreview } from "./voice-preview";
 
 const copy = t.onboarding;
 type OnboardingStep = 1 | 2 | 3 | 4;
@@ -46,6 +47,7 @@ export default function Welcome() {
 
   const [step, setStep] = useState<OnboardingStep>(1);
   const [focused, setFocused] = useState<string>();
+  const [introSeq, setIntroSeq] = useState(0);
   const [tutorConfirmed, setTutorConfirmed] = useState(false);
   const [nickname, setNickname] = useState<string | null>(null);
   const [greetedName, setGreetedName] = useState("");
@@ -138,6 +140,7 @@ export default function Welcome() {
     saveTutor.reset();
     setFocused(entry.id);
     setTutorConfirmed(false);
+    setIntroSeq((seq) => seq + 1);
   }
 
   function submitNickname(event: FormEvent) {
@@ -191,7 +194,9 @@ export default function Welcome() {
                     <h1 className="text-headline font-semibold text-fg-primary">
                       {copy.greetTitle.replace("{name}", candidate.name)}
                     </h1>
-                    <p className="text-body text-fg-secondary">{copy.greetHint}</p>
+                    <p className="text-body text-fg-secondary">
+                      {tutorGreeting(candidate) || copy.greetHint}
+                    </p>
                     <div className="flex flex-wrap items-center justify-center gap-3 pt-2 sm:justify-start">
                       <Button variant="primary" size="lg" onClick={() => setStep(2)}>
                         {copy.startFirstCourse}
@@ -218,51 +223,24 @@ export default function Welcome() {
                   ) : null}
                 </div>
 
-                <section className="teacher-feature" aria-labelledby="teacher-name">
-                  <div className="teacher-stage" data-testid="teacher-stage">
-                    <TeacherPreview key={candidate.id} character={candidate} />
-                  </div>
-                  <div className="teacher-detail">
-                    <h2 id="teacher-name">{candidate.name}</h2>
-                    <p className="relationship">{candidate.persona.relationship}</p>
-                    {candidate.persona.traits.length ? (
-                      <ul className="teacher-traits">
-                        {candidate.persona.traits.map((trait) => (
-                          <li key={trait}>{trait}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    <div className="teacher-actions">
-                      <Button
-                        variant="primary"
-                        size="lg"
-                        pending={saveTutor.isPending}
-                        onClick={() => saveTutor.mutate(candidate.id)}
-                      >
-                        {copy.chooseTutor.replace("{name}", candidate.name)}
-                      </Button>
-                      <VoicePreview key={candidate.id} id={candidate.id} />
-                    </div>
-                    {saveTutor.isError ? <Problem error={saveTutor.error} /> : null}
-                  </div>
-                </section>
+                <TutorShowcase
+                  character={candidate}
+                  isCurrent={false}
+                  choosing={saveTutor.isPending}
+                  headingLevel="h2"
+                  showEditLink={false}
+                  introSeq={introSeq}
+                  onChoose={(entry) => saveTutor.mutate(entry.id)}
+                />
+                {saveTutor.isError ? <Problem error={saveTutor.error} /> : null}
 
-                <section className="roster" aria-label={t.welcome.label}>
-                  <div className="portrait-roster">
-                    {characters.map((entry) => (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        className="roster-option"
-                        aria-pressed={candidate.id === entry.id}
-                        onClick={() => handleSelectTutor(entry)}
-                      >
-                        <img src={entry.appearance.src} alt="" decoding="async" loading="lazy" />
-                        <span>{entry.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
+                <TutorRoster
+                  characters={characters}
+                  selectedId={candidate.id}
+                  currentId={selectedId}
+                  onSelect={handleSelectTutor}
+                  showImportTile={false}
+                />
               </div>
             )
           ) : null}

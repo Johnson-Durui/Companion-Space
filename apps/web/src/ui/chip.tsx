@@ -35,7 +35,7 @@ export const Chip = forwardRef<HTMLButtonElement, ChipProps>(function Chip(
       {...rest}
     >
       {selected && showCheck ? <Check size={14} aria-hidden="true" /> : icon}
-      <span>{children}</span>
+      <span className="inline-flex items-center gap-1.5">{children}</span>
     </button>
   );
 });

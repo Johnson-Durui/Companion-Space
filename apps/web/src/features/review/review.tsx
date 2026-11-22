@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 import { charactersKey, fetchCharacters, fetchSettings, settingsKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { Button, ChevronRight } from "../../ui";
+import { Button, ChevronRight, EmptyState, TutorAvatar } from "../../ui";
 import { VoicePreview } from "../onboarding/voice-preview";
+import { useActiveTutor } from "../tutors/use-active-tutor";
 import t from "../../locales/zh-CN.json";
 import { answerCard, getMistakes, getReview, mistakesKey, rateCard, reviewKey, startPlannedLesson, type ReviewCard } from "./api";
 import "./review.css";
@@ -37,7 +38,8 @@ export default function Review({ embedded = false }: { embedded?: boolean } = {}
   const mistakes = useQuery({ queryKey: mistakesKey(courseId, kpId, since, archived), queryFn: () => getMistakes(courseId, kpId, since, archived), enabled: Boolean(courseId) && !plan });
   const settings = useQuery({ queryKey: settingsKey, queryFn: fetchSettings, enabled: Boolean(plan) });
   const roster = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters, enabled: Boolean(plan) });
-  const preferred = roster.data?.find((entry) => entry.id === settings.data?.default_character_id) ?? roster.data?.[0];
+  const { tutor: activeTutor } = useActiveTutor();
+  const preferred = roster.data?.find((entry) => entry.id === settings.data?.default_character_id) ?? roster.data?.[0] ?? activeTutor;
   const start = useMutation({ mutationFn: startPlannedLesson, onSuccess: (lesson) => navigate(`/lessons/${lesson.id}`) });
   const advance = () => {
     setRevealed(false);
@@ -79,7 +81,13 @@ export default function Review({ embedded = false }: { embedded?: boolean } = {}
         <div className="section-heading"><div><p className="eyebrow">{t.review.daily}</p><h2 id="daily-review">{t.review.queue}</h2></div><span>{queue.data?.cards.length ?? 0} {t.review.cards}</span></div>
         {queue.isPending ? <Loading /> : null}
         {queue.isError ? <Problem error={queue.error} onRetry={() => void queue.refetch()} /> : null}
-        {!queue.isPending && !card ? <p className="review-empty">{limitReached ? t.review.warmupDone : t.review.empty}</p> : null}
+        {!queue.isPending && !card ? (
+          <EmptyState
+            visual={preferred ? <TutorAvatar src={preferred.appearance.src} name={preferred.name} size="lg" /> : undefined}
+            title={limitReached ? t.review.warmupDone : t.review.empty}
+            description={t.tutorsGallery.emptyReviewLine}
+          />
+        ) : null}
         {card?.kind === "flashcard" ? <article className="review-prompt"><h3>{card.front}</h3>{revealed ? <><p className="review-answer">{card.back}</p><div className="rating-row">{(["again", "hard", "good", "easy"] as const).map((value) => <button className="button quiet" disabled={rate.isPending} aria-busy={rate.isPending || undefined} key={value} onClick={() => rate.mutate({ id: card.id, rating: value })}>{t.review.ratings[value]}</button>)}</div></> : <button className="button primary" onClick={() => setRevealed(true)}>{t.review.reveal}</button>}</article> : null}
         {card?.kind === "item" ? <form className="review-prompt" onSubmit={submit}><h3>{card.item?.stem || card.front}</h3>{options(card).map((option) => <label className="review-option" key={option.key}><input type={card.item?.type === "multi" ? "checkbox" : "radio"} name="answer" value={option.key} required={card.item?.type !== "multi"} /> <strong>{option.key}</strong> {option.text}</label>)}{!options(card).length ? <input name="text" aria-label={t.review.answer} required /> : null}<div className="actions"><button className="button primary" disabled={answer.isPending} aria-busy={answer.isPending || undefined}>{t.review.submit}</button><button type="button" className="button quiet" disabled={answer.isPending} aria-busy={answer.isPending || undefined} onClick={() => answer.mutate({ id: card.id, value: null, dontKnow: true })}>{t.review.dontKnow}</button></div></form> : null}
         {rate.isError ? <Problem error={rate.error} /> : null}{answer.isError ? <Problem error={answer.error} /> : null}

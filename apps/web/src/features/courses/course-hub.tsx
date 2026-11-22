@@ -26,6 +26,7 @@ import {
   TextInput,
   Textarea,
   Trash2,
+  TutorAvatar,
   toast,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
@@ -35,6 +36,7 @@ import { isLessonItem, planItemDisplayTitle, planItemKindLabel } from "../plan/i
 import { buildPlanWhySentence, masteryLabel, masteryLevel, weightLabel } from "../plan/why-sentence";
 import { ConnectWizardDialog } from "../settings/connect-wizard";
 import { useReadiness } from "../settings/use-readiness";
+import { tutorGreeting, tutorLine, useActiveTutor } from "../tutors/use-active-tutor";
 import {
   courseKeys,
   deleteCourse,
@@ -285,6 +287,7 @@ export function CourseTodayTab() {
   const courseId = useParams().courseId ?? "";
   const navigate = useNavigate();
   const readiness = useReadiness();
+  const { tutor } = useActiveTutor();
   const [connectOpen, setConnectOpen] = useState(false);
   const [mountNow] = useState(() => Date.now());
 
@@ -328,9 +331,14 @@ export function CourseTodayTab() {
     ];
     return (
       <Card padding="lg" className="grid gap-6 shadow-1" data-testid="course-today-preparing" data-stage={j.stage}>
-        <div className="grid gap-1.5">
-          <h2 className="text-title font-semibold text-fg-primary">{t.courseHub.prepareHeading}</h2>
-          <p className="text-ui text-fg-secondary">{action.statusText}</p>
+        <div className="flex flex-wrap items-center gap-3.5">
+          {tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="md" /> : null}
+          <div className="grid gap-0.5">
+            <h2 className="text-title font-semibold text-fg-primary">{t.courseHub.prepareHeading}</h2>
+            <p className="text-ui text-fg-secondary">
+              {tutor ? `${tutor.name}：${tutorLine(tutor, "empty", action.statusText)}` : action.statusText}
+            </p>
+          </div>
         </div>
         <Stepper
           steps={steps}
@@ -426,8 +434,19 @@ export function CourseTodayTab() {
   }
 
   // Mode 2: Learning
+  const greeting = tutorGreeting(tutor);
   return (
-    <div className="grid gap-5" data-testid="course-today-learning" data-stage="learning">
+    <div className="grid min-w-0 gap-5" data-testid="course-today-learning" data-stage="learning">
+      {tutor && greeting ? (
+        <div className="flex items-center gap-3 rounded-lg bg-surface-card px-4 py-3 text-ui text-fg-secondary shadow-1">
+          <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="sm" />
+          <p className="min-w-0 flex-1 break-words">
+            <strong className="mr-2 font-medium text-fg-primary">{tutor.name}</strong>
+            <span>{greeting}</span>
+          </p>
+        </div>
+      ) : null}
+
       {planUpdatedRecently ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-accent/30 bg-accent-soft/50 px-4 py-2.5 text-ui text-fg-primary">
           <span>{t.courseHub.planAdjustedNotice}</span>

@@ -23,6 +23,7 @@ import {
   toast,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
+import { tutorLine } from "../tutors/use-active-tutor";
 import {
   courseKeys,
   createCourse,
@@ -148,7 +149,7 @@ export default function Courses() {
             )
           }
           title={t.courses.empty}
-          description={t.courses.emptyHint}
+          description={teacher ? `${teacher.name}：${tutorLine(teacher, "empty", t.tutorsGallery.emptyCoursesLine)}` : t.courses.emptyHint}
           action={
             <Button variant="primary" onClick={openCreateDialog}>
               {t.courses.new}

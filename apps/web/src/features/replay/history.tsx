@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { api, bodyOf, type Character } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
+import { EmptyState, TutorAvatar } from "../../ui";
 import { fetchLesson, fetchLessonEvents } from "../classroom/lesson-api";
 import { captionDelay, type LessonEvent } from "../classroom/timeline";
+import { useActiveTutor } from "../tutors/use-active-tutor";
 import t from "../../locales/zh-CN.json";
 import { ReplayStage } from "./replay-stage";
 
@@ -117,6 +119,7 @@ export function LessonHistoryPage() {
 
 export function CourseHistoryPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { courseId } = useParams();
+  const { tutor } = useActiveTutor();
   const history = useQuery({
     queryKey: ["course-history", courseId],
     enabled: Boolean(courseId),
@@ -151,7 +154,11 @@ export function CourseHistoryPage({ embedded = false }: { embedded?: boolean } =
             ))}
           </ul>
         ) : (
-          <p className="hint">{copy.emptyLessons}</p>
+          <EmptyState
+            visual={tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="lg" /> : undefined}
+            title={copy.emptyLessons}
+            description={t.tutorsGallery.emptyHistoryLine}
+          />
         )}
       </section>
       <section className="settings-section">

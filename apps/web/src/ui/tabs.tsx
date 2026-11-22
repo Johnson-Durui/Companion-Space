@@ -35,8 +35,8 @@ export function Tabs({ value, defaultValue, onValueChange, items, className }: T
             value={item.value}
             className={clsx(
               "relative inline-flex min-h-10 shrink-0 items-center gap-1.5 px-3.5 text-ui font-medium text-fg-secondary transition-colors duration-fast ease-out",
-              "hover:text-fg-primary data-[selected]:font-semibold data-[selected]:text-accent-strong",
-              "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-transparent data-[selected]:after:bg-accent",
+              "hover:text-fg-primary aria-[selected=true]:font-semibold aria-[selected=true]:text-accent-strong data-[active]:font-semibold data-[active]:text-accent-strong",
+              "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-transparent aria-[selected=true]:after:bg-accent data-[active]:after:bg-accent",
             )}
           >
             <span>{item.label}</span>

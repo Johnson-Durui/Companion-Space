@@ -422,3 +422,30 @@
 - `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **464 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **13 文件 75 项通过**、`vite build`（1.20s）通过。
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**23 / 23 全部通过**（含 I1–I3、I5–I13）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U3`：**39 步通过、0 失败、92 张截图**输出至 `docs/rebuild/review/U3/`。
+
+### 体验重塑 U4 — 代码完成（自动化通过）（2026-11-22）
+
+**待完成与待验证**
+
+- **在线 Edge 语音逐一试听与所有者观感验收未做**：U4 所有者验收清单第 1–8 条中涉及真实在线试听 6 位内置老师互异音色、画廊悬停/选中编排的真实动感、修改音色后进课堂对比听感以及 U4 观感五问与截图评审（`docs/rebuild/review/U4/`）仍待所有者核对。
+- **按计划留待 U5–U7 的条目**：手写 SVG 图表、计划变化清单、地图两视图、进度方格图、复习答后反馈、练习一题一屏与课程记录时间线（U5）；白板逐行书写、对话记录完整抽屉、提示音与手机双模式通话布局（U6）；设置分区、术语巡览清零、删除 `legacy` 层与发布材料（U7）。
+
+**已落地**
+
+- **后端角色资料与恢复默认（B8 U4）**：
+  - 六份内置角色清单（`content/characters/{1..6}-*.json`）按任务单附录 A 补齐一词气质 `tagline`、问候语 `greeting` 与短场合台词 `lines`（早/午/晚/候课/空态），并将澜音默认音色改为 `zh-TW-HsiaoChenNeural` 实现六位老师两两互异。
+  - `services/api/app/services/tutor_catalog.py` 扩展 `Character` 与 `TutorUpdate`（支持完整局部更新、`voice` 更新及 `_edited_fields` 追踪，未传 `preferred_tier` 时保留 `_tier_explicit`），对旧数据库安装执行无覆盖缺省合并；新增 `POST /api/v2/characters/{character_id}/reset` 恢复内置角色默认并清理 `voice_settings.characters` 覆写；新增 4 项后端单测 `services/api/tests/test_u4_tutors.py`（断言六位音色两两互异、局部更新保留档位、旧安装合并与恢复默认）并重新生成 OpenAPI 契约。
+- **同屏单视频协调器（I16）**：新增 `packages/avatar-engine/src/video-coordinator.ts` 接入 `LoopPackVideoDriver`（含 `IntersectionObserver` 离屏暂停与 `visibilitychange` 后台暂停）与画廊悬停循环预览；在 `apps/web/tests/avatar-runtime.test.ts` 新增单视频抢占单测。
+- **老师画廊、三标签详情页与三步导入向导**：
+  - 按 `tutors.html` 落地 `/tutors` 画廊（`TutorShowcase` 展示区 + 选中编排：问候 → 讲解与 B13 台词朗读 → 点赞 → 待机 + 「TA 会这样教你」+ 三动作试演 + 「就选 {name}」问候回应；`TutorRoster` 7 列同排竖卡、各自老师主题色描边与色点、悬停待机循环与拖放「＋ 导入角色」卡）；首次引导第 1 步复用同一套展示组件。
+  - 落地 `/tutors/:tutorId` 三标签页（`认识 TA`、`调整人设` [芯片标签输入、10 组精选 Edge 中文音色 + 试听 + 语速滑杆、自定义 8 色主题色板、不提交 `preferred_tier` 的局部更新、内置 `恢复默认` 与自定义 `删除角色` 确认框]、`形象与素材（高级）` [形象效果、8 槽短片完整度、本地驱动、导出 8 段提示词与许可信息]），以及三步 `ImportTutorWizardDialog` 导入向导；`/characters` 重定向至 `/tutors`，移除过渡页 `tutors-legacy.tsx` 与旧 `characters/library.tsx`。
+- **全站老师在场（E1）与目视打磨**：
+  - `AppShell` 顶栏新增当前老师小卡（直达 `/tutors`）；今天页、课程列表、课程中枢、复习页、记录页、404 页接入老师第一人称问候与带立绘的空状态；解锁页 `UnlockSession` 改为脱离站点导航的 `FocusShell` 专注壳 + 老师立绘 + `SecretInput`。
+  - 人工抽检 `docs/rebuild/review/U4/` 后，修复了 `theme.css` 混用 `px`/`rem` 导致 `lg:grid-cols-7` 未生效的问题（统一改为等价 `rem`），修复 `Tabs` 选中态属性与下划线、`Chip` 内联图标折行以及 `TutorDetail` 应用当前查看老师的主题色与按钮不折行。
+- **测试与巡览**：更新 `m1`、`m6` 与 `ui-tour.mjs`（覆盖画廊选中、点赞试演、详情人设与素材标签）；在 `ux-invariants.spec.ts` 新增 **I16**（同屏含悬停预览同时播放 `<video>` ≤ 1）并将路由表 `/characters` 更新为 `/tutors/tutor-chutang`。
+
+**本地验证**
+
+- `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **468 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **13 文件 76 项通过**、`vite build`（1.12s）通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**24 / 24 全部通过**（含 I1–I3、I5–I13、I16）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U4`：**39 步通过、0 失败、92 张截图**输出至 `docs/rebuild/review/U4/`，已人工抽检画廊、详情页、今天页、404 与手机端截图。

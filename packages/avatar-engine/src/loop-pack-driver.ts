@@ -1,4 +1,5 @@
 import { actionToClipSlot, ONE_SHOT_CLIPS, poseToClipSlot } from "./choreographer";
+import { tutorVideoCoordinator, type VideoPlaybackOwner } from "./video-coordinator";
 import type {
   ClipSlot,
   InstantAction,
@@ -68,6 +69,13 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
   private prefetchControllers: AbortController[] = [];
   private prefetchedUrls = new Set<string>();
   private transitionSeq = 0;
+  private visible = true;
+  private observer: IntersectionObserver | null = null;
+  private readonly playbackOwner: VideoPlaybackOwner = {
+    pause: () => this.pausePlayers(),
+    resume: () => this.resumeActivePlayer(),
+    isVisible: () => this.visible && !this.reducedMotion && Boolean(this.root),
+  };
 
   getCapabilities(): VideoDriverCapabilities {
     return {
@@ -114,6 +122,8 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     this.root = root;
     this.players = [videoA, videoB];
     this.activeSlotIndex = 0;
+    this.visible = true;
+    this.attachVisibilityObserver(root);
 
     if (!resolveClipUrl(this.clips, "idle_breathe")) {
       this.emitStatus({
@@ -137,6 +147,10 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     this.transitionSeq += 1;
     this.clearTimers();
     this.cancelPrefetch();
+    this.observer?.disconnect();
+    this.observer = null;
+    this.visible = false;
+    tutorVideoCoordinator.unregister(this.playbackOwner);
     if (this.players) {
       for (const video of this.players) {
         video.onended = null;
@@ -338,9 +352,12 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
       this.currentUrl = resolved.url;
       this.currentSlot = resolved.slot;
       this.root.dataset.clip = resolved.slot;
-      const playResult = nextVideo.play?.();
-      if (playResult && typeof playResult.catch === "function") {
-        playResult.catch(() => undefined);
+      if (this.visible && (typeof document === "undefined" || !document.hidden)) {
+        tutorVideoCoordinator.claim(this.playbackOwner, { primary: true });
+        const playResult = nextVideo.play?.();
+        if (playResult && typeof playResult.catch === "function") {
+          playResult.catch(() => undefined);
+        }
       }
 
       if (this.fadeTimer !== null) window.clearTimeout(this.fadeTimer);
@@ -413,6 +430,46 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     if (this.fadeTimer !== null) {
       window.clearTimeout(this.fadeTimer);
       this.fadeTimer = null;
+    }
+  }
+
+  private attachVisibilityObserver(target: HTMLElement): void {
+    if (typeof IntersectionObserver === "undefined") return;
+    this.observer?.disconnect();
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        const nextVisible = entry.isIntersecting;
+        if (nextVisible === this.visible) return;
+        this.visible = nextVisible;
+        if (!nextVisible) {
+          this.pausePlayers();
+          tutorVideoCoordinator.release(this.playbackOwner);
+        } else if (!this.reducedMotion) {
+          tutorVideoCoordinator.claim(this.playbackOwner, { primary: true });
+          this.resumeActivePlayer();
+        }
+      },
+      { threshold: 0.05 },
+    );
+    this.observer.observe(target);
+  }
+
+  private pausePlayers(): void {
+    if (!this.players) return;
+    for (const video of this.players) {
+      video.pause?.();
+    }
+  }
+
+  private resumeActivePlayer(): void {
+    if (!this.players || !this.visible || this.reducedMotion) return;
+    const active = this.players[this.activeSlotIndex];
+    if (!active || !active.getAttribute("src")) return;
+    const playResult = active.play?.();
+    if (playResult && typeof playResult.catch === "function") {
+      playResult.catch(() => undefined);
     }
   }
 

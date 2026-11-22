@@ -3,7 +3,8 @@ import { Link, useLocation } from "react-router";
 import clsx from "clsx";
 import t from "../locales/zh-CN.json";
 import { useReadiness } from "../features/settings/use-readiness";
-import { BookOpen, BrandMark, Home, Settings, Toaster, TooltipProvider, Users } from "../ui";
+import { useActiveTutor } from "../features/tutors/use-active-tutor";
+import { BookOpen, BrandMark, Home, Settings, Toaster, TooltipProvider, TutorChip, Users } from "../ui";
 
 const DESK_NAV = [
   { to: "/", label: t.app.today, icon: Home },
@@ -47,6 +48,7 @@ export interface AppShellProps {
 export function AppShell({ sessionReady = false, children }: AppShellProps) {
   const location = useLocation();
   const readiness = useReadiness(sessionReady);
+  const { tutor } = useActiveTutor(sessionReady);
   const aiReady = !sessionReady || readiness.isPending || readiness.readyForLessons;
 
   return (
@@ -102,26 +104,38 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
               })}
             </nav>
 
-            {aiReady ? (
-              <span
-                data-testid="readiness-indicator"
-                data-ready="true"
-                className="inline-flex items-center gap-2 justify-self-end text-caption text-fg-secondary"
-              >
-                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-ok" />
-                <span>{t.app.local}</span>
-              </span>
-            ) : (
-              <Link
-                to="/settings#models"
-                data-testid="readiness-indicator"
-                data-ready="false"
-                className="inline-flex min-h-9 items-center gap-2 justify-self-end rounded-full border border-warn/30 bg-warn-soft px-3 text-caption font-medium text-warn-text transition-colors duration-fast ease-out hover:bg-warn-soft/80"
-              >
-                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-warn" />
-                <span>{t.app.aiNotReady}</span>
-              </Link>
-            )}
+            <div className="flex items-center justify-end gap-2.5 justify-self-end min-w-0">
+              {aiReady ? (
+                <span
+                  data-testid="readiness-indicator"
+                  data-ready="true"
+                  className="hidden sm:inline-flex items-center gap-1.5 text-caption text-fg-secondary whitespace-nowrap"
+                >
+                  <span aria-hidden="true" className="h-2 w-2 rounded-full bg-ok" />
+                  <span>{t.app.local}</span>
+                </span>
+              ) : (
+                <Link
+                  to="/settings#models"
+                  data-testid="readiness-indicator"
+                  data-ready="false"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-warn/30 bg-warn-soft px-2.5 text-caption font-medium text-warn-text whitespace-nowrap transition-colors duration-fast ease-out hover:bg-warn-soft/80"
+                >
+                  <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-warn" />
+                  <span className="hidden sm:inline">{t.app.aiNotReady}</span>
+                </Link>
+              )}
+              {tutor ? (
+                <Link
+                  to="/tutors"
+                  data-testid="header-tutor-chip"
+                  aria-label={`${t.tutorsGallery.currentTeacher}：${tutor.name}`}
+                  className="inline-flex rounded-full transition-transform duration-fast hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <TutorChip name={tutor.name} src={tutor.appearance.src} />
+                </Link>
+              ) : null}
+            </div>
           </div>
         </header>
 

@@ -1,57 +1,92 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, bodyOf, sessionKey, type SessionStatus } from "../../app/api";
+import { api, bodyOf, charactersKey, sessionKey, type Character, type SessionStatus } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { Button, Check, ConfirmDialog, useTransientSaved } from "../../ui";
+import { FocusShell } from "../../shell/FocusShell";
+import { BrandMark, Button, Card, Check, ConfirmDialog, Field, SecretInput, TutorAvatar, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
 
 export function UnlockSession({ session }: { session: SessionStatus }) {
   const queryClient = useQueryClient();
   const [skipOpen, setSkipOpen] = useState(false);
+  const [password, setPassword] = useState("");
   const migration = session.state === "migration_required";
+  const cachedCharacters = queryClient.getQueryData<Character[]>(charactersKey);
+  const cachedTeacher = cachedCharacters?.[0] ?? null;
+
   const action = useMutation({
-    mutationFn: async (password: string | null) => (
-      password === null ? bodyOf(await api.POST("/api/v2/session/skip-migration")) :
-      bodyOf(await api.POST("/api/v2/session/unlock", { body: { password } }))
+    mutationFn: async (pwd: string | null) => (
+      pwd === null ? bodyOf(await api.POST("/api/v2/session/skip-migration")) :
+      bodyOf(await api.POST("/api/v2/session/unlock", { body: { password: pwd } }))
     ),
     onSuccess: (status) => {
       setSkipOpen(false);
+      setPassword("");
       queryClient.setQueryData(sessionKey, status);
     },
   });
   function unlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const password = String(new FormData(form).get("password") ?? "");
-    action.mutate(password, { onSettled: () => form.reset() });
+    action.mutate(password, { onSettled: () => setPassword("") });
   }
   return (
-    <div className="unlock-box">
-      <div>
-        <h1>{migration ? t.security.migration : t.security.locked}</h1>
-        {migration ? <p className="hint">{t.security.migrationHint}</p> : null}
+    <FocusShell flowName={t.app.name} exitTo="/" exitLabel={t.app.refresh} onExit={() => window.location.reload()}>
+      <div className="mx-auto grid max-w-md py-10" data-testid="unlock-screen">
+        <Card padding="lg" className="grid gap-5">
+          <div className="grid justify-items-center gap-3 text-center">
+            {cachedTeacher ? (
+              <TutorAvatar src={cachedTeacher.appearance.src} name={cachedTeacher.name} size="xl" />
+            ) : (
+              <BrandMark size={48} />
+            )}
+            <div className="grid gap-1">
+              <h1 className="text-headline font-semibold text-fg-primary">
+                {migration ? t.security.migration : t.security.locked}
+              </h1>
+              <p className="text-body text-fg-secondary">
+                {migration ? t.security.migrationHint : t.tutorsGallery.unlockPrompt}
+              </p>
+            </div>
+          </div>
+
+          <form className="grid gap-4" onSubmit={unlock}>
+            <Field label={t.security.password} required>
+              <SecretInput
+                autoComplete="current-password"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                maxLength={200}
+                required
+                autoFocus
+              />
+            </Field>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {migration ? (
+                <Button variant="secondary" disabled={action.isPending} onClick={() => setSkipOpen(true)}>
+                  {t.security.skipMigration}
+                </Button>
+              ) : null}
+              <Button type="submit" variant="primary" pending={action.isPending}>
+                {migration ? t.security.migrate : t.security.unlock}
+              </Button>
+            </div>
+          </form>
+
+          <ConfirmDialog
+            open={skipOpen}
+            onOpenChange={setSkipOpen}
+            title={t.security.skipTitle}
+            description={t.security.skipConfirm}
+            confirmLabel={t.security.confirmSkip}
+            cancelLabel={t.common.cancel}
+            pending={action.isPending}
+            onConfirm={() => action.mutate(null)}
+          />
+          {action.isError ? <Problem error={action.error} /> : null}
+        </Card>
       </div>
-      <form className="fields" onSubmit={unlock}>
-        <label>{t.security.password}<input autoComplete="current-password" name="password" type="password" maxLength={200} required /></label>
-        <div className="actions">
-          <Button type="submit" variant="primary" pending={action.isPending}>{migration ? t.security.migrate : t.security.unlock}</Button>
-          {migration ? (
-            <Button variant="secondary" disabled={action.isPending} onClick={() => setSkipOpen(true)}>{t.security.skipMigration}</Button>
-          ) : null}
-        </div>
-      </form>
-      <ConfirmDialog
-        open={skipOpen}
-        onOpenChange={setSkipOpen}
-        title={t.security.skipTitle}
-        description={t.security.skipConfirm}
-        confirmLabel={t.security.confirmSkip}
-        cancelLabel={t.common.cancel}
-        pending={action.isPending}
-        onConfirm={() => action.mutate(null)}
-      />
-      {action.isError ? <Problem error={action.error} /> : null}
-    </div>
+    </FocusShell>
   );
 }
 

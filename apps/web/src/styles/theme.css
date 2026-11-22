@@ -299,9 +299,9 @@
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
 
-  --breakpoint-md: 768px;
-  --breakpoint-lg: 1100px;
-  --breakpoint-2xl: 1600px;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 68.75rem;
+  --breakpoint-2xl: 100rem;
 }
 
 /* Tailwind v4 semantic token-to-utility mapping (DECISIONS.md U1) */

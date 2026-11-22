@@ -5,8 +5,8 @@ const ALL_ROUTES = [
   "/",
   "/welcome",
   "/tutors",
+  "/tutors/tutor-chutang",
   "/sample-lesson",
-  "/characters",
   "/courses",
   "/courses/browser-today-course",
   "/courses/browser-today-course/setup",
@@ -563,4 +563,37 @@ test("I13: placement stays locked without skipping while materials unread; all 6
   expect(enrollment.placement_status).not.toBe("skipped");
   expect(enrollment.exam_date).toBe("2027-06-15");
   expect(Array.isArray(enrollment.weekly_days) && enrollment.weekly_days.length > 0).toBe(true);
+});
+
+test("I16: at most one tutor <video> plays simultaneously on any page including hover previews", async ({ page }) => {
+  const countPlayingVideos = () =>
+    page.evaluate(() =>
+      Array.from(document.querySelectorAll("video")).filter((v) => !v.paused && !v.ended && v.readyState >= 2).length,
+    );
+
+  // 1. /tutors gallery: showcase + hovering multiple tiles sequentially
+  await page.goto("/tutors");
+  await expect(page.getByTestId("tutor-showcase")).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(await countPlayingVideos()).toBeLessThanOrEqual(1);
+
+  const tiles = page.locator('[data-testid^="tutor-tile-"]');
+  const count = await tiles.count();
+  for (let i = 0; i < Math.min(count, 4); i += 1) {
+    await tiles.nth(i).hover();
+    await page.waitForTimeout(200);
+    expect(await countPlayingVideos(), `hovering tutor tile ${i} must keep playing videos <= 1`).toBeLessThanOrEqual(1);
+  }
+
+  // 2. /welcome onboarding Step 1
+  await page.goto("/welcome");
+  await expect(page.getByTestId("tutor-showcase")).toBeVisible();
+  await page.waitForTimeout(250);
+  expect(await countPlayingVideos()).toBeLessThanOrEqual(1);
+
+  // 3. Classroom
+  await page.goto("/lessons/browser-avatar-teaching-lesson");
+  await expect(page.getByTestId("lesson-stage")).toBeVisible();
+  await page.waitForTimeout(250);
+  expect(await countPlayingVideos()).toBeLessThanOrEqual(1);
 });

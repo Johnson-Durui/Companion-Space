@@ -162,15 +162,15 @@ try {
     await shot(page, "welcome-desktop");
     await shot(page, "welcome-desktop-full", { full: true });
   });
-  await step("tutors picker", async () => {
+  await step("tutors gallery", async () => {
     await page.goto("/tutors");
-    await page.getByTestId("teacher-stage").waitFor({ timeout: 15_000 });
-    await page.getByRole("region", { name: t.welcome.label }).getByRole("button").nth(3).click();
+    await page.getByTestId("tutor-showcase").waitFor({ timeout: 15_000 });
+    await page.getByTestId("tutor-tile-tutor-chutang").click();
     await settle(900);
-    await shot(page, "tutors-other-teacher");
-    await button(page, t.voice.preview).click();
-    await settle(900);
-    await shot(page, "tutors-voice-preview");
+    await shot(page, "tutors-gallery-chutang");
+    await button(page, t.tutorsGallery.demoPraise).click();
+    await settle(600);
+    await shot(page, "tutors-gallery-praise");
   });
 
   // ---------- B. courses (3+ courses, empty course, stress course) + 5-step setup flow ----------
@@ -444,16 +444,17 @@ try {
     await shot(page, "sample-playing");
   });
 
-  // ---------- F. characters + settings + 404 ----------
-  await step("characters", async () => {
-    await page.goto("/characters");
-    await page.getByRole("heading", { name: t.characters.heading }).waitFor({ timeout: 15_000 });
-    await settle(1500);
-    await shot(page, "characters");
-    await shot(page, "characters-full", { full: true });
-    await button(page, t.characters.poses.praise).click();
+  // ---------- F. tutor detail + settings + 404 ----------
+  await step("tutor detail tabs", async () => {
+    await page.goto("/tutors/tutor-chutang?tab=persona");
+    await page.getByTestId("tutor-persona-form").waitFor({ timeout: 15_000 });
     await settle(700);
-    await shot(page, "characters-pose-praise");
+    await shot(page, "tutor-detail-persona");
+    await shot(page, "tutor-detail-persona-full", { full: true });
+    await page.goto("/tutors/tutor-chutang?tab=assets");
+    await page.getByTestId("tutor-assets-tab").waitFor({ timeout: 15_000 });
+    await settle(700);
+    await shot(page, "tutor-detail-assets");
   });
   await step("settings", async () => {
     await page.goto("/settings");

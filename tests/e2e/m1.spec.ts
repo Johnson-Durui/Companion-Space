@@ -12,10 +12,10 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/tutors");
-  await expect(page.getByRole("heading", { name: t.welcome.heading })).toBeVisible();
+  await expect(page.getByTestId("tutor-showcase")).toBeVisible();
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
-  const roster = page.getByRole("region", { name: t.welcome.label });
-  await expect(roster.getByRole("button")).toHaveCount(6);
+  const roster = page.getByRole("region", { name: t.tutorsGallery.rosterLabel });
+  await expect(roster.locator('[data-testid^="tutor-tile-"]')).toHaveCount(6);
   const teacherStageImg = page.getByTestId("teacher-stage").getByRole("img");
   await expect(teacherStageImg).toBeVisible();
   await expect.poll(() => teacherStageImg.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
@@ -24,7 +24,7 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   const mobile = await browser.newPage({ baseURL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
     await mobile.goto("/tutors");
-    await expect(mobile.getByRole("heading", { name: t.welcome.heading })).toBeVisible();
+    await expect(mobile.getByTestId("tutor-showcase")).toBeVisible();
     await expect.poll(() => mobile.getByTestId("teacher-stage").getByRole("img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
     await expect.poll(() => mobile.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await mobile.screenshot({ path: resolve(screenshots, "welcome-mobile.png") });
@@ -36,15 +36,18 @@ test("welcome, connection roles, and diagnostics use the same local session", as
     await mobile.close();
   }
 
-  const alternative = roster.getByRole("button", { pressed: false }).first();
-  const name = (await alternative.innerText()).trim();
+  const alternative = roster.locator('[data-testid^="tutor-tile-"][aria-pressed="false"]').first();
+  const name = (await alternative.locator("strong").innerText()).trim();
   await alternative.click();
+  await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
   const saving = page.waitForResponse((response) => response.url().endsWith("/settings/default-character") && response.request().method() === "PUT");
-  await page.getByRole("button", { name: t.welcome.save }).click();
+  await page.getByRole("button", { name: t.tutorsGallery.chooseMe.replace("{name}", name) }).click();
   expect((await saving).ok()).toBe(true);
+  await expect(page.getByTestId("tutor-greeting-response")).toBeVisible();
+  await expect(page.getByTestId("header-tutor-chip")).toContainText(name);
   await page.reload();
-  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
-  await expect(page.getByText(t.welcome.chosen)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
+  await expect(page.getByTestId("current-tutor-badge")).toBeVisible();
 
   await page.getByRole("button", { name: t.voice.preview }).click();
   await expect(page.getByText(t.speech.unavailable)).toBeVisible();

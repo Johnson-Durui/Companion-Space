@@ -133,3 +133,10 @@
   4. **准备摸底题**：`diag_pool`（生成摸底池）、`brief`（汇总课程简报）。
 - **课堂外老师语音统一（B13）**：新增 `POST /api/v2/voice/speak`（复用课堂 `resolve_tts`，遵守长度上限并在不可用时返回结构化原因与错误码），将 `/api/v2/voice/preview`、`/api/v2/tts/preview` 统一至同一合成核心；今天页问候、课程准备访谈、候课试听与示例课（D11 离线回退浏览器朗读）全部通过 `useTutorSpeech` 调用该通路。
 - **称呼优先级与泛称兜底（D3）**：`resolveLearnerNickname` 优先采用学习者画像中的称呼；仅当其为空且老师资料里的 `address_user_as` 不是泛指人称代词（`你` / `您`）时才回退，避免首页问候出现「下午好，你。」的生硬句式。
+
+## 体验重塑 U4 执行决定（2026-11-22）
+
+- **六位内置老师互异默认音色（B8 U4）**：将澜音（`tutor-lanyin`）默认 Edge 音色从与初棠重复的 `zh-CN-XiaoxiaoNeural` 调整为 `zh-TW-HsiaoChenNeural`，六位内置老师（雪川 `Yunjian` / 沈砚 `Yunxi` / 岚玥 `Xiaoyi` / 初棠 `Xiaoxiao` / 青衡 `Yunyang` / 澜音 `HsiaoChen`）现两两互异；通过 `_edited_fields` 追踪用户改过的字段，对既有数据库安装执行无覆盖缺省合并（仅在未编辑过 `voice` 且与旧重复默认值一致时自动升级），不覆盖用户自选音色。
+- **局部更新与内置恢复默认**：`PUT /api/v2/characters/{character_id}` 改为完整局部更新，不提交 `preferred_tier` 时绝不篡改 `_tier_explicit`；新增 `POST /api/v2/characters/{character_id}/reset` 恢复内置清单默认人设与音色并清除该角色在 `voice_settings.characters` 中的旧覆写，自定义角色返回结构化 `400 tutor_reset_builtin_only`。
+- **同屏单视频协调器（I16）**：在 `packages/avatar-engine/src/video-coordinator.ts` 新增全局 `tutorVideoCoordinator`，由 `LoopPackVideoDriver`（附 `IntersectionObserver` 离屏暂停与 `visibilitychange` 后台暂停）与画廊卡片悬停预览共同抢占释放，保证任一页面同时播放的老师 `<video>` 不超过一个。
+- **Tailwind v4 断点统一使用 `rem`**：`apps/web/src/styles/theme.css` 将自定义断点从 `px` 统一改为等价的 `rem`（`md: 48rem` / `lg: 68.75rem` / `2xl: 100rem`），避免 Tailwind v4 因混用 `rem` 与 `px` 导致 `sm:` 媒体查询晚于 `lg:` 生效。
