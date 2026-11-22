@@ -7,8 +7,16 @@ import remarkMath from "remark-math";
 import { useMemo } from "react";
 import styles from "./board.module.css";
 
-export function MathBlock({ expression, display = true, errorLabel = "Render failed" }: {
-  expression: string; display?: boolean; errorLabel?: string;
+export function MathBlock({
+  expression,
+  display = true,
+  errorLabel = "这张图没画出来",
+  viewSourceLabel = "查看原始内容",
+}: {
+  expression: string;
+  display?: boolean;
+  errorLabel?: string;
+  viewSourceLabel?: string;
 }) {
   const rendered = useMemo(() => {
     try {
@@ -17,7 +25,17 @@ export function MathBlock({ expression, display = true, errorLabel = "Render fai
       }) };
     } catch { return { html: "", error: true }; }
   }, [display, expression]);
-  if (rendered.error) return <span className={styles.fallback}><code>{expression}</code><small>{errorLabel}</small></span>;
+  if (rendered.error) {
+    return (
+      <span className={styles.fallback}>
+        <span className={styles.fallbackTitle}>{errorLabel}</span>
+        <details className={styles.fallbackDetails}>
+          <summary>{viewSourceLabel}</summary>
+          <code>{expression}</code>
+        </details>
+      </span>
+    );
+  }
   return <span className={display ? styles.math : undefined} dangerouslySetInnerHTML={{ __html: rendered.html }} />;
 }
 

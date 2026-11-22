@@ -10,6 +10,7 @@ export function BoardBlock({ block, locate }: { block: Block; locate?: (target: 
       labels={{
         locate: t.classroom.locate,
         renderError: t.classroom.boardRenderError,
+        viewSource: t.classroom.boardViewSource,
         imageAlt: t.classroom.boardImageAlt,
       }}
     />

@@ -19,11 +19,24 @@ for (const [name, language] of Object.entries({ bash, css, java, javascript, jso
   hljs.registerLanguage(name, language);
 }
 
-export type BoardLabels = { locate?: string; renderError?: string; imageAlt?: string };
-const defaults = { locate: "Locate this line", renderError: "Render failed", imageAlt: "Course material page" };
+export type BoardLabels = { locate?: string; renderError?: string; viewSource?: string; imageAlt?: string };
+const defaults: Required<BoardLabels> = {
+  locate: "从这一行开始没跟上",
+  renderError: "这张图没画出来",
+  viewSource: "查看原始内容",
+  imageAlt: "课程资料原页",
+};
 
-function ErrorSource({ source, label }: { source: string; label: string }) {
-  return <pre className={styles.fallback}><code>{source}</code><small>{label}</small></pre>;
+function ErrorSource({ source, label, viewSource }: { source: string; label: string; viewSource: string }) {
+  return (
+    <div className={styles.fallback} role="note">
+      <p className={styles.fallbackTitle}>{label}</p>
+      <details className={styles.fallbackDetails}>
+        <summary>{viewSource}</summary>
+        <pre><code>{source}</code></pre>
+      </details>
+    </div>
+  );
 }
 
 function CodeBlock({ block }: { block: Block }) {
@@ -38,7 +51,7 @@ function CodeBlock({ block }: { block: Block }) {
 
 function ImageBlock({ source, labels }: { source: string; labels: Required<BoardLabels> }) {
   const spec = parseImageSpec(source);
-  if (!spec) return <ErrorSource source={source} label={labels.renderError} />;
+  if (!spec) return <ErrorSource source={source} label={labels.renderError} viewSource={labels.viewSource} />;
   const src = `/api/v2/materials/${encodeURIComponent(spec.material_id)}/pages/${spec.page}/image`;
   const normalized = spec.bbox?.every((value) => value >= 0 && value <= 1);
   return <figure className={styles.image}>
@@ -53,7 +66,7 @@ function ImageBlock({ source, labels }: { source: string; labels: Required<Board
 export function BoardBlock({ block, locate, labels: provided = {} }: {
   block: Block; locate?: (target: string) => void; labels?: BoardLabels;
 }) {
-  const labels = { ...defaults, ...provided };
+  const labels: Required<BoardLabels> = { ...defaults, ...provided };
   const lines = block.content.split("\n").filter((line) => line.length > 0);
   const math = block.type === "steps" || block.type === "math";
   return <article className={styles.block} data-kind={block.type} data-marked={block.mark || undefined} data-variant={block.variant}>
@@ -61,14 +74,14 @@ export function BoardBlock({ block, locate, labels: provided = {} }: {
     {block.title ? <h3>{block.title}</h3> : null}
     {math ? lines.map((line, index) => {
       const number = index + 1;
-      const expression = <MathBlock expression={line.replace(/^\$+|\$+$/g, "")} errorLabel={labels.renderError} />;
+      const expression = <MathBlock expression={line.replace(/^\$+|\$+$/g, "")} errorLabel={labels.renderError} viewSourceLabel={labels.viewSource} />;
       return locate ? <button className={styles.line} data-marked={block.marks?.some((mark) => mark.line === number) || undefined}
         key={number} type="button" title={labels.locate} onClick={() => locate(`${block.id}.${number}`)}>{expression}</button>
         : <div className={styles.line} data-marked={block.marks?.some((mark) => mark.line === number) || undefined} key={number}>{expression}</div>;
     }) : null}
     {block.type === "code" ? <CodeBlock block={block} /> : null}
-    {block.type === "diagram" ? <DiagramBlock source={block.content} errorLabel={labels.renderError} /> : null}
-    {block.type === "plot" ? <PlotBlock source={block.content} errorLabel={labels.renderError} /> : null}
+    {block.type === "diagram" ? <DiagramBlock source={block.content} errorLabel={labels.renderError} viewSourceLabel={labels.viewSource} /> : null}
+    {block.type === "plot" ? <PlotBlock source={block.content} errorLabel={labels.renderError} viewSourceLabel={labels.viewSource} /> : null}
     {block.type === "image" ? <ImageBlock source={block.content} labels={labels} /> : null}
     {!math && !["code", "diagram", "plot", "image"].includes(block.type) ? <LessonText source={block.content} /> : null}
   </article>;

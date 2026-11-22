@@ -2,7 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { parsePlotSpec, type PlotSpec } from "./validation";
 import styles from "./board.module.css";
 
-export function PlotBlock({ source, errorLabel }: { source: string; errorLabel: string }) {
+export function PlotBlock({
+  source,
+  errorLabel,
+  viewSourceLabel = "查看原始内容",
+}: {
+  source: string;
+  errorLabel: string;
+  viewSourceLabel?: string;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const [spec, setSpec] = useState<PlotSpec | null>();
   const [failed, setFailed] = useState(false);
@@ -36,7 +44,17 @@ export function PlotBlock({ source, errorLabel }: { source: string; errorLabel: 
     }).catch(() => setFailed(true));
     return () => { active = false; };
   }, [spec]);
-  if (spec === null || failed) return <pre className={styles.fallback}><code>{source}</code><small>{errorLabel}</small></pre>;
+  if (spec === null || failed) {
+    return (
+      <div className={styles.fallback} role="note">
+        <p className={styles.fallbackTitle}>{errorLabel}</p>
+        <details className={styles.fallbackDetails}>
+          <summary>{viewSourceLabel}</summary>
+          <pre><code>{source}</code></pre>
+        </details>
+      </div>
+    );
+  }
   if (!spec) return <div className={styles.pending} aria-busy="true" />;
   return <div className={styles.plot}>
     <div ref={host} />

@@ -10,8 +10,10 @@
 .line { display: block; width: 100%; border: 0; padding: .2rem; text-align: start; color: inherit; background: transparent; overflow-x: auto; animation: board-write 400ms ease-out both; }
 button.line { cursor: pointer; }
 .line[data-marked], .code span[data-marked] { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 0 -2px var(--accent); }
-.fallback { display: grid; gap: .4rem; margin: 0; padding: .75rem; overflow-x: auto; border: 1px solid #c98a58; border-radius: 8px; white-space: pre-wrap; }
-.fallback small { color: #8b4f25; font: 600 .75rem/1.3 system-ui, sans-serif; }
+.fallback { display: grid; gap: .45rem; margin: 0; padding: .75rem .9rem; overflow-x: auto; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--text-secondary); }
+.fallbackTitle { margin: 0; font-size: .875rem; font-weight: 500; color: var(--text-primary); }
+.fallbackDetails summary { cursor: pointer; font-size: .8125rem; color: var(--text-secondary); user-select: none; }
+.fallbackDetails pre { margin: .4rem 0 0; padding: .5rem; border-radius: var(--radius-sm); background: var(--surface-card); overflow-x: auto; font-size: .78rem; white-space: pre-wrap; }
 .diagram, .plot { max-width: 100%; overflow-x: auto; }
 .diagram svg, .plot svg { display: block; max-width: 100%; height: auto; margin-inline: auto; }
 .pending { min-height: 8rem; border-radius: 8px; background: linear-gradient(100deg, transparent 20%, rgba(40, 120, 111, .12) 45%, transparent 70%); background-size: 220% 100%; animation: board-loading 1.2s linear infinite; }

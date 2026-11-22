@@ -12,6 +12,15 @@ describe("board package", () => {
     expect(table).toContain("<table>");
     expect(renderToStaticMarkup(<BoardBlock block={{ id: "x", type: "text", content: "<script>alert(1)</script>" }} />))
       .not.toContain("<script>");
+
+    // Render failures show a friendly Chinese explanation with collapsed raw source, never English "Render failed"
+    const invalidImage = renderToStaticMarkup(
+      <BoardBlock block={{ id: "bad", type: "image", content: "not-valid-json" }} />,
+    );
+    expect(invalidImage).toContain("这张图没画出来");
+    expect(invalidImage).toContain("查看原始内容");
+    expect(invalidImage).toContain("<details");
+    expect(invalidImage).not.toContain("Render failed");
   });
 
   it("accepts bounded plot specs and rejects executable or malformed expressions", async () => {

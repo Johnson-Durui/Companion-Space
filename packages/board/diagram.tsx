@@ -8,7 +8,15 @@ function repair(source: string) {
   return value;
 }
 
-export function DiagramBlock({ source, errorLabel }: { source: string; errorLabel: string }) {
+export function DiagramBlock({
+  source,
+  errorLabel,
+  viewSourceLabel = "查看原始内容",
+}: {
+  source: string;
+  errorLabel: string;
+  viewSourceLabel?: string;
+}) {
   const reactId = useId().replace(/[^A-Za-z0-9_-]/g, "");
   const [svg, setSvg] = useState<string>();
   const [failed, setFailed] = useState(false);
@@ -28,7 +36,17 @@ export function DiagramBlock({ source, errorLabel }: { source: string; errorLabe
     }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, [reactId, source]);
-  if (failed) return <pre className={styles.fallback}><code>{source}</code><small>{errorLabel}</small></pre>;
+  if (failed) {
+    return (
+      <div className={styles.fallback} role="note">
+        <p className={styles.fallbackTitle}>{errorLabel}</p>
+        <details className={styles.fallbackDetails}>
+          <summary>{viewSourceLabel}</summary>
+          <pre><code>{source}</code></pre>
+        </details>
+      </div>
+    );
+  }
   return svg ? <div className={styles.diagram} dangerouslySetInnerHTML={{ __html: svg }} /> : <div className={styles.pending} aria-busy="true" />;
 }
 

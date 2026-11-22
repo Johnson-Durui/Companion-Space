@@ -134,6 +134,22 @@ function App() {
   const location = useLocation();
   const session = useQuery({ queryKey: sessionKey, queryFn: bootstrapSession, staleTime: Infinity });
   useTutorThemeSync(session.data?.state === "ready");
+  const isStageRoute = Boolean(matchPath("/lessons/:lessonId", location.pathname));
+
+  if (session.data?.state === "ready" && isStageRoute) {
+    return (
+      <>
+        <RouteEffects />
+        <ErrorBoundary key={location.pathname} fallback={<RouteFallback />}>
+          <Suspense fallback={<Loading />}>
+            <Routes>
+              <Route path="/lessons/:lessonId" element={<Classroom />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+      </>
+    );
+  }
 
   return (
     <>

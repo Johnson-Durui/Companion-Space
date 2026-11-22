@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   Chip,
+  ChoiceCardGroup,
   ConfirmDialog,
   DelayedSkeleton,
   Dialog,
@@ -15,11 +16,13 @@ import {
   ErrorState,
   Field,
   IconButton,
+  LevelMeter,
   Menu,
   Play,
   Popover,
   SegmentedControl,
   Select,
+  Slider,
   Spinner,
   Switch,
   TextInput,
@@ -319,5 +322,43 @@ describe("U1 UI component library", () => {
     });
     expect(retry).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[role="img"]')?.getAttribute("aria-label")).toContain("2 / 3");
+  });
+
+  it("ChoiceCardGroup renders accessible radio/checkbox cards without hidden inputs, plus Slider and LevelMeter", () => {
+    const onChange = vi.fn();
+    const onVolume = vi.fn();
+    render(
+      <>
+        <ChoiceCardGroup
+          label="课堂提问"
+          mode="single"
+          value="A"
+          onChange={onChange}
+          outcomes={{ A: "correct", B: "retry" }}
+          options={[
+            { key: "A", text: "按条件推导" },
+            { key: "B", text: "忽略条件" },
+          ]}
+        />
+        <Slider value={60} min={0} max={100} aria-label="音量" onValueChange={onVolume} />
+        <LevelMeter value={0.45} label="麦克风电平" />
+      </>,
+    );
+
+    expect(container.querySelector("input[type='radio']")).toBeNull();
+    const radios = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
+    expect(radios).toHaveLength(2);
+    expect(radios[0].getAttribute("aria-label")).toBe("A 按条件推导");
+    expect(radios[0].getAttribute("aria-checked")).toBe("true");
+    expect(radios[0].dataset.outcome).toBe("correct");
+    expect(radios[1].dataset.outcome).toBe("retry");
+
+    act(() => {
+      radios[1].click();
+    });
+    expect(onChange).toHaveBeenCalledWith("B");
+
+    const meter = container.querySelector('[role="meter"]');
+    expect(meter?.getAttribute("aria-valuenow")).toBe("45");
   });
 });

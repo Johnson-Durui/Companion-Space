@@ -2,17 +2,27 @@ export { Badge, type BadgeProps, type BadgeTone } from "./badge";
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./button";
 export { Card, type CardPadding, type CardProps } from "./card";
 export { Chip, type ChipProps } from "./chip";
+export {
+  ChoiceCard,
+  ChoiceCardGroup,
+  type ChoiceCardGroupProps,
+  type ChoiceCardOption,
+  type ChoiceCardOutcome,
+  type ChoiceCardProps,
+} from "./choice-card";
 export { ConfirmDialog, type ConfirmDialogProps } from "./confirm-dialog";
 export { Dialog, type DialogProps } from "./dialog";
 export { EmptyState, type EmptyStateProps } from "./empty-state";
 export { ErrorState, type ErrorStateProps } from "./error-state";
 export { Field, useFieldContext, type FieldProps } from "./field";
 export { IconButton, type IconButtonProps, type IconButtonShape, type IconButtonSize, type IconButtonVariant } from "./icon-button";
+export { LevelMeter, type LevelMeterProps } from "./level-meter";
 export { Menu, type MenuItemEntry, type MenuProps } from "./menu";
 export { Popover, type PopoverProps } from "./popover";
 export { SegmentedControl, type SegmentedControlProps, type SegmentedOption } from "./segmented-control";
 export { Select, type SelectOption, type SelectProps } from "./select";
 export { DelayedSkeleton, PageSkeleton, Skeleton, type DelayedSkeletonProps, type SkeletonProps } from "./skeleton";
+export { Slider, type SliderProps } from "./slider";
 export { Spinner, type SpinnerProps } from "./spinner";
 export { Switch, type SwitchProps } from "./switch";
 export { TextInput, type InputSize, type TextInputProps } from "./text-input";
