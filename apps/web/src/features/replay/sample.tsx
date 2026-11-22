@@ -3,8 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { LessonText } from "@companion-space/board";
 import {
-  api,
-  bodyOf,
   charactersKey,
   fetchCharacters,
   fetchSettings,
@@ -15,6 +13,7 @@ import { Loading, Problem } from "../../app/ui";
 import { ArrowLeft, Badge, Button, ChoiceCardGroup, RefreshCw } from "../../ui";
 import { restoreClassroom } from "../classroom/lesson-state";
 import { captionDelay } from "../classroom/timeline";
+import { playEncodedSpeech, requestTutorSpeech } from "../voice/use-tutor-speech";
 import t from "../../locales/zh-CN.json";
 import { ReplayStage } from "./replay-stage";
 import { fetchSample, sampleKey, type Sample } from "./sample-api";
@@ -35,7 +34,7 @@ function SampleRecording({
   const [choice, setChoice] = useState<string>();
   const [browserTts, setBrowserTts] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const stopAudioRef = useRef<(() => void) | null>(null);
 
   const row = events[position - 1];
   const finished = position >= events.length;
@@ -45,11 +44,12 @@ function SampleRecording({
   const advancing = playing && !finished && !question;
   const feedback = choice ? options?.[choice] : undefined;
 
-  // D11: Synthesize sample say lines via read-only /api/v2/tts/preview when online;
+  // D11 + B13: Synthesize sample say lines via unified /api/v2/voice/speak when online;
   // fall back gracefully to browser speechSynthesis + timed dwell when offline/unavailable.
   useEffect(() => {
     if (!advancing) {
-      audioRef.current?.pause();
+      stopAudioRef.current?.();
+      stopAudioRef.current = null;
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
       return;
     }
@@ -91,21 +91,15 @@ function SampleRecording({
       }, dwell);
     };
 
-    const controller = new AbortController();
     void (async () => {
       try {
-        const result = bodyOf(
-          await api.POST("/api/v2/tts/preview", {
-            body: { character_id: teacher.id, text: text.slice(0, 240) },
-            signal: controller.signal,
-          }),
-        );
+        const result = await requestTutorSpeech({
+          characterId: teacher.id,
+          text: text.slice(0, 240),
+        });
         if (cancelled) return;
         if (result.kind === "audio" && result.audio_b64) {
           setBrowserTts(false);
-          const audio = new Audio(`data:${result.content_type ?? "audio/mpeg"};base64,${result.audio_b64}`);
-          audio.playbackRate = speed;
-          audioRef.current = audio;
           setSpeaking(true);
           const finish = () => {
             if (cancelled) return;
@@ -113,10 +107,12 @@ function SampleRecording({
             setSpeaking(false);
             setPosition((idx) => idx + 1);
           };
-          audio.onended = finish;
-          audio.onerror = () => runFallback();
           fallbackTimer = window.setTimeout(finish, Math.max(dwell + 4000, 12_000));
-          await audio.play().catch(() => runFallback());
+          stopAudioRef.current = playEncodedSpeech(result, {
+            playbackRate: speed,
+            onEnd: finish,
+            onError: runFallback,
+          });
           return;
         }
         runFallback();
@@ -127,14 +123,9 @@ function SampleRecording({
 
     return () => {
       cancelled = true;
-      controller.abort();
       window.clearTimeout(fallbackTimer);
-      if (audioRef.current) {
-        audioRef.current.onended = null;
-        audioRef.current.onerror = null;
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      stopAudioRef.current?.();
+      stopAudioRef.current = null;
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
       setSpeaking(false);
     };

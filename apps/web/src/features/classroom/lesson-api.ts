@@ -4,6 +4,10 @@ export function fetchLesson(lesson_id: string) {
   return api.GET("/api/v2/lessons/{lesson_id}", { params: { path: { lesson_id } } }).then(bodyOf);
 }
 
+export function fetchLessonRecapSummary(lesson_id: string) {
+  return api.GET("/api/v2/lessons/{lesson_id}/recap-summary", { params: { path: { lesson_id } } }).then(bodyOf);
+}
+
 export function fetchLessonEvents(lesson_id: string, after = 0) {
   return api.GET("/api/v2/lessons/{lesson_id}/events", { params: { path: { lesson_id }, query: { after } } }).then(bodyOf);
 }

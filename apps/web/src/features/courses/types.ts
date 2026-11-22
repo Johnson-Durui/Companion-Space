@@ -13,14 +13,77 @@ export type CourseBrief = {
 
 export type Course = { id: string; name: string; goal: string | null; brief: CourseBrief | null };
 
+export type JourneyStepStatus = "done" | "active" | "todo" | "waiting";
+export type JourneyNextStep = "materials" | "analysis" | "interview" | "placement" | "plan" | "learn";
+export type JourneyStage =
+  | "needs_materials"
+  | "analyzing"
+  | "interview"
+  | "placement"
+  | "plan_ready"
+  | "learning"
+  | "today_done"
+  | "all_done"
+  | "exam_passed";
+
+export type CourseJourney = {
+  course_id: string;
+  steps: {
+    materials: JourneyStepStatus;
+    analysis: JourneyStepStatus;
+    interview: JourneyStepStatus;
+    placement: JourneyStepStatus;
+    plan: JourneyStepStatus;
+  };
+  next_step: JourneyNextStep;
+  stage: JourneyStage;
+  has_materials: boolean;
+  materials_ready: boolean;
+  analysis_status: string | null;
+  has_plan: boolean;
+  exam_passed: boolean;
+  all_done: boolean;
+  kps_learned: number;
+  kps_mastered: number;
+  kps_total: number;
+  deferred_count: number;
+  lessons_completed: number;
+};
+
+export type PlanWhyEntry = {
+  kp_id: string;
+  kp_name: string;
+  weight: number;
+  mastery: number;
+  highlighted: boolean;
+  is_prereq: boolean;
+};
+
+export type TodayLessonItem = {
+  id: string;
+  title: string;
+  est_minutes: number;
+  status: string;
+  kind?: string;
+  lesson_id: string | null;
+};
+
 export type CourseDashboard = {
   course_id: string;
   has_plan?: boolean;
   due_review_count: number;
-  today_lesson: { id: string; title: string; est_minutes: number; status: string; lesson_id: string | null } | null;
+  today_lesson: TodayLessonItem | null;
+  today_practice?: TodayLessonItem | null;
+  today_lesson_why?: PlanWhyEntry[];
+  lesson_index?: number | null;
+  lesson_total?: number | null;
   remaining_days: number | null;
+  exam_name?: string | null;
+  exam_date?: string | null;
+  target_score?: number | null;
   secured_score: number | null;
   score_scale: number | null;
+  journey?: CourseJourney | null;
 };
 
 export type Material = {
@@ -48,6 +111,8 @@ export type Job = {
   tokens_in: number;
   tokens_out: number;
   error: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type AnalysisStart = {

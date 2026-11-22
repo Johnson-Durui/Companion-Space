@@ -4,12 +4,13 @@ import "./styles/tokens.css";
 import { lazy, StrictMode, Suspense, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { BrowserRouter, Link, matchPath, Navigate, Route, Routes, useLocation } from "react-router";
-import { api, bodyOf, bootstrapSession, isClientError, sessionKey } from "./app/api";
+import { BrowserRouter, Link, matchPath, Route, Routes, useLocation } from "react-router";
+import { bootstrapSession, isClientError, sessionKey } from "./app/api";
 import { ErrorBoundary, Loading, Problem } from "./app/ui";
 import { AppShell } from "./shell/AppShell";
 import { UnlockSession } from "./features/settings/security";
 import Welcome from "./features/onboarding/welcome";
+import TodayPage from "./features/today/today";
 import t from "./locales/zh-CN.json";
 import { scheduleFontPrefetch } from "./styles/prefetch-fonts";
 import { useTutorThemeSync } from "./styles/use-tutor-theme";
@@ -20,12 +21,18 @@ scheduleFontPrefetch();
 const Settings = lazy(() => import("./features/settings/settings"));
 const Diagnostics = lazy(() => import("./features/settings/diagnostics"));
 const Courses = lazy(() => import("./features/courses/courses"));
-const CourseWorkspace = lazy(() => import("./features/courses/course"));
+const CourseSetup = lazy(() => import("./features/courses/course-setup"));
+const CourseHub = lazy(() => import("./features/courses/course-hub").then((m) => ({ default: m.CourseHubLayout })));
+const CourseTodayTab = lazy(() => import("./features/courses/course-hub").then((m) => ({ default: m.CourseTodayTab })));
+const CourseMapTab = lazy(() => import("./features/courses/course-hub").then((m) => ({ default: m.CourseMapTab })));
+const CourseMaterialsTab = lazy(() => import("./features/courses/course-hub").then((m) => ({ default: m.CourseMaterialsTab })));
+const PlanPage = lazy(() => import("./features/plan/plan-page"));
 const Classroom = lazy(() => import("./features/classroom/classroom"));
 const LessonLobby = lazy(() => import("./features/classroom/lobby"));
 const Review = lazy(() => import("./features/review/review"));
 const Practice = lazy(() => import("./features/practice/practice"));
 const ProgressPage = lazy(() => import("./features/progress/progress"));
+const TutorsLegacy = lazy(() => import("./features/tutors/tutors-legacy"));
 const TutorLibrary = lazy(() => import("./features/characters/library"));
 const CourseHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.CourseHistoryPage })));
 const LessonHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.LessonHistoryPage })));
@@ -44,11 +51,16 @@ const queries = new QueryClient({
 
 function pageTitleFor(pathname: string, search: string): string {
   const titles = t.app.titles;
-  if (matchPath("/", pathname)) return titles.courses;
+  if (matchPath("/", pathname)) return titles.today;
   if (matchPath("/welcome", pathname)) return titles.welcome;
+  if (matchPath("/tutors", pathname)) return titles.tutors;
   if (matchPath("/sample-lesson", pathname)) return titles.sample;
   if (matchPath("/characters", pathname)) return titles.characters;
   if (matchPath("/courses", pathname)) return titles.courses;
+  if (matchPath("/courses/:courseId/setup", pathname)) return titles.courseSetup;
+  if (matchPath("/courses/:courseId/plan", pathname)) return titles.coursePlan;
+  if (matchPath("/courses/:courseId/map", pathname)) return titles.courseMap;
+  if (matchPath("/courses/:courseId/materials", pathname)) return titles.courseMaterials;
   if (matchPath("/courses/:courseId/history", pathname)) return titles.courseHistory;
   if (matchPath("/courses/:courseId/review", pathname)) {
     return new URLSearchParams(search).has("plan") ? titles.warmup : titles.review;
@@ -107,7 +119,7 @@ function NotFound() {
     <section className="error-screen">
       <h1>{t.app.notFoundTitle}</h1>
       <p className="hint">{t.app.notFoundHint}</p>
-      <Link className="button primary" to="/courses">{t.app.backCourses}</Link>
+      <Link className="button primary" to="/">{t.app.backToday}</Link>
     </section>
   );
 }
@@ -119,37 +131,36 @@ function RouteFallback() {
       <p role="alert">{t.app.error}</p>
       <div className="actions">
         <Button variant="primary" onClick={() => window.location.reload()}>{t.app.refresh}</Button>
-        <Link className="button quiet" to="/courses">{t.app.backCourses}</Link>
+        <Link className="button quiet" to="/">{t.app.backToday}</Link>
       </div>
     </section>
   );
 }
 
-function Home() {
-  const courses = useQuery({ queryKey: ["courses"], queryFn: async () => bodyOf(await api.GET("/api/v2/courses")) });
-  if (courses.isPending) return <Loading />;
-  if (courses.isError) return <Problem error={courses.error} onRetry={() => void courses.refetch()} />;
-  return <Navigate to={courses.data.length ? "/courses" : "/welcome"} replace />;
-}
-
 function App() {
   const location = useLocation();
   const session = useQuery({ queryKey: sessionKey, queryFn: bootstrapSession, staleTime: Infinity });
-  useTutorThemeSync(session.data?.state === "ready");
-  const isStageRoute = Boolean(
+  const ready = session.data?.state === "ready";
+  useTutorThemeSync(ready);
+
+  const isStandaloneShell = Boolean(
     matchPath("/lessons/:lessonId", location.pathname) ||
     matchPath("/lessons/:lessonId/history", location.pathname) ||
     matchPath("/plan-items/:itemId/lesson", location.pathname) ||
-    matchPath("/sample-lesson", location.pathname),
+    matchPath("/sample-lesson", location.pathname) ||
+    matchPath("/welcome", location.pathname) ||
+    matchPath("/courses/:courseId/setup", location.pathname),
   );
 
-  if (session.data?.state === "ready" && isStageRoute) {
+  if (ready && isStandaloneShell) {
     return (
       <>
         <RouteEffects />
         <ErrorBoundary key={location.pathname} fallback={<RouteFallback />}>
           <Suspense fallback={<Loading />}>
             <Routes>
+              <Route path="/welcome" element={<Welcome />} />
+              <Route path="/courses/:courseId/setup" element={<CourseSetup />} />
               <Route path="/lessons/:lessonId" element={<Classroom />} />
               <Route path="/lessons/:lessonId/history" element={<LessonHistory />} />
               <Route path="/plan-items/:itemId/lesson" element={<LessonLobby />} />
@@ -164,26 +175,26 @@ function App() {
   return (
     <>
       <RouteEffects />
-      <AppShell>
+      <AppShell sessionReady={ready}>
         {session.isPending ? <Loading text={t.app.loading} /> : null}
         {session.isError ? <Problem error={session.error} onRetry={() => void session.refetch()} /> : null}
         {session.data?.state !== undefined && session.data.state !== "ready" ? <UnlockSession session={session.data} /> : null}
-        {session.data?.state === "ready" ? (
+        {ready ? (
           <ErrorBoundary key={location.pathname} fallback={<RouteFallback />}>
             <Suspense fallback={<Loading />}>
               <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/welcome" element={<Welcome />} />
-                <Route path="/sample-lesson" element={<SampleLesson />} />
+                <Route path="/" element={<TodayPage />} />
+                <Route path="/tutors" element={<TutorsLegacy />} />
                 <Route path="/characters" element={<TutorLibrary />} />
                 <Route path="/courses" element={<Courses />} />
-                <Route path="/courses/:courseId" element={<CourseWorkspace />} />
-                <Route path="/courses/:courseId/history" element={<CourseHistory />} />
-                <Route path="/courses/:courseId/review" element={<Review />} />
-                <Route path="/courses/:courseId/progress" element={<ProgressPage />} />
+                <Route path="/courses/:courseId" element={<CourseHub><CourseTodayTab /></CourseHub>} />
+                <Route path="/courses/:courseId/plan" element={<CourseHub><PlanPage /></CourseHub>} />
+                <Route path="/courses/:courseId/map" element={<CourseHub><CourseMapTab /></CourseHub>} />
+                <Route path="/courses/:courseId/materials" element={<CourseHub><CourseMaterialsTab /></CourseHub>} />
+                <Route path="/courses/:courseId/history" element={<CourseHub><CourseHistory embedded /></CourseHub>} />
+                <Route path="/courses/:courseId/review" element={<CourseHub><Review embedded /></CourseHub>} />
+                <Route path="/courses/:courseId/progress" element={<CourseHub><ProgressPage embedded /></CourseHub>} />
                 <Route path="/plan-items/:itemId/practice" element={<Practice />} />
-                <Route path="/lessons/:lessonId" element={<Classroom />} />
-                <Route path="/lessons/:lessonId/history" element={<LessonHistory />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/diagnostics" element={<Diagnostics />} />
                 <Route path="*" element={<NotFound />} />

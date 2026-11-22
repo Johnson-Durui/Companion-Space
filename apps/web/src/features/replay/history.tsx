@@ -115,7 +115,7 @@ export function LessonHistoryPage() {
   );
 }
 
-export function CourseHistoryPage() {
+export function CourseHistoryPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { courseId } = useParams();
   const history = useQuery({
     queryKey: ["course-history", courseId],
@@ -129,10 +129,14 @@ export function CourseHistoryPage() {
   if (history.isError) return <Problem error={history.error} onRetry={() => void history.refetch()} />;
   return (
     <div className="lesson-recap">
-      <Link className="text-link" to={`/courses/${courseId}`}>
-        {history.data.title}
-      </Link>
-      <h1>{copy.heading}</h1>
+      {!embedded ? (
+        <>
+          <Link className="text-link" to={`/courses/${courseId}`}>
+            {history.data.title}
+          </Link>
+          <h1>{copy.heading}</h1>
+        </>
+      ) : null}
       <section className="settings-section">
         <h2>{copy.classroomRecords}</h2>
         {history.data.lessons.length ? (

@@ -1,50 +1,29 @@
-import { useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { api, bodyOf } from "../../app/api";
-import { Problem } from "../../app/ui";
-import { Button, Play } from "../../ui";
+import { Button, Play, Square } from "../../ui";
 import t from "../../locales/zh-CN.json";
+import { useTutorSpeech } from "../voice/use-tutor-speech";
 
 export function VoicePreview({ id, text }: { id: string; text?: string }) {
-  const audio = useRef<HTMLAudioElement>(null);
-  const [hint, setHint] = useState("");
-  const preview = useMutation({
-    mutationFn: async () => bodyOf(await api.POST("/api/v2/tts/preview", { body: { character_id: id, text } })),
-    onSuccess(result) {
-      if (result.kind === "audio" && result.audio_b64 && audio.current) {
-        audio.current.src = `data:${result.content_type ?? "audio/mpeg"};base64,${result.audio_b64}`;
-        void audio.current.play().catch(() => setHint(t.voice.cannotAutoPlay));
-      }
-    },
-  });
-
-  function speak() {
-    if (!preview.data || !("speechSynthesis" in window)) {
-      setHint(t.voice.browserFailed);
-      return;
-    }
-    const speech = new SpeechSynthesisUtterance(preview.data.text);
-    speech.lang = "zh-CN";
-    speech.onerror = () => setHint(t.voice.browserFailed);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(speech);
-  }
+  const { speak, stop, loading, speaking, unavailable, warning } = useTutorSpeech();
 
   return (
-    <div className="voice-preview">
-      <Button variant="secondary" pending={preview.isPending} leftIcon={<Play size={15} aria-hidden="true" />} onClick={() => { setHint(""); preview.mutate(); }}>
-        {t.voice.preview}
+    <div className="inline-flex flex-wrap items-center gap-2">
+      <Button
+        variant="secondary"
+        pending={loading}
+        leftIcon={speaking ? <Square size={14} aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}
+        onClick={() => {
+          if (speaking) stop();
+          else void speak({ characterId: id, text });
+        }}
+      >
+        {speaking ? t.common.stop : t.voice.preview}
       </Button>
-      <audio aria-label={t.voice.play} ref={audio} controls hidden={preview.data?.kind !== "audio"} />
-      {preview.data?.kind === "audio" && preview.data.warning ? <p role="status" className="hint">{preview.data.warning}</p> : null}
-      {preview.data?.kind === "browser" ? (
-        <div className="notice">
-          <p role="status">{preview.data.warning ?? t.voice.fallback}</p>
-          <button className="button quiet" onClick={speak}>{t.voice.browser}</button>
-        </div>
+      {warning && !unavailable ? (
+        <span role="status" className="text-caption text-fg-secondary">{warning}</span>
       ) : null}
-      {hint ? <p role="status" className="hint">{hint}</p> : null}
-      {preview.isError ? <Problem error={preview.error} /> : null}
+      {unavailable ? (
+        <span role="status" className="text-caption text-fg-secondary">{t.speech.unavailable}</span>
+      ) : null}
     </div>
   );
 }

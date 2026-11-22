@@ -70,6 +70,7 @@ export {
   Smartphone,
   Sparkle,
   Sparkles,
+  Square,
   Trash2,
   Unlock,
   Upload,

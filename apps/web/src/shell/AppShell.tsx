@@ -2,15 +2,20 @@ import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import clsx from "clsx";
 import t from "../locales/zh-CN.json";
-import { BookOpen, BrandMark, Settings, Toaster, TooltipProvider, Users } from "../ui";
+import { useReadiness } from "../features/settings/use-readiness";
+import { BookOpen, BrandMark, Home, Settings, Toaster, TooltipProvider, Users } from "../ui";
 
 const DESK_NAV = [
+  { to: "/", label: t.app.today, icon: Home },
   { to: "/courses", label: t.app.courses, icon: BookOpen },
-  { to: "/welcome", label: t.app.teachers, icon: Users },
+  { to: "/tutors", label: t.app.teachers, icon: Users },
   { to: "/settings", label: t.app.settings, icon: Settings },
 ] as const;
 
 export function navActive(to: string, pathname: string): boolean {
+  if (to === "/") {
+    return pathname === "/";
+  }
   if (to === "/courses") {
     return (
       pathname === "/courses"
@@ -19,11 +24,12 @@ export function navActive(to: string, pathname: string): boolean {
       || pathname.startsWith("/plan-items/")
     );
   }
-  if (to === "/welcome") {
+  if (to === "/tutors") {
     return (
-      pathname === "/welcome"
+      pathname === "/tutors"
+      || pathname.startsWith("/tutors/")
       || pathname.startsWith("/characters")
-      || pathname.startsWith("/tutors")
+      || pathname.startsWith("/welcome")
       || pathname.startsWith("/sample-lesson")
     );
   }
@@ -34,11 +40,14 @@ export function navActive(to: string, pathname: string): boolean {
 }
 
 export interface AppShellProps {
+  sessionReady?: boolean;
   children: ReactNode;
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ sessionReady = false, children }: AppShellProps) {
   const location = useLocation();
+  const readiness = useReadiness(sessionReady);
+  const aiReady = !sessionReady || readiness.isPending || readiness.readyForLessons;
 
   return (
     <TooltipProvider>
@@ -52,7 +61,7 @@ export function AppShell({ children }: AppShellProps) {
 
         <header className="sticky top-0 z-sticky border-b border-line-subtle bg-surface-card/95 backdrop-blur">
           <div className="mx-auto grid min-h-16 max-w-[1200px] grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-8">
-            <Link to="/welcome" className="inline-flex items-center gap-3 justify-self-start min-h-10">
+            <Link to="/" className="inline-flex items-center gap-3 justify-self-start min-h-10">
               <BrandMark size={34} />
               <span className="grid leading-tight">
                 <strong className="text-body font-semibold tracking-wide text-fg-primary">
@@ -63,7 +72,7 @@ export function AppShell({ children }: AppShellProps) {
             </Link>
 
             <nav
-              className="hidden md:flex items-stretch self-stretch gap-2"
+              className="hidden md:flex items-stretch self-stretch gap-1"
               aria-label={t.app.name}
             >
               {DESK_NAV.map(({ to, label, icon: Icon }) => {
@@ -93,13 +102,26 @@ export function AppShell({ children }: AppShellProps) {
               })}
             </nav>
 
-            <span className="inline-flex items-center gap-2 justify-self-end text-caption text-fg-secondary">
+            {aiReady ? (
               <span
-                aria-hidden="true"
-                className="h-2 w-2 rounded-full bg-ok"
-              />
-              <span>{t.app.local}</span>
-            </span>
+                data-testid="readiness-indicator"
+                data-ready="true"
+                className="inline-flex items-center gap-2 justify-self-end text-caption text-fg-secondary"
+              >
+                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-ok" />
+                <span>{t.app.local}</span>
+              </span>
+            ) : (
+              <Link
+                to="/settings#models"
+                data-testid="readiness-indicator"
+                data-ready="false"
+                className="inline-flex min-h-9 items-center gap-2 justify-self-end rounded-full border border-warn/30 bg-warn-soft px-3 text-caption font-medium text-warn-text transition-colors duration-fast ease-out hover:bg-warn-soft/80"
+              >
+                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-warn" />
+                <span>{t.app.aiNotReady}</span>
+              </Link>
+            )}
           </div>
         </header>
 

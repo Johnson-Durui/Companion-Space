@@ -1,7 +1,7 @@
 import { browserApiFetch } from "@companion-space/api-client";
 import { ApiError, publicMessage } from "../../app/api";
 import t from "../../locales/zh-CN.json";
-import type { AnalysisStart, Course, CourseDashboard, CourseMap, ExamItem, Job, Material, MaterialPage, MaterialRole } from "./types";
+import type { AnalysisStart, Course, CourseDashboard, CourseJourney, CourseMap, ExamItem, Job, Material, MaterialPage, MaterialRole } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
@@ -14,7 +14,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const courseKeys = {
   all: ["courses"] as const,
+  dashboard: ["courses", "dashboard"] as const,
   one: (id: string) => ["courses", id] as const,
+  journey: (id: string) => ["courses", id, "journey"] as const,
   materials: (id: string) => ["courses", id, "materials"] as const,
   analysis: (id: string) => ["courses", id, "analysis"] as const,
   map: (id: string) => ["courses", id, "map"] as const,
@@ -26,8 +28,14 @@ export const courseKeys = {
 export const listCourses = () => request<Course[]>("/api/v2/courses");
 export const listCourseDashboard = () => request<CourseDashboard[]>("/api/v2/courses/dashboard");
 export const getCourse = (id: string) => request<Course>(`/api/v2/courses/${id}`);
+export const getCourseJourney = (id: string) => request<CourseJourney>(`/api/v2/courses/${id}/journey`);
 export const createCourse = (body: { name: string; goal?: string }) => request<Course>("/api/v2/courses", { method: "POST", body: JSON.stringify(body) });
+export const updateCourse = (id: string, body: { name: string; goal?: string | null }) =>
+  request<Course>(`/api/v2/courses/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const deleteCourse = (id: string) => request<void>(`/api/v2/courses/${id}`, { method: "DELETE" });
 export const listMaterials = (id: string) => request<Material[]>(`/api/v2/courses/${id}/materials`);
+export const deleteMaterial = (courseId: string, materialId: string) =>
+  request<void>(`/api/v2/courses/${courseId}/materials/${materialId}`, { method: "DELETE" });
 
 export function uploadMaterials(id: string, files: File[], metadata: Array<{ role: MaterialRole; year?: number; exam_name?: string; has_answers?: boolean }>) {
   const form = new FormData();

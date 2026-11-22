@@ -38,9 +38,39 @@ export type Placement = {
 export type StudyPlan = {
   version: number;
   reason?: string;
+  created_at?: string;
   deferred: string[];
-  params?: { hints_mapping?: "unused" | "mapped" | "unavailable" };
-  items: Array<{ id: string; kind: string; title: string; scheduled_date: string | null; est_minutes: number; kp_ids: string[]; pinned: number; status: string; why: Array<{ kp_id: string; weight: number; mastery: number }> }>;
+  deferred_items?: Array<{ kp_id: string; kp_name: string }>;
+  deferred_weight?: number | null;
+  over_capacity?: boolean | null;
+  capacity_minutes?: number | null;
+  params?: {
+    hints_mapping?: "unused" | "mapped" | "unavailable";
+    highlighted_kp_ids?: string[];
+    exam_date?: string | null;
+    deferred_weight?: number | null;
+    over_capacity?: boolean | null;
+    capacity_minutes?: number | null;
+  };
+  items: Array<{
+    id: string;
+    kind: string;
+    title: string;
+    scheduled_date: string | null;
+    est_minutes: number;
+    kp_ids: string[];
+    pinned: number;
+    status: string;
+    lesson_id?: string | null;
+    why: Array<{
+      kp_id: string;
+      kp_name?: string;
+      weight: number;
+      mastery: number;
+      highlighted?: boolean;
+      is_prereq?: boolean;
+    }>;
+  }>;
 };
 
 export const getInterview = (courseId: string) => request<InterviewState>(`/api/v2/courses/${courseId}/interview`);

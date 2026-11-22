@@ -15,7 +15,7 @@ function options(card: ReviewCard) {
   return Array.isArray(raw) ? raw : Object.entries(raw).map(([key, text]) => ({ key, text }));
 }
 
-export default function Review() {
+export default function Review({ embedded = false }: { embedded?: boolean } = {}) {
   const courseId = useParams().courseId ?? "";
   const [params] = useSearchParams();
   const plan = params.get("plan");
@@ -64,8 +64,12 @@ export default function Review() {
 
   return (
     <div className="review-page">
-      <div className="course-breadcrumb"><Link to={`/courses/${courseId}`}>{t.review.course}</Link><ChevronRight size={14} aria-hidden="true" /><span>{t.review.heading}</span></div>
-      <div className="page-title"><div><h1>{plan ? t.review.warmup : t.review.heading}</h1><p>{plan ? t.review.warmupIntro : t.review.lead}</p></div></div>
+      {!embedded ? (
+        <>
+          <div className="course-breadcrumb"><Link to={`/courses/${courseId}`}>{t.review.course}</Link><ChevronRight size={14} aria-hidden="true" /><span>{t.review.heading}</span></div>
+          <div className="page-title"><div><h1>{plan ? t.review.warmup : t.review.heading}</h1><p>{plan ? t.review.warmupIntro : t.review.lead}</p></div></div>
+        </>
+      ) : null}
       {plan ? <div className="actions">
         {preferred && card ? <VoicePreview id={preferred.id} text={`${t.review.warmupCue} ${card.front}`.slice(0, 240)} /> : null}
         <Button variant="primary" pending={start.isPending} onClick={() => start.mutate(plan)}>{t.review.startLesson}</Button>

@@ -6,11 +6,13 @@ import { Loading, Problem } from "../../app/ui";
 import { ArrowUpRight, Button, Check, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { AvatarSettingsPanel } from "./avatar-settings";
+import { LearnerProfileSettings } from "./learner-profile-settings";
 import { ModelSettings } from "./models";
 import { SecuritySettings } from "./security";
 import { VoiceSettingsPanel } from "./voice-settings";
 
 const sections = [
+  ["me", t.learner.profileHeading],
   ["models", t.settings.models],
   ["voice", t.settings.voices],
   ["avatar", t.settings.avatar],
@@ -95,6 +97,7 @@ export default function Settings() {
           <Link to="/settings/diagnostics">{t.app.diagnostics}<ArrowUpRight size={15} aria-hidden="true" /></Link>
         </nav>
         <div className="settings-sections">
+          <section className="settings-section" id="me" aria-label={t.learner.profileHeading}><h2>{t.learner.profileHeading}</h2><LearnerProfileSettings /></section>
           <section className="settings-section" id="models" aria-label={t.settings.models}><ModelSettings /></section>
           <section className="settings-section" id="voice" aria-label={t.settings.voices}><h2>{t.settings.voices}</h2><VoiceSettingsPanel /></section>
           <section className="settings-section" id="avatar" aria-label={t.settings.avatar}><h2>{t.settings.avatar}</h2><AvatarSettingsPanel /></section>

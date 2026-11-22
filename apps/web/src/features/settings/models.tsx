@@ -4,6 +4,7 @@ import { api, bodyOf, connectionsKey, ensureOK, fetchConnections, fetchRoles, pu
 import { Loading, Problem } from "../../app/ui";
 import { ArrowUpRight, Button, Check, ChevronDown, ConfirmDialog, useTransientSaved } from "../../ui";
 import t from "../../locales/zh-CN.json";
+import { ConnectWizardDialog } from "./connect-wizard";
 
 async function fetchPresets() {
   return bodyOf(await api.GET("/api/v2/providers/presets"));
@@ -242,6 +243,7 @@ function RoleRow({ role, value, connections, busy, onSave }: {
 
 export function ModelSettings() {
   const [loadedModels, setLoadedModels] = useState<Record<string, string[]>>({});
+  const [wizardOpen, setWizardOpen] = useState(false);
   const queryClient = useQueryClient();
   const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const presets = useQuery({ queryKey: ["presets"], queryFn: fetchPresets });
@@ -262,7 +264,13 @@ export function ModelSettings() {
   }
   return (
     <>
-      <h2>{t.settings.models}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2>{t.settings.models}</h2>
+        <Button variant="secondary" size="sm" onClick={() => setWizardOpen(true)}>
+          {t.connectWizard.title}
+        </Button>
+      </div>
+      <ConnectWizardDialog open={wizardOpen} onOpenChange={setWizardOpen} />
       {presets.isPending ? <Loading /> : null}
       {presets.isError ? <Problem error={presets.error} onRetry={() => void presets.refetch()} /> : null}
       {presets.data ? <ConnectForm presets={presets.data} /> : null}
