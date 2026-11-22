@@ -216,6 +216,8 @@ export function applyTutorTheme(themeId: TutorThemeId, tutorId?: string, root?: 
   target.style.setProperty("--accent", palette.accent);
   target.style.setProperty("--accent-strong", palette.accentStrong);
   target.style.setProperty("--accent-soft", palette.accentSoft);
+  target.style.setProperty("--theme-accent-strong", palette.accentStrong);
+  target.style.setProperty("--theme-accent-soft", palette.accentSoft);
   target.style.setProperty("--accent-on-dark", palette.accentOnDark);
   target.style.setProperty("--on-accent", palette.onAccent);
 }

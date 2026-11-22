@@ -24,6 +24,8 @@
   --accent: #1F7A6E;
   --accent-strong: #17625A;
   --accent-soft: #E3F1EE;
+  --theme-accent-strong: #17625A;
+  --theme-accent-soft: #E3F1EE;
   --accent-on-dark: #8FD9CC;
   --on-accent: #FFFFFF;
 
@@ -90,6 +92,8 @@
   --accent: #1F7A6E;
   --accent-strong: #17625A;
   --accent-soft: #E3F1EE;
+  --theme-accent-strong: #17625A;
+  --theme-accent-soft: #E3F1EE;
   --accent-on-dark: #8FD9CC;
   --on-accent: #FFFFFF;
 }
@@ -98,6 +102,8 @@
   --accent: #3F66D8;
   --accent-strong: #3355BC;
   --accent-soft: #E7ECFB;
+  --theme-accent-strong: #3355BC;
+  --theme-accent-soft: #E7ECFB;
   --accent-on-dark: #A9BCF7;
   --on-accent: #FFFFFF;
 }
@@ -106,6 +112,8 @@
   --accent: #4A5B73;
   --accent-strong: #3A495E;
   --accent-soft: #E9EDF2;
+  --theme-accent-strong: #3A495E;
+  --theme-accent-soft: #E9EDF2;
   --accent-on-dark: #B4C2D6;
   --on-accent: #FFFFFF;
 }
@@ -114,6 +122,8 @@
   --accent: #8A55C4;
   --accent-strong: #7443AE;
   --accent-soft: #F1EAFA;
+  --theme-accent-strong: #7443AE;
+  --theme-accent-soft: #F1EAFA;
   --accent-on-dark: #D0B5F2;
   --on-accent: #FFFFFF;
 }
@@ -122,6 +132,8 @@
   --accent: #C4497A;
   --accent-strong: #A93A66;
   --accent-soft: #FBE9F0;
+  --theme-accent-strong: #A93A66;
+  --theme-accent-soft: #FBE9F0;
   --accent-on-dark: #F3A9C4;
   --on-accent: #FFFFFF;
 }
@@ -130,6 +142,8 @@
   --accent: #66752A;
   --accent-strong: #525F1F;
   --accent-soft: #F0F2DF;
+  --theme-accent-strong: #525F1F;
+  --theme-accent-soft: #F0F2DF;
   --accent-on-dark: #C6D48A;
   --on-accent: #FFFFFF;
 }
@@ -138,6 +152,8 @@
   --accent: #1B79A8;
   --accent-strong: #14628A;
   --accent-soft: #E3F1F8;
+  --theme-accent-strong: #14628A;
+  --theme-accent-soft: #E3F1F8;
   --accent-on-dark: #8FCBEA;
   --on-accent: #FFFFFF;
 }
@@ -146,6 +162,8 @@
   --accent: #5B6472;
   --accent-strong: #474F5B;
   --accent-soft: #ECEEF1;
+  --theme-accent-strong: #474F5B;
+  --theme-accent-soft: #ECEEF1;
   --accent-on-dark: #BFC6D0;
   --on-accent: #FFFFFF;
 }
@@ -187,6 +205,8 @@
   --info-text: #7FB2F0;
 
   --board-focus: color-mix(in srgb, var(--accent-on-dark) 16%, #171B22);
+  --accent-strong: var(--accent-on-dark);
+  --accent-soft: color-mix(in srgb, var(--accent-on-dark) 16%, #171B22);
 
   --elev-1: 0 1px 2px rgb(0 0 0 / 0.12), 0 1px 1px rgb(0 0 0 / 0.08);
   --elev-2: 0 4px 12px rgb(0 0 0 / 0.16), 0 2px 4px rgb(0 0 0 / 0.10);
@@ -230,6 +250,8 @@
   --info-text: #1F5FA8;
 
   --board-focus: color-mix(in srgb, var(--accent) 12%, var(--surface-card));
+  --accent-strong: var(--theme-accent-strong);
+  --accent-soft: var(--theme-accent-soft);
 
   --elev-1: 0 1px 2px rgb(16 24 32 / 0.06), 0 1px 1px rgb(16 24 32 / 0.04);
   --elev-2: 0 4px 12px rgb(16 24 32 / 0.08), 0 2px 4px rgb(16 24 32 / 0.05);

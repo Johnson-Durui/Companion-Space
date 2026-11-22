@@ -79,7 +79,7 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   await page.getByRole("button", { name: t.settings.test, exact: true }).click();
   await expect(page.getByTestId("test-results").getByRole("listitem")).toHaveCount(2);
   await expect(page.getByTestId("test-results").locator('[data-failed="true"]')).toHaveCount(0);
-  await page.getByRole("navigation", { name: t.app.name }).getByRole("link", { name: t.app.diagnostics }).click();
+  await page.getByRole("link", { name: t.diagnostics.heading }).first().click();
   await page.getByRole("textbox", { name: t.diagnostics.input }).fill("请回答一个问题");
   await page.getByRole("button", { name: t.common.send }).click();
   await expect(page.getByTestId("reply").first()).toHaveText("测试连接已响应。");
@@ -106,8 +106,8 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   const remaining = await connection.getByRole("option", { name: "备用连接" }).getAttribute("value");
   const obsolete = page.getByTestId("connection-card").filter({ has: page.getByRole("heading", { name: "本地 E2E 服务" }) });
   await obsolete.getByText(t.settings.edit, { exact: true }).click();
-  page.once("dialog", (dialog) => void dialog.accept());
   await obsolete.getByRole("button", { name: t.settings.delete }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: t.settings.confirmDelete }).click();
   await expect(obsolete).toHaveCount(0);
   await expect(connection).toHaveValue(remaining!);
 

@@ -325,3 +325,26 @@
   - 前端 `tsc --noEmit`、`eslint`、Vitest **8 文件 36 项通过**（含新增动作-片段对应、判定清空、出错解锁与自定义属性检查）、`vite build`（771ms）通过。
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**13 项全部通过**（`m1`–`m8` 迁移后全绿，`ux-invariants.spec.ts` I1 / I2 / I9 前半全绿）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U0`：**40 步通过、0 失败**，产出 86 张截图至 `docs/rebuild/review/U0/`，并已人工抽检关键截图与压力内容截图。
+
+### 体验重塑 U1 — 代码完成（自动化通过）（2026-11-22）
+
+**待完成与待验证**
+
+- **所有者视觉与字体拍板未做**：组件陈列页（`npm run review:gallery -- --serve`）的「打包字体 / 系统字体」二选一（默认决定 D1）、版式样板确认、八组老师主题色观感以及 U1 观感五问仍待所有者在自己的显示器上确认。
+- **按计划留待 U2a–U7 的条目**：课堂一屏视频通话布局与控制坞（U2a）、候课与韧性（U2b）、今天页与五步准备旅程（U3）、老师画廊与 6 音色（U4）、手写 SVG 图表与闭环可视化（U5）、白板逐行书写与手机通话布局（U6）、设置分区与默认界面术语清理及删除 `legacy` 层（U7）。
+
+**已落地**
+
+- **依赖核对与字体自托管（任务 1、4）**：锁定 `@base-ui/react@1.9.0`（MIT）、`lucide-react@1.77.0`（ISC）、`clsx@2.1.1`（MIT）、`@fontsource-variable/geist@5.3.0`（OFL-1.1）与 `@fontsource-variable/noto-sans-sc@5.3.1`（OFL-1.1）；React 保持 `19.2.9`；编写 `scripts/generate-fonts-css.mjs` 生成并提交 `apps/web/src/styles/fonts.css`（`font-display: fallback`）及空闲预取 `prefetch-fonts.ts`；将两份 OFL-1.1 许可全文放入 `assets/fonts/LICENSES/`、登记至 `assets/THIRD_PARTY_NOTICES.md` 并接入 `scripts/build-portable.ps1`；记录所有决策与 Tailwind v4 token-to-utility 命名规范至 `DECISIONS.md`。
+- **样式层序、完整 Token 与全站换肤（任务 2、3、10）**：建立 `@layer theme, base, legacy, components, utilities;` 层序，实现 `theme.css`（书桌、舞台、书桌纸面与舞台纸面全套语义 token 与状态色、八组老师主题色、六档字阶、圆角/阴影/动效/层级/断点）与 `base.css`（元素默认、过渡期原生表单统一样式、路由淡入及各组件独立 `prefers-reduced-motion` 降级）；将全部 6 个既有全局 CSS 文件包入 `@layer legacy`、消除 `!important`、移除 `--serif` 与不存在的 `650`/`750` 字重。
+- **老师主题色与后端缺省合并（任务 9 / B8 U1）**：`Character` 与 `TutorUpdate` 增加 `theme` 字段，为六位内置老师设置专属主题色并在读取时对旧安装做无覆盖缺省合并（同步补后端测试与 OpenAPI 契约）；前端 `useTutorThemeSync` 同步根节点主题变量；`tutor-themes.test.ts` 覆盖全部 8 组主题及 4 套表面的 WCAG 对比度（≥ 4.5:1 / ≥ 3:1）与 6 位内置老师两两 OKLab 区分度（≥ 0.07）。
+- **图标与品牌资产（任务 5）**：新建 `apps/web/src/ui/icons.tsx` 统一导出描边图标、`BrandMark` SVG 与无障碍 `DifficultyDots`；更新 `favicon.svg`、生成 180×180 `apple-touch-icon.png` 并对齐 `theme-color`；全站替换所有字符图标（`✦ ▷ → ↗ ＋ ✓ ●○ + − /`）。
+- **组件库与陈列页（任务 6）**：在 `apps/web/src/ui/` 落地全部 23 个 U1 基础组件并配套 `ui-components.test.tsx` 行为单测；在 `apps/web/tests/ui-gallery/`（不进生产构建）搭建包含对比开关（字体/主题色/三表面）、全部组件状态与七类版式样板的组件陈列页，新增 `npm run review:gallery`。
+- **书桌外壳与全站反馈替换（任务 7、8）**：新建 `apps/web/src/shell/AppShell.tsx`（品牌 SVG、带图标的「课程 / 老师 / 设置」导航、「只在本机运行」状态点、手机端底部标签栏、路由淡入），移除顶栏「试聊」并在设置页顶部提供入口；全站 5 处 `window.confirm` 全部替换为 `ConfirmDialog`（默认聚焦安全按钮），`.form-success` 替换为就近确认 + `toast.success`，pending 文案三元表达式替换为 `<Button pending>`，`Loading`/`Problem` 底层切换为延迟 `DelayedSkeleton` 与 `ErrorState`。
+- **机器检查与不变量（任务 11、12）**：`styles-tokens.test.ts` 新增 I4 第二部分（十六进制颜色只减不增遗留白名单、禁止 `transition: all` / `!important`、层序校验）；`ux-invariants.spec.ts` 新增 I3（无原生弹窗）与 I5（保存触发可自动消失的 `role="status"` toast）；同步更新 `m1`、`m5` 与 `ui-tour.mjs`。
+
+**本地验证**
+
+- `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **454 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **10 文件 52 项通过**、`vite build` 886ms 通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**15 / 15 全部通过**（含 I1–I5、I9）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U1`：**40 步通过、0 失败、87 张截图**输出至 `docs/rebuild/review/U1/`；`npm run review:gallery -- U1` 输出 7 张陈列页与字体对比截图至 `docs/rebuild/review/U1/gallery/`，并已人工抽检视觉效果（同时顺手修复了深色舞台下 `--accent-strong` / `--accent-soft` 的对比度适配）。

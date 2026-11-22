@@ -161,3 +161,47 @@ test("I9 (U0): wrong answer, dont-know, confused, and hint map to non-praise cli
   await page.waitForTimeout(400);
   expect(await readSeenClips(page)).not.toContain("react_praise");
 });
+
+test("I3: destructive flows use in-app ConfirmDialog with safe cancel focus and never native browser dialogs", async ({ page }) => {
+  let nativeDialogFired = false;
+  page.on("dialog", (dialog) => {
+    nativeDialogFired = true;
+    void dialog.dismiss();
+  });
+
+  // 1. Classroom end confirmation uses AlertDialog and focuses the safe keep-lesson button.
+  await page.goto("/lessons/browser-avatar-teaching-lesson");
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await expect(page.getByRole("button", { name: t.classroom.end })).toBeEnabled({ timeout: 20_000 });
+  await page.getByRole("button", { name: t.classroom.end }).click();
+  const alertDialog = page.getByRole("alertdialog");
+  await expect(alertDialog).toBeVisible();
+  await expect(alertDialog.getByRole("button", { name: t.classroom.keepLesson })).toBeFocused();
+  await alertDialog.getByRole("button", { name: t.classroom.keepLesson }).click();
+  await expect(alertDialog).toBeHidden();
+
+  // 2. Course knowledge-point delete confirmation uses AlertDialog.
+  await page.goto("/courses/browser-today-course");
+  await page.getByRole("button", { name: t.courses.revise }).first().click();
+  await page.getByText(t.courses.moreRevisions, { exact: true }).click();
+  await page.getByRole("button", { name: t.common.remove }).last().click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await page.getByRole("alertdialog").getByRole("button", { name: t.common.keep }).click();
+  await expect(page.getByRole("alertdialog")).toBeHidden();
+
+  expect(nativeDialogFired).toBe(false);
+});
+
+test("I5: saving settings emits an accessible status toast that auto-dismisses", async ({ page }) => {
+  await page.goto("/settings");
+  const dataSection = page.getByRole("region", { name: t.settings.data });
+  await expect(dataSection).toBeVisible({ timeout: 15_000 });
+  const saveButton = dataSection.getByRole("button", { name: t.common.save });
+  await saveButton.click();
+
+  const statusToast = page.getByTestId("toast-item").filter({ hasText: t.common.saved });
+  await expect(statusToast).toBeVisible({ timeout: 10_000 });
+  await expect(statusToast).toHaveAttribute("role", "status");
+  // Wait for auto-dismiss (~5s default).
+  await expect(statusToast).toBeHidden({ timeout: 8_000 });
+});

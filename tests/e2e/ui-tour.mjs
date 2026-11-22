@@ -370,6 +370,10 @@ try {
   });
   await step("lesson end + recap", async () => {
     await button(page, t.classroom.end).click();
+    await page.getByRole("alertdialog").waitFor({ timeout: 10_000 });
+    await settle(300);
+    await shot(page, "lesson-end-confirm");
+    await page.getByRole("alertdialog").getByRole("button", { name: t.classroom.confirmEnd }).click();
     await page.getByRole("heading", { name: t.classroom.recap }).waitFor({ timeout: 25_000 });
     await settle(700);
     await shot(page, "lesson-recap");
