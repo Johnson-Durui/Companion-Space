@@ -22,13 +22,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 0 16px;
+  gap: 10px;
+  padding: 0 14px;
   min-width: 0;
   color: var(--text-secondary);
 }
 
 .cs-stage-main {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
@@ -85,12 +86,37 @@
   color: var(--text-primary);
 }
 
+/* Persistent transcript 3rd column on wide viewports (>= 1600px) */
+.cs-stage-transcript {
+  display: none;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+}
+
+@container stage (min-width: 1600px) {
+  .cs-stage-main[data-transcript-docked="true"] {
+    grid-template-columns: auto minmax(0, 1fr) 336px;
+  }
+  .cs-stage-shell[data-view-mode="board-first"] .cs-stage-main[data-transcript-docked="true"] {
+    grid-template-columns: minmax(0, 1fr) 336px;
+  }
+  .cs-stage-transcript {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
 .cs-stage-board-scroll {
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: clamp(16px, 2.4vw, 28px);
+  padding: clamp(14px, 2.2vw, 28px);
   background-color: var(--surface-page);
   color: var(--text-primary);
 }
@@ -121,9 +147,43 @@
   min-width: 0;
 }
 
+/* Board-first view mode (manual desktop toggle + auto 768-1099px): teacher floats as draggable PiP */
+@media (min-width: 768px) {
+  .cs-stage-shell[data-view-mode="board-first"] .cs-stage-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cs-stage-shell[data-view-mode="board-first"] .cs-stage-left,
+  .cs-stage-shell[data-view-mode="board-first"] .cs-stage-left[data-text-mode="true"] {
+    position: absolute;
+    top: 12px;
+    left: 24px;
+    z-index: var(--z-sticky);
+    width: 160px;
+    min-width: 160px;
+    max-width: 160px;
+    height: 284px;
+    max-height: calc(100% - 24px);
+    cursor: grab;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-3);
+  }
+  .cs-stage-shell[data-view-mode="board-first"] .cs-stage-left:active {
+    cursor: grabbing;
+  }
+  .cs-stage-shell[data-view-mode="board-first"] .cs-stage-left .tvb-frame.tvb-stage-fill {
+    width: 160px;
+    min-width: 160px;
+    height: 100%;
+    border-radius: var(--radius-lg);
+  }
+  .cs-stage-shell[data-view-mode="board-first"] [data-testid="text-mode-log"] {
+    display: none;
+  }
+}
+
 /* Short laptop viewports (e.g. 1280x585, 1366x633, 1280x720) */
 @container stage (max-height: 650px) {
-  .cs-stage-left .tvb-frame.tvb-stage-fill {
+  .cs-stage-shell[data-view-mode="split"] .cs-stage-left .tvb-frame.tvb-stage-fill {
     width: 280px;
     min-width: 280px;
     aspect-ratio: auto;
@@ -166,45 +226,120 @@
   }
 }
 
-/* Narrow / mobile usable layout in U2a (full call layout arrives in U6) */
+@container stage (max-width: 1040px) {
+  .cs-dock-transcript-inline {
+    display: none;
+  }
+}
+
+/* Mobile (< 768px) dual-mode video-call classroom layout (§5.6.13, I15) */
 @media (max-width: 767px) {
   .cs-stage-shell {
     grid-template-rows: 48px minmax(0, 1fr) auto;
   }
+
   .cs-stage-main {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(170px, 34dvh) minmax(0, 1fr);
     gap: 8px;
     padding: 0 8px 8px;
   }
-  .cs-stage-left,
-  .cs-stage-left[data-text-mode="true"] {
+
+  /* Teacher mode: vertical 9:16 portrait ~56% height + latest board preview below */
+  .cs-stage-shell[data-mobile-view="teacher"] .cs-stage-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(220px, 56fr) minmax(0, 44fr);
+  }
+
+  /* When AnswerTray is open on mobile teacher mode, give room to tray while keeping portrait vertical */
+  .cs-stage-shell[data-mobile-view="teacher"][data-tray-open="true"] .cs-stage-main {
+    grid-template-rows: minmax(140px, 30fr) minmax(0, 70fr);
+  }
+
+  .cs-stage-shell[data-mobile-view="teacher"] .cs-stage-left,
+  .cs-stage-shell[data-mobile-view="teacher"] .cs-stage-left[data-text-mode="true"] {
     width: 100%;
     min-width: 0;
     max-width: none;
     height: 100%;
     flex-direction: row;
+    justify-content: center;
+    align-items: center;
   }
-  .cs-stage-video-slot {
+
+  .cs-stage-shell[data-mobile-view="teacher"] .cs-stage-left .tvb-frame.tvb-stage-fill {
     height: 100%;
     width: auto;
-  }
-  .cs-stage-left .tvb-frame.tvb-stage-fill {
-    height: 100%;
-    width: auto;
-    min-width: 112px;
-    max-width: 196px;
+    min-width: 110px;
+    max-width: 100%;
     aspect-ratio: 9 / 16;
     border-radius: var(--radius-lg);
   }
+
+  .cs-stage-shell[data-mobile-view="teacher"] [data-testid="text-mode-log"] {
+    display: none;
+  }
+
+  /* Board mode: full scrollable whiteboard + vertical corner teacher PiP */
+  .cs-stage-shell[data-mobile-view="board"] .cs-stage-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .cs-stage-shell[data-mobile-view="board"] .cs-stage-left,
+  .cs-stage-shell[data-mobile-view="board"] .cs-stage-left[data-text-mode="true"] {
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    z-index: var(--z-sticky);
+    width: 86px;
+    min-width: 86px;
+    max-width: 86px;
+    height: 152px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-3);
+  }
+
+  .cs-stage-shell[data-mobile-view="board"] .cs-stage-left .tvb-frame.tvb-stage-fill {
+    width: 86px;
+    min-width: 86px;
+    height: 152px;
+    aspect-ratio: 9 / 16;
+    border-radius: var(--radius-md);
+  }
+
+  .cs-stage-shell[data-mobile-view="board"] .cs-stage-left .tvb-top-bar {
+    padding: 6px;
+  }
+
+  .cs-stage-shell[data-mobile-view="board"] .cs-stage-left .tvb-status-pill {
+    padding: 4px 6px;
+    font-size: 0.6875rem;
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cs-stage-shell[data-mobile-view="board"] .cs-stage-left .tvb-status-pill > span:last-child {
+    display: none;
+  }
+
+  .cs-stage-shell[data-mobile-view="board"] [data-testid="text-mode-log"] {
+    display: none;
+  }
+
+  .cs-stage-tray {
+    max-height: min(74%, calc(100% - 76px));
+  }
+
   .cs-stage-dock {
     height: auto;
     min-height: 68px;
     padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
     gap: 8px;
   }
+
   .cs-dock-chip-inline,
-  .cs-dock-hide-mobile {
+  .cs-dock-hide-mobile,
+  .cs-dock-transcript-inline {
     display: none;
   }
 }

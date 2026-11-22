@@ -616,10 +616,15 @@ class BrowserHarnessGateway(LLMGateway):
             return
         if "recent_board" in prompt:
             yield (
-                "<board id=b-text type=text>先确认已知条件。</board>"
+                "<board id=b-text type=text>先确认已知条件。\n再检查边界取值。</board>"
+                "<board id=b-steps type=steps title='三步推导示例'>y = x^2 + 1\ny' = 2x\ny'(1) = 2</board>"
+                "<mark target=b-steps.1 style=underline color=accent/>"
+                "<mark target=b-steps.2 style=box color=warn/>"
+                "<mark target=b-steps.3 style=color color=ok/>"
+                "<point target=b-steps.2/>"
                 "<board id=b-math type=math>x^2+1</board>"
                 "<board id=b-table type=table>| x | y |\n|---|---|\n| 1 | 2 |</board>"
-                '<board id=b-plot type=plot>{"fn":["x^2"],"x":[-2,2],"points":[[1,1]]}</board>'
+                '<board id=b-plot type=plot>{"fn":["x^2","x+1"],"x":[-2,2],"points":[[1,1]],"holes":[[0,0]],"labels":[{"at":[1,1],"text":"交点"}]}</board>'
                 "<board id=b-diagram type=diagram>flowchart TD\nA --&gt;</board>"
                 "<say>开始吧。</say>"
             )

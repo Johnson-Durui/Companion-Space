@@ -146,3 +146,9 @@
 - **复习会话独立快照查询键（I14 防早退）**：复习会话 `/courses/:courseId/review/session` 与候课热身分别使用独立查询键 `["review-session-snapshot", courseId]` 与 `["lobby-warmup-snapshot", courseId, planItemId]`，确保单张卡片答后触发 `["courses", courseId, "review"]` 缓存失效时不会卸载当前卡片、打断答后反馈停顿（I14）。
 - **手写 SVG 图表全量语义变量化**：`apps/web/src/ui/charts/` 8 个组件（`MasteryGrid`、`WeightBar`/`MasteryBar`、`ScoreBar`、`ScoreRing`、`StudyCalendar`、`WeeklyMinutes`、`SegmentProgress`、`PrereqChain`）零第三方图表库、零硬编码十六进制色，四态掌握度同步区分颜色与独立 SVG 几何形状（实心勾圆 / 半实圆 / 警告三角 / 虚线空圆）。
 - **跨课程「这一周」汇总接口**：新增只读 `GET /api/v2/learner/week-summary` 一次返回近 7 天学习活跃格、本周总分钟数、已完成节数与连续学习天数，避免今天页对多门课程发起 N+1 进度查询。
+
+## 体验重塑 U6 执行决定（2026-11-22）
+
+- **白板多步推导自适应节奏与内容增长跟随**：`packages/board/components.tsx` 的 `steps` 块采用自适应行间间隔 `clamp(45ms, 280ms, 1100ms / (lines - 1))`（减少动态效果下瞬时全显），同时 `BoardPanel` 对内部内容容器挂载 `ResizeObserver`，确保逐行显现或函数图/流程图异步渲染拉高页面时在自动跟随态持续滚入最新行（满足 I7 且不打断手动上滚）。
+- **麦克风上下文预热复用与安全释放**：确认 `MicrophoneCapture.start()` 原先每次按住说话都重建 `AudioContext` 并通过 Blob URL 重新执行 `audioWorklet.addModule()`，确实会引入首音节延迟；改为进入语音课时通过 `warmup()` 预加载并缓存 `AudioContext` + `AudioWorklet` 模块，松开时仅停止 `MediaStream` 轨道并 `suspend()`（立刻熄灭系统麦克风灯），切走标签页或卸载时 `dispose()` 彻底关闭上下文。
+- **白板模块样式零硬编码色值**：彻底清理 `packages/board/board.module.css` 中的全部十六进制色并改用设计系统语义变量，从 `apps/web/tests/styles-tokens.test.ts` 的 `HEX_ALLOWED_FILES` 遗留白名单中提前移除该文件。

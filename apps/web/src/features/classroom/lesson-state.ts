@@ -1,5 +1,5 @@
 import type { InstantAction, TutorEmotion, TutorPose } from "@companion-space/avatar-engine/types";
-import { applyBoardEvent, type Block } from "./board";
+import { applyBoardPagesEvent, type Block, type Page } from "./board";
 import type { LessonEvent } from "./timeline";
 
 export type Ask = {
@@ -12,6 +12,7 @@ export type Prefill = { item_id: string; value: string | string[]; via: "voice" 
 
 export type BoardDivider = {
   id: string;
+  pageIndex: number;
   afterBlockCount: number;
   kind: "stage" | "reexplain" | "prereq" | "return";
   stage?: string;
@@ -25,16 +26,25 @@ export type SpokenEntry = {
   role: "teacher" | "student";
   text: string;
   badge?: "voice" | "text" | "quick";
+  quickLabel?: string;
   seq?: number;
+  order?: number;
 };
 
 export type AnsweredCard = {
   id: string;
+  pageIndex: number;
   afterBlockCount: number;
   stem: string;
   verdict: string;
   studentAnswer?: string;
   correctAnswer?: string;
+};
+
+export type BoardPointTarget = {
+  blockId: string;
+  line?: number;
+  seq: number;
 };
 
 const avatarEmotions = new Set(["neutral", "warm", "cheerful", "curious", "focused", "playful", "concerned"]);
@@ -51,6 +61,8 @@ export type AvatarState = {
 };
 
 export type ClassroomState = {
+  boardPages: readonly Page[];
+  /** Current/latest page blocks (derived convenience view for existing callers). */
   board: readonly Block[];
   caption: string;
   ask?: Ask;
@@ -64,6 +76,8 @@ export type ClassroomState = {
   lastMove?: string;
   lastStyle?: string;
   activeBlockId?: string;
+  activePoint?: BoardPointTarget;
+  latestMarkSeq?: number;
   dividers: readonly BoardDivider[];
   spokenLog: readonly SpokenEntry[];
   answeredCards: readonly AnsweredCard[];
@@ -72,6 +86,7 @@ export type ClassroomState = {
 };
 
 export const initialClassroom: ClassroomState = {
+  boardPages: [{ id: "page-1", blocks: [] }],
   board: [],
   caption: "",
   stage: "opening",
@@ -97,6 +112,13 @@ function parseEmotion(value: unknown, fallback: TutorEmotion): TutorEmotion {
   return typeof value === "string" && avatarEmotions.has(value) ? (value as TutorEmotion) : fallback;
 }
 
+function parseTarget(value: unknown): { blockId: string; line?: number } {
+  if (typeof value !== "string") return { blockId: "" };
+  const [blockId, rawLine] = value.split(".", 2);
+  const line = rawLine && /^\d+$/.test(rawLine) ? Number(rawLine) : undefined;
+  return { blockId, line };
+}
+
 function appendSpoken(log: readonly SpokenEntry[], entry: SpokenEntry): readonly SpokenEntry[] {
   if (!entry.text.trim()) return log;
   if (log.some((item) => item.id === entry.id)) return log;
@@ -112,23 +134,51 @@ function appendDivider(dividers: readonly BoardDivider[], divider: BoardDivider)
   return [...dividers, divider];
 }
 
+export function mergeTranscriptEntries(
+  teacherLog: readonly SpokenEntry[],
+  studentLog: readonly SpokenEntry[],
+): SpokenEntry[] {
+  const combined = [...teacherLog, ...studentLog];
+  combined.sort((a, b) => {
+    const orderA = a.order ?? (a.seq ?? 0) * 1000;
+    const orderB = b.order ?? (b.seq ?? 0) * 1000;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.id.localeCompare(b.id);
+  });
+  return combined;
+}
+
 export function advanceClassroom(state: ClassroomState, event: LessonEvent): ClassroomState {
   const { data } = event;
   const gen = Math.max(state.avatar.gen, event.gen);
+  const currentPageIndex = Math.max(0, state.boardPages.length - 1);
+
   switch (event.type) {
     case "board":
     case "mark": {
-      const nextBoard = applyBoardEvent(state.board, event);
+      const nextPages = applyBoardPagesEvent(state.boardPages, event);
+      const nextBoard = nextPages[nextPages.length - 1]?.blocks ?? [];
+      const parsedTarget = parseTarget(data.target);
       const targetId =
         typeof data.id === "string"
           ? data.id
           : typeof data.block_id === "string"
             ? data.block_id
-            : nextBoard[nextBoard.length - 1]?.id;
+            : parsedTarget.blockId || nextBoard[nextBoard.length - 1]?.id;
+      const nextPoint =
+        event.type === "mark" && parsedTarget.blockId
+          ? { blockId: parsedTarget.blockId, line: parsedTarget.line, seq: event.seq }
+          : event.type === "board" && data.op === "clear"
+            ? undefined
+            : state.activePoint;
+      const nextLatestMarkSeq = event.type === "mark" ? event.seq : state.latestMarkSeq;
       return {
         ...state,
+        boardPages: nextPages,
         board: nextBoard,
-        activeBlockId: targetId ?? state.activeBlockId,
+        activeBlockId: targetId ?? (data.op === "clear" ? undefined : state.activeBlockId),
+        activePoint: nextPoint,
+        latestMarkSeq: nextLatestMarkSeq,
         avatar: {
           ...state.avatar,
           gen,
@@ -149,6 +199,7 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
           role: "teacher",
           text,
           seq: event.seq,
+          order: event.seq * 1000,
         }),
         avatar: {
           ...state.avatar,
@@ -162,12 +213,18 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
       };
     }
     case "point": {
-      const nextBoard = applyBoardEvent(state.board, event);
-      const targetId = typeof data.target === "string" ? data.target.split(".")[0] : state.activeBlockId;
+      const nextPages = applyBoardPagesEvent(state.boardPages, event);
+      const nextBoard = nextPages[nextPages.length - 1]?.blocks ?? [];
+      const parsed = parseTarget(data.target);
+      const targetId = parsed.blockId || state.activeBlockId;
       return {
         ...state,
+        boardPages: nextPages,
         board: nextBoard,
         activeBlockId: targetId,
+        activePoint: parsed.blockId
+          ? { blockId: parsed.blockId, line: parsed.line, seq: event.seq }
+          : state.activePoint,
         avatar: {
           ...state.avatar,
           gen,
@@ -207,6 +264,7 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
       if (move === "REEXPLAIN" || (style && state.lastStyle && style !== state.lastStyle)) {
         dividers = appendDivider(dividers, {
           id: `div:adapt:${event.seq}`,
+          pageIndex: currentPageIndex,
           afterBlockCount: state.board.length,
           kind: "reexplain",
           style: style ?? state.lastStyle,
@@ -215,6 +273,7 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
       } else if (move === "PREREQ_REMEDIATE" || move === "REMEDIATE") {
         dividers = appendDivider(dividers, {
           id: `div:prereq:${event.seq}`,
+          pageIndex: currentPageIndex,
           afterBlockCount: state.board.length,
           kind: "prereq",
           kpName,
@@ -222,6 +281,7 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
       } else if (move === "RETURN_FROM_REMEDIATE" || move === "RETURN") {
         dividers = appendDivider(dividers, {
           id: `div:return:${event.seq}`,
+          pageIndex: currentPageIndex,
           afterBlockCount: state.board.length,
           kind: "return",
         });
@@ -279,6 +339,7 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
               ...state.answeredCards,
               {
                 id: cardId,
+                pageIndex: currentPageIndex,
                 afterBlockCount: state.board.length,
                 stem,
                 verdict,
@@ -309,6 +370,7 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
       const dividers = stageChanged
         ? appendDivider(state.dividers, {
             id: `div:stage:${nextStage}:${event.seq}`,
+            pageIndex: currentPageIndex,
             afterBlockCount: state.board.length,
             kind: "stage",
             stage: nextStage,

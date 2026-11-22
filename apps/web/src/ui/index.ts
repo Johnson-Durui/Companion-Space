@@ -14,11 +14,13 @@ export {
 export { Combobox, type ComboboxProps } from "./combobox";
 export { ConfirmDialog, type ConfirmDialogProps } from "./confirm-dialog";
 export { Dialog, type DialogProps } from "./dialog";
+export { Drawer, type DrawerProps } from "./drawer";
 export { EmptyState, type EmptyStateProps } from "./empty-state";
 export { ErrorState, type ErrorStateProps } from "./error-state";
 export { Field, useFieldContext, type FieldProps } from "./field";
 export { FileDropzone, type FileDropzoneProps } from "./file-dropzone";
 export { IconButton, type IconButtonProps, type IconButtonShape, type IconButtonSize, type IconButtonVariant } from "./icon-button";
+export { Kbd, type KbdProps } from "./kbd";
 export { LevelMeter, type LevelMeterProps } from "./level-meter";
 export { Menu, type MenuItemEntry, type MenuProps } from "./menu";
 export { Popover, type PopoverProps } from "./popover";

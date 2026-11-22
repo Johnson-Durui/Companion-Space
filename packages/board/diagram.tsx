@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import styles from "./board.module.css";
 
 function repair(source: string) {
@@ -6,6 +6,33 @@ function repair(source: string) {
   if (!/^(?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap|timeline|journey|gitGraph|quadrantChart|xychart-beta)\b/i.test(value)
     && /-->|---|==>/.test(value)) value = `flowchart TD\n${value}`;
   return value;
+}
+
+function readThemeVars(el: HTMLElement | null) {
+  const read = (name: string, fallback: string) => {
+    if (!el) return fallback;
+    try {
+      return getComputedStyle(el).getPropertyValue(name).trim() || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const primaryColor = read("--accent-soft", "rgb(227 241 238)");
+  const primaryTextColor = read("--text-primary", "rgb(27 33 38)");
+  const primaryBorderColor = read("--accent", "rgb(31 122 110)");
+  const lineColor = read("--text-secondary", "rgb(85 96 106)");
+  const secondaryColor = read("--surface-sunken", "rgb(239 237 232)");
+  const tertiaryColor = read("--surface-card", "rgb(255 253 246)");
+  const fontFamily = read("--font-sans", "system-ui, sans-serif");
+  return {
+    primaryColor,
+    primaryTextColor,
+    primaryBorderColor,
+    lineColor,
+    secondaryColor,
+    tertiaryColor,
+    fontFamily,
+  };
 }
 
 export function DiagramBlock({
@@ -18,12 +45,21 @@ export function DiagramBlock({
   viewSourceLabel?: string;
 }) {
   const reactId = useId().replace(/[^A-Za-z0-9_-]/g, "");
+  const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>();
   const [failed, setFailed] = useState(false);
+
   useEffect(() => {
     let active = true;
     void import("mermaid").then(async ({ default: mermaid }) => {
-      mermaid.initialize({ startOnLoad: false, securityLevel: "strict", maxTextSize: 20_000 });
+      const themeVariables = readThemeVars(containerRef.current ?? document.documentElement);
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        maxTextSize: 20_000,
+        theme: "base",
+        themeVariables,
+      });
       for (const [index, candidate] of [source, repair(source)].entries()) {
         if (index === 1 && candidate === source) continue;
         if (await mermaid.parse(candidate, { suppressErrors: true })) {
@@ -36,6 +72,7 @@ export function DiagramBlock({
     }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, [reactId, source]);
+
   if (failed) {
     return (
       <div className={styles.fallback} role="note">
@@ -47,6 +84,9 @@ export function DiagramBlock({
       </div>
     );
   }
-  return svg ? <div className={styles.diagram} dangerouslySetInnerHTML={{ __html: svg }} /> : <div className={styles.pending} aria-busy="true" />;
+  return (
+    <div ref={containerRef} className={svg ? styles.diagram : styles.pending} aria-busy={!svg || undefined}>
+      {svg ? <div dangerouslySetInnerHTML={{ __html: svg }} /> : null}
+    </div>
+  );
 }
-

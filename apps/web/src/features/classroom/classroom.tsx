@@ -25,16 +25,26 @@ import { TutorVideoBox, type TutorVideoBoxHandle } from "@companion-space/avatar
 import "@companion-space/avatar-engine/video-box.css";
 import { api, bodyOf, sessionKey } from "../../app/api";
 import { Loading } from "../../app/ui";
-import { StageShell } from "../../shell/StageShell";
+import {
+  StageShell,
+  type StageMobileView,
+  type StageViewMode,
+} from "../../shell/StageShell";
 import {
   ArrowLeft,
   Badge,
   Button,
+  ChevronRight,
   ConfirmDialog,
+  Dialog,
+  Drawer,
   ErrorState,
   Gauge,
+  HelpCircle,
   MessageSquareText,
+  Monitor,
   Pause,
+  PictureInPicture2,
   Play,
   Popover,
   RefreshCw,
@@ -43,7 +53,15 @@ import {
   Spinner,
   toast,
 } from "../../ui";
-import { MicrophoneCapture, Pcm16Framer, type HandsFreeVad } from "../../audio";
+import {
+  classifyMicrophoneError,
+  MicrophoneCapture,
+  Pcm16Framer,
+  readSoundCuePrefs,
+  SoundCuePlayer,
+  type HandsFreeVad,
+  type MicrophoneErrorKind,
+} from "../../audio";
 import t from "../../locales/zh-CN.json";
 import { toVideoAvatarConfig, videoBoxLabels } from "../characters/video-config";
 import { createSidecarConnector } from "../characters/sidecar-connector";
@@ -59,13 +77,16 @@ import {
   resolvePhasePose,
   type PendingSubmit,
 } from "./lesson-phase";
-import type { SpokenEntry } from "./lesson-state";
+import { mergeTranscriptEntries } from "./lesson-state";
 import { RecapView } from "./recap-view";
+import { ShortcutsDialog } from "./shortcuts-dialog";
+import { TranscriptPanel } from "./transcript-panel";
 import { useClassroom } from "./use-classroom";
 
 const copy = t.classroom;
 const CAPTION_STORAGE_KEY = "cs:classroom:caption-visible";
 const VOLUME_STORAGE_KEY = "cs:classroom:volume";
+const VIEW_MODE_STORAGE_KEY = "cs:classroom:view-mode";
 
 function readStoredCaption(): boolean {
   try {
@@ -86,6 +107,23 @@ function readStoredVolume(): number {
   }
 }
 
+function readStoredViewMode(): StageViewMode | null {
+  try {
+    const raw = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    return raw === "split" || raw === "board-first" ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredViewMode(mode: StageViewMode) {
+  try {
+    window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  } catch {
+    // Ignore storage failures
+  }
+}
+
 function useReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -96,6 +134,27 @@ function useReducedMotion() {
     return () => query.removeEventListener("change", update);
   }, []);
   return reduced;
+}
+
+function useViewportBuckets() {
+  const read = () => {
+    if (typeof window === "undefined") {
+      return { isMobile: false, isCompactTablet: false, isWideDesktop: false };
+    }
+    const w = window.innerWidth;
+    return {
+      isMobile: w < 768,
+      isCompactTablet: w >= 768 && w < 1100,
+      isWideDesktop: w >= 1600,
+    };
+  };
+  const [buckets, setBuckets] = useState(read);
+  useEffect(() => {
+    const update = () => setBuckets(read());
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return buckets;
 }
 
 function formatClock(totalMs: number): string {
@@ -116,6 +175,7 @@ function Lesson({ id }: { id: string }) {
   const composerRef = useRef<HTMLInputElement>(null);
   const spokenScrollRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
+  const { isMobile, isCompactTablet, isWideDesktop } = useViewportBuckets();
 
   const [quietCompanion, setQuietCompanion] = useState(false);
   const [instantOverride, setInstantOverride] = useState<{ action: InstantAction; until: number } | null>(null);
@@ -124,6 +184,9 @@ function Lesson({ id }: { id: string }) {
   const [endOpen, setEndOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [micHelpOpen, setMicHelpOpen] = useState(false);
+  const [micErrorKind, setMicErrorKind] = useState<MicrophoneErrorKind | null>(null);
   const [activeTier, setActiveTier] = useState<VideoAvatarTier | null>(null);
   const [degradedNotice, setDegradedNotice] = useState<{
     code?: VideoDriverDegradedCode;
@@ -136,18 +199,52 @@ function Lesson({ id }: { id: string }) {
   const [showCaption, setShowCaption] = useState<boolean>(() => readStoredCaption());
   const [volume, setVolume] = useState<number>(() => readStoredVolume());
   const [muted, setMuted] = useState(false);
+  const [soundCuePrefs, setSoundCuePrefs] = useState(() => readSoundCuePrefs());
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [textHeld, setTextHeld] = useState(false);
   const [dismissedDividerId, setDismissedDividerId] = useState<string | null>(null);
+  const [storedViewMode, setStoredViewMode] = useState<StageViewMode | null>(() => readStoredViewMode());
+  const [mobileView, setMobileView] = useState<StageMobileView>("teacher");
+  const [transcriptOpen, setTranscriptOpen] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 1600 : false,
+  );
+
+  const effectiveViewMode: StageViewMode = isCompactTablet
+    ? (storedViewMode ?? "board-first")
+    : (storedViewMode ?? "split");
 
   const lastActivityRef = useRef<number>(0);
   const previewJudgeGenRef = useRef<number>(-1);
-  const capture = useRef<MicrophoneCapture>(null);
+  const capture = useRef<MicrophoneCapture | null>(null);
   const vad = useRef<HandsFreeVad>(null);
   const vadRequest = useRef(0);
   const down = useRef(false);
   const micStarted = useRef(false);
   const echoProtected = useRef(false);
+  const echoNotifiedRef = useRef(false);
+  const recordingRef = useRef(false);
+  const speakingRef = useRef(false);
+  const lastCueConnectRef = useRef(false);
+  const lastCueAskSeqRef = useRef<number | undefined>(undefined);
+  const lastCueVerdictKeyRef = useRef<string | null>(null);
+  const lastCueEndRef = useRef(false);
+
+  const soundCuesRef = useRef<SoundCuePlayer | null>(null);
+
+  useEffect(() => {
+    recordingRef.current = recording;
+  }, [recording]);
+
+  useEffect(() => {
+    const player = new SoundCuePlayer({
+      isSuppressed: () => speakingRef.current || recordingRef.current,
+    });
+    soundCuesRef.current = player;
+    return () => {
+      soundCuesRef.current = null;
+      void player.close();
+    };
+  }, []);
 
   const onSpeechLevel = useCallback((level: number) => {
     videoRef.current?.pushSpeechLevel(level);
@@ -176,10 +273,22 @@ function Lesson({ id }: { id: string }) {
     queryFn: async () => bodyOf(await api.GET("/api/v2/voice/status")),
   });
 
+  useEffect(() => {
+    speakingRef.current = live.speaking || live.audioSpeaking;
+  }, [live.speaking, live.audioSpeaking]);
+
   const markLearnerActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
     setQuietCompanion(false);
   }, []);
+
+  const startLesson = useCallback(
+    (withAudio: boolean) => {
+      soundCuesRef.current?.unlock();
+      return live.start(withAudio);
+    },
+    [live],
+  );
 
   // Sync audio volume & mute to SpeechOutput
   useEffect(() => {
@@ -197,6 +306,10 @@ function Lesson({ id }: { id: string }) {
 
   useEffect(() => {
     echoProtected.current = live.echoProtected;
+    if (live.echoProtected && !echoNotifiedRef.current) {
+      echoNotifiedRef.current = true;
+      toast.info(copy.echo);
+    }
   }, [live.echoProtected]);
 
   // Clear instant override timer
@@ -207,14 +320,10 @@ function Lesson({ id }: { id: string }) {
     return () => window.clearTimeout(timer);
   }, [instantOverride]);
 
-  // Surface voice fallback / echo / error messages as non-blocking toasts
+  // Surface voice fallback as non-blocking toast
   useEffect(() => {
     if (live.fallback) toast.info(live.fallback);
   }, [live.fallback]);
-
-  useEffect(() => {
-    if (live.echoProtected) toast.info(copy.echo);
-  }, [live.echoProtected]);
 
   // Derive active teaching style (local pick takes precedence until next server style update)
   const currentStyle = live.classroom.lastStyle ?? selectedStyle ?? live.room?.style_id ?? "guided";
@@ -314,14 +423,55 @@ function Lesson({ id }: { id: string }) {
     audioSpeaking: live.audioSpeaking,
   });
 
+  // Synthesized sound cues (design-system §9)
+  useEffect(() => {
+    if (live.started && live.connected && !lastCueConnectRef.current) {
+      lastCueConnectRef.current = true;
+      soundCuesRef.current?.play("connect");
+    }
+  }, [live.started, live.connected]);
+
+  useEffect(() => {
+    if (phase === "awaiting" && live.classroom.askSeq !== undefined && live.classroom.askSeq !== lastCueAskSeqRef.current) {
+      lastCueAskSeqRef.current = live.classroom.askSeq;
+      soundCuesRef.current?.play("your_turn");
+    }
+  }, [phase, live.classroom.askSeq]);
+
+  const verdictForCue =
+    live.classroom.judge ??
+    (live.previewVerdict?.askSeq === live.classroom.askSeq ? live.previewVerdict?.verdict : undefined);
+  useEffect(() => {
+    if (!verdictForCue || live.classroom.askSeq === undefined) return;
+    const key = `${live.classroom.askSeq}:${verdictForCue}`;
+    if (lastCueVerdictKeyRef.current === key) return;
+    lastCueVerdictKeyRef.current = key;
+    soundCuesRef.current?.play(verdictForCue === "correct" ? "correct" : "retry");
+  }, [verdictForCue, live.classroom.askSeq]);
+
+  useEffect(() => {
+    if ((phase === "ending" || phase === "ended") && !lastCueEndRef.current) {
+      lastCueEndRef.current = true;
+      soundCuesRef.current?.play("lesson_end");
+    }
+  }, [phase]);
+
   // Seamless single-click entry when navigating from /plan-items/:itemId/lesson Lobby
   useEffect(() => {
     if (!fromLobby || autoStartConsumedRef.current) return;
     if (!live.connected || live.started || ended) return;
     if (phase !== "lobby" && phase !== "paused") return;
     autoStartConsumedRef.current = true;
-    void live.start(lobbyNavState?.autoStartAudio ?? true);
-  }, [ended, fromLobby, live, lobbyNavState?.autoStartAudio, phase]);
+    void startLesson(lobbyNavState?.autoStartAudio ?? true);
+  }, [ended, fromLobby, live.connected, live.started, lobbyNavState?.autoStartAudio, phase, startLesson]);
+
+  // Pre-warm reusable MicrophoneCapture AudioContext + AudioWorklet when entering a voice lesson
+  const sttConfigured = Boolean(voice.data?.stt_configured);
+  useEffect(() => {
+    if (!live.started || !live.lastAudio || !sttConfigured) return;
+    if (!capture.current) capture.current = new MicrophoneCapture();
+    void capture.current.warmup();
+  }, [live.started, live.lastAudio, sttConfigured]);
 
   // Quiet companion timer while awaiting student answer
   useEffect(() => {
@@ -351,14 +501,14 @@ function Lesson({ id }: { id: string }) {
     live.classroom.judge,
   ]);
 
-  // Release mic when tab hides
+  // Release mic & warmed AudioContext cleanly when tab hides or unmounts
   useEffect(() => {
     const release = () => {
       if (!document.hidden) return;
       vadRequest.current += 1;
       down.current = false;
       micStarted.current = false;
-      void capture.current?.stop();
+      void capture.current?.dispose();
       void vad.current?.destroy();
       capture.current = null;
       vad.current = null;
@@ -372,8 +522,9 @@ function Lesson({ id }: { id: string }) {
       document.removeEventListener("visibilitychange", release);
       vadRequest.current += 1;
       down.current = false;
-      void capture.current?.stop();
+      void capture.current?.dispose();
       void vad.current?.destroy();
+      capture.current = null;
     };
   }, []);
 
@@ -385,23 +536,46 @@ function Lesson({ id }: { id: string }) {
     return live.interrupt();
   }, [currentGen, live, markLearnerActivity]);
 
+  const surfaceMicError = useCallback((err: unknown) => {
+    const kind = classifyMicrophoneError(err);
+    setMicErrorKind(kind);
+    if (kind === "permission_denied") {
+      toast.error(copy.micDeniedTitle, {
+        action: {
+          label: copy.micHelpButton,
+          onClick: () => setMicHelpOpen(true),
+        },
+      });
+    } else if (kind === "not_found") {
+      toast.error(copy.micNotFoundTitle);
+    } else {
+      toast.error(copy.micOtherTitle);
+    }
+  }, []);
+
   const finishMic = useCallback(() => {
     if (!down.current) return;
     down.current = false;
     setRecording(false);
     setMicLevel(0);
     void capture.current?.stop();
-    capture.current = null;
-    if (micStarted.current) live.send("microphone.end");
+    if (micStarted.current) {
+      live.send("microphone.end");
+      soundCuesRef.current?.play("rec_end");
+    }
     micStarted.current = false;
   }, [live]);
 
   const startMic = useCallback(async () => {
     if (down.current || !live.connected || !live.started || handsFree) return;
     down.current = true;
+    setMicErrorKind(null);
     const interrupted = interruptAll();
+    if (!speakingRef.current) {
+      soundCuesRef.current?.play("rec_start", { ignoreSuppression: true });
+    }
     setRecording(true);
-    const mic = new MicrophoneCapture();
+    const mic = capture.current ?? new MicrophoneCapture();
     capture.current = mic;
     try {
       await mic.start(({ pcm16, level }) => {
@@ -411,14 +585,14 @@ function Lesson({ id }: { id: string }) {
         if (micStarted.current) live.upload(pcm16);
       });
       if (!down.current || capture.current !== mic) await mic.stop();
-    } catch {
+    } catch (err) {
       if (capture.current !== mic) return;
-      toast.error(copy.micError);
+      surfaceMicError(err);
       down.current = false;
       setRecording(false);
       setMicLevel(0);
     }
-  }, [handsFree, interruptAll, live]);
+  }, [handsFree, interruptAll, live, surfaceMicError]);
 
   const stopVad = useCallback(async () => {
     vadRequest.current += 1;
@@ -438,6 +612,7 @@ function Lesson({ id }: { id: string }) {
       return;
     }
     const request = ++vadRequest.current;
+    setMicErrorKind(null);
     setHandsFreeLoading(true);
     try {
       const { HandsFreeVad } = await import("../../audio/vad");
@@ -486,12 +661,12 @@ function Lesson({ id }: { id: string }) {
       if (request !== vadRequest.current) return;
       setHandsFreeLoading(false);
       setHandsFree(true);
-    } catch {
+    } catch (err) {
       if (request !== vadRequest.current) return;
       await stopVad();
-      toast.error(copy.micError);
+      surfaceMicError(err);
     }
-  }, [handsFree, handsFreeLoading, interruptAll, live, markLearnerActivity, stopVad]);
+  }, [handsFree, handsFreeLoading, interruptAll, live, markLearnerActivity, stopVad, surfaceMicError]);
 
   const toggleCaption = useCallback(() => {
     setShowCaption((prev) => {
@@ -505,6 +680,22 @@ function Lesson({ id }: { id: string }) {
     });
   }, []);
 
+  const toggleViewMode = useCallback(() => {
+    const next: StageViewMode = effectiveViewMode === "split" ? "board-first" : "split";
+    setStoredViewMode(next);
+    writeStoredViewMode(next);
+  }, [effectiveViewMode]);
+
+  const handleSoundCuesEnabledChange = useCallback((enabled: boolean) => {
+    const updated = soundCuesRef.current?.setPrefs({ enabled });
+    if (updated) setSoundCuePrefs(updated);
+  }, []);
+
+  const handleSoundCuesVolumeChange = useCallback((nextVolume: number) => {
+    const updated = soundCuesRef.current?.setPrefs({ volume: nextVolume });
+    if (updated) setSoundCuePrefs(updated);
+  }, []);
+
   const handleQuickAction = useCallback(
     (kind: string) => {
       markLearnerActivity();
@@ -513,9 +704,11 @@ function Lesson({ id }: { id: string }) {
       if (instant) {
         triggerFastAction(instant, currentGen);
       }
-      const label = copy.quick[kind as keyof typeof copy.quick];
+      const label = kind.startsWith("locate:")
+        ? copy.locate
+        : copy.quick[kind as keyof typeof copy.quick];
       if (label) {
-        live.appendStudentEntry(label, "quick");
+        live.appendStudentEntry(label, "quick", label);
       }
       live.send("student.quick", instant ? { kind, recent_avatar_action: instant } : { kind });
     },
@@ -590,7 +783,6 @@ function Lesson({ id }: { id: string }) {
   );
 
   // Global keyboard shortcuts (§5.6.10)
-  const sttConfigured = Boolean(voice.data?.stt_configured);
   const ready = live.started && live.connected && !live.resuming && !live.ending;
 
   useEffect(() => {
@@ -614,6 +806,11 @@ function Lesson({ id }: { id: string }) {
 
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
+      if (event.key === "?" && !event.ctrlKey && !event.metaKey && !isEditable(target)) {
+        event.preventDefault();
+        setShortcutsOpen((prev) => !prev);
+        return;
+      }
       if (event.key === "Escape" && ready && (live.speaking || live.audioSpeaking)) {
         event.preventDefault();
         interruptAll();
@@ -631,10 +828,15 @@ function Lesson({ id }: { id: string }) {
           setMuted((prev) => !prev);
           return;
         }
+        if (lower === "t") {
+          event.preventDefault();
+          setTranscriptOpen((prev) => !prev);
+          return;
+        }
       }
       if (event.key === "Enter" && phase === "lobby" && live.connected && !isInteractive(target)) {
         event.preventDefault();
-        void live.start(true);
+        void startLesson(true);
         return;
       }
       if (event.key === " " && ready && !isInteractive(target)) {
@@ -667,16 +869,17 @@ function Lesson({ id }: { id: string }) {
     live,
     phase,
     ready,
+    startLesson,
     startMic,
     sttConfigured,
     toggleCaption,
   ]);
 
-  // Combine teacher spoken log + student messages for text-mode log
-  const combinedLog = useMemo<SpokenEntry[]>(() => {
-    const entries: SpokenEntry[] = [...live.classroom.spokenLog, ...live.studentEntries];
-    return entries;
-  }, [live.classroom.spokenLog, live.studentEntries]);
+  // Chronologically merged in-memory transcript (never persisted)
+  const combinedLog = useMemo(
+    () => mergeTranscriptEntries(live.classroom.spokenLog, live.studentEntries),
+    [live.classroom.spokenLog, live.studentEntries],
+  );
 
   useEffect(() => {
     const el = spokenScrollRef.current;
@@ -713,13 +916,14 @@ function Lesson({ id }: { id: string }) {
 
   // Ended -> Light Focus-style Recap container (scroll allowed, zero site nav)
   if (ended) {
+    const allBlocks = classroom.boardPages.flatMap((page) => page.blocks);
     return (
       <RecapView
         lessonId={id}
         courseId={room.course_id}
         title={room.title}
         summary={typeof recap?.summary === "string" ? recap.summary : undefined}
-        board={[...classroom.board]}
+        board={allBlocks}
       />
     );
   }
@@ -766,7 +970,7 @@ function Lesson({ id }: { id: string }) {
 
   const topbar = (
     <>
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <button
           type="button"
           onClick={handleBackClick}
@@ -803,7 +1007,7 @@ function Lesson({ id }: { id: string }) {
         ) : null}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {adaptBanner ? (
           <span className="hidden md:inline-flex">
             <Badge tone="accent">
@@ -822,6 +1026,50 @@ function Lesson({ id }: { id: string }) {
           </span>
         ) : null}
 
+        {/* Mobile dual-mode toggle (teacher <-> board) */}
+        <button
+          type="button"
+          data-testid="mobile-view-toggle"
+          aria-label={mobileView === "teacher" ? copy.mobileViewBoard : copy.mobileViewTeacher}
+          onClick={() => setMobileView((prev) => (prev === "teacher" ? "board" : "teacher"))}
+          className="inline-flex min-h-9 items-center gap-1 rounded-pill border border-line-subtle bg-surface-card px-2.5 text-caption font-medium text-fg-primary hover:border-accent md:hidden"
+        >
+          <span>{mobileView === "teacher" ? copy.mobileViewBoard : copy.mobileViewTeacher}</span>
+        </button>
+
+        {/* Desktop view switcher (split <-> board-first floating PiP) */}
+        <button
+          type="button"
+          data-testid="view-mode-toggle"
+          aria-label={copy.viewToggleHint}
+          aria-pressed={effectiveViewMode === "board-first"}
+          title={effectiveViewMode === "board-first" ? copy.viewSplit : copy.viewBoardFirst}
+          onClick={toggleViewMode}
+          className="hidden min-h-9 items-center gap-1.5 rounded-md border border-line-subtle bg-surface-card px-2.5 text-caption font-medium text-fg-secondary hover:text-fg-primary md:inline-flex"
+        >
+          {effectiveViewMode === "board-first" ? (
+            <Monitor size={15} aria-hidden="true" />
+          ) : (
+            <PictureInPicture2 size={15} aria-hidden="true" />
+          )}
+          <span className="hidden xl:inline">
+            {effectiveViewMode === "board-first" ? copy.viewSplit : copy.viewBoardFirst}
+          </span>
+        </button>
+
+        {/* Topbar transcript button (always accessible on narrow widths / mobile) */}
+        <button
+          type="button"
+          data-testid="topbar-transcript-toggle"
+          aria-label={copy.transcriptTitle}
+          aria-pressed={transcriptOpen}
+          title={copy.transcriptTitle}
+          onClick={() => setTranscriptOpen((prev) => !prev)}
+          className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-line-subtle bg-surface-card px-2 text-caption font-medium text-fg-secondary hover:text-fg-primary lg:hidden"
+        >
+          <MessageSquareText size={15} aria-hidden="true" />
+        </button>
+
         <Popover
           open={qualityOpen}
           onOpenChange={setQualityOpen}
@@ -832,10 +1080,10 @@ function Lesson({ id }: { id: string }) {
               type="button"
               aria-label={copy.qualityTitle}
               title={copy.qualityTitle}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-line-subtle bg-surface-card px-2.5 text-caption font-medium text-fg-secondary hover:text-fg-primary"
+              className="hidden min-h-9 items-center gap-1.5 rounded-md border border-line-subtle bg-surface-card px-2.5 text-caption font-medium text-fg-secondary hover:text-fg-primary sm:inline-flex"
             >
               <Gauge size={15} aria-hidden="true" />
-              <span className="hidden sm:inline">{copy.qualityTitle}</span>
+              <span className="hidden lg:inline">{copy.qualityTitle}</span>
             </button>
           }
           className="w-72"
@@ -874,6 +1122,18 @@ function Lesson({ id }: { id: string }) {
             ) : null}
           </div>
         </Popover>
+
+        {/* Shortcuts help button */}
+        <button
+          type="button"
+          data-testid="shortcuts-trigger"
+          aria-label={copy.shortcutsTitle}
+          title={copy.shortcutsTitle}
+          onClick={() => setShortcutsOpen(true)}
+          className="hidden min-h-9 min-w-9 items-center justify-center rounded-md border border-line-subtle bg-surface-card text-fg-secondary hover:text-fg-primary sm:inline-flex"
+        >
+          <HelpCircle size={15} aria-hidden="true" />
+        </button>
       </div>
     </>
   );
@@ -891,14 +1151,14 @@ function Lesson({ id }: { id: string }) {
             <Button
               variant="primary"
               disabled={!connected}
-              onClick={() => void live.start(true)}
+              onClick={() => void startLesson(true)}
             >
               {copy.startVoice}
             </Button>
             <Button
               variant="secondary"
               disabled={!connected}
-              onClick={() => void live.start(false)}
+              onClick={() => void startLesson(false)}
             >
               {copy.startText}
             </Button>
@@ -922,7 +1182,7 @@ function Lesson({ id }: { id: string }) {
               size="lg"
               disabled={!connected}
               leftIcon={<Play size={17} />}
-              onClick={() => void live.start(live.lastAudio)}
+              onClick={() => void startLesson(live.lastAudio)}
             >
               {copy.resumeLesson}
             </Button>
@@ -930,7 +1190,7 @@ function Lesson({ id }: { id: string }) {
           <button
             type="button"
             disabled={!connected}
-            onClick={() => void live.start(!live.lastAudio)}
+            onClick={() => void startLesson(!live.lastAudio)}
             className="text-caption text-fg-secondary underline-offset-4 hover:text-fg-primary hover:underline"
           >
             {live.lastAudio ? copy.startText : copy.startVoice}
@@ -1054,7 +1314,7 @@ function Lesson({ id }: { id: string }) {
               variant="primary"
               size="sm"
               leftIcon={<RefreshCw size={14} />}
-              onClick={() => void (connected ? live.start(live.lastAudio) : live.reconnect())}
+              onClick={() => void (connected ? startLesson(live.lastAudio) : live.reconnect())}
             >
               {copy.retryNow}
             </Button>
@@ -1087,7 +1347,7 @@ function Lesson({ id }: { id: string }) {
 
   const stageNode = (
     <>
-      <div className="relative flex h-full min-h-0 flex-none items-center justify-center sm:flex-1 sm:w-full">
+      <div className="relative flex h-full min-h-0 flex-none items-center justify-center sm:w-full sm:flex-1">
         {teacherConfig ? (
           <TutorVideoBox
             ref={videoRef}
@@ -1121,6 +1381,16 @@ function Lesson({ id }: { id: string }) {
           </div>
         )}
         {stageOverlay}
+        {/* In mobile board mode, tapping the small teacher PiP returns to teacher mode */}
+        {isMobile && mobileView === "board" && !stageOverlay ? (
+          <button
+            type="button"
+            data-testid="mobile-pip-restore"
+            aria-label={copy.mobileBackTeacher}
+            onClick={() => setMobileView("teacher")}
+            className="absolute inset-0 z-sticky rounded-md bg-transparent"
+          />
+        ) : null}
       </div>
 
       {/* Text mode: read-only teacher speech log + pacing controls (§5.6.5) */}
@@ -1192,6 +1462,57 @@ function Lesson({ id }: { id: string }) {
     </>
   );
 
+  const micErrorBanner = micErrorKind ? (
+    <div
+      role="alert"
+      data-testid="mic-error-banner"
+      className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-warn/30 bg-warn-soft px-4 py-2 text-caption text-warn-text"
+    >
+      <div className="grid gap-0.5">
+        <strong className="font-semibold">
+          {micErrorKind === "permission_denied"
+            ? copy.micDeniedTitle
+            : micErrorKind === "not_found"
+              ? copy.micNotFoundTitle
+              : copy.micOtherTitle}
+        </strong>
+        <span>
+          {micErrorKind === "permission_denied"
+            ? copy.micDeniedBody
+            : micErrorKind === "not_found"
+              ? copy.micNotFoundBody
+              : copy.micOtherBody}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        {micErrorKind === "permission_denied" ? (
+          <Button variant="secondary" size="sm" onClick={() => setMicHelpOpen(true)}>
+            {copy.micHelpButton}
+          </Button>
+        ) : null}
+        <Button variant="ghost" size="sm" onClick={() => setMicErrorKind(null)}>
+          {copy.dismissNotice}
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
+  const mobilePreviewBanner =
+    isMobile && mobileView === "teacher" ? (
+      <button
+        type="button"
+        data-testid="mobile-expand-board"
+        onClick={() => setMobileView("board")}
+        className="flex shrink-0 items-center justify-between gap-2 border-b border-line-subtle bg-surface-sunken px-3.5 py-2 text-caption font-medium text-fg-primary"
+      >
+        <span>{copy.board}</span>
+        <span className="inline-flex items-center gap-1 text-accent-strong">
+          <span>{copy.mobileOpenBoard}</span>
+          <ChevronRight size={14} aria-hidden="true" />
+        </span>
+      </button>
+    ) : null;
+
   const boardNode = (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {error && phase !== "failed" && phase !== "reconnecting" ? (
@@ -1204,12 +1525,14 @@ function Lesson({ id }: { id: string }) {
             variant="secondary"
             size="sm"
             pending={live.resuming}
-            onClick={() => void (connected ? live.start(live.lastAudio) : live.reconnect())}
+            onClick={() => void (connected ? startLesson(live.lastAudio) : live.reconnect())}
           >
             {copy.retry}
           </Button>
         </div>
       ) : null}
+
+      {micErrorBanner}
 
       <BoardPanel
         title={room.title}
@@ -1217,13 +1540,17 @@ function Lesson({ id }: { id: string }) {
         estMinutes={room.est_minutes}
         outline={outline}
         board={[...classroom.board]}
+        pages={classroom.boardPages}
         dividers={[...classroom.dividers]}
         answeredCards={[...classroom.answeredCards]}
         activeBlockId={classroom.activeBlockId}
+        activePoint={classroom.activePoint}
+        latestMarkSeq={classroom.latestMarkSeq}
         trayOpen={showTray}
         ready={ready}
         reducedMotion={reducedMotion}
         trayKey={`${showTray ? "open" : "closed"}:${classroom.askSeq ?? 0}:${activeVerdict ?? ""}`}
+        topBanner={mobilePreviewBanner}
         onLocate={(target) => {
           if (ready) handleQuickAction(`locate:${target}`);
         }}
@@ -1285,8 +1612,11 @@ function Lesson({ id }: { id: string }) {
       text={text}
       composerRef={composerRef}
       showCaption={showCaption}
+      transcriptOpen={transcriptOpen}
       volume={volume}
       muted={muted}
+      soundCuesEnabled={soundCuePrefs.enabled}
+      soundCuesVolume={soundCuePrefs.volume}
       currentStyle={currentStyle}
       onTextChange={setText}
       onSubmitText={handleSubmitText}
@@ -1297,12 +1627,36 @@ function Lesson({ id }: { id: string }) {
       onInterrupt={() => void interruptAll()}
       onQuickAction={handleQuickAction}
       onToggleCaption={toggleCaption}
+      onToggleTranscript={() => setTranscriptOpen((prev) => !prev)}
       onVolumeChange={setVolume}
       onToggleMute={() => setMuted((prev) => !prev)}
+      onSoundCuesEnabledChange={handleSoundCuesEnabledChange}
+      onSoundCuesVolumeChange={handleSoundCuesVolumeChange}
       onStyleChange={setSelectedStyle}
       onPause={handlePause}
       onRequestEnd={() => setEndOpen(true)}
     />
+  );
+
+  const dockedTranscriptNode = (
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-line-subtle px-4 py-3">
+        <span className="inline-flex items-center gap-1.5 text-ui font-semibold text-fg-primary">
+          <MessageSquareText size={15} aria-hidden="true" />
+          <span>{copy.transcriptTitle}</span>
+        </span>
+      </header>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <TranscriptPanel
+          entries={combinedLog}
+          teacherName={teacher?.name}
+          recording={recording}
+          liveTranscript={live.transcript}
+          reducedMotion={reducedMotion}
+          compact
+        />
+      </div>
+    </div>
   );
 
   return (
@@ -1310,12 +1664,52 @@ function Lesson({ id }: { id: string }) {
       <StageShell
         phase={phase}
         textMode={textMode}
+        viewMode={effectiveViewMode}
+        mobileView={mobileView}
+        trayOpen={showTray}
+        transcript={dockedTranscriptNode}
+        transcriptDocked={isWideDesktop && transcriptOpen}
         className={fromLobby ? "cs-stage-connecting" : undefined}
         topbar={topbar}
         stage={stageNode}
         board={boardNode}
         dock={dockNode}
       />
+
+      {/* Full transcript drawer on viewports < 1600px */}
+      <Drawer
+        open={!isWideDesktop && transcriptOpen}
+        onOpenChange={setTranscriptOpen}
+        title={copy.transcriptTitle}
+        side="right"
+        closeLabel={copy.close}
+        testId="transcript-drawer"
+      >
+        <TranscriptPanel
+          entries={combinedLog}
+          teacherName={teacher?.name}
+          recording={recording}
+          liveTranscript={live.transcript}
+          reducedMotion={reducedMotion}
+        />
+      </Drawer>
+
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+
+      <Dialog
+        open={micHelpOpen}
+        onOpenChange={setMicHelpOpen}
+        title={copy.micHelpTitle}
+        description={copy.micDeniedBody}
+        size="sm"
+        closeLabel={copy.close}
+      >
+        <ol className="m-0 grid list-none gap-2.5 p-0 text-ui text-fg-primary">
+          <li>{copy.micHelpStep1}</li>
+          <li>{copy.micHelpStep2}</li>
+          <li>{copy.micHelpStep3}</li>
+        </ol>
+      </Dialog>
 
       <ConfirmDialog
         open={endOpen}

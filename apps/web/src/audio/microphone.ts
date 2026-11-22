@@ -1,6 +1,39 @@
 const OUTPUT_SAMPLE_RATE = 16000;
 const FRAME_SAMPLES = 320;
 
+export type MicrophoneErrorKind = "permission_denied" | "not_found" | "other";
+
+export function classifyMicrophoneError(error: unknown): MicrophoneErrorKind {
+  const name =
+    error && typeof error === "object" && "name" in error
+      ? String((error as { name?: unknown }).name ?? "")
+      : "";
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message ?? "")
+      : String(error ?? "");
+  const lowered = `${name} ${message}`.toLowerCase();
+  if (
+    name === "NotAllowedError" ||
+    name === "PermissionDeniedError" ||
+    name === "SecurityError" ||
+    lowered.includes("permission denied") ||
+    lowered.includes("not allowed")
+  ) {
+    return "permission_denied";
+  }
+  if (
+    name === "NotFoundError" ||
+    name === "DevicesNotFoundError" ||
+    name === "OverconstrainedError" ||
+    lowered.includes("requested device not found") ||
+    lowered.includes("no audio")
+  ) {
+    return "not_found";
+  }
+  return "other";
+}
+
 export interface MicrophoneFrame {
   level: number;
   pcm16: ArrayBuffer;
@@ -74,14 +107,58 @@ export class Pcm16Framer {
 export class MicrophoneCapture {
   private revision = 0;
   private context: AudioContext | null = null;
+  private workletReady: Promise<void> | null = null;
+  private source: MediaStreamAudioSourceNode | null = null;
   private node: AudioWorkletNode | null = null;
+  private sink: GainNode | null = null;
   private stream: MediaStream | null = null;
+
+  /**
+   * Pre-warms AudioContext and loads the AudioWorklet module once so subsequent
+   * push-to-talk presses skip worklet compilation and avoid clipping the first syllable.
+   */
+  async warmup(): Promise<void> {
+    if (typeof AudioContext === "undefined") return;
+    await this.ensureWorkletContext().catch(() => undefined);
+  }
+
+  private async ensureWorkletContext(): Promise<AudioContext> {
+    if (this.context && this.context.state !== "closed" && this.workletReady) {
+      await this.workletReady;
+      return this.context;
+    }
+    const context = new AudioContext();
+    this.context = context;
+    let moduleUrl: string | undefined;
+    const loader = (async () => {
+      try {
+        moduleUrl = URL.createObjectURL(new Blob([workletSource()], { type: "text/javascript" }));
+        await context.audioWorklet.addModule(moduleUrl);
+      } catch (err) {
+        if (this.context === context) {
+          this.context = null;
+          this.workletReady = null;
+        }
+        if (context.state !== "closed") await context.close().catch(() => undefined);
+        throw err;
+      } finally {
+        if (moduleUrl) URL.revokeObjectURL(moduleUrl);
+      }
+    })();
+    this.workletReady = loader;
+    await loader;
+    return context;
+  }
 
   async start(onFrame: (frame: MicrophoneFrame) => void) {
     const revision = ++this.revision;
-    await this.release();
+    this.releaseStreamOnly();
     if (revision !== this.revision) return;
     if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone capture is unavailable.");
+
+    // Warm up AudioContext + worklet in parallel with getUserMedia when available.
+    const contextPromise = typeof AudioContext !== "undefined" ? this.ensureWorkletContext() : null;
+    contextPromise?.catch(() => undefined);
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         autoGainControl: true,
@@ -95,15 +172,17 @@ export class MicrophoneCapture {
       return;
     }
     this.stream = stream;
-    let moduleUrl: string | undefined;
     try {
-      const context = new AudioContext();
-      this.context = context;
-      moduleUrl = URL.createObjectURL(new Blob([workletSource()], { type: "text/javascript" }));
-      await context.audioWorklet.addModule(moduleUrl);
-      if (revision !== this.revision) return;
+      const context = await (contextPromise ?? this.ensureWorkletContext());
+      if (revision !== this.revision) {
+        this.releaseStreamOnly();
+        return;
+      }
       await context.resume();
-      if (revision !== this.revision) return;
+      if (revision !== this.revision) {
+        this.releaseStreamOnly();
+        return;
+      }
       const framer = new Pcm16Framer(context.sampleRate);
       const source = context.createMediaStreamSource(stream);
       const node = new AudioWorkletNode(context, "companion-capture");
@@ -115,28 +194,45 @@ export class MicrophoneCapture {
       source.connect(node);
       node.connect(sink);
       sink.connect(context.destination);
+      this.source = source;
       this.node = node;
+      this.sink = sink;
     } catch (error) {
       if (revision !== this.revision) return;
-      await this.release();
+      this.releaseStreamOnly();
       throw error;
-    } finally {
-      if (moduleUrl) URL.revokeObjectURL(moduleUrl);
     }
   }
 
+  /** Stops mic tracks & audio nodes while keeping the warmed AudioContext cached for reuse. */
   async stop() {
     this.revision += 1;
-    await this.release();
+    this.releaseStreamOnly();
+    if (this.context && this.context.state === "running") {
+      await this.context.suspend().catch(() => undefined);
+    }
   }
 
-  private async release() {
-    this.node?.disconnect();
-    this.node = null;
-    this.stream?.getTracks().forEach((track) => track.stop());
-    this.stream = null;
+  /** Releases mic stream AND closes the cached AudioContext (call on unmount / tab hide). */
+  async dispose() {
+    this.revision += 1;
+    this.releaseStreamOnly();
     const context = this.context;
     this.context = null;
-    if (context && context.state !== "closed") await context.close();
+    this.workletReady = null;
+    if (context && context.state !== "closed") {
+      await context.close().catch(() => undefined);
+    }
+  }
+
+  private releaseStreamOnly() {
+    this.node?.disconnect();
+    this.node = null;
+    this.source?.disconnect();
+    this.source = null;
+    this.sink?.disconnect();
+    this.sink = null;
+    this.stream?.getTracks().forEach((track) => track.stop());
+    this.stream = null;
   }
 }

@@ -480,3 +480,33 @@
 - `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **473 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **14 文件 82 项通过**、`vite build` 通过。
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**26 / 26 全部通过**（含 I1–I3、I5–I14、I16 与 U5 闭环回归）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U5`：**41 步通过、0 失败、95 张截图**输出至 `docs/rebuild/review/U5/`。
+
+### 体验重塑 U6 — 代码完成（自动化通过）（2026-11-22）
+
+**待完成与待验证**
+
+- **真实麦克风首音节听感、耳机提示音听感与真机手势体验未做**：U6 所有者验收清单第 1–12 条中依赖真实麦克风采集与权限弹窗（第 10 条）、真实外放/耳机下的轻提示音音量平衡（第 9 条）、真实手机浏览器安全区与触屏交互（第 8 条）以及 U6 观感五问与截图评审（`docs/rebuild/review/U6/`）仍待所有者核对。
+- **按计划留待 U7 的条目**：设置页 6 分区路由重排与旧地址重定向、`UnsavedBar`、学生词表全站术语清零与自动化巡览扫描、B10 后端错误码收尾测试、清空并删除 `legacy` 层与遗留色值白名单、全站键盘/减动效通查、对外 README/CHANGELOG 截图说明更新与便携包冒烟。
+
+**已落地**
+
+- **白板讲解感与图形主题深化（`packages/board/` + `features/classroom/board*`）**：
+  - `steps` 块按行逐步揭示并高亮当前步骤行（减少动态效果时瞬时全显）；`BoardPanel` 通过内部内容容器 `ResizeObserver` 在逐行显现与异步出图期间保持平滑自动跟随。
+  - 完整渲染 `underline` / `box` / `color` 三种标记样式与三语义色调，历史标记降为弱样式（`data-mark-stale`）；`point` 精确指向目标行并在行左侧绘制指向点且自动 `scrollIntoView`。
+  - 接通 `applyBoardPagesEvent` 将清板改为分页留存，白板顶栏提供 `上一页 / 第 k / N 页 / 下一页` 翻页器与「回到最新页」，下课导出笔记自动合并全部分页；补齐块级工具条（复制、函数图/流程图/原页图放大进灯箱 `Dialog`）与涵盖 `text` 块在内的全行级「从这一行开始没跟上」入口。
+  - `PlotBlock` 按语义变量固定多曲线色板并展示图例、直接在 SVG 坐标系上绘制空心点（`holes`）与点标注（`labels`）并监听容器 `ResizeObserver` 重绘；`DiagramBlock` 以语义变量生成 Mermaid `theme: "base"` 主题配置；清空 `packages/board/board.module.css` 硬编码十六进制色并从 `HEX_ALLOWED_FILES` 白名单移除。
+- **完整内存对话记录、快捷键面板与视图切换**：
+  - 新增 `ui/drawer.tsx`、`ui/kbd.tsx`、`transcript-panel.tsx` 与 `shortcuts-dialog.tsx`；对话记录按时间序交错呈现老师话语与学生语音/文字/快捷回应标签，录音时显示识别中占位，仅留存内存不落盘不进日志；宽屏（`>= 1600px`）可作为第三列常驻，中小屏以右侧抽屉打开（`Shift+T` 或按钮切换）；回声提示改为单次独立提示。
+  - 顶栏新增 `?` 快捷键帮助面板与「并排显示 / 白板优先」视图切换（持久化到 `localStorage`，`768–1099px` 自动白板优先；白板优先下老师化为左上角可拖拽 9:16 小窗）。
+- **窄屏与手机双模式视频通话布局（I15）**：
+  - `< 768px` 默认「老师模式」（约 56% 竖向 9:16 老师画面 + 底部白板最新预览与「展开完整白板」入口），点击一键切入「白板模式」（完整滚动白板 + 左上角竖向 9:16 老师小窗，点击小窗回老师模式）；出题托盘在两种模式下均从底部滑出；底部控制坞常驻安全区之上且麦克风按钮始终可见（≥ 44×44px）。
+- **WebAudio 合成提示音与麦克风预热/三类错误**：
+  - 新增 `apps/web/src/audio/sound-cues.ts`（`connect` / `your_turn` / `rec_start` / `rec_end` / `correct` / `retry` / `lesson_end` 七种 < 300ms 轻柔合成短音，支持用户手势解锁、老师讲话/录音期间静默、40ms 去重与开关/音量持久化，已接入课堂设置浮层）。
+  - 核实 `MicrophoneCapture` 存在每次按住重建 `AudioContext` + 重载 `AudioWorklet` 导致首音节延迟的问题，改为进入语音课 `warmup()` 复用上下文、`stop()` 立即释放麦克风轨道、`dispose()` 切标签/卸载关闭；新增 `classifyMicrophoneError` 区分无权限 / 无设备 / 其他三类错误并附「如何开启麦克风权限」三步弹窗，未配置语音识别时就近提供新标签页跳转 `/settings#voice` 入口。
+- **测试、巡览与目视打磨**：新增 `apps/web/tests/u6-classroom.test.tsx`（6 项单测）、`ux-invariants.spec.ts` 新增 **I15**、手机双模式与桌面深化 E2E，`ui-tour.mjs` 扩充 `docs/rebuild/review/U6/`（99 张截图）；目视抽检后微调了手机白板模式 86px 小窗状态胶囊防截断、触屏块工具条防遮挡图上标注以及快捷键 `A–H / 1–9` 分隔符。
+
+**本地验证**
+
+- `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **473 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **15 文件 88 项通过**、`vite build` 通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**28 / 28 全部通过**（含 I1–I3、I5–I16 全部体验不变量与 U6 手机/桌面深化回归）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U6`：**41 步通过、0 失败、99 张截图**输出至 `docs/rebuild/review/U6/`。

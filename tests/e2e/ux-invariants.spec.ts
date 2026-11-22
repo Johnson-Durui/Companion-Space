@@ -687,3 +687,98 @@ test("U5 loop visualization: plan diff, map weight view, progress charts/timelin
   await expect(page.getByTestId("debrief-item")).toHaveCount(2);
   await expect(page.getByTestId("debrief-item").first()).toContainText("极限存在的充要条件");
 });
+
+test("I15 & U6 mobile call layout: 390x844 fixed bottom dock, visible mic, teacher portrait & board mode toggle", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/lessons/browser-avatar-teaching-lesson");
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 25_000 });
+
+  const shell = page.getByTestId("classroom-stage-shell");
+  await expect(shell).toHaveAttribute("data-mobile-view", "teacher");
+
+  // I15: ControlDock is anchored at bottom of viewport and mic button is visible inside viewport
+  const dockBox = await page.getByTestId("classroom-dock").boundingBox();
+  const micBox = await page.getByTestId("dock-mic-button").boundingBox();
+  expect(dockBox, "mobile dock must render").not.toBeNull();
+  expect(micBox, "mobile mic button must render").not.toBeNull();
+  expect(dockBox!.y + dockBox!.height).toBeLessThanOrEqual(844 + 2);
+  expect(dockBox!.y).toBeGreaterThanOrEqual(700);
+  expect(micBox!.x).toBeGreaterThanOrEqual(0);
+  expect(micBox!.x + micBox!.width).toBeLessThanOrEqual(390);
+  expect(micBox!.y + micBox!.height).toBeLessThanOrEqual(844 + 2);
+  expect(micBox!.width).toBeGreaterThanOrEqual(44);
+  expect(micBox!.height).toBeGreaterThanOrEqual(44);
+
+  // Teacher mode keeps vertical portrait framing (height > width, never cropped into a landscape strip)
+  const stageBox = await page.locator('[data-testid="lesson-stage"] .tvb-frame').boundingBox();
+  expect(stageBox).not.toBeNull();
+  expect(stageBox!.height).toBeGreaterThan(stageBox!.width);
+
+  // Toggle to Board mode -> full board + corner portrait teacher PiP -> tap PiP back to Teacher mode
+  await page.getByTestId("mobile-view-toggle").click();
+  await expect(shell).toHaveAttribute("data-mobile-view", "board");
+  const pipBtn = page.getByTestId("mobile-pip-restore");
+  await expect(pipBtn).toBeVisible();
+  const pipBox = await pipBtn.boundingBox();
+  expect(pipBox).not.toBeNull();
+  expect(pipBox!.height).toBeGreaterThan(pipBox!.width);
+
+  await pipBtn.click();
+  await expect(shell).toHaveAttribute("data-mobile-view", "teacher");
+
+  // Zero horizontal overflow in both modes
+  const overflow = await page.evaluate(() => ({
+    x: document.documentElement.scrollWidth > window.innerWidth + 1,
+    y: document.documentElement.scrollHeight > window.innerHeight + 2,
+  }));
+  expect(overflow.x).toBe(false);
+  expect(overflow.y).toBe(false);
+});
+
+test("U6 classroom depth: marks, line pointer, plot legend & lightbox, transcript drawer, shortcuts, view switcher", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/lessons/browser-board-lesson");
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+
+  await expect(page.locator('[data-kind="plot"] svg')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("plot-legend")).toBeVisible();
+
+  // Multi-step lines, 3 mark styles, and line-level pointer on line 2
+  await expect(page.locator('[data-board-line="b-steps.1"]')).toHaveAttribute("data-mark-style", "underline");
+  await expect(page.locator('[data-board-line="b-steps.2"]')).toHaveAttribute("data-mark-style", "box");
+  await expect(page.locator('[data-board-line="b-steps.2"]')).toHaveAttribute("data-pointed", "true");
+  await expect(page.locator('[data-board-line="b-steps.3"]')).toHaveAttribute("data-mark-style", "color");
+
+  // Zoom plot into lightbox dialog
+  const plotWrap = page.locator('[data-block-id="b-plot"]');
+  await plotWrap.hover();
+  await page.getByTestId("zoom-block-b-plot").click();
+  await expect(page.getByTestId("board-lightbox")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("board-lightbox")).toHaveCount(0);
+
+  // View switcher: split -> board-first (remembered across reload) -> back to split
+  const shell = page.getByTestId("classroom-stage-shell");
+  await expect(shell).toHaveAttribute("data-view-mode", "split");
+  await page.getByTestId("view-mode-toggle").click();
+  await expect(shell).toHaveAttribute("data-view-mode", "board-first");
+  await page.getByTestId("view-mode-toggle").click();
+  await expect(shell).toHaveAttribute("data-view-mode", "split");
+
+  // Shortcuts dialog via "?" key
+  await page.locator('[data-testid="lesson-board"]').click({ position: { x: 10, y: 10 } });
+  await page.keyboard.type("?");
+  await expect(page.getByTestId("shortcuts-list")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("shortcuts-list")).toHaveCount(0);
+
+  // Full transcript drawer via dock toggle (shows teacher speech + student quick action)
+  await page.getByRole("button", { name: t.classroom.quick.confused }).click();
+  await page.getByTestId("dock-transcript-toggle").click();
+  const drawer = page.getByTestId("transcript-drawer");
+  await expect(drawer).toBeVisible();
+  await expect(drawer).toContainText("开始吧。");
+  await expect(drawer).toContainText(t.classroom.quick.confused);
+  await page.keyboard.press("Escape");
+});

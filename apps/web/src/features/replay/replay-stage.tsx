@@ -92,7 +92,10 @@ export function ReplayStage({
     () => restoreClassroom(ordered, current?.seq ?? 0),
     [ordered, current?.seq],
   );
-  const finalBoard = useMemo(() => restoreClassroom(ordered, Infinity).board, [ordered]);
+  const finalBoard = useMemo(
+    () => restoreClassroom(ordered, Infinity).boardPages.flatMap((page) => page.blocks),
+    [ordered],
+  );
   const currentMs = timeline.offsetsMs[Math.min(position, timeline.offsetsMs.length - 1)] ?? 0;
 
   const labels = useMemo(() => videoBoxLabels(), []);
@@ -195,9 +198,13 @@ export function ReplayStage({
         title={title}
         stage={state.stage}
         board={[...state.board]}
+        pages={state.boardPages}
         dividers={[...state.dividers]}
         answeredCards={[...state.answeredCards]}
         activeBlockId={state.activeBlockId}
+        activePoint={state.activePoint}
+        latestMarkSeq={state.latestMarkSeq}
+        progressiveSteps={false}
         trayOpen={Boolean(tray)}
         ready={false}
         reducedMotion={reducedMotion}

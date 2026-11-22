@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { LessonText } from "@companion-space/board";
 import t from "../../locales/zh-CN.json";
-import { Badge, Button, CheckCircle2, ChevronDown, Sparkles, XCircle } from "../../ui";
-import type { Block } from "./board";
+import {
+  Badge,
+  Button,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Dialog,
+  Sparkles,
+  XCircle,
+} from "../../ui";
+import type { Block, Page } from "./board";
 import { BoardBlock } from "./board-block";
 import {
   INITIAL_BOARD_FOLLOW,
@@ -12,7 +22,7 @@ import {
   updateFollowOnContent,
   updateFollowOnScroll,
 } from "./board-follow";
-import type { AnsweredCard, BoardDivider } from "./lesson-state";
+import type { AnsweredCard, BoardDivider, BoardPointTarget } from "./lesson-state";
 
 const copy = t.classroom;
 
@@ -48,13 +58,19 @@ export interface BoardPanelProps {
   estMinutes?: number | null;
   outline?: readonly BoardOutlinePoint[];
   board: Block[];
+  pages?: readonly Page[];
   dividers: BoardDivider[];
   answeredCards: AnsweredCard[];
   activeBlockId?: string;
+  activePoint?: BoardPointTarget;
+  latestMarkSeq?: number;
   trayOpen?: boolean;
   ready: boolean;
   reducedMotion: boolean;
   trayKey: string;
+  progressiveSteps?: boolean;
+  showTools?: boolean;
+  topBanner?: ReactNode;
   onLocate: (target: string) => void;
 }
 
@@ -64,23 +80,54 @@ export function BoardPanel({
   estMinutes,
   outline = [],
   board,
+  pages,
   dividers,
   answeredCards,
   activeBlockId,
+  activePoint,
+  latestMarkSeq,
   trayOpen = false,
   ready,
   reducedMotion,
   trayKey,
+  progressiveSteps = true,
+  showTools = true,
+  topBanner,
   onLocate,
 }: BoardPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const activeBlockRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const programmaticUntilRef = useRef(0);
   const lastClientHeightRef = useRef(0);
+  const lastContentHeightRef = useRef(0);
   const lastScrollTopRef = useRef(0);
   const [follow, setFollow] = useState(INITIAL_BOARD_FOLLOW);
+  const [pinnedPageIndex, setPinnedPageIndex] = useState<number | null>(null);
+  const [zoomBlock, setZoomBlock] = useState<Block | null>(null);
 
-  const totalItems = board.length + answeredCards.length + dividers.length;
+  const normalizedPages = useMemo<readonly Page[]>(() => {
+    if (pages && pages.length > 0) return pages;
+    return [{ id: "page-1", blocks: board }];
+  }, [pages, board]);
+
+  const latestPageIndex = Math.max(0, normalizedPages.length - 1);
+  const activePageIndex =
+    pinnedPageIndex !== null && pinnedPageIndex >= 0 && pinnedPageIndex <= latestPageIndex
+      ? pinnedPageIndex
+      : latestPageIndex;
+  const isHistoricalPage = activePageIndex < latestPageIndex;
+  const visibleBlocks = normalizedPages[activePageIndex]?.blocks ?? [];
+
+  const pageDividers = useMemo(
+    () => dividers.filter((divider) => (divider.pageIndex ?? latestPageIndex) === activePageIndex),
+    [dividers, activePageIndex, latestPageIndex],
+  );
+  const pageAnsweredCards = useMemo(
+    () => answeredCards.filter((card) => (card.pageIndex ?? latestPageIndex) === activePageIndex),
+    [answeredCards, activePageIndex, latestPageIndex],
+  );
+
+  const totalItems = visibleBlocks.length + pageAnsweredCards.length + pageDividers.length;
   const effectiveFollow = updateFollowOnContent(follow, totalItems);
   const autoFollowRef = useRef(effectiveFollow.autoFollow);
   const stageLabel = copy.stages[stage as keyof typeof copy.stages] ?? stage;
@@ -104,30 +151,55 @@ export function BoardPanel({
     [reducedMotion],
   );
 
-  // Keep latest / active content visible when board height shrinks (e.g. AnswerTray slides open)
+  // Scroll targeted line or block into view when teacher points or marks a line
   useEffect(() => {
+    if (isHistoricalPage || !activePoint?.blockId) return;
     const container = scrollRef.current;
     if (!container) return;
+    const selector =
+      activePoint.line !== undefined
+        ? `[data-board-line="${CSS.escape(`${activePoint.blockId}.${activePoint.line}`)}"]`
+        : `[data-block-id="${CSS.escape(activePoint.blockId)}"]`;
+    const targetEl = container.querySelector<HTMLElement>(selector);
+    if (!targetEl) return;
+    const raf = window.requestAnimationFrame(() => {
+      targetEl.scrollIntoView({
+        block: "nearest",
+        behavior: reducedMotion ? "instant" : "smooth",
+      });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [activePoint, isHistoricalPage, reducedMotion]);
+
+  // Keep latest / active content visible when board height shrinks (AnswerTray) OR content grows (progressive steps / async plots)
+  useEffect(() => {
+    const container = scrollRef.current;
+    const content = contentRef.current;
+    if (!container) return;
     lastClientHeightRef.current = container.clientHeight;
+    if (content) lastContentHeightRef.current = content.offsetHeight;
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => {
       const nextH = container.clientHeight;
-      if (nextH !== lastClientHeightRef.current) {
-        lastClientHeightRef.current = nextH;
-        if (autoFollowRef.current) {
-          scrollToLatest(true);
-        }
+      const nextContentH = content?.offsetHeight ?? lastContentHeightRef.current;
+      const viewportChanged = nextH !== lastClientHeightRef.current;
+      const contentGrew = nextContentH > lastContentHeightRef.current + 2;
+      lastClientHeightRef.current = nextH;
+      lastContentHeightRef.current = nextContentH;
+      if ((viewportChanged || contentGrew) && autoFollowRef.current && !isHistoricalPage) {
+        scrollToLatest(true);
       }
     });
     ro.observe(container);
+    if (content) ro.observe(content);
     return () => ro.disconnect();
-  }, [scrollToLatest]);
+  }, [scrollToLatest, isHistoricalPage]);
 
   useEffect(() => {
-    if (!effectiveFollow.autoFollow || totalItems === 0) return;
+    if (isHistoricalPage || !effectiveFollow.autoFollow || totalItems === 0) return;
     const raf = window.requestAnimationFrame(() => scrollToLatest(false));
     return () => window.cancelAnimationFrame(raf);
-  }, [effectiveFollow.autoFollow, totalItems, activeBlockId, trayKey, scrollToLatest]);
+  }, [isHistoricalPage, effectiveFollow.autoFollow, totalItems, activeBlockId, trayKey, scrollToLatest]);
 
   const handleScroll = useCallback(() => {
     const container = scrollRef.current;
@@ -137,7 +209,7 @@ export function BoardPanel({
     const prevTop = lastScrollTopRef.current;
     if (curHeight !== lastClientHeightRef.current) {
       lastClientHeightRef.current = curHeight;
-      if (autoFollowRef.current) {
+      if (autoFollowRef.current && !isHistoricalPage) {
         scrollToLatest(true);
       }
       return;
@@ -155,7 +227,6 @@ export function BoardPanel({
       return;
     }
 
-    // Only pause auto-follow on genuine upward scroll, never mid-flight during downward smooth scroll
     if (scrolledUp) {
       programmaticUntilRef.current = 0;
       setFollow((prev) => {
@@ -163,18 +234,36 @@ export function BoardPanel({
         return updateFollowOnScroll(synced, false);
       });
     }
-  }, [scrollToLatest, totalItems]);
+  }, [isHistoricalPage, scrollToLatest, totalItems]);
 
   const handleJumpLatest = useCallback(() => {
+    setPinnedPageIndex(null);
     setFollow(jumpToLatestFollow(totalItems));
     scrollToLatest(false);
   }, [scrollToLatest, totalItems]);
 
+  const goPage = useCallback(
+    (nextIndex: number) => {
+      const clamped = Math.max(0, Math.min(latestPageIndex, nextIndex));
+      setPinnedPageIndex(clamped === latestPageIndex ? null : clamped);
+      if (clamped === latestPageIndex) {
+        setFollow(jumpToLatestFollow(totalItems));
+      } else {
+        scrollRef.current?.scrollTo({ top: 0, behavior: reducedMotion ? "instant" : "smooth" });
+      }
+    },
+    [latestPageIndex, reducedMotion, totalItems],
+  );
+
   const dividersAt = (blockCount: number) =>
-    dividers.filter((divider) => divider.afterBlockCount === blockCount);
+    pageDividers.filter((divider) => divider.afterBlockCount === blockCount);
+
+  const showOpeningCover =
+    activePageIndex === 0 && visibleBlocks.length === 0 && normalizedPages.length === 1;
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      {topBanner}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
@@ -182,16 +271,16 @@ export function BoardPanel({
         aria-label={copy.board}
         className="cs-stage-board-scroll"
       >
-        <div className="mx-auto grid w-full max-w-[780px] gap-4">
+        <div ref={contentRef} className="mx-auto grid w-full max-w-[780px] gap-4">
           {/* Opening cover (moves up as page header once blocks arrive) */}
           <header
             data-testid="board-cover"
             className={clsx(
               "grid gap-2 border-b border-line-subtle",
-              board.length === 0 ? "py-6" : "pb-3",
+              showOpeningCover ? "py-6" : "pb-3",
             )}
           >
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-caption font-medium text-fg-tertiary">{copy.board}</span>
                 {estMinutes ? (
@@ -200,12 +289,50 @@ export function BoardPanel({
                   </span>
                 ) : null}
               </div>
-              <Badge tone="neutral">{stageLabel}</Badge>
+              <div className="flex items-center gap-2">
+                {normalizedPages.length > 1 ? (
+                  <nav
+                    aria-label={copy.board}
+                    data-testid="board-pagination"
+                    className="inline-flex items-center gap-1 rounded-pill border border-line-subtle bg-surface-sunken px-1.5 py-0.5 text-caption"
+                  >
+                    <button
+                      type="button"
+                      disabled={activePageIndex <= 0}
+                      aria-label={copy.boardPrevPage}
+                      onClick={() => goPage(activePageIndex - 1)}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-fg-secondary hover:bg-surface-card hover:text-fg-primary disabled:opacity-35"
+                    >
+                      <ChevronLeft size={14} aria-hidden="true" />
+                    </button>
+                    <span className="px-1.5 tabular-nums font-medium text-fg-primary">
+                      {copy.boardPageOf
+                        .replace("{current}", String(activePageIndex + 1))
+                        .replace("{total}", String(normalizedPages.length))}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={activePageIndex >= latestPageIndex}
+                      aria-label={copy.boardNextPage}
+                      onClick={() => goPage(activePageIndex + 1)}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-fg-secondary hover:bg-surface-card hover:text-fg-primary disabled:opacity-35"
+                    >
+                      <ChevronRight size={14} aria-hidden="true" />
+                    </button>
+                  </nav>
+                ) : null}
+                <Badge tone="neutral">{stageLabel}</Badge>
+              </div>
             </div>
-            <h2 className={clsx("font-semibold text-fg-primary leading-snug", board.length === 0 ? "text-display" : "text-title")}>
+            <h2
+              className={clsx(
+                "font-semibold leading-snug text-fg-primary",
+                showOpeningCover ? "text-display" : "text-title",
+              )}
+            >
               {title}
             </h2>
-            {board.length === 0 && outline.length > 0 ? (
+            {showOpeningCover && outline.length > 0 ? (
               <div className="mt-2 grid gap-1.5 rounded-md border border-line-subtle bg-surface-sunken/60 p-3.5">
                 <p className="text-caption font-semibold text-fg-secondary">{copy.outlineHeading}</p>
                 <ol className="m-0 grid gap-1 pl-4 text-ui text-fg-primary">
@@ -219,7 +346,7 @@ export function BoardPanel({
                   ))}
                 </ol>
               </div>
-            ) : board.length === 0 ? (
+            ) : showOpeningCover ? (
               <p className="text-ui text-fg-secondary">{copy.openingHint}</p>
             ) : null}
           </header>
@@ -230,24 +357,29 @@ export function BoardPanel({
           ))}
 
           {/* Board blocks interleaved with stage / adaptation dividers */}
-          {board.map((block, index) => {
-            const isActive = block.id === activeBlockId;
+          {visibleBlocks.map((block, index) => {
+            const isActive = !isHistoricalPage && block.id === activeBlockId;
             return (
               <div key={block.id} className="grid gap-3">
                 <div
-                  ref={isActive ? activeBlockRef : undefined}
                   data-block-id={block.id}
                   data-active-block={isActive || undefined}
                   className={clsx(
                     "rounded-md px-3 py-2 transition-[background-color,border-color] duration-base ease-out",
                     isActive
-                      ? "bg-board-focus border-l-[3px] border-l-accent"
+                      ? "border-l-[3px] border-l-accent bg-board-focus"
                       : "border-l-[3px] border-l-transparent",
                   )}
                 >
                   <BoardBlock
                     block={block}
-                    locate={ready ? onLocate : undefined}
+                    locate={ready && !isHistoricalPage ? onLocate : undefined}
+                    latestMarkSeq={latestMarkSeq}
+                    isActiveBlock={isActive}
+                    progressiveSteps={progressiveSteps && !isHistoricalPage}
+                    reducedMotion={reducedMotion}
+                    showTools={showTools}
+                    onZoom={setZoomBlock}
                   />
                 </div>
                 {dividersAt(index + 1).map((divider) => (
@@ -258,10 +390,10 @@ export function BoardPanel({
           })}
 
           {/* Answered question summary cards (visible once tray closes) */}
-          {answeredCards.map((card, idx) => {
-            if (trayOpen && idx === answeredCards.length - 1) return null;
+          {pageAnsweredCards.map((card, idx) => {
+            if (!isHistoricalPage && trayOpen && idx === pageAnsweredCards.length - 1) return null;
             const isOk = card.verdict === "correct";
-            const isLatest = idx === answeredCards.length - 1;
+            const isLatest = !isHistoricalPage && idx === pageAnsweredCards.length - 1;
             const verdictLabel =
               copy.verdicts[card.verdict as keyof typeof copy.verdicts] ?? card.verdict;
             return (
@@ -282,7 +414,7 @@ export function BoardPanel({
                     <span>{verdictLabel}</span>
                   </Badge>
                 </div>
-                <div className="text-ui text-fg-primary line-clamp-2 [&>p]:m-0">
+                <div className="line-clamp-2 text-ui text-fg-primary [&>p]:m-0">
                   <LessonText source={card.stem} />
                 </div>
                 {card.studentAnswer ? (
@@ -297,8 +429,21 @@ export function BoardPanel({
         </div>
       </div>
 
-      {/* Floating "Back to latest" pill when user scrolled up */}
-      {!effectiveFollow.autoFollow ? (
+      {/* Floating "Back to latest" or "Jump to latest page" pill */}
+      {isHistoricalPage ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 z-sticky flex justify-end px-4">
+          <Button
+            variant="primary"
+            size="sm"
+            data-testid="jump-latest-page"
+            leftIcon={<ChevronRight size={15} />}
+            onClick={handleJumpLatest}
+            className="pointer-events-auto rounded-pill shadow-2"
+          >
+            {copy.boardJumpLatestPage}
+          </Button>
+        </div>
+      ) : !effectiveFollow.autoFollow ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-3 z-sticky flex justify-end px-4">
           <Button
             variant="primary"
@@ -306,7 +451,7 @@ export function BoardPanel({
             data-testid="back-to-latest"
             leftIcon={<ChevronDown size={15} />}
             onClick={handleJumpLatest}
-            className="pointer-events-auto shadow-2 rounded-pill"
+            className="pointer-events-auto rounded-pill shadow-2"
           >
             {effectiveFollow.unreadCount > 0
               ? copy.backToLatestCount.replace("{count}", String(effectiveFollow.unreadCount))
@@ -314,6 +459,28 @@ export function BoardPanel({
           </Button>
         </div>
       ) : null}
+
+      {/* Lightbox Dialog for zoomed plots, diagrams, and material images */}
+      <Dialog
+        open={Boolean(zoomBlock)}
+        onOpenChange={(open) => {
+          if (!open) setZoomBlock(null);
+        }}
+        title={zoomBlock?.title || copy.boardLightboxTitle}
+        size="lg"
+        closeLabel={copy.close}
+      >
+        {zoomBlock ? (
+          <div data-testid="board-lightbox" data-surface="paper" className="rounded-md bg-surface-page p-4">
+            <BoardBlock
+              block={zoomBlock}
+              reducedMotion={reducedMotion}
+              progressiveSteps={false}
+              showTools={false}
+            />
+          </div>
+        ) : null}
+      </Dialog>
     </div>
   );
 }
@@ -332,7 +499,7 @@ function DividerLine({ divider }: { divider: BoardDivider }) {
         className={clsx(
           "inline-flex items-center gap-1.5 rounded-pill px-2.5 py-0.5 text-caption font-medium",
           isAdapt
-            ? "bg-accent-soft text-accent-strong border border-accent/25"
+            ? "border border-accent/25 bg-accent-soft text-accent-strong"
             : "bg-surface-sunken text-fg-secondary",
         )}
       >

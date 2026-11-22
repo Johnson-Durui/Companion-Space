@@ -1,33 +1,473 @@
-.math { display: block; max-width: 100%; overflow-x: auto; color: var(--accent-strong); }
-.code { margin: 0; border-radius: 8px; overflow-x: auto; background: #172d2b; color: #ecf6ed; padding: .65rem 0; }
-.code span { display: block; min-width: max-content; padding: .25rem .8rem; }
-.code span[data-current] { background: #305a4d; box-shadow: inset 3px 0 #b9e8ad; }
+/* Whiteboard block styles — pure semantic design tokens, zero hex literals */
 
-.block { position: relative; display: grid; gap: .55rem; padding: .25rem 0; overflow-wrap: anywhere; animation: board-in 250ms ease-out both; }
-.block[data-kind="title"] { font-family: var(--font-sans); font-size: 1.25rem; font-weight: 600; }
-.block[data-marked], .block[data-kind="callout"] { border-inline-start: 3px solid var(--accent); padding-inline-start: .9rem; }
-.block[data-variant="warning"] { border-inline-start-color: #b06a33; }
-.line { display: block; width: 100%; border: 0; padding: .2rem; text-align: start; color: inherit; background: transparent; overflow-x: auto; animation: board-write 400ms ease-out both; }
-button.line { cursor: pointer; }
-.line[data-marked], .code span[data-marked] { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 0 -2px var(--accent); }
-.fallback { display: grid; gap: .45rem; margin: 0; padding: .75rem .9rem; overflow-x: auto; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--text-secondary); }
-.fallbackTitle { margin: 0; font-size: .875rem; font-weight: 500; color: var(--text-primary); }
-.fallbackDetails summary { cursor: pointer; font-size: .8125rem; color: var(--text-secondary); user-select: none; }
-.fallbackDetails pre { margin: .4rem 0 0; padding: .5rem; border-radius: var(--radius-sm); background: var(--surface-card); overflow-x: auto; font-size: .78rem; white-space: pre-wrap; }
-.diagram, .plot { max-width: 100%; overflow-x: auto; }
-.diagram svg, .plot svg { display: block; max-width: 100%; height: auto; margin-inline: auto; }
-.pending { min-height: 8rem; border-radius: 8px; background: linear-gradient(100deg, transparent 20%, rgba(40, 120, 111, .12) 45%, transparent 70%); background-size: 220% 100%; animation: board-loading 1.2s linear infinite; }
-.plotLabels { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin: .35rem 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .8rem; }
-.image { position: relative; margin: 0; max-width: 100%; overflow: hidden; border-radius: 8px; }
-.image img { display: block; width: 100%; height: auto; }
-.image > span { position: absolute; border: 3px solid #d27d32; background: rgba(255, 205, 92, .18); pointer-events: none; }
-.pointer { position: absolute; z-index: 2; inset-block-start: .2rem; inset-inline-end: .3rem; width: .8rem; height: .8rem; border-radius: 50%; background: #d65532; box-shadow: 0 0 0 .35rem rgba(214, 85, 50, .2); pointer-events: none; animation: board-point 1.2s ease-out both; }
+.math {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  color: var(--accent-strong);
+}
 
-@keyframes board-in { from { opacity: 0; transform: translateY(8px); } }
-@keyframes board-write { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
-@keyframes board-loading { to { background-position: -220% 0; } }
-@keyframes board-point { 0%, 65% { opacity: 1; transform: scale(.65); } 100% { opacity: 0; transform: scale(1.6); } }
+.code {
+  margin: 0;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  padding: 0.5rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.codeLine {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: max-content;
+  padding: 0.2rem 0.75rem;
+}
+
+.codeLineText {
+  flex: 1 1 auto;
+  white-space: pre;
+}
+
+.block {
+  position: relative;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.25rem 0;
+  overflow-wrap: anywhere;
+  animation: board-in 250ms var(--ease-out) both;
+}
+
+.block[data-kind="title"] {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.block[data-kind="callout"] {
+  border-inline-start: 3px solid var(--accent);
+  padding-inline-start: 0.9rem;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: var(--radius-sm);
+  padding-block: 0.55rem;
+  padding-inline-end: 0.75rem;
+}
+
+.block[data-variant="warning"] {
+  border-inline-start-color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+
+.block[data-block-mark-style="underline"] {
+  box-shadow: inset 0 -2px var(--mark-tone, var(--accent));
+}
+
+.block[data-block-mark-style="box"] {
+  border: 1.5px solid var(--mark-tone, var(--accent));
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.8rem;
+  background: color-mix(in srgb, var(--mark-tone, var(--accent)) 7%, transparent);
+}
+
+.block[data-block-mark-style="color"] {
+  border-inline-start: 3px solid var(--mark-tone, var(--accent));
+  padding-inline-start: 0.9rem;
+  background: color-mix(in srgb, var(--mark-tone, var(--accent)) 10%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.block[data-block-mark-stale="true"] {
+  opacity: 0.82;
+}
+
+.blockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+}
+
+.blockTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.blockTools {
+  position: absolute;
+  inset-block-start: 0.15rem;
+  inset-inline-end: 0.15rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-card) 92%, transparent);
+  border: 1px solid var(--border-subtle);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.block:hover .blockTools,
+.block:focus-within .blockTools {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .blockTools {
+    position: static;
+    justify-self: end;
+    opacity: 0.9;
+    pointer-events: auto;
+  }
+}
+
+.toolBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 28px;
+  padding: 0.15rem 0.45rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.toolBtn:hover,
+.toolBtn:focus-visible {
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+
+/* Line rows (steps, math, text, code) */
+.lineRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.28rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border-inline-start: 3px solid transparent;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+  animation: board-write 340ms var(--ease-out) both;
+}
+
+.lineRow[data-step-active="true"] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-inline-start-color: var(--accent);
+}
+
+.lineRow[data-pointed="true"],
+.codeLine[data-pointed="true"] {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-inline-start-color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+/* Three distinct mark styles + semantic mark colors */
+.markToneAccent {
+  --mark-tone: var(--accent);
+}
+
+.markToneOk {
+  --mark-tone: var(--ok);
+}
+
+.markToneWarn {
+  --mark-tone: var(--warn);
+}
+
+.lineRow[data-mark-style="underline"],
+.codeLine[data-mark-style="underline"] {
+  box-shadow: inset 0 -2px var(--mark-tone, var(--accent));
+}
+
+.lineRow[data-mark-style="box"],
+.codeLine[data-mark-style="box"] {
+  border: 1.5px solid var(--mark-tone, var(--accent));
+  background: color-mix(in srgb, var(--mark-tone, var(--accent)) 8%, transparent);
+}
+
+.lineRow[data-mark-style="color"],
+.codeLine[data-mark-style="color"] {
+  background: color-mix(in srgb, var(--mark-tone, var(--accent)) 16%, transparent);
+}
+
+.lineRow[data-mark-stale="true"],
+.codeLine[data-mark-stale="true"] {
+  opacity: 0.78;
+}
+
+.lineRow[data-mark-stale="true"][data-mark-style="underline"],
+.codeLine[data-mark-stale="true"][data-mark-style="underline"] {
+  box-shadow: inset 0 -1px color-mix(in srgb, var(--mark-tone, var(--accent)) 55%, transparent);
+}
+
+.lineRow[data-mark-stale="true"][data-mark-style="box"],
+.codeLine[data-mark-stale="true"][data-mark-style="box"] {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--mark-tone, var(--accent)) 55%, transparent);
+  background: transparent;
+}
+
+.lineRow[data-mark-stale="true"][data-mark-style="color"],
+.codeLine[data-mark-stale="true"][data-mark-style="color"] {
+  background: color-mix(in srgb, var(--mark-tone, var(--accent)) 7%, transparent);
+}
+
+.lineBody {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.lineBody p {
+  margin: 0;
+}
+
+.locateBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.lineRow:hover .locateBtn,
+.lineRow:focus-within .locateBtn,
+.codeLine:hover .locateBtn,
+.codeLine:focus-within .locateBtn,
+.locateBtn:focus-visible {
+  opacity: 1;
+}
+
+.locateBtn:hover,
+.locateBtn:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+@media (hover: none) {
+  .locateBtn {
+    opacity: 0.72;
+  }
+}
+
+/* Pointer mark placed on the LEFT of the targeted line (or block) */
+.linePointer {
+  flex: 0 0 auto;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0.28rem color-mix(in srgb, var(--accent) 24%, transparent);
+  animation: board-point 1.4s var(--ease-out) both;
+}
+
+.blockPointer {
+  position: absolute;
+  inset-block-start: 0.55rem;
+  inset-inline-start: -0.35rem;
+  z-index: 2;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0.28rem color-mix(in srgb, var(--accent) 24%, transparent);
+  pointer-events: none;
+  animation: board-point 1.4s var(--ease-out) both;
+}
+
+.fallback {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  overflow-x: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+.fallbackTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.fallbackDetails summary {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.fallbackDetails pre {
+  margin: 0.4rem 0 0;
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  overflow-x: auto;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+}
+
+.diagram,
+.plot {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.diagram svg,
+.plot svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+
+.pending {
+  min-height: 8rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--accent) 12%, transparent) 45%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: board-loading 1.2s linear infinite;
+}
+
+.plotLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.plotLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.plotSwatch {
+  width: 0.85rem;
+  height: 0.22rem;
+  border-radius: 999px;
+}
+
+.plotLabels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.image {
+  position: relative;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+}
+
+.image img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.image > span {
+  position: absolute;
+  border: 3px solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  pointer-events: none;
+}
+
+@keyframes board-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes board-write {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes board-loading {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@keyframes board-point {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .block, .line, .pending, .pointer { animation: none; }
-  .pointer { display: none; }
+  .block,
+  .lineRow,
+  .pending,
+  .linePointer,
+  .blockPointer {
+    animation: none;
+  }
 }

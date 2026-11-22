@@ -93,15 +93,34 @@ export function useClassroom(
 
   const askSeqRef = useRef<number | undefined>(undefined);
   askSeqRef.current = classroom.askSeq;
+  const lastSeqRef = useRef<number>(0);
+  const studentSubOrderRef = useRef<number>(0);
+  const latestTeacherSeq = classroom.spokenLog.reduce((max, entry) => Math.max(max, entry.seq ?? 0), 0);
+  if (latestTeacherSeq > lastSeqRef.current) {
+    lastSeqRef.current = latestTeacherSeq;
+    studentSubOrderRef.current = 0;
+  }
 
-  const appendStudentEntry = useCallback((text: string, badge: "voice" | "text" | "quick") => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    setStudentEntries((prev) => [
-      ...prev.slice(-199),
-      { id: `s:${Date.now()}:${prev.length}`, role: "student", text: trimmed, badge },
-    ]);
-  }, []);
+  const appendStudentEntry = useCallback(
+    (text: string, badge: "voice" | "text" | "quick", quickLabel?: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      studentSubOrderRef.current += 1;
+      const order = lastSeqRef.current * 1000 + studentSubOrderRef.current;
+      setStudentEntries((prev) => [
+        ...prev.slice(-199),
+        {
+          id: `s:${Date.now()}:${prev.length}`,
+          role: "student",
+          text: trimmed,
+          badge,
+          quickLabel,
+          order,
+        },
+      ]);
+    },
+    [],
+  );
 
   useEffect(() => {
     let socket: WebSocket | undefined;
@@ -438,9 +457,17 @@ export function useClassroom(
           const spoken = String(event.data.text ?? "");
           setTranscript(spoken);
           if (spoken.trim()) {
+            studentSubOrderRef.current += 1;
+            const order = Math.max(lastSeqRef.current, seq) * 1000 + studentSubOrderRef.current;
             setStudentEntries((prev) => [
               ...prev.slice(-199),
-              { id: `v:${Date.now()}:${prev.length}`, role: "student", text: spoken, badge: "voice" },
+              {
+                id: `v:${Date.now()}:${prev.length}`,
+                role: "student",
+                text: spoken,
+                badge: "voice",
+                order,
+              },
             ]);
           }
           return;

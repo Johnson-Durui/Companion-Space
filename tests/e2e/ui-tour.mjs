@@ -419,14 +419,37 @@ try {
     await shot(page, "lesson-history-replay");
     await shot(page, "lesson-history-replay-full", { full: true });
   });
-  await step("board blocks (chinese render error)", async () => {
+  await step("board blocks (marks, pointer, plot legend, lightbox, view switcher, transcript, shortcuts)", async () => {
     await page.goto("/lessons/browser-board-lesson");
     await button(page, t.classroom.startText).click({ timeout: 15_000 });
     await page.locator('[data-kind="plot"] svg').waitFor({ timeout: 20_000 });
     await page.locator('[data-kind="diagram"]').filter({ hasText: t.classroom.boardRenderError }).waitFor({ timeout: 20_000 });
-    await settle(1000);
+    await settle(1200);
     await shot(page, "board-blocks");
     await shot(page, "board-blocks-full", { full: true });
+
+    // Capture board-first floating PiP view
+    await page.getByTestId("view-mode-toggle").click();
+    await settle(400);
+    await shot(page, "lesson-board-first");
+    await page.getByTestId("view-mode-toggle").click();
+    await settle(300);
+
+    // Capture full transcript drawer
+    await page.getByTestId("dock-transcript-toggle").click();
+    await page.getByTestId("transcript-drawer").waitFor({ timeout: 5_000 });
+    await settle(400);
+    await shot(page, "lesson-transcript-drawer");
+    await page.keyboard.press("Escape");
+    await settle(250);
+
+    // Capture shortcuts help modal
+    await page.getByTestId("shortcuts-trigger").click();
+    await page.getByTestId("shortcuts-list").waitFor({ timeout: 5_000 });
+    await settle(300);
+    await shot(page, "lesson-shortcuts");
+    await page.keyboard.press("Escape");
+    await settle(250);
   });
   await step("lesson incorrect + confused (comfort reaction, no praise)", async () => {
     await page.goto("/lessons/browser-avatar-incorrect-lesson");
@@ -518,7 +541,7 @@ try {
       await shot(mobile, `${name}-full`, { full: true });
     });
   }
-  await step("m-lesson", async () => {
+  await step("m-lesson (teacher mode + board mode + question sheet)", async () => {
     await mobile.goto("/lessons/browser-avatar-teaching-lesson");
     await button(mobile, t.classroom.startText).waitFor({ timeout: 15_000 });
     await mobile.waitForTimeout(1000);
@@ -526,7 +549,12 @@ try {
     await button(mobile, t.classroom.startText).click();
     await mobile.getByRole("radio", { name: "A 按条件推导" }).waitFor({ timeout: 25_000 });
     await mobile.waitForTimeout(700);
-    await shot(mobile, "m-lesson-question");
+    await shot(mobile, "m-lesson-teacher-question");
+    await mobile.getByTestId("mobile-view-toggle").click();
+    await mobile.waitForTimeout(500);
+    await shot(mobile, "m-lesson-board-mode");
+    await mobile.getByTestId("mobile-pip-restore").click();
+    await mobile.waitForTimeout(400);
     await shot(mobile, "m-lesson-question-full", { full: true });
   });
 

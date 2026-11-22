@@ -8,6 +8,7 @@ export type BoardMark = {
   line?: number;
   style?: "underline" | "box" | "color" | string;
   color?: "accent" | "ok" | "warn" | string;
+  seq?: number;
 };
 export type Block = {
   id: string;
@@ -19,6 +20,8 @@ export type Block = {
   /** Compatibility for pre-M4 callers. */
   mark?: boolean;
   point?: number | string;
+  pointLine?: number;
+  pointSeq?: number;
 };
 export type Page = { id: string; blocks: readonly Block[] };
 export type Board = { pages: readonly Page[] };
@@ -28,4 +31,3 @@ export type BoardEvent = {
   data: Record<string, unknown>;
   seq?: number;
 };
-
