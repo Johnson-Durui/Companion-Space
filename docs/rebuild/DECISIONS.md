@@ -152,3 +152,11 @@
 - **白板多步推导自适应节奏与内容增长跟随**：`packages/board/components.tsx` 的 `steps` 块采用自适应行间间隔 `clamp(45ms, 280ms, 1100ms / (lines - 1))`（减少动态效果下瞬时全显），同时 `BoardPanel` 对内部内容容器挂载 `ResizeObserver`，确保逐行显现或函数图/流程图异步渲染拉高页面时在自动跟随态持续滚入最新行（满足 I7 且不打断手动上滚）。
 - **麦克风上下文预热复用与安全释放**：确认 `MicrophoneCapture.start()` 原先每次按住说话都重建 `AudioContext` 并通过 Blob URL 重新执行 `audioWorklet.addModule()`，确实会引入首音节延迟；改为进入语音课时通过 `warmup()` 预加载并缓存 `AudioContext` + `AudioWorklet` 模块，松开时仅停止 `MediaStream` 轨道并 `suspend()`（立刻熄灭系统麦克风灯），切走标签页或卸载时 `dispose()` 彻底关闭上下文。
 - **白板模块样式零硬编码色值**：彻底清理 `packages/board/board.module.css` 中的全部十六进制色并改用设计系统语义变量，从 `apps/web/tests/styles-tokens.test.ts` 的 `HEX_ALLOWED_FILES` 遗留白名单中提前移除该文件。
+
+## 体验重塑 U7 执行决定（2026-11-22）
+
+- **React 视图转场可选升级保持保守**：`TASK-UX-UPGRADE.md` §十一.5 将升级 React 19.3.x 并启用 `<ViewTransition>` 标为「可选项，先问所有者要不要做」；当前继续保持稳定 React 19.x 与 CSS `.cs-route-enter` 淡入转场（且遵守 `prefers-reduced-motion`），不在未获明确要求前引入大版本依赖变动。
+- **版本号与更新日志策略**：因所有者未指定新发布版本号，按 §十一.6 仅在 `CHANGELOG.md` 顶部新增 `## [Unreleased]` 汇总 U0–U7 变更，`scripts/build-portable.ps1` 保持当前 `1.0.0-rc.2` 版本并补充复制新增的展示截图。
+- **全站原生 `<select>` 与遗留 CSS 清零**：同步将 `course-hub.tsx` 与 `course-setup.tsx` 中最后 3 处原生 `<select>` 迁移为 Base UI `<Select>`，彻底删除全部 6 个旧全局样式文件（`tokens.css` / `classroom.css` / `setup.css` / `practice.css` / `progress.css` / `review.css`）及 `@layer legacy`，并在 `apps/web/tests/styles-tokens.test.ts` 移除 `HEX_ALLOWED_FILES` 与 `LEGACY_LAYER_FILES` 白名单机制（强制仅 `theme.css` 允许十六进制色值）。
+- **B10 结构化错误码全覆盖守门**：除补齐 `courses.py` 与 `diagnostics.py` 全部剩余 `HTTPException` 结构化 `detail={"code", "message"}` 外，新增静态 AST + 运行时测试 `services/api/tests/test_u7_error_codes.py`，防止后续新增纯英文字符串异常绕过前端中文错误映射。
+- **`Field` 必填星号脱离 `<label>` 文本**：将 `<Field required>` 的 `*` 渲染为 `<label>` 旁带 `aria-hidden="true"` 的兄弟元素，既保留视觉必填标记，又不污染可访问名称与精确标签查询。

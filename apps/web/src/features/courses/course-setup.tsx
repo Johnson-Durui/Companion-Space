@@ -525,14 +525,14 @@ export default function CourseSetupPage() {
                   <Field label={t.courses.pasteTitle} required>
                     <TextInput name="title" maxLength={120} required />
                   </Field>
-                  <label className="grid gap-1 text-ui font-medium text-fg-primary">
-                    <span>{t.courses.role}</span>
-                    <select name="role" defaultValue="notes" className="min-h-10 rounded-md border border-line-control bg-surface-card px-3 text-ui">
-                      {ROLES.map((role) => (
-                        <option key={role} value={role}>{t.courses.roles[role]}</option>
-                      ))}
-                    </select>
-                  </label>
+                  <Field label={t.courses.role}>
+                    <Select
+                      name="role"
+                      aria-label={t.courses.role}
+                      defaultValue="notes"
+                      options={ROLES.map((role) => ({ value: role, label: t.courses.roles[role] }))}
+                    />
+                  </Field>
                 </div>
                 <Field label={t.courses.pasteContent} required>
                   <Textarea name="content" rows={4} required />

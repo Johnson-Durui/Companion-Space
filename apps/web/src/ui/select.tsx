@@ -84,6 +84,7 @@ export function Select<T extends string = string>({
                 <BaseSelect.Item
                   key={option.value}
                   value={option.value}
+                  data-value={option.value}
                   disabled={option.disabled}
                   className={clsx(
                     "flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-sm px-2.5 py-1.5 text-ui text-fg-primary outline-none select-none",

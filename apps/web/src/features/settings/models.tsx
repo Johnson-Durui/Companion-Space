@@ -1,10 +1,42 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, bodyOf, connectionsKey, ensureOK, fetchConnections, fetchRoles, publicMessage, rolesKey, type Connection, type ModelRoles } from "../../app/api";
+import { Link, useSearchParams } from "react-router";
+import {
+  api,
+  bodyOf,
+  connectionsKey,
+  ensureOK,
+  fetchConnections,
+  fetchRoles,
+  publicMessage,
+  rolesKey,
+  type Connection,
+  type ModelRoles,
+} from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { ArrowUpRight, Button, Check, ChevronDown, ConfirmDialog, useTransientSaved } from "../../ui";
+import {
+  ArrowUpRight,
+  Badge,
+  Button,
+  Card,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ConfirmDialog,
+  Field,
+  Plus,
+  SecretInput,
+  SegmentedControl,
+  Select,
+  Textarea,
+  TextInput,
+  XCircle,
+  useTransientSaved,
+} from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { ConnectWizardDialog } from "./connect-wizard";
+import { DiagnosticsPanel } from "./diagnostics";
+import { useReadiness } from "./use-readiness";
 
 async function fetchPresets() {
   return bodyOf(await api.GET("/api/v2/providers/presets"));
@@ -25,99 +57,228 @@ function roleLabel(role: string) {
 function ConnectForm({ presets }: { presets: Preset[] }) {
   const [cost, setCost] = useState<"free" | "paid" | "all">("free");
   const [presetId, setPresetId] = useState("");
+  const [label, setLabel] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const queryClient = useQueryClient();
   const { saved, notifySaved } = useTransientSaved(t.common.saved);
+
+  const suggested =
+    cost === "all"
+      ? presets
+      : presets.filter((entry) =>
+          recommendations[cost].some((base) => entry.base_url?.startsWith(base)),
+        );
+  const visible = suggested.length ? suggested : presets;
+  const preset = visible.find((entry) => entry.id === presetId) ?? visible[0];
+
+  const selectPreset = (nextId: string) => {
+    setPresetId(nextId);
+    const chosen = presets.find((entry) => entry.id === nextId);
+    if (chosen) {
+      setLabel(chosen.label);
+      setBaseUrl(chosen.base_url ?? "");
+      setApiKey("");
+    }
+  };
+
   const create = useMutation({
-    mutationFn: async (data: FormData) => {
-      const values = (field: string) => String(data.get(field) ?? "").trim();
-      return bodyOf(await api.POST("/api/v2/providers/connections", { body: {
-        label: values("label") || null,
-        base_url: values("base_url") || null,
-        api_key: values("api_key"),
-        preset_id: values("preset_id"),
-      } }));
+    mutationFn: async () => {
+      if (!preset) throw new Error("No preset");
+      return bodyOf(
+        await api.POST("/api/v2/providers/connections", {
+          body: {
+            label: (label || preset.label).trim() || null,
+            base_url: (baseUrl || preset.base_url || "").trim() || null,
+            api_key: apiKey.trim(),
+            preset_id: preset.id,
+          },
+        }),
+      );
     },
     onSuccess: async () => {
-      await Promise.all([queryClient.invalidateQueries({ queryKey: connectionsKey }), queryClient.invalidateQueries({ queryKey: rolesKey })]);
+      setApiKey("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: connectionsKey }),
+        queryClient.invalidateQueries({ queryKey: rolesKey }),
+      ]);
       notifySaved();
     },
   });
-  const suggested = cost === "all" ? presets : presets.filter((entry) => recommendations[cost].some((base) => entry.base_url?.startsWith(base)));
-  const visible = suggested.length ? suggested : presets;
-  const preset = visible.find((entry) => entry.id === presetId) ?? visible[0];
-  if (!preset) return <p className="hint">{t.settings.noConnections}</p>;
+
+  if (!preset) return <p className="text-ui text-fg-secondary">{t.settings.noConnections}</p>;
+
+  const effectiveLabel = presetId === preset.id ? label : preset.label;
+  const effectiveBaseUrl = presetId === preset.id ? baseUrl : (preset.base_url ?? "");
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const keyInput = event.currentTarget.elements.namedItem("api_key");
-    create.mutate(new FormData(event.currentTarget), {
-      onSuccess: () => { if (keyInput instanceof HTMLInputElement) keyInput.value = ""; },
-    });
+    create.mutate();
   }
 
   return (
-    <form className="fields" onSubmit={submit}>
-      <div className="cost-choice" aria-label={t.settings.preset}>
-        <button type="button" className="button quiet" aria-pressed={cost === "free"} onClick={() => setCost("free")}>{t.settings.free}</button>
-        <button type="button" className="button quiet" aria-pressed={cost === "paid"} onClick={() => setCost("paid")}>{t.settings.paid}</button>
-        <button type="button" className="button quiet" aria-pressed={cost === "all"} onClick={() => setCost("all")}>{t.settings.all}</button>
+    <form className="grid max-w-2xl gap-4" onSubmit={submit} data-testid="manual-connect-form">
+      <SegmentedControl<"free" | "paid" | "all">
+        aria-label={t.settings.preset}
+        value={cost}
+        onValueChange={(next) => {
+          setCost(next);
+          setPresetId("");
+        }}
+        options={[
+          { value: "free", label: t.settings.free },
+          { value: "paid", label: t.settings.paid },
+          { value: "all", label: t.settings.all },
+        ]}
+      />
+      {cost === "free" ? (
+        <p className="text-caption text-fg-secondary">{t.settings.recommendFree}</p>
+      ) : null}
+      {cost === "paid" ? (
+        <p className="text-caption text-fg-secondary">{t.settings.recommendPaid}</p>
+      ) : null}
+
+      <Field label={t.settings.preset}>
+        <Select
+          aria-label={t.settings.preset}
+          options={visible.map((entry) => ({ value: entry.id, label: entry.label }))}
+          value={preset.id}
+          onValueChange={(next) => {
+            create.reset();
+            selectPreset(next);
+          }}
+        />
+      </Field>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={t.settings.name}>
+          <TextInput
+            name="label"
+            value={effectiveLabel}
+            maxLength={120}
+            onChange={(event) => {
+              if (presetId !== preset.id) {
+                setPresetId(preset.id);
+                setBaseUrl(preset.base_url ?? "");
+              }
+              setLabel(event.target.value);
+            }}
+          />
+        </Field>
+        <Field label={t.settings.baseUrl} required={!preset.base_url}>
+          <TextInput
+            name="base_url"
+            type="url"
+            value={effectiveBaseUrl}
+            placeholder={t.settings.customUrl}
+            required={!preset.base_url}
+            onChange={(event) => {
+              if (presetId !== preset.id) {
+                setPresetId(preset.id);
+                setLabel(preset.label);
+              }
+              setBaseUrl(event.target.value);
+            }}
+          />
+        </Field>
       </div>
-      {cost === "free" ? <p className="preset-note">{t.settings.recommendFree}</p> : null}
-      {cost === "paid" ? <p className="preset-note">{t.settings.recommendPaid}</p> : null}
-      <label>{t.settings.preset}
-        <select name="preset_id" value={preset.id} onChange={(event) => { create.reset(); setPresetId(event.target.value); }}>
-          {visible.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
-        </select>
-      </label>
-      <div className="field-row" key={preset.id}>
-        <label>{t.settings.name}<input name="label" defaultValue={preset.label} maxLength={120} /></label>
-        <label>{t.settings.baseUrl}<input name="base_url" type="url" defaultValue={preset.base_url ?? ""} placeholder={t.settings.customUrl} required={!preset.base_url} /></label>
-      </div>
-      <label>{t.settings.apiKey}<input key={preset.id} name="api_key" type="password" autoComplete="new-password" spellCheck={false} required={preset.requires_api_key} /></label>
-      {preset.free_tier_note ? <p className="hint">{preset.free_tier_note}</p> : null}
-      {preset.manual_live ? <p className="hint">{preset.manual_live}</p> : null}
-      <div className="actions">
-        <Button type="submit" variant="primary" pending={create.isPending}>{t.settings.create}</Button>
-        {preset.key_url ? <a className="text-link" href={preset.key_url} target="_blank" rel="noreferrer">{t.settings.getKey}<ArrowUpRight size={15} aria-hidden="true" /></a> : null}
-        {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
+
+      <Field label={t.settings.apiKey} required={preset.requires_api_key}>
+        <SecretInput
+          name="api_key"
+          value={apiKey}
+          required={preset.requires_api_key}
+          onChange={(event) => setApiKey(event.target.value)}
+        />
+      </Field>
+
+      {preset.free_tier_note ? (
+        <p className="text-caption text-fg-secondary">{preset.free_tier_note}</p>
+      ) : null}
+      {preset.manual_live ? (
+        <p className="text-caption text-fg-secondary">{preset.manual_live}</p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="primary" pending={create.isPending}>
+          {t.settings.create}
+        </Button>
+        {preset.key_url ? (
+          <a
+            className="inline-flex items-center gap-1 text-ui font-medium text-accent-strong underline underline-offset-4"
+            href={preset.key_url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span>{t.settings.getKey}</span>
+            <ArrowUpRight size={15} aria-hidden="true" />
+          </a>
+        ) : null}
+        {saved ? (
+          <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text">
+            <Check size={15} aria-hidden="true" />
+            {t.common.saved}
+          </span>
+        ) : null}
       </div>
       {create.isError ? <Problem error={create.error} /> : null}
     </form>
   );
 }
 
-function ConnectionRow({ connection, onModels }: { connection: Connection; onModels: (id: string, entries: string[]) => void }) {
+function ConnectionRow({
+  connection,
+  onModels,
+}: {
+  connection: Connection;
+  onModels: (id: string, entries: string[]) => void;
+}) {
   const queries = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editLabel, setEditLabel] = useState(connection.label);
+  const [editUrl, setEditUrl] = useState(connection.base_url ?? "");
+  const [editKey, setEditKey] = useState("");
   const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const params = { path: { connection_id: connection.id } };
+
   const refresh = async () => {
-    await Promise.all([queries.invalidateQueries({ queryKey: connectionsKey }), queries.invalidateQueries({ queryKey: rolesKey })]);
+    await Promise.all([
+      queries.invalidateQueries({ queryKey: connectionsKey }),
+      queries.invalidateQueries({ queryKey: rolesKey }),
+    ]);
   };
   const test = useMutation({
-    mutationFn: async () => bodyOf(await api.POST("/api/v2/providers/connections/{connection_id}/test", { params })),
+    mutationFn: async () =>
+      bodyOf(await api.POST("/api/v2/providers/connections/{connection_id}/test", { params })),
   });
   const discover = useMutation({
-    mutationFn: async () => bodyOf(await api.GET("/api/v2/providers/connections/{connection_id}/models", { params })),
+    mutationFn: async () =>
+      bodyOf(await api.GET("/api/v2/providers/connections/{connection_id}/models", { params })),
     onSuccess: ({ models }) => onModels(connection.id, models),
   });
   const edit = useMutation({
-    mutationFn: async (data: FormData) => {
-      const key = String(data.get("api_key") ?? "").trim();
-      return bodyOf(await api.PATCH("/api/v2/providers/connections/{connection_id}", { params, body: {
-        label: String(data.get("label") ?? "").trim(),
-        base_url: String(data.get("base_url") ?? "").trim() || null,
-        ...(key ? { api_key: key } : {}),
-      } }));
-    },
+    mutationFn: async () =>
+      bodyOf(
+        await api.PATCH("/api/v2/providers/connections/{connection_id}", {
+          params,
+          body: {
+            label: editLabel.trim(),
+            base_url: editUrl.trim() || null,
+            ...(editKey.trim() ? { api_key: editKey.trim() } : {}),
+          },
+        }),
+      ),
     onSuccess: async () => {
+      setEditKey("");
       await refresh();
       notifySaved();
     },
   });
   const remove = useMutation({
     mutationFn: async () => {
-      const { response, error } = await api.DELETE("/api/v2/providers/connections/{connection_id}", { params });
+      const { response, error } = await api.DELETE("/api/v2/providers/connections/{connection_id}", {
+        params,
+      });
       ensureOK(response, error);
     },
     onSuccess: async () => {
@@ -125,53 +286,139 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
       await refresh();
     },
   });
+
   return (
-    <article className="connection" data-testid="connection-card">
-      <h3>{connection.label}</h3>
-      {connection.base_url ? <p className="hint">{connection.base_url}</p> : null}
-      <div className="actions">
-        <Button variant="secondary" disabled={remove.isPending} pending={test.isPending} onClick={() => test.mutate()}>
-          {t.settings.test}
-        </Button>
-        <Button variant="secondary" disabled={remove.isPending} pending={discover.isPending} onClick={() => discover.mutate()}>
-          {t.settings.discover}
-        </Button>
+    <article
+      className="grid gap-3 rounded-lg border border-line-subtle bg-surface-page p-4"
+      data-testid="connection-card"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-0.5">
+          <h4 className="text-body font-semibold text-fg-primary">{connection.label}</h4>
+          {connection.base_url ? (
+            <p className="break-all text-caption text-fg-secondary">{connection.base_url}</p>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={remove.isPending}
+            pending={test.isPending}
+            onClick={() => test.mutate()}
+          >
+            {t.settings.test}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={remove.isPending}
+            pending={discover.isPending}
+            onClick={() => discover.mutate()}
+          >
+            {t.settings.discover}
+          </Button>
+        </div>
       </div>
-      {test.data?.length === 0 ? <p role="status" className="hint">{t.settings.testedNone}</p> : null}
+
+      {test.data?.length === 0 ? (
+        <p role="status" className="text-caption text-fg-secondary">
+          {t.settings.testedNone}
+        </p>
+      ) : null}
       {test.data?.length ? (
-        <ul className="test-results" data-testid="test-results" aria-live="polite">
+        <ul className="m-0 grid list-none gap-2 p-0" data-testid="test-results" aria-live="polite">
           {test.data.map((result) => {
             const detail = result.ok
-              ? (result.code === "stt_verified_silent" ? t.settings.sttVerifiedSilent : "")
+              ? result.code === "stt_verified_silent"
+                ? t.settings.sttVerifiedSilent
+                : ""
               : (publicMessage({ code: result.code }) ?? t.common.error);
-            const latency = typeof result.latency_ms === "number" ? `${Math.round(result.latency_ms)} ms` : "";
+            const latency =
+              typeof result.latency_ms === "number" ? `${Math.round(result.latency_ms)} ms` : "";
             const meta = [detail, latency].filter(Boolean).join(" · ");
             return (
-              <li key={result.role} data-failed={!result.ok}>
-                <strong>{roleLabel(result.role)} · {result.ok ? t.settings.passed : t.settings.failed}</strong>
-                {meta ? <small>{meta}</small> : null}
+              <li
+                key={result.role}
+                data-failed={!result.ok}
+                className={
+                  result.ok
+                    ? "grid gap-0.5 rounded-sm border-l-3 border-ok bg-ok-soft px-3 py-2 text-caption text-fg-primary"
+                    : "grid gap-0.5 rounded-sm border-l-3 border-danger bg-danger-soft px-3 py-2 text-caption text-danger-text"
+                }
+              >
+                <strong>
+                  {roleLabel(result.role)} · {result.ok ? t.settings.passed : t.settings.failed}
+                </strong>
+                {meta ? <small className="text-fg-secondary">{meta}</small> : null}
               </li>
             );
           })}
         </ul>
       ) : null}
-      {discover.data ? <p role="status" className="hint">{discover.data.models.length ? t.settings.modelCount : t.settings.discoverEmpty}</p> : null}
+      {discover.data ? (
+        <p role="status" className="text-caption text-fg-secondary">
+          {discover.data.models.length ? t.settings.modelCount : t.settings.discoverEmpty}
+        </p>
+      ) : null}
       {test.isError || discover.isError ? <Problem error={test.error ?? discover.error} /> : null}
-      <details>
-        <summary>{t.settings.edit}</summary>
-        <form className="fields" onSubmit={(event) => {
-          event.preventDefault();
-          const form = event.currentTarget;
-          const input = form.elements.namedItem("api_key");
-          edit.mutate(new FormData(form), { onSuccess: () => { if (input instanceof HTMLInputElement) input.value = ""; } });
-        }}>
-          <label>{t.settings.name}<input name="label" defaultValue={connection.label} maxLength={120} required /></label>
-          <label>{t.settings.baseUrl}<input name="base_url" type="url" defaultValue={connection.base_url ?? ""} /></label>
-          <label>{t.settings.rotate}<input name="api_key" type="password" autoComplete="new-password" spellCheck={false} /></label>
-          <div className="actions">
-            <Button type="submit" variant="primary" disabled={remove.isPending} pending={edit.isPending}>{t.common.save}</Button>
-            <Button variant="danger" disabled={edit.isPending} pending={remove.isPending} onClick={() => setDeleteOpen(true)}>{t.settings.delete}</Button>
-            {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
+
+      <details className="rounded-md border border-line-subtle bg-surface-card px-3.5 py-2.5">
+        <summary className="cursor-pointer select-none text-ui font-medium text-accent-strong">
+          {t.settings.edit}
+        </summary>
+        <form
+          className="mt-3 grid gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            edit.mutate();
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={t.settings.name} required>
+              <TextInput
+                name="label"
+                value={editLabel}
+                maxLength={120}
+                required
+                onChange={(event) => setEditLabel(event.target.value)}
+              />
+            </Field>
+            <Field label={t.settings.baseUrl}>
+              <TextInput
+                name="base_url"
+                type="url"
+                value={editUrl}
+                onChange={(event) => setEditUrl(event.target.value)}
+              />
+            </Field>
+          </div>
+          <Field label={t.settings.rotate}>
+            <SecretInput
+              name="api_key"
+              value={editKey}
+              onChange={(event) => setEditKey(event.target.value)}
+            />
+          </Field>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" variant="primary" size="sm" disabled={remove.isPending} pending={edit.isPending}>
+              {t.common.save}
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={edit.isPending}
+              pending={remove.isPending}
+              onClick={() => setDeleteOpen(true)}
+            >
+              {t.settings.delete}
+            </Button>
+            {saved ? (
+              <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text">
+                <Check size={15} aria-hidden="true" />
+                {t.common.saved}
+              </span>
+            ) : null}
           </div>
           <ConfirmDialog
             open={deleteOpen}
@@ -190,20 +437,48 @@ function ConnectionRow({ connection, onModels }: { connection: Connection; onMod
   );
 }
 
-function RoleRow({ role, value, connections, busy, onSave }: {
-  role: Role; value: ModelRoles[Role]; connections: Connection[]; busy: boolean;
+/**
+ * Keeps its expanded state across saves (never remounted on value change, TASK-UX-UPGRADE §十一.1).
+ */
+function RoleRow({
+  role,
+  value,
+  connections,
+  loadedModels,
+  busy,
+  onSave,
+}: {
+  role: Role;
+  value: ModelRoles[Role];
+  connections: Connection[];
+  loadedModels: Record<string, string[]>;
+  busy: boolean;
   onSave: (role: Role, entry?: NonNullable<ModelRoles[Role]>) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [preferredConnectionId, setPreferredConnectionId] = useState(value?.connection_id);
-  const connectionId = connections.find((entry) => entry.id === preferredConnectionId)?.id ?? connections[0]?.id ?? "";
+  const connectionId =
+    connections.find((entry) => entry.id === preferredConnectionId)?.id ??
+    connections.find((entry) => entry.id === value?.connection_id)?.id ??
+    connections[0]?.id ??
+    "";
+  const [modelInput, setModelInput] = useState<string | null>(null);
+  const [paramsInput, setParamsInput] = useState<string | null>(null);
   const [validation, setValidation] = useState("");
+
+  const effectiveModel =
+    modelInput !== null ? modelInput : connectionId === value?.connection_id ? (value?.model ?? "") : "";
+  const effectiveParams =
+    paramsInput !== null
+      ? paramsInput
+      : JSON.stringify(connectionId === value?.connection_id ? (value?.params ?? {}) : {}, null, 2);
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setValidation("");
-    const data = new FormData(event.currentTarget);
     let params: unknown;
     try {
-      params = JSON.parse(String(data.get("params") ?? "").trim() || "{}");
+      params = JSON.parse(effectiveParams.trim() || "{}");
     } catch {
       setValidation(t.settings.invalidParams);
       return;
@@ -212,96 +487,313 @@ function RoleRow({ role, value, connections, busy, onSave }: {
       setValidation(t.settings.invalidParams);
       return;
     }
-    const model = String(data.get("model") ?? "").trim();
-    if (model && connectionId) onSave(role, { connection_id: connectionId, model, params: { ...params } });
+    const model = effectiveModel.trim();
+    if (model && connectionId) {
+      onSave(role, { connection_id: connectionId, model, params: { ...params } });
+    }
   }
+
+  const connectionOptions = connections.map((entry) => ({ value: entry.id, label: entry.label }));
+  const suggestions = loadedModels[connectionId] ?? [];
+
   return (
-    <details className="role-row" data-testid="role-row">
-      <summary><span className="role-caption"><strong>{roleLabel(role)}</strong><small>{value?.model ?? t.settings.noRole}</small></span><ChevronDown size={16} aria-hidden="true" /></summary>
-      <form className="fields" onSubmit={submit}>
-        <div className="field-row">
-          <label>{t.settings.useConnection}
-            <select name="connection_id" value={connectionId} required onChange={(event) => setPreferredConnectionId(event.target.value)}>
-              {connections.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
-            </select>
-          </label>
-          <label>{t.settings.modelId}<input name="model" key={connectionId} list={`models-${connectionId}`} defaultValue={connectionId === value?.connection_id ? value.model : ""} maxLength={256} required /></label>
+    <details
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      className="border-b border-line-subtle last:border-b-0"
+      data-testid="role-row"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-ui">
+        <span className="flex flex-wrap items-center gap-3">
+          <strong className="min-w-[84px] font-semibold text-fg-primary">{roleLabel(role)}</strong>
+          <small className="text-caption text-fg-secondary">{value?.model ?? t.settings.noRole}</small>
+        </span>
+        <ChevronDown
+          size={16}
+          aria-hidden="true"
+          className={open ? "rotate-180 text-fg-secondary transition-transform" : "text-fg-secondary transition-transform"}
+        />
+      </summary>
+
+      <form className="grid gap-3 pb-4" onSubmit={submit}>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label={t.settings.useConnection}>
+            <Select
+              aria-label={t.settings.useConnection}
+              options={connectionOptions}
+              value={connectionId}
+              onValueChange={(next) => {
+                setPreferredConnectionId(next);
+                setModelInput(null);
+                setParamsInput(null);
+              }}
+            />
+          </Field>
+          <Field label={t.settings.modelId} required>
+            <TextInput
+              name="model"
+              list={`models-${connectionId}`}
+              value={effectiveModel}
+              maxLength={256}
+              required
+              onChange={(event) => setModelInput(event.target.value)}
+            />
+          </Field>
         </div>
-        <details>
-          <summary>{t.settings.advanced}</summary>
-          <label>{t.settings.parameters}<textarea key={connectionId} spellCheck={false} name="params" rows={3} defaultValue={JSON.stringify(connectionId === value?.connection_id ? value.params : {}, null, 2)} /></label>
+
+        {suggestions.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.slice(0, 8).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setModelInput(item)}
+                className="rounded-pill border border-line-subtle bg-surface-sunken px-2.5 py-0.5 text-caption text-fg-secondary hover:border-accent hover:text-accent-strong"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <details className="rounded-md border border-line-subtle bg-surface-page px-3 py-2">
+          <summary className="cursor-pointer select-none text-caption font-medium text-fg-secondary">
+            {t.settings.advanced}
+          </summary>
+          <div className="mt-2">
+            <Field label={t.settings.parameters} error={validation || undefined}>
+              <Textarea
+                spellCheck={false}
+                name="params"
+                rows={3}
+                value={effectiveParams}
+                onChange={(event) => setParamsInput(event.target.value)}
+              />
+            </Field>
+          </div>
         </details>
-        <div className="actions">
-          <button className="button primary" disabled={busy} aria-busy={busy || undefined}>{t.settings.roleSave}</button>
-          {value ? <button type="button" className="button quiet" disabled={busy} aria-busy={busy || undefined} onClick={() => onSave(role)}>{t.settings.clearRole}</button> : null}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="submit" variant="primary" size="sm" pending={busy}>
+            {t.settings.roleSave}
+          </Button>
+          {value ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={busy}
+              onClick={() => {
+                setModelInput("");
+                onSave(role);
+              }}
+            >
+              {t.settings.clearRole}
+            </Button>
+          ) : null}
         </div>
-        {validation ? <p role="alert" className="hint">{validation}</p> : null}
+        {validation ? (
+          <p role="alert" className="text-caption text-danger-text">
+            {validation}
+          </p>
+        ) : null}
       </form>
     </details>
   );
 }
 
 export function ModelSettings() {
+  const [searchParams] = useSearchParams();
   const [loadedModels, setLoadedModels] = useState<Record<string, string[]>>({});
   const [wizardOpen, setWizardOpen] = useState(false);
+  const testChatRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const readiness = useReadiness();
   const { saved, notifySaved } = useTransientSaved(t.common.saved);
+
   const presets = useQuery({ queryKey: ["presets"], queryFn: fetchPresets });
   const connections = useQuery({ queryKey: connectionsKey, queryFn: fetchConnections });
   const assignments = useQuery({ queryKey: rolesKey, queryFn: fetchRoles });
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "test") {
+      testChatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [searchParams]);
+
   const save = useMutation({
-    mutationFn: async (body: ModelRoles) => bodyOf(await api.PUT("/api/v2/settings/model-roles", { body })),
+    mutationFn: async (body: ModelRoles) =>
+      bodyOf(await api.PUT("/api/v2/settings/model-roles", { body })),
     onSuccess: (values) => {
       queryClient.setQueryData(rolesKey, values);
+      readiness.refetch();
       notifySaved();
     },
   });
+
   function setRole(role: Role, entry?: NonNullable<ModelRoles[Role]>) {
     const next = { ...assignments.data };
     if (entry) next[role] = entry;
     else delete next[role];
     save.mutate(next);
   }
+
+  const readinessCaps = [
+    { key: "live", label: t.connectWizard.caps.live, ready: readiness.canTeach, fixTo: null },
+    { key: "analysis", label: t.connectWizard.caps.analysis, ready: readiness.canAnalyze, fixTo: null },
+    { key: "checker", label: t.connectWizard.caps.checker, ready: readiness.canCheck, fixTo: null },
+    { key: "vision", label: t.connectWizard.caps.vision, ready: readiness.canSeeImages, fixTo: null },
+    { key: "stt", label: t.connectWizard.caps.stt, ready: readiness.canUseVoice, fixTo: "/settings/voice" },
+  ] as const;
+
   return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2>{t.settings.models}</h2>
-        <Button variant="secondary" size="sm" onClick={() => setWizardOpen(true)}>
-          {t.connectWizard.title}
-        </Button>
-      </div>
+    <div className="grid gap-5">
       <ConnectWizardDialog open={wizardOpen} onOpenChange={setWizardOpen} />
-      {presets.isPending ? <Loading /> : null}
-      {presets.isError ? <Problem error={presets.error} onRetry={() => void presets.refetch()} /> : null}
-      {presets.data ? <ConnectForm presets={presets.data} /> : null}
-      <h3>{t.settings.connections}</h3>
-      {connections.isPending ? <Loading /> : null}
-      {connections.isError ? <Problem error={connections.error} onRetry={() => void connections.refetch()} /> : null}
-      {connections.data?.length === 0 ? <p className="hint">{t.settings.noConnections}</p> : null}
-      {connections.data?.length ? (
-        <div className="connection-list">
-          {connections.data.map((connection) => (
-            <ConnectionRow key={connection.id} connection={connection} onModels={(id, models) => setLoadedModels((current) => ({ ...current, [id]: models }))} />
+
+      {/* 5-Capability Readiness Overview (§5.13) */}
+      <Card padding="lg" className="grid gap-4" data-testid="ai-readiness-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-subtle pb-3">
+          <div className="grid gap-0.5">
+            <h2 className="text-title font-semibold text-fg-primary">{t.settings.aiReadiness}</h2>
+            <p className="text-ui text-fg-secondary">{t.settings.aiReadinessHint}</p>
+          </div>
+          <Button
+            variant="primary"
+            leftIcon={<Plus size={16} aria-hidden="true" />}
+            onClick={() => setWizardOpen(true)}
+          >
+            {t.settings.aiAddService}
+          </Button>
+        </div>
+
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          {readinessCaps.map((cap) => (
+            <div
+              key={cap.key}
+              className="flex items-center justify-between gap-2 rounded-md border border-line-subtle bg-surface-page px-3.5 py-2.5"
+            >
+              <span className="inline-flex items-center gap-2 text-ui font-medium text-fg-primary">
+                {cap.ready ? (
+                  <CheckCircle2 size={16} className="text-ok shrink-0" aria-hidden="true" />
+                ) : (
+                  <XCircle size={16} className="text-fg-tertiary shrink-0" aria-hidden="true" />
+                )}
+                <span>{cap.label}</span>
+              </span>
+              {cap.ready ? (
+                <Badge tone="ok">{t.settings.aiReadinessReady}</Badge>
+              ) : cap.fixTo ? (
+                <Link
+                  to={cap.fixTo}
+                  className="text-caption font-medium text-accent-strong hover:underline"
+                >
+                  {t.settings.aiFix}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setWizardOpen(true)}
+                  className="text-caption font-medium text-accent-strong hover:underline"
+                >
+                  {t.settings.aiFix}
+                </button>
+              )}
+            </div>
           ))}
         </div>
-      ) : null}
-      <h3>{t.settings.roles}</h3>
-      {assignments.isPending ? <Loading /> : null}
-      {assignments.isError ? <Problem error={assignments.error} onRetry={() => void assignments.refetch()} /> : null}
-      {connections.data?.length === 0 ? <p className="hint">{t.settings.roleNone}</p> : null}
-      {connections.data?.length && assignments.data ? (
-        <div className="role-list">
-          {Object.entries(loadedModels).map(([id, models]) => (
-            <datalist key={id} id={`models-${id}`}>{models.map((model) => <option key={model} value={model} />)}</datalist>
-          ))}
-          {roles.map((role) => (
-            <RoleRow key={`${role}:${JSON.stringify(assignments.data[role])}`} role={role} value={assignments.data[role]}
-              connections={connections.data} busy={save.isPending} onSave={setRole} />
-          ))}
-        </div>
-      ) : null}
-      {save.isError ? <Problem error={save.error} /> : null}
-      {saved ? <p className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</p> : null}
-    </>
+      </Card>
+
+      {/* Connected Services + Manual Form */}
+      <Card padding="lg" className="grid gap-4">
+        <h3 className="text-body font-semibold text-fg-primary">{t.settings.connections}</h3>
+        {connections.isPending ? <Loading /> : null}
+        {connections.isError ? (
+          <Problem error={connections.error} onRetry={() => void connections.refetch()} />
+        ) : null}
+        {connections.data?.length === 0 ? (
+          <p className="text-ui text-fg-secondary">{t.settings.noConnections}</p>
+        ) : null}
+        {connections.data?.length ? (
+          <div className="grid gap-3">
+            {connections.data.map((connection) => (
+              <ConnectionRow
+                key={connection.id}
+                connection={connection}
+                onModels={(id, models) =>
+                  setLoadedModels((current) => ({ ...current, [id]: models }))
+                }
+              />
+            ))}
+          </div>
+        ) : null}
+
+        <details
+          data-testid="manual-connect-details"
+          className="rounded-md border border-line-subtle bg-surface-page px-4 py-3"
+        >
+          <summary className="cursor-pointer select-none text-ui font-medium text-accent-strong">
+            {t.settings.aiCustomForm}
+          </summary>
+          <div className="mt-4">
+            {presets.isPending ? <Loading /> : null}
+            {presets.isError ? (
+              <Problem error={presets.error} onRetry={() => void presets.refetch()} />
+            ) : null}
+            {presets.data ? <ConnectForm presets={presets.data} /> : null}
+          </div>
+        </details>
+      </Card>
+
+      {/* Embedded Test Conversation (ex-试聊) */}
+      <div ref={testChatRef}>
+        <DiagnosticsPanel embedded onOpenConnect={() => setWizardOpen(true)} />
+      </div>
+
+      {/* Advanced: Per-capability Model Assignment (rows stay open on save!) */}
+      <Card padding="lg" className="grid gap-3" data-advanced="true">
+        <details data-testid="advanced-roles-details">
+          <summary className="cursor-pointer select-none text-body font-semibold text-fg-primary">
+            {t.settings.aiAdvancedRoles}
+          </summary>
+          <div className="mt-4 grid gap-3">
+            {assignments.isPending ? <Loading /> : null}
+            {assignments.isError ? (
+              <Problem error={assignments.error} onRetry={() => void assignments.refetch()} />
+            ) : null}
+            {connections.data?.length === 0 ? (
+              <p className="text-ui text-fg-secondary">{t.settings.roleNone}</p>
+            ) : null}
+            {connections.data?.length && assignments.data ? (
+              <div className="grid">
+                {Object.entries(loadedModels).map(([id, models]) => (
+                  <datalist key={id} id={`models-${id}`}>
+                    {models.map((model) => (
+                      <option key={model} value={model} />
+                    ))}
+                  </datalist>
+                ))}
+                {roles.map((role) => (
+                  <RoleRow
+                    key={role}
+                    role={role}
+                    value={assignments.data[role]}
+                    connections={connections.data}
+                    loadedModels={loadedModels}
+                    busy={save.isPending}
+                    onSave={setRole}
+                  />
+                ))}
+              </div>
+            ) : null}
+            {save.isError ? <Problem error={save.error} /> : null}
+            {saved ? (
+              <p className="inline-flex items-center gap-1 text-ui font-medium text-ok-text">
+                <Check size={15} aria-hidden="true" />
+                {t.common.saved}
+              </p>
+            ) : null}
+          </div>
+        </details>
+      </Card>
+    </div>
   );
 }

@@ -43,12 +43,14 @@ export function Field({
   return (
     <FieldContext.Provider value={{ id, descriptionId, errorId, invalid, required }}>
       <div className={clsx("grid gap-1.5 min-w-0", className)}>
-        <label htmlFor={id} className="text-ui font-medium text-fg-primary">
-          {label}
+        <div className="flex items-center gap-1">
+          <label htmlFor={id} className="text-ui font-medium text-fg-primary">
+            {label}
+          </label>
           {required ? (
-            <span className="ml-1 text-danger" aria-hidden="true">*</span>
+            <span className="text-ui leading-none text-danger" aria-hidden="true">*</span>
           ) : null}
-        </label>
+        </div>
         {children}
         {description ? (
           <p id={descriptionId} className="text-caption text-fg-secondary">

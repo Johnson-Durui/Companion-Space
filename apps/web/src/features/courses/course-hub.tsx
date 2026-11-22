@@ -575,8 +575,11 @@ function SourcePage({ courseId, reference }: { courseId: string; reference: { ma
   if (page.isError) return <Problem error={page.error} onRetry={() => void page.refetch()} />;
   const material = materials.data?.find((entry) => entry.id === reference.material_id);
   return (
-    <div className="source-page" data-testid="source-page">
-      <strong>
+    <div
+      className="grid min-w-0 gap-2.5 rounded-md border border-line-subtle bg-surface-sunken p-3.5"
+      data-testid="source-page"
+    >
+      <strong className="text-ui font-semibold text-fg-primary">
         {material?.title || material?.filename || t.courses.source} · {t.courses.page.replace("{page}", String(reference.page_no))}
       </strong>
       {page.data.has_image ? (
@@ -586,10 +589,13 @@ function SourcePage({ courseId, reference }: { courseId: string; reference: { ma
           height="1200"
           loading="lazy"
           alt={t.courses.sourceImage.replace("{page}", String(reference.page_no))}
+          className="max-h-[520px] w-full rounded-sm bg-surface-card object-contain"
         />
       ) : null}
-      <pre>{page.data.markdown}</pre>
-      <small>
+      <pre className="m-0 max-h-[360px] overflow-auto whitespace-pre-wrap break-words font-sans text-ui leading-relaxed text-fg-primary">
+        {page.data.markdown}
+      </pre>
+      <small className="text-caption text-fg-secondary">
         {t.courses.pageSource[page.data.source as keyof typeof t.courses.pageSource] ?? page.data.source} ·{" "}
         {Math.round(page.data.quality * 100)}%
       </small>
@@ -599,29 +605,35 @@ function SourcePage({ courseId, reference }: { courseId: string; reference: { ma
 
 function ExamItems({ items }: { items: ExamItem[] }) {
   return (
-    <>
+    <div className="grid gap-3">
       {items.map((item) => (
-        <article key={item.id} data-testid="exam-item">
-          <div>
-            <strong>{item.no}</strong>
-            <span className="answer-status">
+        <article
+          key={item.id}
+          data-testid="exam-item"
+          className="grid gap-2 rounded-md border border-line-subtle bg-surface-page p-4 text-ui"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <strong className="font-semibold text-fg-primary">{item.no}</strong>
+            <Badge tone="neutral">
               {t.courses.answerStatus[item.answer_status as keyof typeof t.courses.answerStatus] ?? item.answer_status}
-            </span>
+            </Badge>
           </div>
-          <p>{item.stem}</p>
+          <p className="text-fg-primary">{item.stem}</p>
           {Object.entries(item.options).map(([key, value]) => (
-            <p key={key}>{key}. {value}</p>
+            <p key={key} className="text-fg-secondary">{key}. {value}</p>
           ))}
           {item.answer ? (
-            <details>
-              <summary>{t.courses.answer}</summary>
-              <p>{item.answer}</p>
-              {item.solution ? <p>{item.solution}</p> : null}
+            <details className="rounded-sm border border-line-subtle bg-surface-card px-3 py-2">
+              <summary className="cursor-pointer select-none font-medium text-accent-strong">
+                {t.courses.answer}
+              </summary>
+              <p className="mt-2 font-medium text-fg-primary">{item.answer}</p>
+              {item.solution ? <p className="mt-1 text-fg-secondary">{item.solution}</p> : null}
             </details>
           ) : null}
         </article>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -694,11 +706,13 @@ function KnowledgePointDetail({
   const examTypeEntries = Object.entries(point.stats?.types ?? {}).filter(([, count]) => Number(count) > 0);
 
   return (
-    <article className="kp-detail grid min-w-0 gap-4">
-      <div className="kp-heading flex flex-wrap items-start justify-between gap-3">
+    <article className="grid min-w-0 content-start gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid min-w-0 gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="kp-kind">{t.courses.kinds[point.kind as keyof typeof t.courses.kinds] ?? point.kind}</span>
+            <span className="text-caption font-medium tracking-wide text-fg-tertiary">
+              {t.courses.kinds[point.kind as keyof typeof t.courses.kinds] ?? point.kind}
+            </span>
             <span className="inline-flex items-center gap-1 text-caption font-medium text-fg-secondary">
               <MasteryShapeGlyph status={normStatus} size={14} />
               <span>{t.loopViz.masteryStatuses[normStatus]}</span>
@@ -791,14 +805,39 @@ function KnowledgePointDetail({
       )}
 
       {lesson.isError ? <Problem error={lesson.error} /> : null}
-      {point.formula ? <pre className="formula">{point.formula}</pre> : null}
+      {point.formula ? (
+        <pre className="overflow-x-auto whitespace-pre-wrap rounded-sm border-l-3 border-accent bg-surface-sunken p-3.5 text-ui text-fg-primary">
+          {point.formula}
+        </pre>
+      ) : null}
 
-      <dl className="kp-stats">
-        <div><dt>{t.courses.importance}</dt><dd>{t.courses.importanceValue[point.importance]}</dd></div>
-        <div><dt>{t.courses.difficulty}</dt><dd><DifficultyDots value={point.difficulty} label={`${t.courses.difficulty} ${point.difficulty}/3`} /></dd></div>
-        <div><dt>{t.courses.examCount}</dt><dd>{point.stats?.n_items ?? 0}</dd></div>
-        <div><dt>{t.courses.scoreShare}</dt><dd>{point.stats ? `${(point.stats.score_share * 100).toFixed(1)}%` : "—"}</dd></div>
-        <div><dt>{t.courses.trend}</dt><dd>{point.stats ? (t.courses.trendValue[point.stats.trend as keyof typeof t.courses.trendValue] ?? point.stats.trend) || "—" : "—"}</dd></div>
+      <dl className="m-0 grid grid-cols-2 border-y border-line-subtle sm:grid-cols-5">
+        <div className="grid gap-1 border-b border-r border-line-subtle p-3 sm:border-b-0">
+          <dt className="text-caption text-fg-tertiary">{t.courses.importance}</dt>
+          <dd className="m-0 font-semibold text-fg-primary">{t.courses.importanceValue[point.importance]}</dd>
+        </div>
+        <div className="grid gap-1 border-b border-line-subtle p-3 sm:border-b-0 sm:border-r">
+          <dt className="text-caption text-fg-tertiary">{t.courses.difficulty}</dt>
+          <dd className="m-0 font-semibold text-fg-primary">
+            <DifficultyDots value={point.difficulty} label={`${t.courses.difficulty} ${point.difficulty}/3`} />
+          </dd>
+        </div>
+        <div className="grid gap-1 border-b border-r border-line-subtle p-3 sm:border-b-0">
+          <dt className="text-caption text-fg-tertiary">{t.courses.examCount}</dt>
+          <dd className="m-0 font-semibold tabular-nums text-fg-primary">{point.stats?.n_items ?? 0}</dd>
+        </div>
+        <div className="grid gap-1 border-b border-line-subtle p-3 sm:border-b-0 sm:border-r">
+          <dt className="text-caption text-fg-tertiary">{t.courses.scoreShare}</dt>
+          <dd className="m-0 font-semibold tabular-nums text-fg-primary">
+            {point.stats ? `${(point.stats.score_share * 100).toFixed(1)}%` : "—"}
+          </dd>
+        </div>
+        <div className="grid gap-1 p-3">
+          <dt className="text-caption text-fg-tertiary">{t.courses.trend}</dt>
+          <dd className="m-0 font-semibold text-fg-primary">
+            {point.stats ? (t.courses.trendValue[point.stats.trend as keyof typeof t.courses.trendValue] ?? point.stats.trend) || "—" : "—"}
+          </dd>
+        </div>
       </dl>
 
       {examTypeEntries.length > 0 ? (
@@ -813,11 +852,54 @@ function KnowledgePointDetail({
       ) : null}
 
       {editing ? (
-        <form className="kp-edit fields rounded-md border border-line-subtle bg-surface-page p-4" onSubmit={submit}>
-          <label>{t.courses.kpName}<input name="name" defaultValue={point.name} required /></label>
-          <label>{t.courses.importance}<select name="importance" defaultValue={point.importance}>{Object.entries(t.courses.importanceValue).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <fieldset><legend>{t.courses.prerequisites}</legend>{allPoints.filter((candidate) => candidate.id !== point.id).map((candidate) => <label key={candidate.id}><input type="checkbox" name="prerequisite" value={candidate.id} defaultChecked={point.prerequisite_ids.includes(candidate.id)} />{candidate.name}</label>)}</fieldset>
-          <div className="actions"><button className="button primary" disabled={revise.isPending} aria-busy={revise.isPending || undefined}>{t.common.save}</button><button type="button" className="button quiet" onClick={() => setEditing(false)}>{t.common.cancel}</button></div>
+        <form
+          className="grid gap-4 rounded-md border border-line-subtle bg-surface-page p-4"
+          onSubmit={submit}
+        >
+          <label className="grid gap-1.5 text-ui font-medium text-fg-primary">
+            <span>{t.courses.kpName}</span>
+            <input
+              name="name"
+              defaultValue={point.name}
+              required
+              className="min-h-10 w-full rounded-md border border-line-control bg-surface-card px-3 py-2 text-ui font-normal text-fg-primary"
+            />
+          </label>
+          <Field label={t.courses.importance}>
+            <Select
+              name="importance"
+              aria-label={t.courses.importance}
+              defaultValue={point.importance}
+              options={Object.entries(t.courses.importanceValue).map(([value, label]) => ({
+                value,
+                label,
+              }))}
+            />
+          </Field>
+          <fieldset className="m-0 grid max-h-56 gap-2 overflow-y-auto border-0 p-0">
+            <legend className="mb-1 text-ui font-medium text-fg-primary">{t.courses.prerequisites}</legend>
+            {allPoints
+              .filter((candidate) => candidate.id !== point.id)
+              .map((candidate) => (
+                <label key={candidate.id} className="inline-flex items-center gap-2 text-ui text-fg-primary">
+                  <input
+                    type="checkbox"
+                    name="prerequisite"
+                    value={candidate.id}
+                    defaultChecked={point.prerequisite_ids.includes(candidate.id)}
+                  />
+                  <span>{candidate.name}</span>
+                </label>
+              ))}
+          </fieldset>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" variant="primary" pending={revise.isPending}>
+              {t.common.save}
+            </Button>
+            <Button variant="secondary" onClick={() => setEditing(false)}>
+              {t.common.cancel}
+            </Button>
+          </div>
           {revise.isError ? <Problem error={revise.error} /> : null}
         </form>
       ) : null}
@@ -861,7 +943,7 @@ function KnowledgePointDetail({
       />
 
       {/* Provenance ("查看依据") */}
-      <section className="provenance grid gap-2.5">
+      <section className="grid gap-2.5 border-t border-line-subtle pt-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-ui font-semibold text-fg-primary">{t.courses.provenance}</h3>
           {point.source_refs.length > 0 ? (
@@ -874,27 +956,38 @@ function KnowledgePointDetail({
           <p className="hint">{t.courses.noSource}</p>
         ) : evidenceOpen ? (
           <>
-            <div className="source-tabs">
-              {point.source_refs.map((reference) => (
-                <button
-                  className="button quiet"
-                  aria-pressed={source?.material_id === reference.material_id && source.page_no === reference.page_no}
-                  key={`${reference.material_id}:${reference.page_no}`}
-                  onClick={() => setSource(reference)}
-                >
-                  {t.courses.page.replace("{page}", String(reference.page_no))}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-1.5">
+              {point.source_refs.map((reference) => {
+                const active =
+                  source?.material_id === reference.material_id && source.page_no === reference.page_no;
+                return (
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    key={`${reference.material_id}:${reference.page_no}`}
+                    onClick={() => setSource(reference)}
+                    className={
+                      active
+                        ? "inline-flex min-h-9 items-center rounded-md border border-accent bg-accent-soft px-3 text-caption font-medium text-accent-strong"
+                        : "inline-flex min-h-9 items-center rounded-md border border-line-default bg-surface-card px-3 text-caption font-medium text-fg-primary hover:bg-surface-sunken"
+                    }
+                  >
+                    {t.courses.page.replace("{page}", String(reference.page_no))}
+                  </button>
+                );
+              })}
             </div>
             {source ? <SourcePage courseId={courseId} reference={source} /> : null}
           </>
         ) : null}
       </section>
 
-      <section className="exam-browser">
-        <button className="button quiet" onClick={() => setExamOpen((value) => !value)}>
-          {examOpen ? t.courses.hideQuestions : t.courses.showQuestions.replace("{count}", String(point.stats?.n_items ?? 0))}
-        </button>
+      <section className="grid gap-3 border-t border-line-subtle pt-4">
+        <div>
+          <Button variant="secondary" size="sm" onClick={() => setExamOpen((value) => !value)}>
+            {examOpen ? t.courses.hideQuestions : t.courses.showQuestions.replace("{count}", String(point.stats?.n_items ?? 0))}
+          </Button>
+        </div>
         {examOpen && exams.isPending ? <Loading /> : null}
         {exams.isError ? <Problem error={exams.error} onRetry={() => void exams.refetch()} /> : null}
         {exams.data ? <ExamItems items={exams.data} /> : null}
@@ -974,30 +1067,47 @@ export function CourseMapTab() {
     const m = masteryById.get(point.id);
     const norm = normalizeMasteryStatus(m?.status ?? "unseen");
     const w = point.stats?.weight ?? 0;
+    const isSelected = !showUnmapped && selected?.id === point.id;
     return (
       <button
         key={point.id}
         type="button"
-        aria-current={!showUnmapped && selected?.id === point.id ? "true" : undefined}
+        aria-current={isSelected ? "true" : undefined}
         onClick={() => selectPoint(point.id)}
+        className={
+          isSelected
+            ? "flex min-h-10 w-full items-center gap-2 rounded-sm bg-accent-soft px-2.5 py-1.5 text-left text-ui font-medium text-accent-strong"
+            : "flex min-h-10 w-full items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-ui text-fg-primary hover:bg-surface-sunken"
+        }
       >
         <MasteryShapeGlyph status={norm} size={14} />
-        <strong className="min-w-0 flex-1 truncate text-left font-medium">{point.name}</strong>
+        <strong className="min-w-0 flex-1 truncate font-medium">{point.name}</strong>
         {viewMode === "weight" && w > 0 ? (
-          <small className="shrink-0 tabular-nums">{Math.round(w * 100)}%</small>
+          <small className="shrink-0 text-caption tabular-nums text-fg-secondary">{Math.round(w * 100)}%</small>
         ) : (
-          <small className="shrink-0">{point.stats?.n_items ? `${point.stats.n_items} ${t.courses.questionUnit}` : ""}</small>
+          <small className="shrink-0 text-caption text-fg-secondary">
+            {point.stats?.n_items ? `${point.stats.n_items} ${t.courses.questionUnit}` : ""}
+          </small>
         )}
       </button>
     );
   }
 
   return (
-    <section className="course-panel map-panel" aria-labelledby="map-title" data-testid="course-map-tab">
-      <div className="section-heading flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="eyebrow">{t.courses.map}</p>
-          <h2 id="map-title">{t.courses.mapHeading}</h2>
+    <Card
+      padding="lg"
+      className="grid gap-5"
+      aria-labelledby="map-title"
+      data-testid="course-map-tab"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line-subtle pb-4">
+        <div className="grid gap-1">
+          <p className="text-caption font-semibold uppercase tracking-wider text-accent-strong">
+            {t.courses.map}
+          </p>
+          <h2 id="map-title" className="text-title font-semibold text-fg-primary">
+            {t.courses.mapHeading}
+          </h2>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <SegmentedControl
@@ -1021,37 +1131,50 @@ export function CourseMapTab() {
       {map.data.warnings.map((warning) => (
         <div className="notice" key={warning}><p>{warningText(warning)}</p></div>
       ))}
-      <div className="map-layout">
-        <nav className="unit-map" aria-label={t.courses.mapHeading}>
+      <div className="grid items-start gap-6 md:grid-cols-[minmax(220px,300px)_minmax(0,1fr)]">
+        <nav
+          aria-label={t.courses.mapHeading}
+          className="grid max-h-[72vh] gap-4 overflow-y-auto md:border-r md:border-line-subtle md:pr-4"
+        >
           {viewMode === "weight" ? (
-            <section>
-              <h3>{t.loopViz.mapByWeight}</h3>
+            <section className="grid gap-1">
+              <h3 className="px-2 py-1 text-ui font-semibold text-fg-primary">{t.loopViz.mapByWeight}</h3>
               {sortedByWeight.map((point) => renderPointButton(point))}
             </section>
           ) : (
             map.data.units.map((unit) => (
-              <section key={unit.id}>
-                <h3>{unit.title}</h3>
+              <section key={unit.id} className="grid gap-1">
+                <h3 className="px-2 py-1 text-ui font-semibold text-fg-primary">{unit.title}</h3>
                 {unit.knowledge_points.map((point) => renderPointButton(point))}
               </section>
             ))
           )}
           {unmapped.data?.length ? (
-            <section>
-              <h3>{t.courses.unmapped}</h3>
-              <button type="button" aria-current={showUnmapped ? "true" : undefined} onClick={() => selectPoint("unmapped")}>
-                <span />
-                {t.courses.unmapped}
-                <small>{unmapped.data.length} {t.courses.questionUnit}</small>
+            <section className="grid gap-1">
+              <h3 className="px-2 py-1 text-ui font-semibold text-fg-primary">{t.courses.unmapped}</h3>
+              <button
+                type="button"
+                aria-current={showUnmapped ? "true" : undefined}
+                onClick={() => selectPoint("unmapped")}
+                className={
+                  showUnmapped
+                    ? "flex min-h-10 w-full items-center justify-between gap-2 rounded-sm bg-accent-soft px-2.5 py-1.5 text-left text-ui font-medium text-accent-strong"
+                    : "flex min-h-10 w-full items-center justify-between gap-2 rounded-sm px-2.5 py-1.5 text-left text-ui text-fg-primary hover:bg-surface-sunken"
+                }
+              >
+                <span className="truncate">{t.courses.unmapped}</span>
+                <small className="shrink-0 text-caption text-fg-secondary">
+                  {unmapped.data.length} {t.courses.questionUnit}
+                </small>
               </button>
             </section>
           ) : null}
         </nav>
         {showUnmapped ? (
-          <article className="kp-detail">
-            <div className="kp-heading"><div><h3>{t.courses.unmapped}</h3></div></div>
-            <p>{t.courses.unmappedHint}</p>
-            <section className="exam-browser"><ExamItems items={unmapped.data ?? []} /></section>
+          <article className="grid min-w-0 content-start gap-4">
+            <h3 className="text-title font-semibold text-fg-primary">{t.courses.unmapped}</h3>
+            <p className="text-ui text-fg-secondary">{t.courses.unmappedHint}</p>
+            <ExamItems items={unmapped.data ?? []} />
           </article>
         ) : selected ? (
           <KnowledgePointDetail
@@ -1066,7 +1189,7 @@ export function CourseMapTab() {
           />
         ) : null}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -1276,14 +1399,14 @@ export function CourseMaterialsTab() {
               <Field label={t.courses.pasteTitle} required>
                 <TextInput name="title" maxLength={120} required />
               </Field>
-              <label className="grid gap-1 text-ui font-medium text-fg-primary">
-                <span>{t.courses.role}</span>
-                <select name="role" defaultValue="notes" className="min-h-10 rounded-md border border-line-control bg-surface-card px-3 text-ui">
-                  {roles.map((role) => (
-                    <option key={role} value={role}>{t.courses.roles[role]}</option>
-                  ))}
-                </select>
-              </label>
+              <Field label={t.courses.role}>
+                <Select
+                  name="role"
+                  aria-label={t.courses.role}
+                  defaultValue="notes"
+                  options={roles.map((role) => ({ value: role, label: t.courses.roles[role] }))}
+                />
+              </Field>
             </div>
             <Field label={t.courses.pasteContent} required>
               <Textarea name="content" rows={5} required />

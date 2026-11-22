@@ -3,7 +3,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, bodyOf, charactersKey, sessionKey, type Character, type SessionStatus } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import { FocusShell } from "../../shell/FocusShell";
-import { BrandMark, Button, Card, Check, ConfirmDialog, Field, SecretInput, TutorAvatar, useTransientSaved } from "../../ui";
+import {
+  Badge,
+  BrandMark,
+  Button,
+  Card,
+  Check,
+  ConfirmDialog,
+  Field,
+  SecretInput,
+  TutorAvatar,
+  useTransientSaved,
+} from "../../ui";
 import t from "../../locales/zh-CN.json";
 
 export function UnlockSession({ session }: { session: SessionStatus }) {
@@ -15,10 +26,10 @@ export function UnlockSession({ session }: { session: SessionStatus }) {
   const cachedTeacher = cachedCharacters?.[0] ?? null;
 
   const action = useMutation({
-    mutationFn: async (pwd: string | null) => (
-      pwd === null ? bodyOf(await api.POST("/api/v2/session/skip-migration")) :
-      bodyOf(await api.POST("/api/v2/session/unlock", { body: { password: pwd } }))
-    ),
+    mutationFn: async (pwd: string | null) =>
+      pwd === null
+        ? bodyOf(await api.POST("/api/v2/session/skip-migration"))
+        : bodyOf(await api.POST("/api/v2/session/unlock", { body: { password: pwd } })),
     onSuccess: (status) => {
       setSkipOpen(false);
       setPassword("");
@@ -30,7 +41,12 @@ export function UnlockSession({ session }: { session: SessionStatus }) {
     action.mutate(password, { onSettled: () => setPassword("") });
   }
   return (
-    <FocusShell flowName={t.app.name} exitTo="/" exitLabel={t.app.refresh} onExit={() => window.location.reload()}>
+    <FocusShell
+      flowName={t.app.name}
+      exitTo="/"
+      exitLabel={t.app.refresh}
+      onExit={() => window.location.reload()}
+    >
       <div className="mx-auto grid max-w-md py-10" data-testid="unlock-screen">
         <Card padding="lg" className="grid gap-5">
           <div className="grid justify-items-center gap-3 text-center">
@@ -63,7 +79,11 @@ export function UnlockSession({ session }: { session: SessionStatus }) {
             </Field>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {migration ? (
-                <Button variant="secondary" disabled={action.isPending} onClick={() => setSkipOpen(true)}>
+                <Button
+                  variant="secondary"
+                  disabled={action.isPending}
+                  onClick={() => setSkipOpen(true)}
+                >
                   {t.security.skipMigration}
                 </Button>
               ) : null}
@@ -94,67 +114,138 @@ const securityKey = ["security"] as const;
 
 export function SecuritySettings() {
   const queries = useQueryClient();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [validation, setValidation] = useState("");
   const { saved, notifySaved } = useTransientSaved(t.common.saved);
+
   const status = useQuery({
     queryKey: securityKey,
     queryFn: async () => bodyOf(await api.GET("/api/v2/settings/security")),
   });
   const update = useMutation({
-    mutationFn: async (body: { password: string | null; current_password?: string }) => bodyOf(await api.PUT("/api/v2/settings/security/password", { body })),
+    mutationFn: async (body: { password: string | null; current_password?: string }) =>
+      bodyOf(await api.PUT("/api/v2/settings/security/password", { body })),
     onSuccess: (session) => {
       queries.setQueryData(securityKey, session);
       queries.setQueryData(sessionKey, session);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
       notifySaved();
     },
   });
+
   if (status.isPending) return <Loading />;
   if (status.isError) return <Problem error={status.error} onRetry={() => void status.refetch()} />;
-  const enabled = status.data.password_enabled;
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const enabled = status.data.password_enabled;
+  const storage = status.data.key_storage;
+
+  function submit(disabling: boolean) {
     setValidation("");
     update.reset();
-    const form = event.currentTarget;
-    const data = new FormData(form, event.nativeEvent instanceof SubmitEvent ? event.nativeEvent.submitter : null);
-    const current = String(data.get("current") ?? "");
-    const password = String(data.get("password") ?? "");
-    const confirmation = String(data.get("confirmation") ?? "");
-    const disabling = data.get("action") === "disable";
-    if (!disabling && ([...password].length < 8 || [...password].length > 200)) {
+    if (!disabling && ([...newPassword].length < 8 || [...newPassword].length > 200)) {
       setValidation(t.security.passwordLength);
       return;
     }
-    if (!disabling && password !== confirmation) {
+    if (!disabling && newPassword !== confirmPassword) {
       setValidation(t.security.mismatch);
       return;
     }
-    update.mutate({ password: disabling ? null : password, ...(enabled ? { current_password: current } : {}) }, {
-      onSuccess: () => form.reset(),
+    update.mutate({
+      password: disabling ? null : newPassword,
+      ...(enabled ? { current_password: currentPassword } : {}),
     });
   }
-  const storage = status.data.key_storage;
 
   return (
-    <>
-      <p>{enabled ? t.security.passwordOn : t.security.passwordOff}</p>
-      {storage === "key_file" ? <p className="notice" role="status">{t.security.keyfile}</p> : null}
-      {storage === "credential_store" ? <p className="hint">{t.security.keyring}</p> : null}
-      <form className="fields" onSubmit={submit}>
-        {enabled ? <label>{t.security.current}<input autoComplete="current-password" name="current" type="password" maxLength={200} required /></label> : null}
-        <div className="field-row">
-          <label>{t.security.newPassword}<input autoComplete="new-password" name="password" type="password" required={!enabled} /></label>
-          <label>{t.security.confirm}<input autoComplete="new-password" name="confirmation" type="password" required={!enabled} /></label>
+    <Card padding="lg" className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-subtle pb-3">
+        <div className="grid gap-0.5">
+          <h3 className="text-body font-semibold text-fg-primary">{t.security.title}</h3>
+          <p className="text-ui text-fg-secondary">
+            {enabled ? t.security.passwordOn : t.security.passwordOff}
+          </p>
         </div>
-        <div className="actions">
-          <Button type="submit" variant="primary" name="action" value="enable" pending={update.isPending}>{enabled ? t.security.change : t.security.enable}</Button>
-          {enabled ? <Button type="submit" variant="secondary" name="action" value="disable" pending={update.isPending}>{t.security.disable}</Button> : null}
-          {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
+        <Badge tone={enabled ? "ok" : "neutral"}>
+          {enabled ? t.security.enable : t.security.disable}
+        </Badge>
+      </div>
+
+      {storage === "key_file" ? (
+        <p className="rounded-md border border-warn/30 bg-warn-soft px-3.5 py-2.5 text-ui text-warn-text" role="status">
+          {t.security.keyfile}
+        </p>
+      ) : null}
+      {storage === "credential_store" ? (
+        <p className="text-caption text-fg-secondary">{t.security.keyring}</p>
+      ) : null}
+
+      <form
+        className="grid max-w-2xl gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit(false);
+        }}
+      >
+        {enabled ? (
+          <Field label={t.security.current} required>
+            <SecretInput
+              autoComplete="current-password"
+              name="current"
+              value={currentPassword}
+              maxLength={200}
+              required
+              onChange={(event) => setCurrentPassword(event.target.value)}
+            />
+          </Field>
+        ) : null}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={t.security.newPassword} required={!enabled} error={validation || undefined}>
+            <SecretInput
+              autoComplete="new-password"
+              name="password"
+              value={newPassword}
+              required={!enabled}
+              onChange={(event) => setNewPassword(event.target.value)}
+            />
+          </Field>
+          <Field label={t.security.confirm} required={!enabled}>
+            <SecretInput
+              autoComplete="new-password"
+              name="confirmation"
+              value={confirmPassword}
+              required={!enabled}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+            />
+          </Field>
         </div>
-        {validation ? <p role="alert" className="hint">{validation}</p> : null}
+
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <Button type="submit" variant="primary" pending={update.isPending}>
+            {enabled ? t.security.change : t.security.enable}
+          </Button>
+          {enabled ? (
+            <Button
+              variant="secondary"
+              pending={update.isPending}
+              onClick={() => submit(true)}
+            >
+              {t.security.disable}
+            </Button>
+          ) : null}
+          {saved ? (
+            <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text">
+              <Check size={15} aria-hidden="true" />
+              {t.common.saved}
+            </span>
+          ) : null}
+        </div>
         {update.isError ? <Problem error={update.error} /> : null}
       </form>
-    </>
+    </Card>
   );
 }

@@ -9,24 +9,28 @@ const screenshots = resolve("docs/rebuild/review/M3");
 test("learner preferences and course constraints persist", async ({ page, browser, baseURL }) => {
   mkdirSync(screenshots, { recursive: true });
 
-  // 1. Save learner profile preferences in Settings > Me
+  // 1. Save learner profile preferences in Settings > Me (legacy /settings#me redirects to /settings/me)
   await page.goto("/settings#me");
+  await expect(page).toHaveURL(/\/settings\/me$/);
   const profileForm = page.getByTestId("profile-settings-form");
   await expect(profileForm).toBeVisible({ timeout: 15_000 });
   await profileForm.getByLabel(t.learner.nickname).fill("小林");
   await pick(profileForm, t.learner.style, "rigorous");
+  await expect(page.getByTestId("unsaved-bar")).toBeVisible();
   await profileForm.getByRole("button", { name: t.learner.saveProfile }).click();
   await expect(page.getByTestId("toast-item").filter({ hasText: t.common.saved })).toBeVisible();
 
   await page.reload();
   await expect(page.getByTestId("profile-settings-form").getByLabel(t.learner.nickname)).toHaveValue("小林");
-  await expect(page.getByTestId("profile-settings-form").getByLabel(t.learner.style)).toHaveValue("rigorous");
+  await expect(
+    page.getByTestId("profile-settings-form").getByRole("combobox", { name: t.learner.style }),
+  ).toContainText(t.learner.styles.rigorous);
 
   // 2. Create a course and configure constraints via Course Settings dialog (and verify B11 rename!)
   await page.goto("/courses");
   await page.getByRole("button", { name: t.courses.new }).first().click();
   const createDialog = page.getByRole("dialog");
-  await createDialog.getByLabel(t.courses.name).fill("学习设置验收");
+  await createDialog.getByLabel(t.courses.name).fill("课程约束验收");
   await createDialog.getByRole("button", { name: t.courses.create }).click();
   await expect(page).toHaveURL(/\/courses\/[^/]+\/setup/, { timeout: 15_000 });
   const courseId = new URL(page.url()).pathname.split("/")[2];

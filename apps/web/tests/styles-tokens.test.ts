@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -9,21 +9,14 @@ const RUNTIME_VARS = new Set([
   "--anchor-width",
 ]);
 
-// Shrink-only hex color legacy allowlist (design-system §3.4).
-// New stylesheets must NEVER be added here; remove files as each milestone migrates them.
-const HEX_ALLOWED_FILES = new Set([
-  "apps/web/src/styles/theme.css",
-  "apps/web/src/styles/tokens.css",
-]);
-
-const LEGACY_LAYER_FILES = new Set([
+const RETIRED_LEGACY_FILES = [
   "apps/web/src/styles/tokens.css",
   "apps/web/src/features/classroom/classroom.css",
   "apps/web/src/features/learner/setup.css",
   "apps/web/src/features/practice/practice.css",
   "apps/web/src/features/progress/progress.css",
   "apps/web/src/features/review/review.css",
-]);
+];
 
 function collectCssFiles(dir: string): string[] {
   const results: string[] = [];
@@ -53,7 +46,7 @@ function repoCssFiles() {
   }));
 }
 
-describe("stylesheet design-system invariants (I4)", () => {
+describe("stylesheet design-system invariants (I4 — U7 final closure)", () => {
   it("defines every CSS custom property referenced via var()", () => {
     const files = repoCssFiles();
     expect(files.length).toBeGreaterThan(0);
@@ -74,10 +67,10 @@ describe("stylesheet design-system invariants (I4)", () => {
     expect(undefinedVars).toEqual([]);
   });
 
-  it("restricts hex color literals to theme.css and the shrink-only legacy allowlist", () => {
+  it("restricts hex color literals strictly to theme.css (legacy allowlist retired)", () => {
     const violations: Array<{ file: string; hex: string }> = [];
     for (const { rel, raw } of repoCssFiles()) {
-      if (HEX_ALLOWED_FILES.has(rel)) continue;
+      if (rel === "apps/web/src/styles/theme.css") continue;
       for (const match of raw.matchAll(/#[0-9a-fA-F]{3,8}\b/g)) {
         violations.push({ file: rel, hex: match[0] });
       }
@@ -100,19 +93,22 @@ describe("stylesheet design-system invariants (I4)", () => {
     expect(importants).toEqual([]);
   });
 
-  it("keeps all legacy global stylesheets inside @layer legacy and base defaults inside @layer base", () => {
+  it("retires @layer legacy and deletes all old global CSS files", () => {
+    const repoRoot = resolve(import.meta.dirname, "../../..");
+    for (const rel of RETIRED_LEGACY_FILES) {
+      expect(existsSync(join(repoRoot, rel)), `${rel} must be deleted in U7`).toBe(false);
+    }
+
     for (const { rel, raw } of repoCssFiles()) {
       const trimmed = raw.trim();
-      if (LEGACY_LAYER_FILES.has(rel)) {
-        expect(trimmed.startsWith("@layer legacy"), `${rel} must be wrapped in @layer legacy`).toBe(true);
-      }
+      expect(raw, `${rel} must not reference @layer legacy`).not.toMatch(/@layer\s+legacy\b/);
       if (rel === "apps/web/src/styles/base.css") {
         expect(trimmed.startsWith("@layer base"), "base.css must start with @layer base").toBe(true);
       }
       if (rel === "apps/web/src/styles/theme.css") {
         expect(
-          trimmed.startsWith("@layer theme, base, legacy, components, utilities;"),
-          "theme.css must declare canonical layer order first",
+          trimmed.startsWith("@layer theme, base, components, utilities;"),
+          "theme.css must declare canonical layer order without legacy",
         ).toBe(true);
       }
     }

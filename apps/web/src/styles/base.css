@@ -125,6 +125,62 @@
 }
 
 @layer components {
+  /* Semantic link-button & callout helpers (used on <Link> elements across routes) */
+  .button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 16px;
+    line-height: 1.4;
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    font-size: 0.875rem;
+    text-align: center;
+    text-decoration: none;
+    background: var(--surface-card);
+    color: var(--text-primary);
+    transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-instant) var(--ease-out);
+  }
+  .button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .button.primary {
+    color: var(--on-accent);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .button.primary:hover:not(:disabled) {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+  }
+  .button.quiet {
+    background: var(--surface-card);
+    border-color: var(--border-default);
+    color: var(--text-primary);
+  }
+  .button.quiet:hover:not(:disabled) {
+    background: var(--surface-sunken);
+    border-color: var(--border-control);
+  }
+  .hint {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+  }
+  .notice {
+    display: grid;
+    gap: 6px;
+    padding: 12px 16px;
+    background: var(--accent-soft);
+    border-inline-start: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    color: var(--text-primary);
+  }
+
   @keyframes cs-route-enter {
     from {
       opacity: 0;

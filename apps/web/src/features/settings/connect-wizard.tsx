@@ -268,7 +268,7 @@ export function ConnectWizard({
             <strong className="text-body font-semibold text-fg-primary">{chosenPreset.label}</strong>
           </div>
 
-          <Card padding="md" className="grid gap-3 bg-surface-sunken/50">
+          <Card padding="md" data-key-guide="true" className="grid gap-3 bg-surface-sunken/50">
             <p className="text-ui font-semibold text-fg-primary">{copy.guideTitle}</p>
             <ol className="grid gap-1.5 pl-5 text-ui text-fg-secondary list-decimal">
               {(chosenPreset.key_guide?.length

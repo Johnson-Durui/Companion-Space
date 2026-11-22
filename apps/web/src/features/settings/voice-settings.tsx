@@ -1,19 +1,57 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
+import clsx from "clsx";
 import { browserApiFetch } from "@companion-space/api-client";
 import { api, bodyOf, charactersKey, fetchCharacters } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { Button, Check, useTransientSaved } from "../../ui";
-import { MicrophoneCapture } from "../../audio";
+import {
+  ArrowRight,
+  Badge,
+  Button,
+  Card,
+  Check,
+  Dialog,
+  Field,
+  LevelMeter,
+  Mic,
+  Select,
+  Slider,
+  Square,
+  Switch,
+  TextInput,
+  TutorAvatar,
+  Volume2,
+  useTransientSaved,
+} from "../../ui";
+import {
+  classifyMicrophoneError,
+  MicrophoneCapture,
+  readSoundCuePrefs,
+  SoundCuePlayer,
+  writeSoundCuePrefs,
+  type MicrophoneErrorKind,
+} from "../../audio";
 import t from "../../locales/zh-CN.json";
+import { useActiveTutor, tutorGreeting } from "../tutors/use-active-tutor";
+import { useTutorSpeech } from "../voice/use-tutor-speech";
 
 const voiceSettingsKey = ["voice-settings"] as const;
 const sttSettingsKey = ["stt-settings"] as const;
 const voiceStatusKey = ["voice-status"] as const;
 const defaultVoice = {
-  engine: "edge" as const, voice_id: "zh-CN-XiaoxiaoNeural", model: "", rate: 1, pitch: 0, options: {},
+  engine: "edge" as const,
+  voice_id: "zh-CN-XiaoxiaoNeural",
+  model: "",
+  rate: 1,
+  pitch: 0,
+  options: {},
 };
+
+const ENGINE_OPTIONS = Object.entries(t.voiceSettings.engines).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 async function fetchVoiceSettings() {
   return bodyOf(await api.GET("/api/v2/voice/settings"));
@@ -25,79 +63,59 @@ type Character = Awaited<ReturnType<typeof fetchCharacters>>[number];
 
 function characterVoice(character: Character): VoiceSetting {
   return {
-    engine: character.voice.engine as VoiceSetting["engine"], voice_id: character.voice.voice_id,
-    model: "", rate: character.voice.rate, pitch: character.voice.pitch, options: {},
+    engine: character.voice.engine as VoiceSetting["engine"],
+    voice_id: character.voice.voice_id,
+    model: "",
+    rate: character.voice.rate,
+    pitch: character.voice.pitch,
+    options: {},
   };
 }
 
-function pcmWavUrl(audioB64: string, sampleRate: number) {
-  const raw = atob(audioB64);
-  const pcm = new Uint8Array(raw.length);
-  for (let index = 0; index < raw.length; index += 1) pcm[index] = raw.charCodeAt(index);
-  const header = new ArrayBuffer(44);
-  const view = new DataView(header);
-  const text = (offset: number, value: string) => {
-    for (let index = 0; index < value.length; index += 1) view.setUint8(offset + index, value.charCodeAt(index));
-  };
-  text(0, "RIFF"); view.setUint32(4, 36 + pcm.byteLength, true); text(8, "WAVE"); text(12, "fmt ");
-  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true); view.setUint16(34, 16, true); text(36, "data");
-  view.setUint32(40, pcm.byteLength, true);
-  return URL.createObjectURL(new Blob([header, pcm], { type: "audio/wav" }));
-}
-
-function VoiceEditor({ target, initial, characterId, settings }: {
-  target: string; initial: VoiceSetting; characterId?: string; settings: VoiceSettings;
+function VoiceEditor({
+  target,
+  initial,
+  character,
+  settings,
+}: {
+  target: string;
+  initial: VoiceSetting;
+  character?: Character;
+  settings: VoiceSettings;
 }) {
   const queries = useQueryClient();
-  const audio = useRef<HTMLAudioElement>(null);
-  const audioUrl = useRef("");
   const [draft, setDraft] = useState(initial);
-  const [playbackHint, setPlaybackHint] = useState("");
   const { saved, notifySaved } = useTransientSaved(t.common.saved);
+  const speech = useTutorSpeech();
+
   const save = useMutation({
-    mutationFn: async () => bodyOf(await api.PUT("/api/v2/voice/settings", { body: {
-      default: target === "default" ? draft : (settings.default ?? defaultVoice),
-      characters: characterId
-        ? { ...(settings.characters ?? {}), [characterId]: draft }
-        : (settings.characters ?? {}),
-    } })),
+    mutationFn: async () =>
+      bodyOf(
+        await api.PUT("/api/v2/voice/settings", {
+          body: {
+            default: target === "default" ? draft : (settings.default ?? defaultVoice),
+            characters: character?.id
+              ? { ...(settings.characters ?? {}), [character.id]: draft }
+              : (settings.characters ?? {}),
+          },
+        }),
+      ),
     onSuccess: (result) => {
       queries.setQueryData(voiceSettingsKey, result);
       notifySaved();
     },
   });
-  const preview = useMutation({
-    mutationFn: async () => {
-      if (!characterId) throw new Error(t.voiceSettings.chooseTeacher);
-      await save.mutateAsync();
-      return bodyOf(await api.POST("/api/v2/voice/preview", { body: { character_id: characterId } }));
-    },
-    onSuccess(result) {
-      setPlaybackHint(result.warning ?? "");
-      if (result.kind === "browser") {
-        if (!("speechSynthesis" in window)) { setPlaybackHint(t.voice.browserFailed); return; }
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(result.text);
-        utterance.lang = "zh-CN";
-        utterance.onerror = () => setPlaybackHint(t.voice.browserFailed);
-        window.speechSynthesis.speak(utterance);
-        return;
-      }
-      if (!result.audio_b64 || !result.format || !audio.current) return;
-      if (audioUrl.current.startsWith("blob:")) URL.revokeObjectURL(audioUrl.current);
-      audioUrl.current = result.format === "mp3"
-        ? `data:audio/mpeg;base64,${result.audio_b64}`
-        : pcmWavUrl(result.audio_b64, result.sample_rate_hz ?? 24_000);
-      audio.current.src = audioUrl.current;
-      void audio.current.play().catch(() => setPlaybackHint(t.voice.cannotAutoPlay));
-    },
-  });
-  useEffect(() => () => {
-    if (audioUrl.current.startsWith("blob:")) URL.revokeObjectURL(audioUrl.current);
-    window.speechSynthesis?.cancel();
-  }, []);
+
+  async function handlePreview() {
+    if (!character) return;
+    await save.mutateAsync();
+    const sampleLine = character.greeting || character.persona.catchphrases?.[0] || tutorGreeting(character);
+    void speech.speak({
+      characterId: character.id,
+      text: sampleLine,
+      voiceId: draft.engine === "edge" ? draft.voice_id : undefined,
+    });
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -105,45 +123,243 @@ function VoiceEditor({ target, initial, characterId, settings }: {
   }
 
   return (
-    <form className="fields" onSubmit={submit}>
-      <div className="field-row">
-        <label>{t.voiceSettings.engine}
-          <select value={draft.engine} onChange={(event) => setDraft({ ...draft, engine: event.target.value as VoiceSetting["engine"] })}>
-            {Object.entries(t.voiceSettings.engines).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label>{t.voiceSettings.voiceId}
-          <input value={draft.voice_id} maxLength={240} required={draft.engine !== "browser"} onChange={(event) => setDraft({ ...draft, voice_id: event.target.value })} />
-        </label>
+    <form className="grid max-w-2xl gap-4" onSubmit={submit}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={t.voiceSettings.engine}>
+          <Select
+            aria-label={t.voiceSettings.engine}
+            options={ENGINE_OPTIONS}
+            value={draft.engine}
+            onValueChange={(next) => setDraft({ ...draft, engine: next as VoiceSetting["engine"] })}
+          />
+        </Field>
+        <Field label={t.voiceSettings.voiceId}>
+          <TextInput
+            value={draft.voice_id}
+            maxLength={240}
+            required={draft.engine !== "browser"}
+            onChange={(event) => setDraft({ ...draft, voice_id: event.target.value })}
+          />
+        </Field>
       </div>
+
       {!["edge", "browser", "gpt_sovits"].includes(draft.engine) ? (
-        <label>{t.voiceSettings.model}<input value={draft.model} maxLength={240} onChange={(event) => setDraft({ ...draft, model: event.target.value })} /></label>
+        <Field label={t.voiceSettings.model}>
+          <TextInput
+            value={draft.model}
+            maxLength={240}
+            onChange={(event) => setDraft({ ...draft, model: event.target.value })}
+          />
+        </Field>
       ) : null}
+
       {draft.engine === "gpt_sovits" ? (
-        <label>{t.voiceSettings.localEndpoint}
-          <input type="url" required value={String(draft.options?.base_url ?? "")} placeholder="http://127.0.0.1:9880" onChange={(event) => setDraft({ ...draft, options: { ...draft.options, base_url: event.target.value } })} />
-        </label>
+        <Field label={t.voiceSettings.localEndpoint}>
+          <TextInput
+            type="url"
+            required
+            value={String(draft.options?.base_url ?? "")}
+            placeholder="http://127.0.0.1:9880"
+            onChange={(event) =>
+              setDraft({ ...draft, options: { ...draft.options, base_url: event.target.value } })
+            }
+          />
+        </Field>
       ) : null}
-      <div className="field-row">
-        <label>{t.voiceSettings.rate}<input type="number" min="0.5" max="2" step="0.05" value={draft.rate} onChange={(event) => setDraft({ ...draft, rate: Number(event.target.value) })} /></label>
-        <label>{t.voiceSettings.pitch}<input type="number" min="-100" max="100" step="1" value={draft.pitch} onChange={(event) => setDraft({ ...draft, pitch: Number(event.target.value) })} /></label>
+
+      <div className="grid gap-2">
+        <div className="flex items-center justify-between text-ui">
+          <span className="font-medium text-fg-primary">{t.voiceSettings.rate}</span>
+          <span className="tabular-nums text-fg-secondary">{draft.rate.toFixed(2)}×</span>
+        </div>
+        <Slider
+          value={Math.round(draft.rate * 100)}
+          min={60}
+          max={160}
+          step={5}
+          aria-label={t.voiceSettings.rate}
+          onValueChange={(val) => setDraft({ ...draft, rate: Number((val / 100).toFixed(2)) })}
+        />
       </div>
-      <div className="actions">
-        <Button type="submit" variant="primary" pending={save.isPending}>{t.common.save}</Button>
-        <Button variant="secondary" disabled={!characterId || save.isPending} pending={preview.isPending} onClick={() => preview.mutate()}>{t.voice.preview}</Button>
-        {saved ? <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text"><Check size={15} aria-hidden="true" />{t.common.saved}</span> : null}
+
+      <div className="flex flex-wrap items-center gap-3 pt-1">
+        <Button type="submit" variant="primary" pending={save.isPending}>
+          {t.common.save}
+        </Button>
+        {character ? (
+          <Button
+            variant="secondary"
+            disabled={save.isPending}
+            pending={speech.loading}
+            leftIcon={<Volume2 size={15} aria-hidden="true" />}
+            onClick={() => void handlePreview()}
+          >
+            {t.voice.preview}
+          </Button>
+        ) : null}
+        {saved ? (
+          <span className="inline-flex items-center gap-1 text-ui font-medium text-ok-text">
+            <Check size={15} aria-hidden="true" />
+            {t.common.saved}
+          </span>
+        ) : null}
       </div>
-      <audio ref={audio} controls hidden={!preview.data || preview.data.kind !== "audio"} aria-label={t.voice.play} />
-      {playbackHint ? <p className="hint" role="status">{playbackHint}</p> : null}
-      {save.isError || preview.isError ? <Problem error={save.error ?? preview.error} /> : null}
+
+      {speech.unavailable ? (
+        <p className="text-caption text-fg-secondary" role="status">
+          {t.speech.unavailable}
+        </p>
+      ) : null}
+      {save.isError ? <Problem error={save.error} /> : null}
     </form>
   );
 }
 
-function RecognitionSettings() {
+function SoundCuesCard() {
+  const [prefs, setPrefs] = useState(() => readSoundCuePrefs());
+  const previewPlayerRef = useRef<SoundCuePlayer | null>(null);
+
+  useEffect(() => {
+    const player = new SoundCuePlayer();
+    previewPlayerRef.current = player;
+    return () => {
+      previewPlayerRef.current = null;
+      void player.close();
+    };
+  }, []);
+
+  const updatePrefs = (patch: Partial<{ enabled: boolean; volume: number }>) => {
+    const next = writeSoundCuePrefs(patch);
+    setPrefs(next);
+    previewPlayerRef.current?.setPrefs(next);
+  };
+
+  return (
+    <Card padding="lg" className="grid gap-4" data-testid="sound-cues-card">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-0.5">
+          <h3 className="text-body font-semibold text-fg-primary">{t.settings.tutorSoundCues}</h3>
+          <p className="text-ui text-fg-secondary">{t.settings.tutorSoundCuesHint}</p>
+        </div>
+        <Switch
+          checked={prefs.enabled}
+          aria-label={t.settings.tutorSoundCues}
+          onCheckedChange={(enabled) => {
+            updatePrefs({ enabled });
+            if (enabled) {
+              previewPlayerRef.current?.unlock();
+              previewPlayerRef.current?.play("connect");
+            }
+          }}
+        />
+      </div>
+
+      {prefs.enabled ? (
+        <div className="grid max-w-md gap-2 border-t border-line-subtle pt-3">
+          <div className="flex items-center justify-between text-ui">
+            <span className="font-medium text-fg-primary">{t.settings.tutorSoundCuesVolume}</span>
+            <span className="tabular-nums text-fg-secondary">{Math.round(prefs.volume * 100)}%</span>
+          </div>
+          <Slider
+            value={Math.round(prefs.volume * 100)}
+            min={5}
+            max={100}
+            step={5}
+            aria-label={t.settings.tutorSoundCuesVolume}
+            onValueChange={(val) => updatePrefs({ volume: val / 100 })}
+          />
+        </div>
+      ) : null}
+    </Card>
+  );
+}
+
+export function TutorVoiceSection() {
+  const [params] = useSearchParams();
+  const [selected, setSelected] = useState<string>();
+  const { tutor: activeTutor } = useActiveTutor(true);
+  const settings = useQuery({ queryKey: voiceSettingsKey, queryFn: fetchVoiceSettings });
+  const characters = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
+
+  if (settings.isPending || characters.isPending) return <Loading />;
+  if (settings.isError) return <Problem error={settings.error} onRetry={() => void settings.refetch()} />;
+  if (characters.isError) return <Problem error={characters.error} onRetry={() => void characters.refetch()} />;
+
+  const requested = selected ?? params.get("teacher") ?? activeTutor?.id;
+  const target = characters.data.some((entry) => entry.id === requested) ? requested! : "default";
+  const character = characters.data.find((entry) => entry.id === target);
+  const initial =
+    target === "default"
+      ? (settings.data.default ?? defaultVoice)
+      : (settings.data.characters?.[target] ?? (character ? characterVoice(character) : defaultVoice));
+
+  const scopeOptions = [
+    { value: "default", label: t.voiceSettings.defaultVoice },
+    ...characters.data.map((entry) => ({ value: entry.id, label: entry.name })),
+  ];
+
+  return (
+    <div className="grid gap-5">
+      {activeTutor ? (
+        <Card padding="lg" className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <TutorAvatar src={activeTutor.appearance.src} name={activeTutor.name} size="lg" />
+            <div className="grid gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-caption font-medium text-fg-tertiary">{t.settings.tutorCurrent}</span>
+                {activeTutor.tagline ? <Badge tone="accent">{activeTutor.tagline}</Badge> : null}
+              </div>
+              <h2 className="text-title font-semibold text-fg-primary">{activeTutor.name}</h2>
+              {activeTutor.greeting ? (
+                <p className="text-ui text-fg-secondary">{activeTutor.greeting}</p>
+              ) : null}
+            </div>
+          </div>
+          <Link
+            to="/tutors"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-line-default bg-surface-card px-3.5 text-ui font-medium text-fg-primary hover:bg-surface-sunken"
+          >
+            <span>{t.settings.tutorChange}</span>
+            <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </Card>
+      ) : null}
+
+      <Card padding="lg" className="grid gap-5">
+        <div className="grid gap-1 border-b border-line-subtle pb-3">
+          <h3 className="text-body font-semibold text-fg-primary">{t.settings.tutorVoiceHeading}</h3>
+        </div>
+        <div className="max-w-sm">
+          <Field label={t.settings.tutorVoiceScope}>
+            <Select
+              aria-label={t.settings.tutorVoiceScope}
+              options={scopeOptions}
+              value={target}
+              onValueChange={setSelected}
+            />
+          </Field>
+        </div>
+        <VoiceEditor
+          key={target}
+          target={target}
+          initial={initial}
+          character={character}
+          settings={settings.data}
+        />
+      </Card>
+
+      <SoundCuesCard />
+    </div>
+  );
+}
+
+function RecognitionCards() {
   const copy = t.voiceSettings;
   const queries = useQueryClient();
-  const settings = useQuery({ queryKey: sttSettingsKey, queryFn: async () => bodyOf(await api.GET("/api/v2/voice/stt")) });
+  const settings = useQuery({
+    queryKey: sttSettingsKey,
+    queryFn: async () => bodyOf(await api.GET("/api/v2/voice/stt")),
+  });
   const save = useMutation({
     mutationFn: async (body: { engine: "openai_compat" | "local_sherpa"; download_model?: boolean }) =>
       bodyOf(await api.PUT("/api/v2/voice/stt", { body: { ...body, download_model: body.download_model ?? false } })),
@@ -157,28 +373,122 @@ function RecognitionSettings() {
   if (settings.isError) return <Problem error={settings.error} onRetry={() => void settings.refetch()} />;
   const current = settings.data;
   const local = current.engine === "local_sherpa";
-  const activate = !current.local_model_available || !local;
   const size = String(Math.round((current.download_bytes ?? 163_000_000) / 1_000_000));
+
   return (
-    <section className="fields">
-      <h3>{copy.recognition}</h3>
-      <p>{copy.recognitionSelected.replace("{engine}", local ? copy.recognitionLocal : copy.recognitionOnline)}</p>
-      <p className="hint">{copy.recognitionLocalHint} <a href={current.license_url} target="_blank" rel="noreferrer">{copy.recognitionLicense}</a></p>
-      {!current.local_runtime_available ? <p className="hint">{copy.recognitionRuntime} <code>python -m pip install -r services/api/requirements-local-stt.txt</code></p> : null}
-      <div className="actions">
-        {local ? <button type="button" className="button quiet" disabled={save.isPending} aria-busy={save.isPending || undefined} onClick={() => save.mutate({ engine: "openai_compat" })}>{copy.recognitionEnableOnline}</button> : null}
-        {activate && current.local_runtime_available ? <button type="button" className="button quiet" disabled={save.isPending} aria-busy={save.isPending || undefined} onClick={() => save.mutate({ engine: "local_sherpa", download_model: !current.local_model_available })}>
-          {current.local_model_available ? copy.recognitionEnableLocal : copy.recognitionDownload.replace("{size}", size)}
-        </button> : null}
+    <Card padding="lg" className="grid gap-4">
+      <div className="grid gap-1 border-b border-line-subtle pb-3">
+        <h3 className="text-body font-semibold text-fg-primary">{copy.recognition}</h3>
+        <p className="text-ui text-fg-secondary">
+          {copy.recognitionSelected.replace("{engine}", local ? copy.recognitionLocal : copy.recognitionOnline)}
+        </p>
       </div>
-      {save.isPending && save.variables?.download_model ? <p role="status">{copy.recognitionInstalling}</p> : null}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div
+          className={clsx(
+            "grid content-between gap-3 rounded-lg border p-4",
+            !local ? "border-accent bg-accent-soft/35" : "border-line-subtle bg-surface-page",
+          )}
+        >
+          <div className="grid gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <strong className="text-body font-semibold text-fg-primary">
+                {t.settings.voiceCardOnline}
+              </strong>
+              {!local ? <Badge tone="ok">{t.settings.voiceActive}</Badge> : null}
+            </div>
+            <p className="text-ui text-fg-secondary">{t.settings.voiceCardOnlineHint}</p>
+          </div>
+          {local ? (
+            <div>
+              <Button
+                variant="secondary"
+                size="sm"
+                pending={save.isPending && save.variables?.engine === "openai_compat"}
+                onClick={() => save.mutate({ engine: "openai_compat" })}
+              >
+                {t.settings.voiceUseThis}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          className={clsx(
+            "grid content-between gap-3 rounded-lg border p-4",
+            local ? "border-accent bg-accent-soft/35" : "border-line-subtle bg-surface-page",
+          )}
+        >
+          <div className="grid gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <strong className="text-body font-semibold text-fg-primary">
+                {t.settings.voiceCardOffline}
+              </strong>
+              {local ? <Badge tone="ok">{t.settings.voiceActive}</Badge> : null}
+            </div>
+            <p className="text-ui text-fg-secondary">
+              {t.settings.voiceCardOfflineHint.replace("{size}", size)}{" "}
+              <a
+                href={current.license_url}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-accent-strong underline underline-offset-2"
+              >
+                {copy.recognitionLicense}
+              </a>
+            </p>
+          </div>
+          <div>
+            {!local || !current.local_model_available ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!current.local_runtime_available}
+                pending={save.isPending && save.variables?.engine === "local_sherpa"}
+                onClick={() =>
+                  save.mutate({ engine: "local_sherpa", download_model: !current.local_model_available })
+                }
+              >
+                {current.local_model_available
+                  ? t.settings.voiceUseThis
+                  : copy.recognitionDownload.replace("{size}", size)}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+
+      {save.isPending && save.variables?.download_model ? (
+        <p className="text-ui text-accent-strong" role="status">
+          {copy.recognitionInstalling}
+        </p>
+      ) : null}
       {save.isError ? <Problem error={new Error(copy.recognitionFailed)} /> : null}
-    </section>
+
+      <details
+        data-advanced="true"
+        className="rounded-md border border-line-subtle bg-surface-page px-4 py-3"
+      >
+        <summary className="cursor-pointer select-none text-ui font-medium text-fg-secondary">
+          {t.settings.voiceTroubleshoot}
+        </summary>
+        <div className="mt-2 grid gap-2 text-caption text-fg-secondary">
+          <p>{copy.recognitionRuntime}</p>
+          <code className="block overflow-x-auto rounded-sm bg-surface-sunken px-3 py-2 text-fg-primary">
+            python -m pip install -r services/api/requirements-local-stt.txt
+          </code>
+        </div>
+      </details>
+    </Card>
   );
 }
 
-function MicrophoneTest() {
-  const status = useQuery({ queryKey: voiceStatusKey, queryFn: async () => bodyOf(await api.GET("/api/v2/voice/status")) });
+function MicrophoneTestCard() {
+  const status = useQuery({
+    queryKey: voiceStatusKey,
+    queryFn: async () => bodyOf(await api.GET("/api/v2/voice/status")),
+  });
   const capture = useRef(new MicrophoneCapture());
   const frames = useRef<ArrayBuffer[]>([]);
   const frameCount = useRef(0);
@@ -186,10 +496,22 @@ function MicrophoneTest() {
   const [level, setLevel] = useState(0);
   const [result, setResult] = useState("");
   const [error, setError] = useState<unknown>();
-  useEffect(() => () => { void capture.current.stop(); }, []);
+  const [micErrKind, setMicErrKind] = useState<MicrophoneErrorKind | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  useEffect(() => {
+    const cap = capture.current;
+    return () => {
+      void cap.dispose();
+    };
+  }, []);
 
   async function start() {
-    setError(undefined); setResult(""); frames.current = []; frameCount.current = 0;
+    setError(undefined);
+    setMicErrKind(null);
+    setResult("");
+    frames.current = [];
+    frameCount.current = 0;
     try {
       await capture.current.start((frame) => {
         if (frames.current.length < 3000) frames.current.push(frame.pcm16);
@@ -197,63 +519,118 @@ function MicrophoneTest() {
         if (frameCount.current % 4 === 0) setLevel(frame.level);
       });
       setRecording(true);
-    } catch (reason) { setError(reason); }
+    } catch (reason) {
+      setMicErrKind(classifyMicrophoneError(reason));
+    }
   }
 
   async function stop() {
-    await capture.current.stop(); setRecording(false); setLevel(0);
+    await capture.current.stop();
+    setRecording(false);
+    setLevel(0);
     try {
-      const body = new Blob(frames.current.map((frame) => new Uint8Array(frame)), { type: "audio/pcm" });
+      const body = new Blob(
+        frames.current.map((frame) => new Uint8Array(frame)),
+        { type: "audio/pcm" },
+      );
       const response = await browserApiFetch("/api/v2/voice/microphone-test", { method: "POST", body });
-      const payload = await response.json() as { accepted?: boolean; text?: string; discard_reason?: string };
+      const payload = (await response.json()) as {
+        accepted?: boolean;
+        text?: string;
+        discard_reason?: string;
+      };
       if (!response.ok) throw new Error(t.common.error);
       const discard = payload.discard_reason as keyof typeof t.voiceSettings.discard;
-      setResult(payload.accepted ? (payload.text ?? "") : (t.voiceSettings.discard[discard] ?? t.voiceSettings.noSpeech));
-    } catch (reason) { setError(reason); }
-    finally { frames.current = []; }
+      setResult(
+        payload.accepted
+          ? (payload.text ?? "")
+          : (t.voiceSettings.discard[discard] ?? t.voiceSettings.noSpeech),
+      );
+    } catch (reason) {
+      setError(reason);
+    } finally {
+      frames.current = [];
+    }
   }
 
   return (
-    <div className="fields">
-      <h3>{t.voiceSettings.microphone}</h3>
-      <meter min="0" max="0.25" value={Math.min(level, 0.25)} aria-label={t.voiceSettings.level} />
-      <div className="actions">
-        <button type="button" className={`button ${recording ? "primary" : "quiet"}`} disabled={!recording && !status.data?.stt_configured} onClick={() => void (recording ? stop() : start())}>{recording ? t.voiceSettings.finishTest : t.voiceSettings.startTest}</button>
-        {recording ? <p className="hint" role="status">{t.voiceSettings.speakNow}</p> : null}
+    <Card padding="lg" className="grid gap-4">
+      <div className="grid gap-1 border-b border-line-subtle pb-3">
+        <h3 className="text-body font-semibold text-fg-primary">{t.voiceSettings.microphone}</h3>
       </div>
-      {status.data && !status.data.stt_configured ? <p className="hint">{t.voiceSettings.recognitionNotReady}</p> : null}
+
+      <div className="grid max-w-md gap-3">
+        <LevelMeter
+          value={recording ? Math.min(1, level * 4) : 0}
+          label={t.voiceSettings.level}
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant={recording ? "primary" : "secondary"}
+            disabled={!recording && !status.data?.stt_configured}
+            leftIcon={recording ? <Square size={14} /> : <Mic size={15} />}
+            onClick={() => void (recording ? stop() : start())}
+          >
+            {recording ? t.voiceSettings.finishTest : t.voiceSettings.startTest}
+          </Button>
+          {recording ? (
+            <span className="text-ui text-accent-strong" role="status">
+              {t.voiceSettings.speakNow}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {status.data && !status.data.stt_configured ? (
+        <p className="text-ui text-fg-secondary">{t.voiceSettings.recognitionNotReady}</p>
+      ) : null}
       {status.isError ? <Problem error={status.error} onRetry={() => void status.refetch()} /> : null}
-      {result ? <p className="notice" role="status">{result}</p> : null}
+      {result ? (
+        <p className="rounded-md border border-line-subtle bg-accent-soft/40 px-3.5 py-2.5 text-ui text-fg-primary" role="status">
+          {result}
+        </p>
+      ) : null}
+      {micErrKind ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-warn/30 bg-warn-soft p-3 text-ui text-warn-text">
+          <span>
+            {micErrKind === "permission_denied"
+              ? t.classroom.micDeniedBody
+              : micErrKind === "not_found"
+                ? t.classroom.micNotFoundBody
+                : t.classroom.micOtherBody}
+          </span>
+          {micErrKind === "permission_denied" ? (
+            <Button variant="secondary" size="sm" onClick={() => setHelpOpen(true)}>
+              {t.classroom.micHelpButton}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {error ? <Problem error={error} /> : null}
-    </div>
+
+      <Dialog
+        open={helpOpen}
+        onOpenChange={setHelpOpen}
+        title={t.classroom.micHelpTitle}
+        description={t.classroom.micDeniedBody}
+        size="sm"
+        closeLabel={t.classroom.close}
+      >
+        <ol className="m-0 grid list-none gap-2.5 p-0 text-ui text-fg-primary">
+          <li>{t.classroom.micHelpStep1}</li>
+          <li>{t.classroom.micHelpStep2}</li>
+          <li>{t.classroom.micHelpStep3}</li>
+        </ol>
+      </Dialog>
+    </Card>
   );
 }
 
-export function VoiceSettingsPanel() {
-  const [params] = useSearchParams();
-  const [selected, setTarget] = useState<string>();
-  const settings = useQuery({ queryKey: voiceSettingsKey, queryFn: fetchVoiceSettings });
-  const characters = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
-  if (settings.isPending || characters.isPending) return <Loading />;
-  if (settings.isError) return <Problem error={settings.error} onRetry={() => void settings.refetch()} />;
-  if (characters.isError) return <Problem error={characters.error} onRetry={() => void characters.refetch()} />;
-  const requested = selected ?? params.get("teacher");
-  const target = characters.data.some((entry) => entry.id === requested) ? requested! : "default";
-  const character = characters.data.find((entry) => entry.id === target);
-  const initial = target === "default"
-    ? (settings.data.default ?? defaultVoice)
-    : (settings.data.characters?.[target] ?? (character ? characterVoice(character) : defaultVoice));
+export function MicAndRecognitionSection() {
   return (
-    <>
-      <label className="field">{t.voiceSettings.scope}
-        <select value={target} onChange={(event) => setTarget(event.target.value)}>
-          <option value="default">{t.voiceSettings.defaultVoice}</option>
-          {characters.data.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-        </select>
-      </label>
-      <VoiceEditor key={target} target={target} initial={initial} characterId={character?.id} settings={settings.data} />
-      <RecognitionSettings />
-      <MicrophoneTest />
-    </>
+    <div className="grid gap-5">
+      <MicrophoneTestCard />
+      <RecognitionCards />
+    </div>
   );
 }

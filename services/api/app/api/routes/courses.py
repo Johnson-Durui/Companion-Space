@@ -264,7 +264,10 @@ async def _ensure_editable(container: Container, course_id: str) -> None:
 
 async def _read_uploads(request: Request, container: ServiceContainer):
     if not request.headers.get("content-type", "").lower().startswith("multipart/form-data"):
-        raise HTTPException(415, "Use multipart/form-data to upload materials.")
+        raise HTTPException(
+            415,
+            detail={"code": "multipart_required", "message": "Use multipart/form-data to upload materials."},
+        )
     file_limit = container.settings.max_document_size_bytes
     total_limit = file_limit * 2 + 64 * 1024
     too_large = False
@@ -284,24 +287,42 @@ async def _read_uploads(request: Request, container: ServiceContainer):
             request.headers, bounded_stream(), max_files=12, max_fields=1, max_part_size=32 * 1024,
         ).parse()
     except (MultiPartException, ValueError) as exc:
-        raise HTTPException(413 if too_large else 400, "Upload exceeds limits or is malformed.") from exc
+        raise HTTPException(
+            413 if too_large else 400,
+            detail={
+                "code": "upload_too_large" if too_large else "upload_invalid",
+                "message": "Upload exceeds limits or is malformed.",
+            },
+        ) from exc
     try:
         files = form.getlist("files")
         if not files or not all(isinstance(file, UploadFile) for file in files):
-            raise HTTPException(400, "Select at least one material.")
+            raise HTTPException(
+                400,
+                detail={"code": "material_required", "message": "Select at least one material."},
+            )
         raw = form.get("metadata")
         try:
             metadata = _METADATA.validate_json(raw) if isinstance(raw, str) else []
         except ValidationError:
-            raise HTTPException(422, "Invalid material metadata.") from None
+            raise HTTPException(
+                422,
+                detail={"code": "material_metadata_invalid", "message": "Invalid material metadata."},
+            ) from None
         if metadata and len(metadata) != len(files):
-            raise HTTPException(422, "Provide one metadata entry per file.")
+            raise HTTPException(
+                422,
+                detail={"code": "material_metadata_mismatch", "message": "Provide one metadata entry per file."},
+            )
         uploads = []
         for index, file in enumerate(files):
             filename = file.filename or ""
             data = await file.read(file_limit + 1)
             if len(data) > file_limit:
-                raise HTTPException(413, "The material exceeds the file size limit.")
+                raise HTTPException(
+                    413,
+                    detail={"code": "material_too_large", "message": "The material exceeds the file size limit."},
+                )
             sample, page_count = await asyncio.to_thread(
                 validate_upload, filename, data, file_limit, container.settings.max_pdf_pages,
             )
@@ -334,7 +355,10 @@ async def paste_material(course_id: str, payload: NoteInput, container: Containe
         metadata.role = "notes"
     data = payload.content.encode()
     if len(data) > container.settings.max_document_size_bytes:
-        raise HTTPException(413, "The material exceeds the file size limit.")
+        raise HTTPException(
+            413,
+            detail={"code": "material_too_large", "message": "The material exceeds the file size limit."},
+        )
     pages = max(1, (len(payload.content) + 1599) // 1600)
     async with container.analysis.mutation_lock:
         await _ensure_editable(container, course_id)
@@ -384,7 +408,10 @@ async def start_analysis(course_id: str, payload: StartAnalysis, container: Cont
         await asyncio.to_thread(analysis.data.course, course_id)
         materials = await asyncio.to_thread(analysis.data.material_rows, course_id)
         if not materials:
-            raise HTTPException(400, "Import course material first.")
+            raise HTTPException(
+                400,
+                detail={"code": "material_required", "message": "Import course material first."},
+            )
         pages = sum(row.get("page_count") or row.get("estimated_pages") or 1 for row in materials)
         estimate = pages * 1800
         needs_confirmation = estimate > _LARGE_ANALYSIS and not payload.confirmed
@@ -411,7 +438,10 @@ async def retry_analysis(course_id: str, payload: RetryAnalysis, container: Cont
         current = await asyncio.to_thread(latest_analysis_job, container.repository, course_id)
         job = await container.jobs.retry_analysis(current.id, course_id, payload.stage) if current else None
     if not job:
-        raise HTTPException(409, "The requested stage is no longer eligible for retry.")
+        raise HTTPException(
+            409,
+            detail={"code": "analysis_retry_unavailable", "message": "The requested stage is no longer eligible for retry."},
+        )
     return public_job(job)
 
 
@@ -419,7 +449,10 @@ async def retry_analysis(course_id: str, payload: RetryAnalysis, container: Cont
 async def analysis_events(course_id: str, container: Container):
     job = await analysis_status(course_id, container)
     if job is None:
-        raise HTTPException(404, "Start analysis first.")
+        raise HTTPException(
+            404,
+            detail={"code": "analysis_not_started", "message": "Start analysis first."},
+        )
     return await job_progress_response(container.repository, job.id, space_id=course_id)
 
 
@@ -456,8 +489,14 @@ def page_image(material_id: str, number: PageNumber, container: Container):
     data = container.analysis.data
     row = data.get_page(material_id, number)
     if not row["image_path"]:
-        raise HTTPException(404, "No original page image is available.")
+        raise HTTPException(
+            404,
+            detail={"code": "page_image_unavailable", "message": "No original page image is available."},
+        )
     image = data.safe_path(row["image_path"])
     if not image.is_relative_to(data.images_dir(row["space_id"], material_id)) or not image.is_file():
-        raise HTTPException(404, "No original page image is available.")
+        raise HTTPException(
+            404,
+            detail={"code": "page_image_unavailable", "message": "No original page image is available."},
+        )
     return FileResponse(image, headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})

@@ -1,6 +1,5 @@
 import "./styles/theme.css";
 import "./styles/base.css";
-import "./styles/tokens.css";
 import { lazy, StrictMode, Suspense, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -20,7 +19,9 @@ import { Button, TutorAvatar } from "./ui";
 scheduleFontPrefetch();
 
 const Settings = lazy(() => import("./features/settings/settings"));
-const Diagnostics = lazy(() => import("./features/settings/diagnostics"));
+const SettingsRedirect = lazy(() =>
+  import("./features/settings/settings").then((m) => ({ default: m.SettingsRedirect })),
+);
 const Courses = lazy(() => import("./features/courses/courses"));
 const CourseSetup = lazy(() => import("./features/courses/course-setup"));
 const CourseHub = lazy(() => import("./features/courses/course-hub").then((m) => ({ default: m.CourseHubLayout })));
@@ -76,6 +77,12 @@ function pageTitleFor(pathname: string, search: string): string {
   if (matchPath("/lessons/:lessonId/history", pathname)) return titles.lessonHistory;
   if (matchPath("/lessons/:lessonId", pathname)) return titles.lesson;
   if (matchPath("/settings/diagnostics", pathname)) return titles.diagnostics;
+  if (matchPath("/settings/me", pathname)) return titles.settingsMe;
+  if (matchPath("/settings/tutor", pathname)) return titles.settingsTutor;
+  if (matchPath("/settings/ai", pathname)) return titles.settingsAi;
+  if (matchPath("/settings/voice", pathname)) return titles.settingsVoice;
+  if (matchPath("/settings/privacy", pathname)) return titles.settingsPrivacy;
+  if (matchPath("/settings/advanced", pathname)) return titles.settingsAdvanced;
   if (matchPath("/settings", pathname)) return titles.settings;
   return titles.notFound;
 }
@@ -134,10 +141,10 @@ function NotFound() {
 
 function RouteFallback() {
   return (
-    <section className="error-screen">
-      <h1>{t.app.routeErrorTitle}</h1>
-      <p role="alert">{t.app.error}</p>
-      <div className="actions">
+    <section className="mx-auto grid max-w-xl justify-items-start gap-3 py-12">
+      <h1 className="text-headline font-semibold text-fg-primary">{t.app.routeErrorTitle}</h1>
+      <p role="alert" className="text-ui text-fg-secondary">{t.app.error}</p>
+      <div className="flex flex-wrap items-center gap-2 pt-1">
         <Button variant="primary" onClick={() => window.location.reload()}>{t.app.refresh}</Button>
         <Link className="button quiet" to="/">{t.app.backToday}</Link>
       </div>
@@ -215,8 +222,9 @@ function App() {
                 <Route path="/courses/:courseId/history" element={<CourseHub><CourseHistory embedded /></CourseHub>} />
                 <Route path="/courses/:courseId/review" element={<CourseHub><Review embedded /></CourseHub>} />
                 <Route path="/courses/:courseId/progress" element={<CourseHub><ProgressPage embedded /></CourseHub>} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/settings/diagnostics" element={<Diagnostics />} />
+                <Route path="/settings" element={<SettingsRedirect />} />
+                <Route path="/settings/diagnostics" element={<Navigate to="/settings/ai?tab=test" replace />} />
+                <Route path="/settings/:section" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

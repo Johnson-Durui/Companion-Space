@@ -168,7 +168,7 @@ export function ControlDock({
 
           {!sttConfigured ? (
             <a
-              href="/settings#voice"
+              href="/settings/voice"
               target="_blank"
               rel="noopener noreferrer"
               data-testid="dock-stt-hint"
@@ -440,7 +440,7 @@ export function ControlDock({
               <div className="flex items-center justify-between gap-2 border-t border-line-subtle pt-2">
                 <span className="text-caption text-fg-secondary">{copy.configureMic}</span>
                 <a
-                  href="/settings#voice"
+                  href="/settings/voice"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-caption font-medium text-accent-strong hover:underline"

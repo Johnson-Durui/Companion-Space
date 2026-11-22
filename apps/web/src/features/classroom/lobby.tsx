@@ -380,7 +380,7 @@ export default function LessonLobby() {
                           {t.common.retry}
                         </Button>
                         <a
-                          href="/settings#models"
+                          href="/settings/ai"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex min-h-9 items-center rounded-md border border-line-default bg-surface-card px-3 text-caption font-medium text-fg-primary hover:bg-surface-sunken"
@@ -399,7 +399,7 @@ export default function LessonLobby() {
                         <Mic size={14} aria-hidden="true" />
                         <span>{copy.sttMissingNote}</span>
                         <a
-                          href="/settings#voice"
+                          href="/settings/voice"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-medium text-accent-strong hover:underline"

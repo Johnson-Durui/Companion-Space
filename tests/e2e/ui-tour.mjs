@@ -114,6 +114,54 @@ try {
     note(`pageerror: ${error.message}`);
   });
 
+  // §6.2 Student Vocabulary Automated Audit — scans default UI text (outside [data-advanced], <details>, [data-key-guide]).
+  const FORBIDDEN_VOCAB = [
+    { name: "课程工作台", re: /课程工作台/ },
+    { name: "估算并开始分析", re: /估算并开始分析/ },
+    { name: "token", re: /\btoken\b/i },
+    { name: "学习设置", re: /学习设置/ },
+    { name: "起点诊断", re: /起点诊断/ },
+    { name: "连接模型/模型连接", re: /连接模型|模型连接/ },
+    { name: "模型角色", re: /模型角色/ },
+    { name: "API Key", re: /\bAPI\s*Key\b/i },
+    { name: "试聊", re: /试聊/ },
+    { name: "二次元视频包/立绘/默认视频档位", re: /二次元视频包|二次元立绘|默认视频档位/ },
+    { name: "切免费档/已自动切回基础档", re: /切免费档|已自动切回基础档/ },
+    { name: "Sidecar/本地GPU实时驱动/Tier 3/WebRTC", re: /\bSidecar\b|本地\s*GPU\s*实时驱动|Tier\s*3|\bWebRTC\b/i },
+    { name: "Render failed", re: /Render\s*failed/i },
+    { name: "向量检索", re: /向量检索/ },
+    { name: "Mock exam", re: /\bMock\s*exam\b/i },
+    { name: "考点权重约 X%", re: /考点权重约\s*\d+%/ },
+  ];
+  const VOCAB_EXEMPT_SHOTS = new Set([
+    "tutor-detail-assets",
+    "settings-advanced",
+    "m-settings-advanced",
+  ]);
+  const vocabViolations = [];
+
+  async function scanStudentVocabulary(target, shotName) {
+    if (VOCAB_EXEMPT_SHOTS.has(shotName)) return;
+    const text = await target.evaluate(() => {
+      const clone = document.body.cloneNode(true);
+      clone
+        .querySelectorAll('[data-advanced], details, [data-key-guide], script, style, noscript')
+        .forEach((node) => node.remove());
+      return clone.textContent || "";
+    });
+    for (const rule of FORBIDDEN_VOCAB) {
+      const match = text.match(rule.re);
+      if (match) {
+        const idx = match.index ?? 0;
+        const snippet = text.slice(Math.max(0, idx - 24), idx + match[0].length + 24).replace(/\s+/g, " ");
+        const msg = `VOCAB FAIL [${shotName}] matched "${rule.name}": ...${snippet}...`;
+        vocabViolations.push(msg);
+        failures += 1;
+        note(msg);
+      }
+    }
+  }
+
   async function shot(target, name, { full = false } = {}) {
     counter += 1;
     const file = `${String(counter).padStart(2, "0")}-${name}.png`;
@@ -125,6 +173,7 @@ try {
         vh: window.innerHeight,
       }));
       note(`shot ${file} page=${size.w}x${size.h} viewport-h=${size.vh}`);
+      if (!full) await scanStudentVocabulary(target, name);
     } catch (error) {
       failures += 1;
       note(`shot FAILED ${file}: ${String(error).split("\n")[0]}`);
@@ -491,19 +540,22 @@ try {
     await settle(700);
     await shot(page, "tutor-detail-assets");
   });
-  await step("settings", async () => {
-    await page.goto("/settings");
-    await page.getByRole("heading", { name: t.settings.heading }).waitFor({ timeout: 15_000 });
-    await settle(1500);
-    await shot(page, "settings");
-    await shot(page, "settings-full", { full: true });
-  });
-  await step("diagnostics", async () => {
-    await page.goto("/settings/diagnostics");
-    await page.getByRole("heading", { name: t.diagnostics.heading }).waitFor({ timeout: 15_000 });
-    await settle(1000);
-    await shot(page, "diagnostics");
-  });
+  for (const [section, testId] of [
+    ["me", "settings-section-me"],
+    ["tutor", "settings-section-tutor"],
+    ["ai", "settings-section-ai"],
+    ["voice", "settings-section-voice"],
+    ["privacy", "settings-section-privacy"],
+    ["advanced", "settings-section-advanced"],
+  ]) {
+    await step(`settings-${section}`, async () => {
+      await page.goto(`/settings/${section}`);
+      await page.getByTestId(testId).waitFor({ timeout: 15_000 });
+      await settle(700);
+      await shot(page, `settings-${section}`);
+      await shot(page, `settings-${section}-full`, { full: true });
+    });
+  }
   await step("not-found 404", async () => {
     await page.goto("/this-route-does-not-exist-404");
     await page.getByRole("heading", { name: t.app.notFoundTitle }).waitFor({ timeout: 15_000 });
@@ -531,7 +583,8 @@ try {
     ["m-courses", "/courses"],
     ["m-course", courseId ? `/courses/${courseId}` : "/courses/browser-today-course"],
     ["m-stress-course", "/courses/browser-stress-course/map"],
-    ["m-settings", "/settings"],
+    ["m-settings-me", "/settings/me"],
+    ["m-settings-ai", "/settings/ai"],
   ]) {
     await step(name, async () => {
       await mobile.goto(path);
@@ -558,6 +611,7 @@ try {
     await shot(mobile, "m-lesson-question-full", { full: true });
   });
 
+  note(`vocab audit: ${vocabViolations.length} violation(s)`);
   note(`summary: ${passed} passed, ${failures} failed, ${counter} screenshots -> ${out}`);
 } finally {
   writeFileSync(join(out, "capture-log.txt"), log.join("\n"), "utf8");

@@ -28,8 +28,8 @@ test("welcome, connection roles, and diagnostics use the same local session", as
     await expect.poll(() => mobile.getByTestId("teacher-stage").getByRole("img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
     await expect.poll(() => mobile.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await mobile.screenshot({ path: resolve(screenshots, "welcome-mobile.png") });
-    await mobile.goto("/settings");
-    await expect(mobile.getByRole("combobox", { name: t.settings.preset, exact: true })).toBeVisible();
+    await mobile.goto("/settings/ai");
+    await expect(mobile.getByTestId("ai-readiness-card")).toBeVisible();
     await expect.poll(() => mobile.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await mobile.screenshot({ path: resolve(screenshots, "settings-mobile.png") });
   } finally {
@@ -52,23 +52,33 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   await page.getByRole("button", { name: t.voice.preview }).click();
   await expect(page.getByText(t.speech.unavailable)).toBeVisible();
 
+  // /settings/diagnostics redirects to /settings/ai?tab=test with embedded test chat
   await page.goto("/settings/diagnostics");
-  await expect(page.getByRole("link", { name: t.diagnostics.connect })).toBeVisible();
-  await page.getByRole("link", { name: t.diagnostics.connect }).click();
-  await expect(page.getByRole("combobox", { name: t.settings.preset, exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/settings\/ai\?tab=test/);
+  await expect(page.getByTestId("diagnostics-panel")).toBeVisible();
+  await expect(page.getByTestId("ai-readiness-card")).toBeVisible();
   await page.screenshot({ path: resolve(screenshots, "settings-desktop.png") });
-  await page.getByRole("button", { name: t.settings.all }).click();
-  await pick(page, t.settings.preset, "custom");
-  await page.getByLabel(t.settings.name, { exact: true }).fill("本地 E2E 服务");
-  await page.getByLabel(t.settings.baseUrl, { exact: true }).fill(`${baseURL}/v1`);
-  await page.getByLabel(t.settings.apiKey, { exact: true }).fill("fixture-key");
+
+  // Open manual connect form and add custom local E2E service
+  const manualDetails = page.getByTestId("manual-connect-details");
+  await manualDetails.locator(":scope > summary").click();
+  const createForm = page.getByTestId("manual-connect-form");
+  await expect(createForm).toBeVisible();
+  await createForm.getByRole("radio", { name: t.settings.all }).click();
+  await pick(createForm, t.settings.preset, "custom");
+  await createForm.getByLabel(t.settings.name, { exact: true }).fill("本地 E2E 服务");
+  await createForm.getByLabel(t.settings.baseUrl, { exact: true }).fill(`${baseURL}/v1`);
+  await createForm.getByLabel(t.settings.apiKey, { exact: true }).fill("fixture-key");
   const connected = page.waitForResponse((response) => response.url().endsWith("/providers/connections") && response.request().method() === "POST");
-  await page.getByRole("button", { name: t.settings.create }).click();
+  await createForm.getByRole("button", { name: t.settings.create }).click();
   expect((await connected).ok()).toBe(true);
   await expect(page.getByRole("heading", { name: "本地 E2E 服务" })).toBeVisible();
   await page.getByRole("button", { name: t.settings.discover }).click();
   await expect(page.locator("datalist option[value='fixture-vision']")).toHaveCount(1);
 
+  // Open advanced roles panel and assign live + vision (verify rows stay open after saving!)
+  const rolesDetails = page.getByTestId("advanced-roles-details");
+  await rolesDetails.locator(":scope > summary").click();
   for (const [roleName, model] of [[t.roles.live, "fixture-live"], [t.roles.vision, "fixture-vision"]]) {
     const row = page.getByTestId("role-row").filter({ has: page.getByText(roleName, { exact: true }) });
     await row.locator(":scope > summary").click();
@@ -77,48 +87,52 @@ test("welcome, connection roles, and diagnostics use the same local session", as
     await row.getByRole("button", { name: t.settings.roleSave }).click();
     expect((await assigning).ok()).toBe(true);
     await expect(row.locator(":scope > summary")).toContainText(model);
+    await expect(row).toHaveAttribute("open", "");
   }
 
   await page.getByRole("button", { name: t.settings.test, exact: true }).click();
   await expect(page.getByTestId("test-results").getByRole("listitem")).toHaveCount(2);
   await expect(page.getByTestId("test-results").locator('[data-failed="true"]')).toHaveCount(0);
-  await page.getByRole("link", { name: t.diagnostics.heading }).first().click();
-  await page.getByRole("textbox", { name: t.diagnostics.input }).fill("请回答一个问题");
-  await page.getByRole("button", { name: t.common.send }).click();
-  await expect(page.getByTestId("reply").first()).toHaveText("测试连接已响应。");
-  const imageInput = page.getByLabel(t.diagnostics.image, { exact: true });
+
+  // Embedded test conversation (diagnostics panel) works directly on /settings/ai
+  const diag = page.getByTestId("diagnostics-panel");
+  await diag.getByRole("textbox", { name: t.diagnostics.input }).fill("请回答一个问题");
+  await diag.getByRole("button", { name: t.common.send }).click();
+  await expect(diag.getByTestId("reply").first()).toHaveText("测试连接已响应。");
+  const imageInput = diag.getByLabel(t.diagnostics.image, { exact: true });
   await expect(imageInput).toBeEnabled();
   await imageInput.setInputFiles({ name: "equation.png", mimeType: "image/png", buffer: tinyPng });
-  await page.getByRole("button", { name: t.common.send }).click();
-  await expect(page.getByTestId("reply").last()).toHaveText("公式：$x^2+1=0$");
+  await diag.getByRole("button", { name: t.common.send }).click();
+  await expect(diag.getByTestId("reply").last()).toHaveText("公式：$x^2+1=0$");
   await page.screenshot({ path: resolve(screenshots, "diagnostics-desktop.png") });
-  await page.getByRole("navigation", { name: t.app.name }).getByRole("link", { name: t.app.settings }).click();
-  await page.getByRole("button", { name: t.settings.all }).click();
-  await pick(page, t.settings.preset, "custom");
-  const createForm = page.locator("form").filter({ has: page.getByRole("button", { name: t.settings.create }) });
+
+  // Add secondary connection, verify deleting primary falls back cleanly on checker role
+  await createForm.getByRole("radio", { name: t.settings.all }).click();
+  await pick(createForm, t.settings.preset, "custom");
   await createForm.getByLabel(t.settings.name, { exact: true }).fill("备用连接");
   await createForm.getByLabel(t.settings.baseUrl, { exact: true }).fill(`${baseURL}/v1`);
   await createForm.getByLabel(t.settings.apiKey, { exact: true }).fill("fixture-secondary-key");
+  const secondCreated = page.waitForResponse((response) => response.url().endsWith("/providers/connections") && response.request().method() === "POST");
   await createForm.getByRole("button", { name: t.settings.create }).click();
+  const secondConnId = ((await (await secondCreated).json()) as { id: string }).id;
   await expect(page.getByRole("heading", { name: "备用连接" })).toBeVisible();
 
   const checker = page.getByTestId("role-row").filter({ has: page.getByText(t.roles.checker, { exact: true }) });
   await checker.locator(":scope > summary").click();
   const connection = checker.getByRole("combobox", { name: t.settings.useConnection });
   await pick(checker, t.settings.useConnection, { label: "本地 E2E 服务" });
-  const remaining = await connection.getByRole("option", { name: "备用连接" }).getAttribute("value");
   const obsolete = page.getByTestId("connection-card").filter({ has: page.getByRole("heading", { name: "本地 E2E 服务" }) });
   await obsolete.getByText(t.settings.edit, { exact: true }).click();
   await obsolete.getByRole("button", { name: t.settings.delete }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: t.settings.confirmDelete }).click();
   await expect(obsolete).toHaveCount(0);
-  await expect(connection).toHaveValue(remaining!);
+  await expect(connection).toContainText("备用连接");
 
   await checker.getByLabel(t.settings.modelId).fill("fixture-checker");
   const reassigned = page.waitForResponse((response) => response.url().endsWith("/settings/model-roles") && response.request().method() === "PUT");
   await checker.getByRole("button", { name: t.settings.roleSave }).click();
   const result = await reassigned;
-  expect(result.request().postDataJSON().checker.connection_id).toBe(remaining);
+  expect(result.request().postDataJSON().checker.connection_id).toBe(secondConnId);
   expect(result.ok()).toBe(true);
   expect(errors).toEqual([]);
 });

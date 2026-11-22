@@ -27,9 +27,9 @@ Most AI study apps are just scrolling chat windows, while browser 3D VRM avatars
 
 **Companion Space** takes a lighter, more human approach:
 
-- **Feels like a 1-on-1 video call**: Tutors live inside a vertical **9:16 pure-video frame** (`<TutorVideoBox>`) with 180 ms dual-`<video>` crossfades and 150 ms micro-reactions when you answer right or wrong — zero WebGL/3D overhead.
-- **Built around your own study materials**: Import PDF, PPTX, DOCX, images, Markdown, or plain text as textbooks, lecture notes, or past exams. Models build a source-linked course map that you can inspect and edit anytime, followed by a learner interview and study plan.
-- **Synchronized blackboard + real-time interruptions**: Formulas (KaTeX), function plots, tables, and diagrams appear right as the tutor speaks. Interrupt mid-sentence to ask questions, switch teaching styles, or request an example — then lock in retention with **FSRS review cards** and mistake drills.
+- **Single-screen 1-on-1 video-call classroom (Desktop + Mobile)**: Tutors live inside a vertical **9:16 pure-video frame** (`<TutorVideoBox>`) with 180 ms dual-`<video>` crossfades and 150 ms micro-reactions when you answer right or wrong. Every live phase fits in a zero-scroll viewport with split / board-first view switching on desktop and portrait / board dual-mode calling on mobile — zero WebGL/3D overhead.
+- **Built around your own study materials**: A guided 5-step Course Setup (Upload → Read Materials → Learner Interview → Placement → Study Plan) ingests PDF, PPTX, DOCX, images, Markdown, or plain text into an editable, source-linked course map and explains why every item is scheduled or re-ordered in plain language.
+- **Synchronized blackboard + real-time interruptions**: Formulas (KaTeX), line-by-line multi-step derivations, function plots with legends and lightbox zoom, tables, and diagrams appear as the tutor speaks. Trigger line-level *"lost from this line"* re-explanations, browse cleared board pages, open the in-memory transcript drawer, and lock in retention with **FSRS review cards**, mistake drills, and mastery charts.
 - **Runs locally on your machine**: Single-process loopback server (`127.0.0.1`), no mandatory cloud account, and full ownership over your data and model providers.
 
 ---
@@ -58,18 +58,28 @@ All six built-in tutors are original **Apache-2.0** creations shipping with **co
 <table>
   <tr>
     <td width="50%">
-      <img src="docs/images/welcome-showcase.png" alt="Welcome page tutor roster and voice preview" />
-      <p align="center"><sub><b>1. Welcome & Tutor Picker</b> — Switch between all six animated tutors, preview voices, or launch the built-in sample lesson with no API key</sub></p>
+      <img src="docs/images/today-showcase.png" alt="Today home screen with tutor greeting, today's lesson with scheduling rationale, due reviews, projected score bar, and weekly activity strip" />
+      <p align="center"><sub><b>1. Today Home</b> — First-person tutor greeting, today's next lesson with plain-language rationale, due reviews, projected score bar, and weekly activity at a glance</sub></p>
     </td>
     <td width="50%">
-      <img src="docs/images/characters-showcase.png" alt="Character library with 8/8 slot badges, pose testing, and .tutorpack importer" />
-      <p align="center"><sub><b>2. Tutor Library & <code>.tutorpack</code> Manager</b> — Inspect 8/8 motion slots, test all 7 classroom reactions, drop a single image to create a tutor, or import a <code>.tutorpack</code></sub></p>
+      <img src="docs/images/welcome-showcase.png" alt="Four-step Welcome onboarding with tutor showcase and zero-setup sample lesson" />
+      <p align="center"><sub><b>2. First-Run Onboarding</b> — Guided 4-step welcome to meet the six animated tutors with distinct theme palettes, or jump straight into the prerecorded sample lesson with zero setup</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/images/characters-showcase.png" alt="Tutor gallery with distinct per-tutor voices, theme colors, reaction demos, and .tutorpack importer" />
+      <p align="center"><sub><b>3. Tutor Gallery &amp; Persona Studio</b> — Switching tutors updates the app theme and distinct voice; preview explain/praise/comfort reactions, drop an image to create a tutor, or import a <code>.tutorpack</code></sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/images/progress-showcase.png" alt="Progress dashboard with projected score bar and unit-grouped mastery grid" />
+      <p align="center"><sub><b>4. Learning Loop &amp; Progress Charts</b> — Projected score vs. target line, four-state mastery grid with clickable answer timelines, post-answer review feedback, and plan-diff tracking</sub></p>
     </td>
   </tr>
   <tr>
     <td colspan="2">
-      <img src="docs/images/avatar-settings-showcase.png" alt="Avatar settings with local GPU sidecar drivers and budget guardrails" />
-      <p align="center"><sub><b>3. Avatar Engine & Local GPU Sidecar Settings</b> — Connect local GPU neural drivers with zero per-minute cost, plus hard duration/budget guardrails for optional cloud live drivers</sub></p>
+      <img src="docs/images/avatar-settings-showcase.png" alt="Partitioned Settings with Advanced local GPU sidecar drivers and budget guardrails" />
+      <p align="center"><sub><b>5. Partitioned Settings &amp; Advanced Drivers</b> — Clean sidebar sections (Me, Tutor &amp; Voice, AI Services, Microphone &amp; Recognition, Privacy &amp; Data, Advanced) keeping local GPU sidecars and cloud guardrails neatly tucked away</sub></p>
     </td>
   </tr>
 </table>
@@ -124,8 +134,8 @@ cd Companion-Space
 
 The browser opens `http://127.0.0.1:8000/welcome`:
 
-1. **Try without an API key**: Click the sample lesson button to experience synchronized board playback, interactive checks, feedback, and recap right away.
-2. **Study your own materials**: Open **Settings → Models**, configure any OpenAI-compatible or supported provider (with a quick filter for free-tier options), test the connection, and start importing your PDF / PPTX / DOCX / image / Markdown materials.
+1. **Try without an API key**: Click the sample lesson button to experience the animated tutor video frame, synchronized board playback, interactive checks, feedback, and recap right away.
+2. **Study your own materials**: Use the Connect Wizard or open **Settings → AI Services** to configure any OpenAI-compatible or supported provider (with a quick filter for free-tier options), verify via **Test Chat**, and walk through the 5-step Course Setup to import your PDF / PPTX / DOCX / image / Markdown materials.
 
 ### Option 2: Single-Container Docker Compose
 

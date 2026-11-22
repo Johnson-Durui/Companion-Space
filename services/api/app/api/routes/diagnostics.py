@@ -50,7 +50,10 @@ def _verified_image(image: ImageInput) -> str:
     except binascii.Error:
         raise HTTPException(400, detail={"code": "invalid_image", "message": "Image encoding is invalid"}) from None
     if len(decoded) > _IMAGE_LIMIT:
-        raise HTTPException(413, "Image must be at most 5 MiB")
+        raise HTTPException(
+            413,
+            detail={"code": "image_too_large", "message": "Image must be at most 5 MiB"},
+        )
     if image.mime == "image/png":
         matches = decoded.startswith(b"\x89PNG\r\n\x1a\n")
     elif image.mime == "image/jpeg":

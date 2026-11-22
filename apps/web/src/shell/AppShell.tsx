@@ -116,7 +116,7 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
                 </span>
               ) : (
                 <Link
-                  to="/settings#models"
+                  to="/settings/ai"
                   data-testid="readiness-indicator"
                   data-ready="false"
                   className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-warn/30 bg-warn-soft px-2.5 text-caption font-medium text-warn-text whitespace-nowrap transition-colors duration-fast ease-out hover:bg-warn-soft/80"

@@ -38,6 +38,7 @@ import {
   TooltipProvider,
   TutorAvatar,
   TutorChip,
+  UnsavedBar,
   toast,
 } from "../src/ui";
 
@@ -429,5 +430,41 @@ describe("U1 UI component library", () => {
       checkbox.click();
     });
     expect(onCheck).toHaveBeenCalled();
+  });
+
+  it("U7 UnsavedBar stays hidden when clean and triggers save/discard when dirty", () => {
+    const onSave = vi.fn();
+    const onDiscard = vi.fn();
+    render(
+      <UnsavedBar
+        dirty={false}
+        onSave={onSave}
+        onDiscard={onDiscard}
+        warnOnUnload={false}
+      />,
+    );
+    expect(container.querySelector('[data-testid="unsaved-bar"]')).toBeNull();
+
+    render(
+      <UnsavedBar
+        dirty={true}
+        message="有未保存修改"
+        saveLabel="保存更改"
+        discardLabel="放弃更改"
+        onSave={onSave}
+        onDiscard={onDiscard}
+        warnOnUnload={false}
+      />,
+    );
+    const bar = container.querySelector('[data-testid="unsaved-bar"]')!;
+    expect(bar).not.toBeNull();
+    expect(bar.getAttribute("role")).toBe("status");
+    const buttons = Array.from(bar.querySelectorAll("button"));
+    act(() => {
+      buttons.find((b) => b.textContent?.includes("放弃更改"))!.click();
+      buttons.find((b) => b.textContent?.includes("保存更改"))!.click();
+    });
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 });

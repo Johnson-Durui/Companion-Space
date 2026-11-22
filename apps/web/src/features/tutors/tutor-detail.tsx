@@ -561,7 +561,7 @@ function AssetsAdvancedTab({ character }: { character: Character }) {
           <Button variant="primary" pending={saveTier.isPending} onClick={() => saveTier.mutate()}>
             {t.common.save}
           </Button>
-          <Link className="button quiet" to="/settings#avatar">
+          <Link className="button quiet" to="/settings/advanced">
             {charCopy.configureSidecar}
           </Link>
           <Button

@@ -510,3 +510,37 @@
 - `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **473 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **15 文件 88 项通过**、`vite build` 通过。
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**28 / 28 全部通过**（含 I1–I3、I5–I16 全部体验不变量与 U6 手机/桌面深化回归）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U6`：**41 步通过、0 失败、99 张截图**输出至 `docs/rebuild/review/U6/`。
+
+### 体验重塑 U7 — 代码完成（自动化通过）（2026-11-22）
+
+**待完成与待验证（需所有者亲测与真实外部环境）**
+
+- **真实 AI 服务与真实流程计时未测**：U7 所有者验收清单第 5–7 条——全新数据下从双击启动到示例课老师开口是否 ≤ 1 分钟、持有真实密钥用仓库示例资料从「开始准备我的第一门课」到老师首句是否 ≤ 10 分钟、以及用所有者自备真实教材走完读资料与完整一节课——均待所有者在真实环境下实测并记录用时。
+- **真实麦克风 / 耳机语音上课与多机观感验收未测**：真实麦克风权限弹窗与首音节听感、耳机下的提示音音量、6 位内置老师在线 Edge 语音试听定音、手机真机安全区与触屏交互，以及对 `docs/rebuild/review/U1`–`U7`（尤其 U1 / U2a / U3 / U7）截图的逐屏评审与「观感五问」仍待所有者核对。
+- **既挂起的真实模型质量验收（本阶段不改引擎）**：M2 资料分析质量、M4 独立评分 20 课评测矩阵与 M5 实机语音延迟指标仍按各自里程碑状态挂起，建议在体验新界面时结合自有教材完整上一节课同步复核。
+- **可选项留待决定**：是否将 React 升级至 19.3.x 启用 `<ViewTransition>`、以及是否发布新版本号（当前 `CHANGELOG.md` 写入 `[Unreleased]`）。
+
+**已落地**
+
+- **设置页 6 分区重排与旧地址重定向（体验规格 §5.13）**：
+  - 将原先单页设置拆分为 `/settings/me`（我）、`/settings/tutor`（老师与声音）、`/settings/ai`（AI 服务）、`/settings/voice`（麦克风与识别）、`/settings/privacy`（隐私与数据）、`/settings/advanced`（高级）六个独立路由与左侧导航栏（窄屏自动切为顶部可横滑导航）。
+  - `/settings` 及全部旧锚点（`#me`、`#models`、`#voice`、`#avatar`、`#security`、`#data`、`#usage`）与 `/settings/diagnostics` 均无缝重定向至对应新分区（其中 `/settings/diagnostics` → `/settings/ai?tab=test`）。
+  - 「我」接入 `apps/web/src/ui/unsaved-bar.tsx` 显式底部未保存条（含 `beforeunload` 离开提醒、放弃/保存）；「老师与声音」聚合当前老师卡、音色语速试听与课堂提示音开关/音量；「AI 服务」提供 5 项能力就绪总览、连接向导、已连接服务、折叠式手动填写表单、内嵌「测试对话」（原试聊）及折叠式「高级：按能力分配模型」（`RoleRow` 使用稳定 `key={role}` 与受控展开态，保存分配后绝不收起）；「麦克风与识别」提供 `LevelMeter` 麦克风测试、在线/离线双卡与折叠排障命令；「隐私与数据」突出本机存储与主密码保险箱；「高级」收纳本地 GPU Sidecar、云端护栏、并发数与用量表。
+- **学生词表全站术语清零与 B10 后端错误码收尾（体验规格 §6.2）**：
+  - 全面清理 `apps/web/src/locales/zh-CN.json` 默认界面中的禁用左栏术语（`课程工作台`、`估算并开始分析`、`token`、`学习设置`、`起点诊断`、`连接模型/模型连接`、`模型角色`、`API Key` [仅保留在连接向导 `[data-key-guide]` 指引卡中]、`试聊`、`二次元视频包/立绘/默认视频档位`、`切免费档/已自动切回基础档`、`Sidecar/Tier 3/WebRTC`、`Render failed`、`向量检索`、`Mock exam` 等）。
+  - 补齐 `services/api/app/api/routes/courses.py` 与 `diagnostics.py` 全部剩余纯文本 `HTTPException` 为结构化 `detail={"code", "message"}`，并在 `zh-CN.json` 补全全部对应中文映射；新增 `services/api/tests/test_u7_error_codes.py` 以静态 AST 遍历 `services/api/app/api/` + 运行时 `TestClient` 强制保障所有面向用户的 API 错误都带结构化错误码。
+  - 在 `tests/e2e/ui-tour.mjs` 接入自动化 §6.2 学生词表扫描器（自动剔除 `[data-advanced]`、`<details>`、`[data-key-guide]` 后检查全站每一默认屏幕可见文本，出现禁用词即失败）。
+- **遗留样式与原生控件彻底清尾（I4 收官）**：
+  - 将 `course-hub.tsx` MapTab 遗留类名与全站最后 3 处原生 `<select>` 迁移完毕，将 `.button`/`.hint`/`.notice` 迁入 `base.css` `@layer components`，从 `theme.css` 移除 `legacy` 层声明，彻底删除 `tokens.css`、`classroom.css`、`setup.css`、`practice.css`、`progress.css`、`review.css` 全部 6 个旧全局样式文件。
+  - 收紧 `apps/web/tests/styles-tokens.test.ts`：彻底删除 `HEX_ALLOWED_FILES` 与 `LEGACY_LAYER_FILES` 遗留白名单，断言仅 `theme.css` 包含十六进制色值、全站零 `@layer legacy`、全部 6 个退役 CSS 文件均不存在。
+- **键盘/减动效通查、对外文档与便携包冒烟**：
+  - 核查同屏单视频协调（I16）、空闲字体预取（`prefetch-fonts.ts`）与首屏分包体积（主入口 `index-*.js` 310.94 kB / gzip 93.31 kB，课堂/设置/白板/KaTeX/Mermaid/VAD 均按需懒加载）。
+  - 在 `ui-components.test.tsx` 补 `UnsavedBar` 单测；更新 `helpers.ts`、`m1.spec.ts`、`m3.spec.ts`、`m8.spec.ts` 并在 `ux-invariants.spec.ts` 补齐全部 6 个设置分区路由校验、8 条旧地址重定向 + `UnsavedBar` 用例以及纯键盘操作 + `prefers-reduced-motion` 通查用例。
+  - 刷新 `docs/images/`（`classroom-showcase.png`、`welcome-showcase.png`、`characters-showcase.png`、`avatar-settings-showcase.png`、`today-showcase.png`、`progress-showcase.png`），同步更新 `README.md`、`README.en.md`、`CHANGELOG.md`（`[Unreleased]` 小节）与 `scripts/build-portable.ps1`。
+
+**本地验证**
+
+- `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **475 通过 / 2 跳过**（含 `test_u7_error_codes.py`）、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **15 文件 89 项通过**（含清空遗留白名单与退役样式断言的 `styles-tokens.test.ts` 与 `UnsavedBar`）、`vite build`（1.06s）通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**30 / 30 全部通过**（含 I1–I3、I5–I16、U7 旧地址重定向 + `UnsavedBar` + 保存角色不收起、纯键盘主线与 `prefers-reduced-motion`；其中 `m8.spec.ts` 放宽虚拟时钟步进上限后单测 7.3s 稳定通过）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U7`：**46 步通过、0 失败、110 张截图**输出至 `docs/rebuild/review/U7/`，自动化 §6.2 学生词表扫描 **0 违规**，已完成 6 个设置分区、今天页、老师画廊、课堂、进度与手机端截图目视复核。
+- Windows 便携包构建与隔离冒烟通过：`scripts/build-portable.ps1 -SkipWebBuild` 产出 `outputs/Companion-Space-1.0.0-rc.2-windows-x64.zip`（SHA-256 `d40dfaea544175c0a3555ec0ed9411dcc27f350bec3de50e380cf7cebe01b31c`），`scripts/smoke-portable.ps1` 在独立隔离目录解压并验证 `/healthz`、`/welcome` SPA 壳与隔离 SQLite 创建全部通过（`Portable smoke passed: healthz + UI on loopback port 49870`）。

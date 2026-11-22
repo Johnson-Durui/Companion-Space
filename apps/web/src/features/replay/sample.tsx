@@ -174,7 +174,7 @@ function SampleRecording({
           </section>
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              to="/settings#models"
+              to="/settings/ai"
               className="inline-flex min-h-11 items-center justify-center rounded-md bg-accent px-5 text-ui font-medium text-on-accent hover:bg-accent-strong"
             >
               {t.classroom.sampleConnectCta}
@@ -266,7 +266,7 @@ function SampleRecording({
       }
       dockExtra={
         <Link
-          to="/settings#models"
+          to="/settings/ai"
           className="hidden min-h-11 items-center rounded-md border border-line-subtle bg-surface-card px-3 text-caption font-medium text-fg-primary hover:bg-surface-sunken lg:inline-flex"
         >
           {copy.connect}

@@ -21,8 +21,12 @@ const ALL_ROUTES = [
   "/plan-items/browser-loop-practice-item/practice",
   "/lessons/browser-avatar-teaching-lesson",
   "/lessons/browser-avatar-teaching-lesson/history",
-  "/settings",
-  "/settings/diagnostics",
+  "/settings/me",
+  "/settings/tutor",
+  "/settings/ai",
+  "/settings/voice",
+  "/settings/privacy",
+  "/settings/advanced",
   "/this-route-does-not-exist-404",
 ] as const;
 
@@ -88,7 +92,7 @@ test("I1: every route has exactly one h1, distinct document titles, and resets s
   await expect(emptyCard).toHaveAttribute("data-stage", "needs_materials");
 
   // Verify SPA route switch resets scroll position to top and moves focus to h1.
-  await page.goto("/settings");
+  await page.goto("/courses/browser-stress-course/map");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 600));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
@@ -198,10 +202,10 @@ test("I3: destructive flows use in-app ConfirmDialog with safe cancel focus and 
 });
 
 test("I5: saving settings emits an accessible status toast that auto-dismisses", async ({ page }) => {
-  await page.goto("/settings");
-  const dataSection = page.getByRole("region", { name: t.settings.data });
-  await expect(dataSection).toBeVisible({ timeout: 15_000 });
-  const saveButton = dataSection.getByRole("button", { name: t.common.save });
+  await page.goto("/settings/advanced");
+  const concurrencyForm = page.locator('form:has(input[name="concurrency"])');
+  await expect(concurrencyForm).toBeVisible({ timeout: 15_000 });
+  const saveButton = concurrencyForm.getByRole("button", { name: t.common.save });
   await saveButton.click();
 
   const statusToast = page.getByTestId("toast-item").filter({ hasText: t.common.saved });
@@ -781,4 +785,71 @@ test("U6 classroom depth: marks, line pointer, plot legend & lightbox, transcrip
   await expect(drawer).toContainText("开始吧。");
   await expect(drawer).toContainText(t.classroom.quick.confused);
   await page.keyboard.press("Escape");
+});
+
+test("U7 partitioned settings redirects and UnsavedBar discard/save", async ({ page }) => {
+  const redirects: Array<[string, RegExp]> = [
+    ["/settings", /\/settings\/me$/],
+    ["/settings#me", /\/settings\/me$/],
+    ["/settings#models", /\/settings\/ai$/],
+    ["/settings#voice", /\/settings\/voice$/],
+    ["/settings#avatar", /\/settings\/advanced$/],
+    ["/settings#security", /\/settings\/privacy$/],
+    ["/settings#data", /\/settings\/privacy$/],
+    ["/settings/diagnostics", /\/settings\/ai\?tab=test$/],
+  ];
+  for (const [from, toPattern] of redirects) {
+    await page.goto(from);
+    await expect(page, `redirect from ${from}`).toHaveURL(toPattern, { timeout: 10_000 });
+  }
+
+  // UnsavedBar appears on dirty form edit and restores original value on discard
+  await page.goto("/settings/me");
+  const form = page.getByTestId("profile-settings-form");
+  await expect(form).toBeVisible({ timeout: 15_000 });
+  const nickInput = form.getByLabel(t.learner.nickname);
+  const original = await nickInput.inputValue();
+  await nickInput.fill(`${original || "测试"}_未保存`);
+  const bar = page.getByTestId("unsaved-bar");
+  await expect(bar).toBeVisible();
+  await bar.getByRole("button", { name: t.settings.unsavedDiscard }).click();
+  await expect(bar).toHaveCount(0);
+  await expect(nickInput).toHaveValue(original);
+});
+
+test("U7 keyboard-only navigation and prefers-reduced-motion clarity", async ({ page }) => {
+  // Keyboard navigation across primary shell -> dialog -> Escape
+  await page.goto("/");
+  await expect(page.getByTestId("today-page")).toBeVisible({ timeout: 15_000 });
+  const coursesNavLink = page.getByRole("navigation", { name: t.app.name }).getByRole("link", { name: t.app.courses });
+  await coursesNavLink.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/courses$/);
+
+  const newCourseBtn = page.getByRole("button", { name: t.courses.new }).first();
+  await newCourseBtn.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  // Reduced-motion mode in classroom keeps clear text status and instant keyboard answering
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/lessons/browser-avatar-teaching-lesson");
+  const startBtn = page.getByRole("button", { name: t.classroom.startText });
+  await expect(startBtn).toBeVisible({ timeout: 15_000 });
+  await startBtn.focus();
+  await page.keyboard.press("Enter");
+
+  const shell = page.getByTestId("classroom-stage-shell");
+  await expect(shell).toHaveAttribute("data-phase", "awaiting", { timeout: 25_000 });
+  const optionA = page.getByRole("radio", { name: "A 按条件推导" });
+  await expect(optionA).toBeVisible();
+  await optionA.focus();
+  await page.keyboard.press("Space");
+  await expect(optionA).toHaveAttribute("aria-checked", "true");
+  const submitBtn = page.getByRole("button", { name: t.classroom.submitAnswer });
+  await submitBtn.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("status").filter({ hasText: t.classroom.verdicts.correct })).toBeVisible({ timeout: 15_000 });
 });

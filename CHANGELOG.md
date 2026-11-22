@@ -2,6 +2,28 @@
 
 All notable changes to Companion Space are documented here.
 
+## [Unreleased]
+
+### Added
+
+- **Design System & Bundled Typography (U1)**: Tailwind CSS v4 semantic token architecture (Desk light surface, Classroom obsidian stage, warm paper board, 6 per-tutor accent themes), bundled `@fontsource-variable/geist` and `@fontsource-variable/noto-sans-sc` with idle prefetching, Lucide icon set, and 25+ accessible Base UI primitives (`Button`, `Dialog`, `ConfirmDialog`, `Drawer`, `Select`, `SegmentedControl`, `Slider`, `Switch`, `Tabs`, `Toaster`, `UnsavedBar`, `LevelMeter`, `ChoiceCardGroup`, `Stepper`, `FileDropzone`, `SecretInput`, etc.).
+- **Single-Screen Video-Call Classroom & Lobby Resilience (U2a / U2b)**: Zero-scroll desktop classroom across `1440×900`, `1280×720`, `1366×633`, and `1280×585`, explicit lesson phase state machine (`lobby` → `teaching` → `awaiting` → `judging` → `feedback` → `paused` → `reconnecting` → `recap`), `≥ 44×44px` bottom ControlDock, instant asynchronous Lesson Lobby (`/plan-items/:id/lesson`) with background preparation & embedded warmup, WebSocket auto-reconnect & tab-takeover, and unified TutorVideoBox in Sample Lesson & Lesson History replay.
+- **Guided Student Journey (U3)**: `Today` home page (`/`), 4-step Welcome onboarding (`/welcome`), 5-step Course Setup wizard (`/courses/:id/setup`) with 4-stage reading progress and structured-control fallback interview, 3-step AI Connect Wizard, Course Hub tabs, Course Settings dialog (with rename/delete), rich Lesson Recap, and unified out-of-classroom tutor speech endpoint (`POST /api/v2/voice/speak`).
+- **Tutor Gallery & Distinct Voices (U4)**: Interactive `/tutors` gallery with showcase orchestration, 7-column roster, 3-tab `/tutors/:id` editor (Persona, Voice/Theme, Assets) with partial updates and built-in reset, 3-step tutor import wizard, six distinct default Edge voices across built-in tutors, and global single-video playback coordinator (`I16`).
+- **Learning Loop Visualization (U5)**: Custom accessible SVG charts (`MasteryGrid`, `ScoreBar`, `ScoreRing`, `WeightBar`, `MasteryBar`, `StudyCalendar`, `WeeklyMinutes`, `SegmentProgress`, `PrereqChain`), plan-diff tracking (`moved_earlier` / `moved_later` / `added` / `deferred`), two-view Course Map, clickable KP answer timeline, dedicated Review Session (`/courses/:id/review/session`) with post-answer feedback pause (`I14`), FocusShell Practice with reload recovery & debrief, and timeline Course History.
+- **Classroom Depth & Mobile Video-Call Layout (U6)**: Line-by-line progressive `steps` reveal, all 3 mark styles with historical dimming, line-level pointer & *"lost from this line"* re-explanation, board clear pagination (`上一页 / 第 k / N 页 / 下一页`), block copy & lightbox zoom, themed Plot (legend + SVG hollow points & labels) & Mermaid diagrams, in-memory Transcript Drawer (`Shift+T` / 3rd column on `≥ 1600px`), `?` Shortcuts dialog, split / board-first draggable PiP switcher, mobile `< 768px` Teacher/Board dual-mode call layout (`I15`), WebAudio synthesized sound cues, and pre-warmed `MicrophoneCapture` with 3-cause permission guidance.
+- **Partitioned Settings & Student Vocabulary Audit (U7)**: Six dedicated settings sections (`/settings/me`, `/settings/tutor`, `/settings/ai`, `/settings/voice`, `/settings/privacy`, `/settings/advanced`) with legacy route/hash redirects, embedded Test Chat, non-collapsing advanced role rows, structured `{code, message}` error coverage across all API routes (`test_u7_error_codes.py`), automated §6.2 student vocabulary audit in UI tour, and refreshed documentation screenshots.
+
+### Fixed
+
+- Wrong answers, *"I don't know"*, *"confused"*, and *"hint"* actions now map deterministically to comfort/thinking clips instead of praise (`I9`).
+- Placement diagnostics are no longer silently marked skipped when course materials have not finished analyzing (`I13`).
+- Unplanned courses no longer display *"today completed"* (`I12`).
+
+### Removed
+
+- Retired all 6 legacy global stylesheets (`tokens.css`, `classroom.css`, `setup.css`, `practice.css`, `progress.css`, `review.css`), removed `@layer legacy`, and eliminated all hardcoded hex color allowlists outside `theme.css` (`I4`).
+
 ## [1.0.0-rc.2] - 2026-11-21
 
 ### Added
