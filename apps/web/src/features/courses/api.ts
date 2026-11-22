@@ -30,7 +30,7 @@ export const listCourseDashboard = () => request<CourseDashboard[]>("/api/v2/cou
 export const getCourse = (id: string) => request<Course>(`/api/v2/courses/${id}`);
 export const getCourseJourney = (id: string) => request<CourseJourney>(`/api/v2/courses/${id}/journey`);
 export const createCourse = (body: { name: string; goal?: string }) => request<Course>("/api/v2/courses", { method: "POST", body: JSON.stringify(body) });
-export const updateCourse = (id: string, body: { name: string; goal?: string | null }) =>
+export const updateCourse = (id: string, body: { name: string; goal?: string }) =>
   request<Course>(`/api/v2/courses/${id}`, { method: "PUT", body: JSON.stringify(body) });
 export const deleteCourse = (id: string) => request<void>(`/api/v2/courses/${id}`, { method: "DELETE" });
 export const listMaterials = (id: string) => request<Material[]>(`/api/v2/courses/${id}/materials`);

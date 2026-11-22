@@ -11,14 +11,15 @@ test("the prerecorded sample renders the teacher stage, accepts a choice, and re
       request.method() !== "GET" &&
       request.method() !== "HEAD" &&
       !url.endsWith("/api/v2/session/bootstrap") &&
-      !url.endsWith("/api/v2/tts/preview")
+      !url.endsWith("/api/v2/tts/preview") &&
+      !url.endsWith("/api/v2/voice/speak")
     ) {
       writes.push(`${request.method()} ${url}`);
     }
   });
   await page.clock.install();
   await page.goto("/welcome");
-  await page.getByRole("link", { name: t.sample.open }).click();
+  await page.getByRole("link", { name: t.onboarding.trySampleNoConfig }).click();
   await expect(page.getByTestId("tutor-video-box")).toBeVisible();
   await expect(page.getByTestId("sample-prerecorded-badge")).toContainText(t.classroom.sampleBadge);
   await page.getByRole("button", { name: t.history.play, exact: true }).click();

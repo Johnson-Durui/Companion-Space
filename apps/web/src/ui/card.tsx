@@ -25,7 +25,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
       ref={ref}
       data-surface={surface === "paper" ? "paper" : undefined}
       className={clsx(
-        "rounded-lg border border-line-subtle bg-surface-card text-fg-primary shadow-1",
+        "min-w-0 rounded-lg border border-line-subtle bg-surface-card text-fg-primary shadow-1",
         PADDING_CLASSES[padding],
         interactive && [
           "transition-[box-shadow,border-color,transform] duration-fast ease-out",

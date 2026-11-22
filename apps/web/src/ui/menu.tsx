@@ -23,7 +23,7 @@ export function Menu({ trigger, items, align = "end", side = "bottom" }: MenuPro
     <BaseMenu.Root>
       <BaseMenu.Trigger render={trigger} />
       <BaseMenu.Portal>
-        <BaseMenu.Positioner side={side} align={align} sideOffset={6} className="z-overlay">
+        <BaseMenu.Positioner side={side} align={align} sideOffset={6} className="z-popover">
           <BaseMenu.Popup className="cs-menu-popup min-w-44 rounded-md border border-line-subtle bg-surface-overlay p-1 shadow-2 outline-none">
             {items.map((item) => (
               <BaseMenu.Item

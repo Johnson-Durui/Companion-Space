@@ -11,7 +11,7 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   mkdirSync(screenshots, { recursive: true });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/welcome");
+  await page.goto("/tutors");
   await expect(page.getByRole("heading", { name: t.welcome.heading })).toBeVisible();
   await expect(page.locator('input[type="password"]')).toHaveCount(0);
   const roster = page.getByRole("region", { name: t.welcome.label });
@@ -23,7 +23,7 @@ test("welcome, connection roles, and diagnostics use the same local session", as
 
   const mobile = await browser.newPage({ baseURL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
-    await mobile.goto("/welcome");
+    await mobile.goto("/tutors");
     await expect(mobile.getByRole("heading", { name: t.welcome.heading })).toBeVisible();
     await expect.poll(() => mobile.getByTestId("teacher-stage").getByRole("img").evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
     await expect.poll(() => mobile.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -47,7 +47,7 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   await expect(page.getByText(t.welcome.chosen)).toBeVisible();
 
   await page.getByRole("button", { name: t.voice.preview }).click();
-  await expect(page.getByRole("button", { name: t.voice.browser })).toBeVisible();
+  await expect(page.getByText(t.speech.unavailable)).toBeVisible();
 
   await page.goto("/settings/diagnostics");
   await expect(page.getByRole("link", { name: t.diagnostics.connect })).toBeVisible();

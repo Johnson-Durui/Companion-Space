@@ -73,7 +73,7 @@ export function Select<T extends string = string>({
         </BaseSelect.Icon>
       </BaseSelect.Trigger>
       <BaseSelect.Portal>
-        <BaseSelect.Positioner sideOffset={6} alignItemWithTrigger={false} className="z-overlay">
+        <BaseSelect.Positioner sideOffset={6} alignItemWithTrigger={false} className="z-popover">
           <BaseSelect.Popup
             className={clsx(
               "cs-menu-popup max-h-72 min-w-[var(--anchor-width,12rem)] overflow-y-auto rounded-md border border-line-subtle bg-surface-overlay p-1 shadow-2",

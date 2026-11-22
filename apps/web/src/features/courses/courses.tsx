@@ -70,7 +70,7 @@ export default function Courses() {
   });
 
   const rename = useMutation({
-    mutationFn: ({ id, name, goal }: { id: string; name: string; goal?: string | null }) =>
+    mutationFn: ({ id, name, goal }: { id: string; name: string; goal?: string }) =>
       updateCourse(id, { name, goal }),
     onSuccess: () => {
       setRenameTarget(null);
@@ -114,12 +114,12 @@ export default function Courses() {
     rename.mutate({
       id: renameTarget.id,
       name: renameValue.trim(),
-      goal: renameGoal.trim() || null,
+      goal: renameGoal.trim(),
     });
   }
 
   return (
-    <div className="grid gap-6 py-6 sm:py-8">
+    <div className="grid min-w-0 gap-6 py-6 sm:py-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="grid gap-1">
           <h1 className="text-headline font-semibold text-fg-primary">{t.courses.heading}</h1>

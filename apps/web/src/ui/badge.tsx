@@ -22,14 +22,14 @@ export function Badge({ tone = "neutral", icon, className, children, ...rest }: 
   return (
     <span
       className={clsx(
-        "inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-caption font-medium whitespace-nowrap",
+        "inline-flex max-w-full items-center gap-1 rounded-sm px-2 py-0.5 text-caption font-medium whitespace-nowrap",
         TONE_CLASSES[tone],
         className,
       )}
       {...rest}
     >
       {icon}
-      <span className="inline-flex items-center gap-1">{children}</span>
+      <span className="min-w-0 truncate">{children}</span>
     </span>
   );
 }

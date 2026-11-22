@@ -99,7 +99,7 @@ export function CourseHubLayout({ children }: { children: ReactNode }) {
 
   const renameMutation = useMutation({
     mutationFn: () =>
-      updateCourse(courseId, { name: renameName.trim(), goal: renameGoal.trim() || null }),
+      updateCourse(courseId, { name: renameName.trim(), goal: renameGoal.trim() }),
     onSuccess: (updated) => {
       queries.setQueryData(courseKeys.one(courseId), updated);
       void queries.invalidateQueries({ queryKey: courseKeys.all });
@@ -172,17 +172,17 @@ export function CourseHubLayout({ children }: { children: ReactNode }) {
   })();
 
   return (
-    <div className="grid gap-5 py-5 sm:py-7" data-testid="course-hub">
-      <div className="grid gap-3">
-        <div className="flex items-center gap-1.5 text-caption text-fg-secondary">
-          <Link to="/courses" className="hover:text-fg-primary">{t.courses.heading}</Link>
-          <ChevronRight size={14} aria-hidden="true" />
+    <div className="grid min-w-0 gap-5 py-5 sm:py-7" data-testid="course-hub">
+      <div className="grid min-w-0 gap-3">
+        <div className="flex min-w-0 items-center gap-1.5 text-caption text-fg-secondary">
+          <Link to="/courses" className="shrink-0 hover:text-fg-primary">{t.courses.heading}</Link>
+          <ChevronRight size={14} className="shrink-0" aria-hidden="true" />
           <span className="truncate text-fg-primary">{course.data.name}</span>
         </div>
 
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="grid min-w-0 gap-1">
-            <h1 className="text-headline font-semibold text-fg-primary">{course.data.name}</h1>
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="grid min-w-0 flex-1 gap-1">
+            <h1 className="break-words text-headline font-semibold text-fg-primary">{course.data.name}</h1>
             <p className="text-ui text-fg-secondary">{headerMeta}</p>
           </div>
 

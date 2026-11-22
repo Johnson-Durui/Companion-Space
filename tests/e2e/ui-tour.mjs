@@ -147,26 +147,33 @@ try {
   const button = (target, name, exact = true) => target.getByRole("button", { name, exact });
   const settle = (ms = 600) => page.waitForTimeout(ms);
 
-  // ---------- A. welcome ----------
-  await step("welcome", async () => {
+  // ---------- A. today + onboarding + tutors ----------
+  await step("today", async () => {
+    await page.goto("/");
+    await page.getByTestId("today-page").waitFor({ timeout: 15_000 });
+    await settle(900);
+    await shot(page, "today-desktop");
+    await shot(page, "today-desktop-full", { full: true });
+  });
+  await step("welcome onboarding", async () => {
     await page.goto("/welcome");
     await page.getByTestId("teacher-stage").waitFor({ timeout: 15_000 });
-    await settle(1200);
+    await settle(900);
     await shot(page, "welcome-desktop");
     await shot(page, "welcome-desktop-full", { full: true });
   });
-  await step("welcome pick another teacher", async () => {
+  await step("tutors picker", async () => {
+    await page.goto("/tutors");
+    await page.getByTestId("teacher-stage").waitFor({ timeout: 15_000 });
     await page.getByRole("region", { name: t.welcome.label }).getByRole("button").nth(3).click();
     await settle(900);
-    await shot(page, "welcome-other-teacher");
-  });
-  await step("welcome voice preview", async () => {
+    await shot(page, "tutors-other-teacher");
     await button(page, t.voice.preview).click();
-    await settle(1200);
-    await shot(page, "welcome-voice-preview");
+    await settle(900);
+    await shot(page, "tutors-voice-preview");
   });
 
-  // ---------- B. courses (3+ courses, empty course noPlan, stress course) + new course flow ----------
+  // ---------- B. courses (3+ courses, empty course, stress course) + 5-step setup flow ----------
   await step("courses list", async () => {
     await page.goto("/courses");
     await page.getByRole("heading", { name: t.courses.heading }).waitFor({ timeout: 15_000 });
@@ -175,144 +182,147 @@ try {
     await shot(page, "courses-list");
     await shot(page, "courses-list-full", { full: true });
   });
-  await step("courses new form", async () => {
+  let courseId = "";
+  await step("courses new dialog -> setup", async () => {
     await button(page, t.courses.new).first().click();
     await settle();
-    await shot(page, "courses-new-form");
-    await page.getByLabel(t.courses.name).fill("高一数学 · 函数");
-    await page.getByLabel(t.courses.goal).fill("期末考试前把二次函数与最值弄明白");
-    await button(page, t.courses.create).click();
-    await page.getByRole("heading", { name: "高一数学 · 函数" }).waitFor({ timeout: 15_000 });
-    await settle(800);
-    await shot(page, "course-new-workspace");
-    await shot(page, "course-new-workspace-full", { full: true });
+    await shot(page, "courses-new-dialog");
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel(t.courses.name).fill("高一数学 · 函数");
+    await dialog.getByLabel(t.courses.goal).fill("期末考试前把二次函数与最值弄明白");
+    await dialog.getByRole("button", { name: t.courses.create }).click();
+    await page.getByTestId("course-setup").waitFor({ timeout: 15_000 });
+    courseId = new URL(page.url()).pathname.split("/")[2];
+    await settle(700);
+    await shot(page, "setup-step1-materials");
   });
 
   const textbook = Buffer.from("# 条件关系\n\n已知一个条件成立时，可以依据规则判断相应结果。\n\n## 结果计算\n\n先识别条件，再把信息代入规则完成计算。", "utf8");
   const exam = Buffer.from("# 2025 阶段测试\n\n1. 根据材料，正确结果是哪一项？\n\nA. 不成立\nB. 成立\n\n答案：B（10 分）", "utf8");
-  await step("course add files", async () => {
-    await page.getByLabel(t.courses.choose).setInputFiles([
+  await step("setup upload + connect wizard + analysis", async () => {
+    await page.locator('input[type="file"]').first().setInputFiles([
       { name: "课堂笔记.md", mimeType: "text/markdown", buffer: textbook },
       { name: "2025阶段真题含答案.md", mimeType: "text/markdown", buffer: exam },
     ]);
     await page.getByTestId("pending-file").first().waitFor({ timeout: 8_000 });
     await settle();
-    await shot(page, "course-pending-files");
-    await button(page, t.courses.upload).click();
-    await page.getByTestId("material-item").first().waitFor({ timeout: 15_000 });
-    await settle(800);
-    await shot(page, "course-materials-uploaded", { full: true });
-  });
-  await step("course analysis", async () => {
-    await button(page, t.courses.start).click();
-    await settle(400);
-    await shot(page, "course-analysis-estimate");
-    const confirm = button(page, t.courses.confirmStart);
-    if (await confirm.isVisible().catch(() => false)) await confirm.click();
-    await page.getByRole("progressbar").first().waitFor({ timeout: 15_000 });
-    await shot(page, "course-analysis-running");
-    await page.getByTestId("analysis-summary").filter({ hasText: t.courses.jobStatus.completed }).waitFor({ timeout: 45_000 });
-    await settle(1000);
-    await shot(page, "course-analysis-done-full", { full: true });
-  });
-  await step("course map", async () => {
-    await page.getByRole("heading", { name: t.courses.mapHeading }).scrollIntoViewIfNeeded();
-    await settle();
-    await shot(page, "course-map");
-    const exams = page.getByRole("button", { name: /查看关联真题/ });
-    if (await exams.first().isVisible().catch(() => false)) {
-      await exams.first().click();
+    await shot(page, "setup-pending-files");
+    const uploadOnly = button(page, t.setup.uploadOnly);
+    if (await uploadOnly.isVisible().catch(() => false)) {
+      await uploadOnly.click();
+      await page.getByTestId("material-item").first().waitFor({ timeout: 15_000 });
+      await button(page, t.setup.connectToRead).click();
+      await page.getByTestId("connect-wizard").waitFor({ timeout: 10_000 });
       await settle();
-      await shot(page, "course-map-exam-browser");
+      await shot(page, "connect-wizard-step1");
+      await page.getByTestId("preset-card-bigmodel").click();
+      await settle();
+      await shot(page, "connect-wizard-step2");
+      await page.getByLabel(t.connectWizard.keyLabel).fill("fixture-tour-key");
+      await button(page, t.connectWizard.saveAndTest).click();
+      await button(page, t.connectWizard.done).waitFor({ timeout: 15_000 });
+      await settle();
+      await shot(page, "connect-wizard-done");
+      await button(page, t.connectWizard.done).click();
+    } else {
+      await button(page, t.setup.handToTeacher).click();
     }
-    await button(page, t.courses.revise).first().click();
-    await settle();
-    await shot(page, "course-map-revise");
+    await page.getByTestId("setup-analysis-step").waitFor({ timeout: 15_000 });
+    await shot(page, "setup-step2-reading");
+    await page.getByRole("heading", { name: t.setup.readingDoneTitle }).waitFor({ timeout: 45_000 });
+    await settle(700);
+    await shot(page, "setup-step2-done");
   });
-  const coursePath = new URL(page.url()).pathname;
-  note(`new course path: ${coursePath}`);
 
-  await step("learner setup + journey", async () => {
-    await page.goto(coursePath);
-    await page.getByRole("heading", { name: "高一数学 · 函数" }).waitFor({ timeout: 15_000 });
-    await settle(800);
-    const heading = page.getByText(t.learner.heading, { exact: true }).first();
-    await heading.scrollIntoViewIfNeeded();
-    await heading.click();
-    await settle();
-    await shot(page, "learner-setup");
-    await shot(page, "course-with-setup-full", { full: true });
-  });
-  await step("learner interview", async () => {
-    const journey = page.getByRole("heading", { name: t.learner.journeyHeading });
-    await journey.scrollIntoViewIfNeeded({ timeout: 5_000 });
-    await settle();
-    await shot(page, "learner-journey");
-    for (let round = 0; round < 8; round += 1) {
-      const useSaved = button(page, t.learner.useSavedValues);
-      const next = button(page, t.learner.interviewNext);
-      if (await useSaved.isVisible().catch(() => false)) await useSaved.click();
-      else if (await next.isVisible().catch(() => false)) await next.click();
-      else break;
-      await settle(700);
-      if (round === 0) await shot(page, "learner-interview-step2");
-    }
-    await settle(900);
-    await shot(page, "learner-after-interview");
-    await shot(page, "learner-after-interview-full", { full: true });
-  });
-  await step("placement", async () => {
-    const heading = page.getByText(t.learner.placementHeading, { exact: true }).first();
-    await heading.scrollIntoViewIfNeeded({ timeout: 5_000 });
-    await settle();
-    await shot(page, "placement");
+  await step("setup interview -> placement -> plan reveal", async () => {
+    await page.goto(`/courses/${courseId}/setup?step=interview`);
+    const interviewBox = page.getByTestId("setup-interview-step");
+    await interviewBox.waitFor({ timeout: 15_000 });
+    await settle(700);
+    await shot(page, "setup-step3-interview");
     for (let round = 0; round < 6; round += 1) {
+      const knownYes = interviewBox.getByRole("button", { name: t.setup.knownYes });
+      if (await knownYes.isVisible().catch(() => false)) {
+        await knownYes.click();
+      } else {
+        const cont = interviewBox.getByRole("button", { name: t.onboarding.continue });
+        if (!(await cont.isVisible().catch(() => false))) break;
+        await cont.click();
+      }
+      await settle(400);
+    }
+    await page.goto(`/courses/${courseId}/setup?step=placement`);
+    await settle(700);
+    await shot(page, "setup-step4-placement");
+    for (let round = 0; round < 5; round += 1) {
       const dontKnow = button(page, t.learner.dontKnow);
       if (!(await dontKnow.isVisible().catch(() => false))) break;
       await dontKnow.click();
-      await settle(700);
+      await settle(500);
     }
     const enough = button(page, t.learner.enough);
     if (await enough.isVisible().catch(() => false)) {
       await enough.click();
-      await settle(700);
+      await settle(600);
     }
-    await shot(page, "placement-result");
+    await shot(page, "setup-step4-done");
+    const buildBtn = button(page, t.setup.step4BuildPlan);
+    if (await buildBtn.isVisible().catch(() => false)) {
+      await buildBtn.click();
+    } else {
+      await page.goto(`/courses/${courseId}/setup?step=plan`);
+      const build2 = button(page, t.learner.buildPlan);
+      if (await build2.isVisible().catch(() => false)) await build2.click();
+    }
+    await page.getByTestId("setup-plan-step").waitFor({ timeout: 15_000 });
+    await settle(700);
+    await shot(page, "setup-step5-plan-reveal");
+    await shot(page, "setup-step5-plan-reveal-full", { full: true });
   });
-  await step("build plan", async () => {
-    const build = button(page, t.learner.buildPlan);
-    await build.scrollIntoViewIfNeeded({ timeout: 5_000 });
-    await build.click();
-    await settle(1800);
-    await shot(page, "plan-built");
-    await shot(page, "plan-built-full", { full: true });
+
+  await step("course hub plan + map + materials", async () => {
+    await page.goto(`/courses/${courseId}/plan`);
+    await page.getByTestId("course-plan-page").waitFor({ timeout: 15_000 });
+    await settle(600);
+    const whyBtn = page.getByRole("button", { name: t.planView.whyToggle }).first();
+    if (await whyBtn.isVisible().catch(() => false)) await whyBtn.click();
+    await settle(300);
+    await shot(page, "course-plan");
+    await shot(page, "course-plan-full", { full: true });
+
+    await page.goto(`/courses/${courseId}/map`);
+    await page.getByRole("heading", { name: t.courses.mapHeading }).waitFor({ timeout: 15_000 });
+    await settle(600);
+    await shot(page, "course-map");
+    await page.goto(`/courses/${courseId}/materials`);
+    await page.getByTestId("course-materials-tab").waitFor({ timeout: 15_000 });
+    await settle(600);
+    await shot(page, "course-materials");
   });
 
   // ---------- C. seeded "today", empty, and stress content scenarios ----------
   for (const [name, path] of [
     ["today-course", "/courses/browser-today-course"],
+    ["today-course-plan", "/courses/browser-today-course/plan"],
     ["progress", "/courses/browser-today-course/progress"],
     ["review", "/courses/browser-today-course/review"],
     ["course-history", "/courses/browser-today-course/history"],
     ["practice", "/plan-items/browser-today-lesson-item/practice"],
     ["empty-course", "/courses/browser-empty-course"],
-    ["stress-course-map", "/courses/browser-stress-course"],
+    ["stress-course-map", "/courses/browser-stress-course/map"],
   ]) {
     await step(name, async () => {
       await page.goto(path);
       await page.getByRole("heading", { level: 1 }).waitFor({ timeout: 15_000 });
-      await settle(1200);
+      await settle(900);
       await shot(page, name);
       await shot(page, `${name}-full`, { full: true });
     });
   }
 
-  await step("empty-course placement wait materials", async () => {
-    await page.goto("/courses/browser-empty-course");
-    await page.getByText(t.learner.heading, { exact: true }).first().click();
-    await button(page, t.learner.interviewSkip).waitFor({ timeout: 10_000 });
-    await button(page, t.learner.interviewSkip).click();
-    await page.getByText(t.learner.placementWaitMaterials, { exact: true }).waitFor({ timeout: 10_000 });
+  await step("empty-course placement locked (wait materials)", async () => {
+    await page.goto("/courses/browser-empty-course/setup?step=placement");
+    await page.getByTestId("placement-locked").waitFor({ timeout: 10_000 });
     await settle();
     await shot(page, "empty-course-placement-wait");
   });
@@ -388,7 +398,7 @@ try {
     await settle(300);
     await shot(page, "lesson-end-confirm");
     await page.getByRole("alertdialog").getByRole("button", { name: t.classroom.confirmEnd }).click();
-    await page.getByRole("heading", { name: t.classroom.recap }).waitFor({ timeout: 25_000 });
+    await page.getByTestId("lesson-recap").waitFor({ timeout: 25_000 });
     await settle(700);
     await shot(page, "lesson-recap");
     await shot(page, "lesson-recap-full", { full: true });
@@ -480,10 +490,11 @@ try {
     note(`mobile pageerror: ${error.message}`);
   });
   for (const [name, path] of [
+    ["m-today", "/"],
     ["m-welcome", "/welcome"],
     ["m-courses", "/courses"],
-    ["m-course", coursePath],
-    ["m-stress-course", "/courses/browser-stress-course"],
+    ["m-course", courseId ? `/courses/${courseId}` : "/courses/browser-today-course"],
+    ["m-stress-course", "/courses/browser-stress-course/map"],
     ["m-settings", "/settings"],
   ]) {
     await step(name, async () => {

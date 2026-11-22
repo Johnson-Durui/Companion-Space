@@ -200,9 +200,9 @@ export default function TodayPage() {
   const teacherQuote = teacher?.persona.catchphrases?.[0] || "";
 
   return (
-    <div className="grid gap-5 py-6 sm:py-8" data-testid="today-page">
+    <div className="grid min-w-0 gap-5 py-6 sm:py-8" data-testid="today-page">
       {/* Hero Greeting */}
-      <section className="grid items-center gap-5 sm:grid-cols-[auto_1fr] sm:gap-7">
+      <section className="grid min-w-0 items-center gap-5 sm:grid-cols-[auto_1fr] sm:gap-7">
         {teacher ? (
           <div className="h-36 w-[81px] sm:h-[210px] sm:w-[118px] overflow-hidden rounded-xl bg-surface-sunken shadow-2 ring-4 ring-surface-card">
             <img
@@ -212,19 +212,19 @@ export default function TodayPage() {
             />
           </div>
         ) : null}
-        <div className="grid gap-2">
+        <div className="grid min-w-0 gap-2">
           <h1 className="text-headline font-semibold text-fg-primary">{greetingHeading}</h1>
           <p className="text-body text-fg-secondary">{summaryLine}</p>
           {teacher && teacherQuote ? (
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2.5 rounded-tl-sm rounded-tr-lg rounded-br-lg rounded-bl-lg bg-surface-card px-4 py-2.5 text-ui text-fg-secondary shadow-1">
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+              <div className="inline-flex max-w-full flex-wrap items-center gap-2.5 rounded-tl-sm rounded-tr-lg rounded-br-lg rounded-bl-lg bg-surface-card px-4 py-2.5 text-ui text-fg-secondary shadow-1">
                 <strong className="font-medium text-fg-primary">{teacher.name}</strong>
-                <span>{teacherQuote}</span>
+                <span className="min-w-0 break-words">{teacherQuote}</span>
                 <button
                   type="button"
                   aria-label={t.speech.replay}
                   onClick={() => void speech.speak({ characterId: teacher.id, text: teacherQuote })}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-fg-secondary hover:bg-surface-sunken hover:text-fg-primary"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-secondary hover:bg-surface-sunken hover:text-fg-primary"
                 >
                   <Volume2 size={15} aria-hidden="true" />
                 </button>
@@ -312,13 +312,13 @@ export default function TodayPage() {
           >
             {primaryAction.stage === "learning" && primarySummary.today_lesson ? (
               <>
-                <div className="grid items-center gap-4 sm:grid-cols-[1fr_auto] sm:gap-8">
-                  <div className="grid gap-1.5">
-                    <div className="flex flex-wrap items-center gap-2 text-caption font-medium text-fg-tertiary">
-                      <span>{copy.todayLesson}</span>
+                <div className="grid min-w-0 items-center gap-4 sm:grid-cols-[1fr_auto] sm:gap-8">
+                  <div className="grid min-w-0 gap-1.5">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 text-caption font-medium text-fg-tertiary">
+                      <span className="shrink-0">{copy.todayLesson}</span>
                       <Badge tone="neutral">{primaryEntry.course.name}</Badge>
                     </div>
-                    <h2 className="text-title font-semibold text-fg-primary">
+                    <h2 className="break-words text-title font-semibold text-fg-primary">
                       {primarySummary.today_lesson.title}
                     </h2>
                     <p className="text-ui text-fg-secondary">
@@ -421,7 +421,7 @@ export default function TodayPage() {
           </Card>
 
           {/* Secondary Row: Due Reviews + Exam Countdown / Mastery */}
-          <section className="grid gap-5 md:grid-cols-[1fr_1.4fr]">
+          <section className="grid min-w-0 gap-5 md:grid-cols-[1fr_1.4fr]">
             <Card padding="lg" className="grid content-between gap-4">
               <div className="grid gap-1.5">
                 <span className="text-caption font-medium text-fg-tertiary">{copy.dueReviews}</span>
@@ -528,9 +528,9 @@ export default function TodayPage() {
 
       {/* Other courses */}
       {secondaryEntries.length > 0 ? (
-        <section className="grid gap-3">
+        <section className="grid min-w-0 gap-3">
           <h2 className="text-ui font-semibold text-fg-secondary">{copy.moreCourses}</h2>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid min-w-0 gap-3 md:grid-cols-2">
             {secondaryEntries.map(({ course, summary }) => {
               const action = resolveCoursePrimaryAction(
                 summary ?? { course_id: course.id, has_plan: false },
@@ -541,9 +541,9 @@ export default function TodayPage() {
                   padding="md"
                   data-testid="today-course-row"
                   data-stage={action.stage}
-                  className="flex flex-wrap items-center justify-between gap-3"
+                  className="flex min-w-0 flex-wrap items-center justify-between gap-3"
                 >
-                  <div className="grid min-w-0 gap-0.5">
+                  <div className="grid min-w-0 flex-1 gap-0.5">
                     <Link
                       to={`/courses/${course.id}`}
                       className="truncate text-body font-semibold text-fg-primary hover:text-accent-strong"

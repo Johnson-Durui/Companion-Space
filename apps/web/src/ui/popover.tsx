@@ -29,7 +29,7 @@ export function Popover({
     <BasePopover.Root open={open} onOpenChange={onOpenChange}>
       <BasePopover.Trigger render={trigger} />
       <BasePopover.Portal>
-        <BasePopover.Positioner side={side} align={align} sideOffset={8} className="z-overlay">
+        <BasePopover.Positioner side={side} align={align} sideOffset={8} className="z-popover">
           <BasePopover.Popup
             className={clsx(
               "cs-menu-popup grid w-72 gap-3 rounded-lg border border-line-subtle bg-surface-overlay p-4 text-fg-primary shadow-2 outline-none",

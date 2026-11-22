@@ -99,8 +99,8 @@ function CourseSettingsForm({
 
   const save = useMutation({
     mutationFn: async () => {
-      if (name.trim() !== course.name || (goal.trim() || null) !== (course.goal ?? null)) {
-        await updateCourse(course.id, { name: name.trim(), goal: goal.trim() || null });
+      if (name.trim() !== course.name || goal.trim() !== (course.goal ?? "")) {
+        await updateCourse(course.id, { name: name.trim(), goal: goal.trim() });
       }
       return saveEnrollment(course.id, {
         goal_type: goalType,

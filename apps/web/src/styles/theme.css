@@ -79,6 +79,7 @@
   --z-dock: 20;
   --z-overlay: 30;
   --z-modal: 40;
+  --z-popover: 45;
   --z-toast: 50;
 }
 
@@ -383,6 +384,9 @@
 }
 @utility z-modal {
   z-index: var(--z-modal);
+}
+@utility z-popover {
+  z-index: var(--z-popover);
 }
 @utility z-toast {
   z-index: var(--z-toast);

@@ -40,14 +40,14 @@ export function FocusShell({
         </a>
 
         <header className="sticky top-0 z-sticky border-b border-line-subtle bg-surface-card/95 backdrop-blur">
-          <div className={clsx("mx-auto flex min-h-14 w-full items-center justify-between gap-4 px-4 sm:px-6", containerWidth)}>
-            <div className="flex min-w-0 items-center gap-2.5">
+          <div className="mx-auto flex min-h-14 w-full max-w-[1160px] items-center justify-between gap-4 px-4 sm:px-6">
+            <div className="flex min-w-0 max-w-[240px] items-center gap-2.5">
               <BrandMark size={28} />
               <span className="truncate text-ui font-semibold text-fg-primary">{flowName}</span>
             </div>
 
             {progress ? (
-              <div className="hidden sm:flex min-w-0 flex-1 items-center justify-center">
+              <div className="hidden md:flex min-w-0 flex-1 items-center justify-center">
                 {progress}
               </div>
             ) : null}
@@ -72,7 +72,7 @@ export function FocusShell({
             )}
           </div>
           {progress ? (
-            <div className="border-t border-line-subtle px-4 py-2 sm:hidden">
+            <div className="border-t border-line-subtle px-4 py-2 md:hidden">
               {progress}
             </div>
           ) : null}

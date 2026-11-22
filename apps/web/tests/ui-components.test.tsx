@@ -6,8 +6,10 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Chip,
   ChoiceCardGroup,
+  Combobox,
   ConfirmDialog,
   DelayedSkeleton,
   Dialog,
@@ -15,16 +17,20 @@ import {
   EmptyState,
   ErrorState,
   Field,
+  FileDropzone,
   IconButton,
   LevelMeter,
   Menu,
   Play,
   Popover,
+  SecretInput,
   SegmentedControl,
   Select,
   Slider,
   Spinner,
+  Stepper,
   Switch,
+  Tabs,
   TextInput,
   Textarea,
   Toaster,
@@ -360,5 +366,68 @@ describe("U1 UI component library", () => {
 
     const meter = container.querySelector('[role="meter"]');
     expect(meter?.getAttribute("aria-valuenow")).toBe("45");
+  });
+
+  it("U3 primitives: Stepper, FileDropzone, SecretInput, Tabs, Checkbox, and Combobox", () => {
+    const onStep = vi.fn();
+    const onFiles = vi.fn();
+    const onCombo = vi.fn();
+    const onCheck = vi.fn();
+
+    render(
+      <>
+        <Stepper
+          steps={[
+            { id: "s1", label: "传资料", status: "done" },
+            { id: "s2", label: "读资料", status: "active" },
+            { id: "s3", label: "做摸底", status: "waiting", disabled: true },
+          ]}
+          currentId="s2"
+          onSelect={onStep}
+        />
+        <FileDropzone onFiles={onFiles} title="拖放文件" buttonLabel="选择文件" />
+        <Field label="API 密钥">
+          <SecretInput defaultValue="sk-test" showLabel="显示" hideLabel="隐藏" />
+        </Field>
+        <Tabs
+          items={[
+            { value: "one", label: "标签一", content: <p>内容一</p> },
+            { value: "two", label: "标签二", content: <p>内容二</p> },
+          ]}
+        />
+        <Checkbox label="含参考答案" checked={false} onChange={onCheck} />
+        <Field label="模型">
+          <Combobox value="glm-4" onChange={onCombo} options={["glm-4", "deepseek-chat"]} />
+        </Field>
+      </>,
+    );
+
+    const step1Btn = container.querySelector('[data-step="s1"] button') as HTMLButtonElement;
+    expect(step1Btn).not.toBeNull();
+    expect(container.querySelector('[data-step="s2"]')?.getAttribute("aria-current")).toBe("step");
+    expect(container.querySelector('[data-step="s3"] button')).toBeNull();
+    act(() => {
+      step1Btn.click();
+    });
+    expect(onStep).toHaveBeenCalledWith("s1");
+
+    const pwd = container.querySelector('input[type="password"]') as HTMLInputElement;
+    expect(pwd).not.toBeNull();
+    const toggleBtn = container.querySelector('button[aria-label="显示"]') as HTMLButtonElement;
+    act(() => {
+      toggleBtn.click();
+    });
+    expect(pwd.type).toBe("text");
+    expect(toggleBtn.getAttribute("aria-pressed")).toBe("true");
+
+    expect(container.querySelector('input[type="file"]')).not.toBeNull();
+    expect(container.textContent).toContain("内容一");
+    expect(container.querySelector("datalist")?.querySelectorAll("option")).toHaveLength(2);
+
+    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    act(() => {
+      checkbox.click();
+    });
+    expect(onCheck).toHaveBeenCalled();
   });
 });

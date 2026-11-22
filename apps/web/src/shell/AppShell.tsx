@@ -127,9 +127,9 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
 
         <main
           id="main"
-          className="mx-auto w-full max-w-[1200px] flex-1 px-4 pb-20 md:px-8 md:pb-12"
+          className="mx-auto w-full min-w-0 max-w-[1200px] flex-1 px-4 pb-20 md:px-8 md:pb-12"
         >
-          <div key={location.pathname} className="cs-route-enter">
+          <div key={location.pathname} className="cs-route-enter min-w-0">
             {children}
           </div>
         </main>

@@ -21,6 +21,8 @@ describe("U3 D3 nickname precedence rule", () => {
     expect(resolveLearnerNickname("   ", "小友")).toBe("小友");
     expect(resolveLearnerNickname(null, "小友")).toBe("小友");
     expect(resolveLearnerNickname("", "")).toBe("");
+    expect(resolveLearnerNickname("", "你")).toBe("");
+    expect(resolveLearnerNickname("", "您")).toBe("");
   });
 });
 

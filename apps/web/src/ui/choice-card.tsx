@@ -18,6 +18,7 @@ export interface ChoiceCardProps {
   selected?: boolean;
   disabled?: boolean;
   outcome?: ChoiceCardOutcome;
+  showKey?: boolean;
   onSelect: () => void;
   className?: string;
 }
@@ -30,11 +31,12 @@ export function ChoiceCard({
   selected = false,
   disabled = false,
   outcome = null,
+  showKey = true,
   onSelect,
   className,
 }: ChoiceCardProps) {
   const role = mode === "multi" ? "checkbox" : "radio";
-  const accessibleName = `${optionKey} ${text}`.trim();
+  const accessibleName = showKey ? `${optionKey} ${text}`.trim() : text.trim();
 
   const stateClass =
     outcome === "correct"
@@ -76,16 +78,18 @@ export function ChoiceCard({
         className,
       )}
     >
-      <span
-        aria-hidden="true"
-        className={clsx(
-          "mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center border text-caption font-semibold tabular-nums",
-          mode === "multi" ? "rounded-xs" : "rounded-full",
-          keyBadgeClass,
-        )}
-      >
-        {optionKey}
-      </span>
+      {showKey ? (
+        <span
+          aria-hidden="true"
+          className={clsx(
+            "mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center border text-caption font-semibold tabular-nums",
+            mode === "multi" ? "rounded-xs" : "rounded-full",
+            keyBadgeClass,
+          )}
+        >
+          {optionKey}
+        </span>
+      ) : null}
       <span className="min-w-0 flex-1 text-ui leading-snug break-words [&>p]:m-0">
         {content ?? text}
       </span>
@@ -112,6 +116,7 @@ export interface ChoiceCardGroupProps {
   disabled?: boolean;
   /** Optional map of option key -> outcome ("correct" | "retry") */
   outcomes?: Record<string, ChoiceCardOutcome>;
+  showKey?: boolean;
   label?: string;
   className?: string;
 }
@@ -123,6 +128,7 @@ export function ChoiceCardGroup({
   onChange,
   disabled = false,
   outcomes,
+  showKey = true,
   label,
   className,
 }: ChoiceCardGroupProps) {
@@ -165,6 +171,7 @@ export function ChoiceCardGroup({
           selected={selectedSet.has(option.key)}
           disabled={disabled}
           outcome={outcomes?.[option.key] ?? null}
+          showKey={showKey}
           onSelect={() => toggleOption(option.key)}
         />
       ))}

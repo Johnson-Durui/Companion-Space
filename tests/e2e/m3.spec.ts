@@ -8,53 +8,61 @@ const screenshots = resolve("docs/rebuild/review/M3");
 
 test("learner preferences and course constraints persist", async ({ page, browser, baseURL }) => {
   mkdirSync(screenshots, { recursive: true });
-  await page.goto("/courses");
-  await page.getByRole("button", { name: t.courses.new }).first().click();
-  await page.getByLabel(t.courses.name).fill("学习设置验收");
-  await page.getByRole("button", { name: t.courses.create }).click();
 
-  await expect(page.getByRole("heading", { name: t.learner.heading, exact: true })).toBeVisible();
-  await page.getByText(t.learner.heading, { exact: true }).click();
-  await page.getByLabel(t.learner.nickname).fill("小林");
-  await pick(page, t.learner.style, "rigorous");
-  await page.getByRole("button", { name: t.learner.saveProfile }).click();
-  await expect(page.getByRole("status").filter({ hasText: t.common.saved })).toBeVisible();
-
-  await page.getByLabel(t.learner.sessionMinutes).fill("35");
-  await page.getByLabel("周二").uncheck();
-  await page.getByLabel("周四").uncheck();
-  await page.getByLabel("周五").uncheck();
-  await page.getByLabel("周日").uncheck();
-  const defaultSave = page.waitForResponse((response) => response.url().endsWith("/enrollment") && response.request().method() === "PUT");
-  await page.getByRole("button", { name: t.learner.saveCourse }).click();
-  expect((await defaultSave).ok()).toBe(true);
-
-  await pick(page, t.learner.goalType, "exam");
-  await page.getByLabel(t.learner.examName).fill("期末考试");
-  await page.getByLabel(t.learner.examDate).fill("2027-01-15");
-  await page.getByLabel(t.learner.targetScore).fill("85");
-  await pick(page, t.learner.selfLevel, "attended_but_lost");
-  await page.getByRole("button", { name: t.learner.saveCourse }).click();
-  await expect(page.getByRole("status").filter({ hasText: t.common.saved })).toHaveCount(2);
+  // 1. Save learner profile preferences in Settings > Me
+  await page.goto("/settings#me");
+  const profileForm = page.getByTestId("profile-settings-form");
+  await expect(profileForm).toBeVisible({ timeout: 15_000 });
+  await profileForm.getByLabel(t.learner.nickname).fill("小林");
+  await pick(profileForm, t.learner.style, "rigorous");
+  await profileForm.getByRole("button", { name: t.learner.saveProfile }).click();
+  await expect(page.getByTestId("toast-item").filter({ hasText: t.common.saved })).toBeVisible();
 
   await page.reload();
-  await page.getByText(t.learner.heading, { exact: true }).click();
-  await expect(page.getByLabel(t.learner.nickname)).toHaveValue("小林");
-  await expect(page.getByLabel(t.learner.style)).toHaveValue("rigorous");
-  await expect(page.getByLabel(t.learner.examName)).toHaveValue("期末考试");
-  await expect(page.getByLabel(t.learner.examDate)).toHaveValue("2027-01-15");
-  await expect(page.getByLabel(t.learner.targetScore)).toHaveValue("85");
-  await expect(page.getByLabel("周一")).toBeChecked();
-  await expect(page.getByLabel("周二")).not.toBeChecked();
-  await expect(page.getByLabel("周六")).toBeChecked();
+  await expect(page.getByTestId("profile-settings-form").getByLabel(t.learner.nickname)).toHaveValue("小林");
+  await expect(page.getByTestId("profile-settings-form").getByLabel(t.learner.style)).toHaveValue("rigorous");
+
+  // 2. Create a course and configure constraints via Course Settings dialog (and verify B11 rename!)
+  await page.goto("/courses");
+  await page.getByRole("button", { name: t.courses.new }).first().click();
+  const createDialog = page.getByRole("dialog");
+  await createDialog.getByLabel(t.courses.name).fill("学习设置验收");
+  await createDialog.getByRole("button", { name: t.courses.create }).click();
+  await expect(page).toHaveURL(/\/courses\/[^/]+\/setup/, { timeout: 15_000 });
+  const courseId = new URL(page.url()).pathname.split("/")[2];
+
+  await page.goto(`/courses/${courseId}?settings=1`);
+  const settingsDialog = page.getByRole("dialog");
+  await expect(settingsDialog).toBeVisible({ timeout: 15_000 });
+
+  await settingsDialog.getByRole("combobox", { name: t.learner.goalType }).click();
+  await page.getByRole("option", { name: t.learner.goals.exam }).click();
+  await settingsDialog.getByLabel(t.learner.examName).fill("期末考试");
+  await settingsDialog.getByLabel(t.learner.examDate).fill("2027-01-15");
+  await settingsDialog.getByLabel(t.learner.targetScore).fill("85");
+  await settingsDialog.getByLabel(t.learner.sessionMinutes).fill("35");
+  await settingsDialog.getByRole("button", { name: "周二", exact: true }).click();
+  await settingsDialog.getByRole("button", { name: "周四", exact: true }).click();
+
+  const savedEnrollment = page.waitForResponse(
+    (response) => response.url().endsWith("/enrollment") && response.request().method() === "PUT",
+  );
+  await settingsDialog.getByRole("button", { name: t.learner.saveCourse }).click();
+  expect((await savedEnrollment).ok()).toBe(true);
+
+  await page.goto(`/courses/${courseId}?settings=1`);
+  const reloadedDialog = page.getByRole("dialog");
+  await expect(reloadedDialog.getByLabel(t.learner.examName)).toHaveValue("期末考试");
+  await expect(reloadedDialog.getByLabel(t.learner.examDate)).toHaveValue("2027-01-15");
+  await expect(reloadedDialog.getByLabel(t.learner.targetScore)).toHaveValue("85");
+  await expect(reloadedDialog.getByRole("button", { name: "周一", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(reloadedDialog.getByRole("button", { name: "周二", exact: true })).toHaveAttribute("aria-pressed", "false");
   await page.screenshot({ path: resolve(screenshots, "learner-setup-desktop.png"), fullPage: true });
 
   const mobile = await browser.newPage({ baseURL, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
-    await mobile.goto(new URL(page.url()).pathname);
-    await expect(mobile.getByRole("heading", { name: t.learner.heading, exact: true })).toBeVisible();
-    await mobile.getByText(t.learner.heading, { exact: true }).click();
-    await expect(mobile.getByLabel(t.learner.nickname)).toHaveValue("小林");
+    await mobile.goto(`/courses/${courseId}/setup?step=interview`);
+    await expect(mobile.getByTestId("setup-interview-step")).toBeVisible({ timeout: 15_000 });
     await expect.poll(() => mobile.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await mobile.screenshot({ path: resolve(screenshots, "learner-setup-mobile.png"), fullPage: true });
   } finally {

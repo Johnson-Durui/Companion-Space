@@ -67,7 +67,7 @@ export function Stepper({
             <span className="grid min-w-0 text-left">
               <span
                 className={clsx(
-                  "truncate text-caption sm:text-ui",
+                  compact ? "whitespace-nowrap text-caption sm:text-ui" : "truncate text-caption sm:text-ui",
                   isCurrent
                     ? "font-semibold text-fg-primary"
                     : step.status === "done"

@@ -478,8 +478,8 @@ export function ConnectWizardDialog({
     <Dialog open={open} onOpenChange={onOpenChange} title={copy.title} size="lg">
       <ConnectWizard
         onComplete={() => {
-          onOpenChange(false);
           onConnected?.();
+          onOpenChange(false);
         }}
         onSkip={() => onOpenChange(false)}
         skipLabel={t.common.cancel}

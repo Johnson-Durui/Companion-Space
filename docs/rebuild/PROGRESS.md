@@ -392,3 +392,33 @@
 - `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **460 通过 / 2 跳过**（含新增 6 项 U2b B1/B12/B14/重启恢复测试）、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **12 文件 65 项通过**、`vite build` 通过。
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**21 / 21 全部通过**（含 I1–I3、I5–I11、候课备课流与 WS 无刷新重连恢复）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U2b`：**41 步通过、0 失败、90 张截图**输出至 `docs/rebuild/review/U2b/`；人工抽检候课（备课中/就绪）、课堂顶栏要点进度、历史回放与示例课截图，并顺手修复了候课备课中视频左上角状态徽标文案过长截断的问题。
+
+### 体验重塑 U3 — 代码完成（自动化通过）（2026-11-22）
+
+**待完成与待验证**
+
+- **真实 AI 资料阅读、访谈、摸底与结课实测未做**：U3 所有者验收清单第 2、5–8、11 条（使用真实 AI 密钥走完新用户四步引导 → 拖资料自动读 → 访谈/摸底/计划揭示 → 真实上一节课并核对课后小结与今天页刷新）、填框计数统计以及 U3 观感五问与截图评审（`docs/rebuild/review/U3/`）仍待所有者核对。
+- **按计划留待 U4–U7 的条目**：老师画廊与 6 位内置老师互异音色/个性化问候/全站老师在场（U4）、今天页「这一周」与进度/地图/计划差异/复习答后反馈/练习重做（U5）、白板逐行书写/对话记录抽屉/手机通话布局/提示音（U6）、设置分区与全站术语清理及删除 `legacy` 层（U7）。
+
+**已落地**
+
+- **后端 B9 / B15-仪表盘 / B4a / B2 / B13**：
+  - 新增 `services/api/app/learning/journey.py` 与 `GET /api/v2/courses/{course_id}/journey`，返回五步状态、`next_step`、`all_done`、`exam_passed` 等并内嵌至 `CourseDashboard`；设置接口新增 `onboarding_completed_at`（已有课程自动视为已完成引导）。
+  - `CourseDashboard` 补充 `target_score`、`exam_name`、`exam_date`、`today_practice`（`kind != 'lesson'`）、`today_lesson_why`、`lesson_index`、`lesson_total`，保留 `today_lesson` 既有语义。
+  - `create_plan` 与 `rebuild_course_plan` 均持久化 `deferred_weight`、`over_capacity`、`capacity_minutes`，读取计划时补齐知识点名、重点标记与前置标记（旧计划缺键返回 `None`）。
+  - `finish_lesson` 写入 `review_cards_created`；新增只读 `GET /api/v2/lessons/{lesson_id}/recap-summary` 汇总统计、掌握度课前→课后变化、下一节、计划变动与中途放弃标记。
+  - 新增 `POST /api/v2/voice/speak` 并把 `/api/v2/voice/preview`、`/api/v2/tts/preview` 统一到同一课堂语音核心（B13）；预设补齐 `key_guide` 拿密钥指引。
+- **前端外壳、新原语与就绪向导**：
+  - 新增 `FocusShell`；`AppShell` 导航升级为「今天 / 课程 / 老师 / 设置」，标志指向 `/`，右上状态点接入 `useReadiness` 五项就绪态；新增 `Stepper`、`FileDropzone`、`Tabs`/`RouteTabs`、`SecretInput`、`Checkbox`、`Combobox`，并提升浮层层级至 `--z-popover: 45` 修复对话框内下拉遮挡；`Card` 与 `Badge` 补全移动端截断保护防止超长课程名撑破 390px 视口。
+  - 实现四步 `ConnectWizard` / `ConnectWizardDialog`（筛选 → 拿密钥指引 + 粘贴密钥 → 逐项测试 + 取消 → 就绪总览），并接入引导第 3 步、今天页、课程准备与课程中枢；设置页新增 `#me` 学习者画像表单。
+- **全主线界面与课后小结**：
+  - 新建 `/` 今天页（首次检查清单模式 + 主动学习模式 + 其他课程）、4 步首次引导 `/welcome`（称呼规则 D3 与泛称代词兜底）、过渡期 `/tutors`、卡片化 `/courses`（新建/改名/删除 B11）、7 标签 `CourseHubLayout`（今日四态、课程设置对话框、资料管理与真题区、地图 D5 降级入口）、5 步 `CourseSetupPage`（无 AI 可先传资料、4 大阶段阅读进度与耗时估算、6 主题结构化访谈与已知项确认 E8 + 离线固定问句、资料未读完锁定摸底、计划揭示页）、基础版 `PlanPage`（按周分组、权重与掌握度双横条 + §7.1 理由句、置顶/顺延、暂缓区）以及 B2 `RecapView`（统计、掌握变化与「再讲一遍」、计划变动提示、中途放弃分支与白板下载）。
+- **测试、巡览与目视打磨**：
+  - 新增 `test_u3_journey_and_speech.py` 与 `u3-journey.test.ts`，扩充 `ui-components.test.tsx` 覆盖 6 个新原语；按新结构更新 `m1`、`m2`、`m3`、`m5`、`m7`、`m8` 与 `ui-tour.mjs`，在 `ux-invariants.spec.ts` 新增 **I12、I13**。
+  - 人工抽检 `docs/rebuild/review/U3/` 桌面与手机截图后，修复了访谈选项卡隐藏英文键圆标（`ChoiceCard showKey={false}`）、`FocusShell` 顶部五步标签不截断、访谈视频去技术浮标、以及首页称呼泛称「你」兜底四处观感细节。
+
+**本地验证**
+
+- `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff clean、Pytest **464 通过 / 2 跳过**、`generate:api:check` 与 `check_no_fakes.py` 通过、`tsc` / `eslint` 通过、Vitest **13 文件 75 项通过**、`vite build`（1.20s）通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**23 / 23 全部通过**（含 I1–I3、I5–I13）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U3`：**39 步通过、0 失败、92 张截图**输出至 `docs/rebuild/review/U3/`。

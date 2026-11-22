@@ -30,7 +30,8 @@ test("classroom timeline survives reload and reaches an honest recap", async ({ 
 
   await page.getByRole("button", { name: t.classroom.end }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: t.classroom.confirmEnd }).click();
-  await expect(page.getByRole("heading", { name: t.classroom.recap })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("lesson-recap")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(t.classroom.recap, { exact: true })).toBeVisible();
   await expect(page.getByText("本节课复习了如何从条件出发。", { exact: true })).toBeVisible();
   await page.screenshot({ path: resolve(screenshots, "recap-desktop.png"), fullPage: true });
   await page.getByRole("link", { name: t.history.replay }).click();

@@ -2,11 +2,17 @@ import { expect, test, type Page } from "@playwright/test";
 import t from "../../apps/web/src/locales/zh-CN.json";
 
 const ALL_ROUTES = [
+  "/",
   "/welcome",
+  "/tutors",
   "/sample-lesson",
   "/characters",
   "/courses",
   "/courses/browser-today-course",
+  "/courses/browser-today-course/setup",
+  "/courses/browser-today-course/plan",
+  "/courses/browser-today-course/map",
+  "/courses/browser-today-course/materials",
   "/courses/browser-today-course/history",
   "/courses/browser-today-course/review",
   "/plan-items/browser-today-lesson-item/lesson",
@@ -21,7 +27,7 @@ const ALL_ROUTES = [
 
 const MOBILE_EXTRA_ROUTES = [
   "/courses/browser-empty-course",
-  "/courses/browser-stress-course",
+  "/courses/browser-stress-course/map",
   "/lessons/browser-stress-lesson",
 ] as const;
 
@@ -64,22 +70,21 @@ test("I1: every route has exactly one h1, distinct document titles, and resets s
   }
   expect(new Set(titles.values()).size).toBe(ALL_ROUTES.length);
 
-  // Verify 404 route renders the dedicated not-found page with a link back to /courses.
+  // Verify 404 route renders the dedicated not-found page with a link back to Today (/).
   await page.goto("/this-route-does-not-exist-404");
   await expect(page.getByRole("heading", { level: 1, name: t.app.notFoundTitle })).toBeVisible();
-  await expect(page.getByRole("link", { name: t.app.backCourses })).toHaveAttribute("href", "/courses");
+  await expect(page.getByRole("link", { name: t.app.backToday })).toHaveAttribute("href", "/");
 
   // Verify parent nav stays highlighted on subpages.
   await page.goto("/courses/browser-today-course");
   await expect(page.getByRole("navigation", { name: t.app.name }).getByRole("link", { name: t.app.courses }))
     .toHaveAttribute("aria-current", "page");
 
-  // Verify empty course without a plan does not claim today's plan is complete.
+  // Verify empty course without a plan does not have stage "today_done".
   await page.goto("/courses");
   const emptyCard = page.getByTestId("course-card").filter({ has: page.locator('a[href="/courses/browser-empty-course"]') });
   await expect(emptyCard).toBeVisible();
-  await expect(emptyCard).not.toContainText(t.courses.todayClear);
-  await expect(emptyCard).toContainText(t.courses.noPlan);
+  await expect(emptyCard).toHaveAttribute("data-stage", "needs_materials");
 
   // Verify SPA route switch resets scroll position to top and moves focus to h1.
   await page.goto("/settings");
@@ -181,7 +186,7 @@ test("I3: destructive flows use in-app ConfirmDialog with safe cancel focus and 
   await expect(alertDialog).toBeHidden();
 
   // 2. Course knowledge-point delete confirmation uses AlertDialog.
-  await page.goto("/courses/browser-today-course");
+  await page.goto("/courses/browser-today-course/map");
   await page.getByRole("button", { name: t.courses.revise }).first().click();
   await page.getByText(t.courses.moreRevisions, { exact: true }).click();
   await page.getByRole("button", { name: t.common.remove }).last().click();
@@ -410,7 +415,8 @@ test("I11: sample lesson and lesson history replay render TutorVideoBox with tim
       req.method() !== "GET" &&
       req.method() !== "HEAD" &&
       !url.endsWith("/api/v2/session/bootstrap") &&
-      !url.endsWith("/api/v2/tts/preview")
+      !url.endsWith("/api/v2/tts/preview") &&
+      !url.endsWith("/api/v2/voice/speak")
     ) {
       forbiddenWrites.push(`${req.method()} ${url}`);
     }
@@ -476,4 +482,85 @@ test("U2b resilience: server-dropped WebSocket shows reconnecting overlay and au
   await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 10_000 });
   const sentinel = await page.evaluate(() => (window as unknown as { __u2bReloadSentinel?: string }).__u2bReloadSentinel);
   expect(sentinel).toBe("alive");
+});
+
+test("I12: unplanned courses never show today_done stage and journey next_step matches primary CTA", async ({ page }) => {
+  await page.goto("/courses");
+  const emptyCard = page.getByTestId("course-card").filter({
+    has: page.locator('a[href="/courses/browser-empty-course"]'),
+  });
+  await expect(emptyCard).toBeVisible({ timeout: 15_000 });
+  const stage = await emptyCard.getAttribute("data-stage");
+  expect(stage).not.toBe("today_done");
+  expect(stage).toBe("needs_materials");
+  await expect(emptyCard.getByRole("link", { name: t.courseHub.stageCtas.needs_materials })).toHaveAttribute(
+    "href",
+    "/courses/browser-empty-course/setup",
+  );
+
+  // On Today page, the empty course row also never carries data-stage="today_done"
+  await page.goto("/");
+  await expect(page.getByTestId("today-page")).toBeVisible({ timeout: 15_000 });
+  const emptyTodayRow = page.getByTestId("today-course-row").filter({
+    has: page.locator('a[href="/courses/browser-empty-course"]'),
+  });
+  await expect(emptyTodayRow).toBeVisible();
+  expect(await emptyTodayRow.getAttribute("data-stage")).not.toBe("today_done");
+
+  // Course hub today tab for unplanned course shows preparing stepper + Continue Setup -> /setup
+  await page.goto("/courses/browser-empty-course");
+  const prepCard = page.getByTestId("course-today-preparing");
+  await expect(prepCard).toBeVisible({ timeout: 15_000 });
+  expect(await prepCard.getAttribute("data-stage")).not.toBe("today_done");
+  await expect(prepCard.getByRole("link", { name: t.courseHub.continueSetup })).toHaveAttribute(
+    "href",
+    "/courses/browser-empty-course/setup",
+  );
+});
+
+test("I13: placement stays locked without skipping while materials unread; all 6 interview topics complete via controls alone", async ({ page }) => {
+  // Create a fresh empty course (no analyzed materials)
+  await page.goto("/courses");
+  await page.getByRole("button", { name: t.courses.new }).first().click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel(t.courses.name).fill("I13 访谈与摸底守恒测试");
+  await dialog.getByRole("button", { name: t.courses.create }).click();
+  await expect(page).toHaveURL(/\/courses\/[^/]+\/setup/, { timeout: 15_000 });
+  const courseId = new URL(page.url()).pathname.split("/")[2];
+
+  // 1. Visiting placement while materials unread shows locked notice and NEVER marks placement_status = skipped
+  await page.goto(`/courses/${courseId}/setup?step=placement`);
+  await expect(page.getByTestId("placement-locked")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("placement-locked")).toContainText(t.setup.step4Locked);
+
+  // 2. Complete all 6 interview topics using ONLY structured controls (no free text / no LLM required)
+  await page.goto(`/courses/${courseId}/setup?step=interview`);
+  const stepBox = page.getByTestId("setup-interview-step");
+  await expect(stepBox).toBeVisible({ timeout: 15_000 });
+
+  for (let i = 0; i < 6; i += 1) {
+    const topic = await stepBox.getAttribute("data-topic");
+    if (!topic) break;
+    // Handle E8 known-identity confirmation if profile already has nickname
+    const knownYes = stepBox.getByRole("button", { name: t.setup.knownYes });
+    if (await knownYes.isVisible().catch(() => false)) {
+      await knownYes.click();
+    } else {
+      if (topic === "goal") {
+        await stepBox.getByRole("radio", { name: new RegExp(t.learner.goals.exam) }).click();
+        await stepBox.getByLabel(t.learner.examDate).fill("2027-06-15");
+      } else if (topic === "schedule") {
+        await stepBox.getByRole("button", { name: "周二", exact: true }).click();
+      }
+      await stepBox.getByRole("button", { name: t.onboarding.continue }).click();
+    }
+    await page.waitForTimeout(300);
+  }
+
+  // After all 6 topics finish, enrollment persists interview_status=done, exam_date, weekly_days, AND placement_status != skipped!
+  const enrollment = await (await page.request.get(`/api/v2/courses/${courseId}/enrollment`)).json();
+  expect(enrollment.interview_status).toBe("done");
+  expect(enrollment.placement_status).not.toBe("skipped");
+  expect(enrollment.exam_date).toBe("2027-06-15");
+  expect(Array.isArray(enrollment.weekly_days) && enrollment.weekly_days.length > 0).toBe(true);
 });

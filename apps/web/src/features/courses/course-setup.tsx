@@ -563,7 +563,10 @@ export default function CourseSetupPage() {
                   variant="primary"
                   size="lg"
                   pending={uploadAndStartMutation.isPending}
-                  onClick={() => uploadAndStartMutation.mutate({ autoStart: false })}
+                  onClick={() => {
+                    goStep("materials");
+                    uploadAndStartMutation.mutate({ autoStart: false });
+                  }}
                 >
                   {copy.uploadOnly}
                 </Button>
@@ -1122,6 +1125,8 @@ function SetupInterviewStep({
             emotion="warm"
             gen={0}
             statusLabel={speech.speaking ? t.classroom.speaking : t.classroom.listening}
+            showOverlay={false}
+            compact
             labels={labels}
           />
         ) : null}
@@ -1225,7 +1230,8 @@ function SetupInterviewStep({
                 <div className="grid gap-1.5">
                   <span className="text-ui font-medium text-fg-primary">{t.learner.level}</span>
                   <ChoiceCardGroup
-                    aria-label={t.learner.level}
+                    label={t.learner.level}
+                    showKey={false}
                     value={level}
                     onChange={(v) => setLevel(String(v) as LearnerProfile["level"])}
                     options={Object.entries(t.learner.levels).map(([key, label]) => ({ key, text: label }))}
@@ -1239,7 +1245,8 @@ function SetupInterviewStep({
                 <div className="grid gap-1.5">
                   <span className="text-ui font-medium text-fg-primary">{t.learner.goalType}</span>
                   <ChoiceCardGroup
-                    aria-label={t.learner.goalType}
+                    label={t.learner.goalType}
+                    showKey={false}
                     value={goalType}
                     onChange={(v) => setGoalType(String(v) as CourseEnrollment["goal_type"])}
                     options={Object.entries(t.learner.goals).map(([key, label]) => ({ key, text: label }))}
@@ -1320,7 +1327,8 @@ function SetupInterviewStep({
 
             {currentTopic === "starting_point" ? (
               <ChoiceCardGroup
-                aria-label={t.learner.selfLevel}
+                label={t.learner.selfLevel}
+                showKey={false}
                 value={selfLevel}
                 onChange={(v) => setSelfLevel(String(v) as CourseEnrollment["self_level"])}
                 options={Object.entries(t.learner.selfLevels).map(([key, label]) => ({ key, text: label }))}
@@ -1367,7 +1375,8 @@ function SetupInterviewStep({
                 <div className="grid gap-1.5">
                   <span className="text-ui font-medium text-fg-primary">{t.learner.style}</span>
                   <ChoiceCardGroup
-                    aria-label={t.learner.style}
+                    label={t.learner.style}
+                    showKey={false}
                     value={styleId}
                     onChange={(v) => setStyleId(String(v) as LearnerProfile["preferred_style_id"])}
                     options={Object.entries(t.learner.styles).map(([key, label]) => ({ key, text: label }))}
