@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  createInitialChoreographerState,
-  IDLE_COMPANION_MS,
+  phaseToTutorPose,
+  poseToClipSlot,
   quickActionToInstantAction,
-  reduceChoreographer,
   verdictToInstantAction,
 } from "@companion-space/avatar-engine/choreographer";
 import { LiveCostGuard } from "@companion-space/avatar-engine/cost-guard";
@@ -12,27 +11,23 @@ import { LoopPackVideoDriver, resolveClipUrl } from "@companion-space/avatar-eng
 import { decodeTsvfFrame, encodeTsvaFrame, TSVF_MAGIC } from "@companion-space/avatar-engine/sidecar-driver";
 import type { VideoAvatarRuntimeConfig, VideoDriverStatusEvent } from "@companion-space/avatar-engine/types";
 
-describe("AvatarChoreographer pure video state machine", () => {
-  it("alternates speaking gesture clips, ignores stale generations, and resets on interrupt", () => {
-    let state = createInitialChoreographerState();
-    state = reduceChoreographer(state, { type: "lesson_open", gen: 1 });
-    expect(state.pose).toBe("greeting");
+describe("AvatarChoreographer canonical phase-to-pose and action mapping", () => {
+  it("maps explicit phases to poses and thinking/buffering never map to speaking clips", () => {
+    expect(phaseToTutorPose("lobby")).toBe("idle_companion");
+    expect(phaseToTutorPose("preparing")).toBe("thinking");
+    expect(phaseToTutorPose("thinking")).toBe("thinking");
+    expect(phaseToTutorPose("buffering")).toBe("thinking");
+    expect(poseToClipSlot("thinking", 0)).toBe("think_chin");
+    expect(poseToClipSlot("thinking", 1)).toBe("think_chin");
 
-    state = reduceChoreographer(state, { type: "speaking", gen: 2, seg: 2, emotion: "warm", stage: "teaching" });
-    expect(state.pose).toBe("lecturing");
-    expect(state.clip).toBe("speak_explain_a");
-
-    state = reduceChoreographer(state, { type: "speaking", gen: 2, seg: 3, emotion: "focused", stage: "teaching" });
-    expect(state.clip).toBe("speak_explain_b");
-
-    // Stale generation must be ignored.
-    const ignored = reduceChoreographer(state, { type: "board_point", gen: 1 });
-    expect(ignored).toBe(state);
-
-    state = reduceChoreographer(state, { type: "interrupt", gen: 2 });
-    expect(state.pose).toBe("listening_empathy");
-    expect(state.clip).toBe("listen_nod");
-    expect(state.activeAction).toBeNull();
+    expect(phaseToTutorPose("speaking", { isOpeningGreeting: true })).toBe("greeting");
+    expect(phaseToTutorPose("speaking")).toBe("lecturing");
+    expect(phaseToTutorPose("speaking", { boardGuiding: true })).toBe("board_guiding");
+    expect(phaseToTutorPose("listening")).toBe("listening_empathy");
+    expect(phaseToTutorPose("judging")).toBe("listening_empathy");
+    expect(phaseToTutorPose("awaiting", { quietCompanion: false })).toBe("listening_empathy");
+    expect(phaseToTutorPose("awaiting", { quietCompanion: true })).toBe("idle_companion");
+    expect(phaseToTutorPose("paused")).toBe("idle_companion");
   });
 
   it("maps classroom quick actions and verdicts to instant reactions", () => {
@@ -42,25 +37,7 @@ describe("AvatarChoreographer pure video state machine", () => {
     expect(quickActionToInstantAction("locate:b1.2")).toBe("board_point");
     expect(verdictToInstantAction("correct")).toBe("praise_thumbs_up");
     expect(verdictToInstantAction("incorrect")).toBe("gentle_encourage");
-  });
-
-  it("enters quiet idle_companion after 15s silence and wakes immediately on learner activity", () => {
-    let state = createInitialChoreographerState();
-    state = reduceChoreographer(state, { type: "waiting", gen: 3, nowMs: 1_000 });
-    expect(state.pose).toBe("listening_empathy");
-    expect(state.quietCompanion).toBe(false);
-
-    state = reduceChoreographer(state, { type: "tick", nowMs: 1_000 + IDLE_COMPANION_MS - 1 });
-    expect(state.quietCompanion).toBe(false);
-
-    state = reduceChoreographer(state, { type: "tick", nowMs: 1_000 + IDLE_COMPANION_MS });
-    expect(state.pose).toBe("idle_companion");
-    expect(state.clip).toBe("idle_breathe");
-    expect(state.quietCompanion).toBe(true);
-
-    state = reduceChoreographer(state, { type: "learner_activity", nowMs: 20_000 });
-    expect(state.pose).toBe("listening_empathy");
-    expect(state.quietCompanion).toBe(false);
+    expect(verdictToInstantAction("partial")).toBe("gentle_encourage");
   });
 });
 

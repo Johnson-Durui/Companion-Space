@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DecodedSpeechChunk } from "@companion-space/avatar-engine/types";
 import { SpeechOutput, parseCsa1Frame, type BrowserVoice, type SpeechFormat } from "../../audio";
 import { publicMessage } from "../../app/api";
 import t from "../../locales/zh-CN.json";
 import { fetchLesson, fetchLessonEvents, openLessonSocket } from "./lesson-api";
-import { advanceClassroom, initialClassroom, restoreClassroom, type Prefill } from "./lesson-state";
-import { captionDelay, Timeline, waitFor, type LessonEvent } from "./timeline";
+import { TAB_AWAY_PAUSE_MS } from "./lesson-phase";
+import { advanceClassroom, initialClassroom, restoreClassroom, type Prefill, type SpokenEntry } from "./lesson-state";
+import { captionDelay, Timeline, type LessonEvent } from "./timeline";
 
 type Format = SpeechFormat | "text" | "browser";
 type AudioMeta = { format: Format; rate: number; browserVoice?: BrowserVoice };
@@ -16,10 +17,37 @@ type Connection = {
   reconnect: () => Promise<void>;
   send: Command;
   interrupt: () => boolean;
-  pause: () => void;
+  pause: (fromTabAway?: boolean) => void;
   upload: (frame: ArrayBuffer) => void;
+  setVolume: (v: number) => void;
+  setMuted: (m: boolean) => void;
+  skipTextWait: () => void;
+  setTextHold: (hold: boolean) => void;
 };
+
 const copy = t.classroom;
+
+function readRememberedAudio(lessonId: string): boolean {
+  try {
+    const perLesson = window.localStorage.getItem(`cs:lesson:audio:${lessonId}`);
+    if (perLesson === "0") return false;
+    if (perLesson === "1") return true;
+    const global = window.localStorage.getItem("cs:lesson:lastAudio");
+    if (global === "0") return false;
+  } catch {
+    // Ignore storage access errors.
+  }
+  return true;
+}
+
+function writeRememberedAudio(lessonId: string, withAudio: boolean) {
+  try {
+    window.localStorage.setItem(`cs:lesson:audio:${lessonId}`, withAudio ? "1" : "0");
+    window.localStorage.setItem("cs:lesson:lastAudio", withAudio ? "1" : "0");
+  } catch {
+    // Ignore storage access errors.
+  }
+}
 
 export function useClassroom(
   id: string,
@@ -40,16 +68,37 @@ export function useClassroom(
   const [connected, setConnected] = useState(false);
   const [started, setStarted] = useState(false);
   const [resuming, setResuming] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [lastAudio, setLastAudio] = useState(true);
+  const [audioSpeaking, setAudioSpeaking] = useState(false);
+  const [audioBuffering, setAudioBuffering] = useState(false);
+  const [lastAudio, setLastAudio] = useState(() => readRememberedAudio(id));
   const [error, setError] = useState("");
   const [errorSeq, setErrorSeq] = useState(0);
+  const [fatalError, setFatalError] = useState(false);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [fallback, setFallback] = useState("");
   const [prefill, setPrefill] = useState<Prefill>();
+  const [previewVerdict, setPreviewVerdict] = useState<{ askSeq: number; verdict: string } | null>(null);
   const [transcript, setTranscript] = useState("");
+  const [studentEntries, setStudentEntries] = useState<SpokenEntry[]>([]);
   const [echoProtected, setEchoProtected] = useState(false);
   const [recap, setRecap] = useState<Record<string, unknown>>();
   const [latency, setLatency] = useState<number>();
+  const [tabPaused, setTabPaused] = useState(false);
+  const [textHold, setTextHoldState] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [hasFirstBeat, setHasFirstBeat] = useState(false);
+
+  const askSeqRef = useRef<number | undefined>(undefined);
+  askSeqRef.current = classroom.askSeq;
+
+  const appendStudentEntry = useCallback((text: string, badge: "voice" | "text" | "quick") => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setStudentEntries((prev) => [
+      ...prev.slice(-199),
+      { id: `s:${Date.now()}:${prev.length}`, role: "student", text: trimmed, badge },
+    ]);
+  }, []);
 
   useEffect(() => {
     let socket: WebSocket | undefined;
@@ -57,14 +106,18 @@ export function useClassroom(
     let current: Room | undefined;
     let closed = false;
     let timer = 0;
+    let tabTimer = 0;
+    let hiddenAt = 0;
     let offline = 0;
     let active = false;
-    let audio = true;
+    let audio = readRememberedAudio(id);
     let firstSound = 0;
     let currentCaption: LessonEvent | undefined;
     let previewGen: number | undefined;
     let previewTail = Promise.resolve();
     let seq = 0;
+    let textHoldFlag = false;
+    let resolveTextWait: (() => void) | null = null;
     const events: LessonEvent[] = [];
     const cancelled = new Set<number>();
     const formats = new Map<string, AudioMeta>();
@@ -72,10 +125,13 @@ export function useClassroom(
     const previews = new Map<string, Promise<void>>();
     const previewVisuals = new Map<number, string[]>();
     const waiting = new Map<string, () => void>();
+
     const output = new SpeechOutput({
       onLevel: (level) => onSpeechLevelRef.current?.(level),
       onSpeechChunk: (chunk) => onSpeechChunkRef.current?.(chunk),
       onSegmentStart: (gen, seg) => {
+        setAudioBuffering(false);
+        setAudioSpeaking(true);
         if (firstSound) {
           setLatency(Math.round(performance.now() - firstSound));
           firstSound = 0;
@@ -85,12 +141,41 @@ export function useClassroom(
           setClassroom((state) => advanceClassroom(state, event));
         }
       },
+      onSegmentEnd: () => {
+        setAudioSpeaking(false);
+      },
     });
+
     const send: Command = (type, data = {}) => {
       if (socket?.readyState !== WebSocket.OPEN) return false;
       socket.send(JSON.stringify({ type, data }));
       return true;
     };
+
+    function waitForTextDwell(ms: number, signal: AbortSignal): Promise<void> {
+      if (signal.aborted) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        let elapsed = 0;
+        let lastTick = performance.now();
+        let finished = false;
+        const done = () => {
+          if (finished) return;
+          finished = true;
+          window.clearInterval(interval);
+          signal.removeEventListener("abort", done);
+          if (resolveTextWait === done) resolveTextWait = null;
+          resolve();
+        };
+        resolveTextWait = done;
+        const interval = window.setInterval(() => {
+          const now = performance.now();
+          if (!textHoldFlag) elapsed += now - lastTick;
+          lastTick = now;
+          if (elapsed >= ms) done();
+        }, 60);
+        signal.addEventListener("abort", done, { once: true });
+      });
+    }
 
     function stop(gen?: number) {
       if (gen !== undefined) {
@@ -106,9 +191,12 @@ export function useClassroom(
         previewGen = undefined;
         previewVisuals.clear();
       }
+      resolveTextWait?.();
       output.stop(gen);
-      setSpeaking(false);
+      setAudioSpeaking(false);
+      setAudioBuffering(false);
     }
+
     function interrupt() {
       const gen = timeline?.playingGen ?? previewGen;
       if (gen === undefined || !timeline) return false;
@@ -116,12 +204,16 @@ export function useClassroom(
       stop(gen);
       return send("student.interrupt", { gen, heard_seq });
     }
-    function pause() {
+
+    function pause(fromTabAway = false) {
+      window.clearTimeout(tabTimer);
+      tabTimer = 0;
       active = false;
       timeline?.dispose();
       stop();
       setStarted(false);
       setResuming(false);
+      if (fromTabAway) setTabPaused(true);
       if (send("lesson.control", { action: "pause" })) {
         setClassroom((state) => ({ ...state, paused: true }));
       }
@@ -139,7 +231,11 @@ export function useClassroom(
         }
       }
       setRoom(lesson);
-      if (lesson.recap) setRecap(lesson.recap);
+      if (lesson.seq > 0) setHasFirstBeat(true);
+      if (lesson.recap) {
+        setEnding(false);
+        setRecap(lesson.recap);
+      }
       const after = lesson.status === "done" ? lesson.seq : lesson.playback_after_seq ?? lesson.seq;
       timeline?.dispose();
       formats.clear();
@@ -174,7 +270,7 @@ export function useClassroom(
     }
 
     async function playSay(event: LessonEvent, signal: AbortSignal) {
-      setSpeaking(true);
+      setAudioBuffering(true);
       try {
         const text = String(event.data.text ?? "");
         const seg = Number(event.data.seg);
@@ -184,6 +280,7 @@ export function useClassroom(
           currentCaption = event;
           const browserVoice = meta.format === "browser" ? meta.browserVoice ?? { lang: "zh-CN" } : undefined;
           try {
+            // Note: setAudioSpeaking(true) fires ONLY inside output.onSegmentStart once audio is audible!
             if (browserVoice) await output.useBrowser(event.gen, seg, text, browserVoice, signal);
             else await output.play(event.gen, seg, {}, signal);
             return;
@@ -191,12 +288,18 @@ export function useClassroom(
             if (signal.aborted) return;
             setFallback(copy.textFallback);
           }
-        } else if (audio) setFallback(copy.textFallback);
+        } else if (audio) {
+          setFallback(copy.textFallback);
+        }
+        // Text mode (or audio fallback): immediately display sentence and mark speaking during dwell.
+        setAudioBuffering(false);
+        setAudioSpeaking(true);
         setClassroom((state) => advanceClassroom(state, event));
-        await waitFor(captionDelay(text, current?.teacher?.voice.rate), signal);
+        await waitForTextDwell(captionDelay(text, current?.teacher?.voice.rate), signal);
       } finally {
         currentCaption = undefined;
-        setSpeaking(false);
+        setAudioBuffering(false);
+        setAudioSpeaking(false);
       }
     }
 
@@ -211,9 +314,13 @@ export function useClassroom(
         return playSay(event, signal);
       }
       if (event.type === "beat.start") {
+        setHasFirstBeat(true);
         output.setGeneration(event.gen);
         for (const key of formats.keys()) if (!key.startsWith(`${event.gen}:`)) formats.delete(key);
         setPrefill(undefined);
+      }
+      if (event.type === "ask") {
+        setPreviewVerdict(null);
       }
       if (event.type === "board" || event.type === "mark") {
         const pending = previewVisuals.get(event.gen);
@@ -254,6 +361,9 @@ export function useClassroom(
           if (cancelled.has(event.gen)) return;
           const verdict = typeof event.data.verdict === "string" ? event.data.verdict : "";
           if (verdict) {
+            if (askSeqRef.current !== undefined) {
+              setPreviewVerdict({ askSeq: askSeqRef.current, verdict });
+            }
             onJudgePreviewRef.current?.(verdict, event.gen);
           }
           return;
@@ -314,9 +424,17 @@ export function useClassroom(
             );
           }
           return;
-        case "voice.transcript":
-          setTranscript(String(event.data.text));
+        case "voice.transcript": {
+          const spoken = String(event.data.text ?? "");
+          setTranscript(spoken);
+          if (spoken.trim()) {
+            setStudentEntries((prev) => [
+              ...prev.slice(-199),
+              { id: `v:${Date.now()}:${prev.length}`, role: "student", text: spoken, badge: "voice" },
+            ]);
+          }
           return;
+        }
         case "voice.discarded":
           setTranscript(copy.noSpeech);
           if (event.data.protect) setEchoProtected(true);
@@ -325,10 +443,12 @@ export function useClassroom(
           setPrefill(event.data as Prefill);
           return;
         case "recap":
+          setEnding(false);
           setRecap(event.data);
           return;
         case "error":
           setResuming(false);
+          setEnding(false);
           setError(publicMessage(event.data) ?? copy.actionError);
           setErrorSeq((count) => count + 1);
           return;
@@ -359,7 +479,9 @@ export function useClassroom(
         next.onmessage = receive;
         next.onopen = () => {
           setConnected(true);
+          setFatalError(false);
           offline = 0;
+          setReconnectAttempt(0);
           if (active && !document.hidden) {
             setResuming(true);
             send("lesson.control", { action: "resume", audio });
@@ -371,31 +493,41 @@ export function useClassroom(
           timeline?.dispose();
           stop();
           if (event.code === 4409) {
+            setFatalError(true);
             setError(copy.otherTab);
             return;
           }
-          if (++offline > 5) {
+          offline += 1;
+          setReconnectAttempt(offline);
+          if (offline > 5) {
             setError(copy.connectionError);
             return;
           }
           timer = window.setTimeout(() => void connect(), Math.min(2400, offline * 400));
         };
       } catch (cause) {
-        if (!closed) setError(cause instanceof Error ? cause.message : copy.connectionError);
+        if (!closed) {
+          setError(cause instanceof Error ? cause.message : copy.connectionError);
+        }
       }
     }
 
     connection.current = {
       send(type, data) {
         setError("");
+        if (type === "lesson.control" && data?.action === "end") {
+          setEnding(true);
+        }
         if (type !== "student.activity") firstSound = performance.now();
         return send(type, data);
       },
       async start(withAudio) {
         setError("");
         setFallback("");
+        setTabPaused(false);
         audio = withAudio;
         setLastAudio(withAudio);
+        writeRememberedAudio(id, withAudio);
         if (withAudio) {
           try {
             await output.prepare();
@@ -420,6 +552,8 @@ export function useClassroom(
       async reconnect() {
         window.clearTimeout(timer);
         offline = 0;
+        setReconnectAttempt(0);
+        setFatalError(false);
         setError("");
         if (socket?.readyState === WebSocket.OPEN) {
           await connection.current?.start(audio);
@@ -437,17 +571,48 @@ export function useClassroom(
       upload: (frame) => {
         if (socket?.readyState === WebSocket.OPEN && socket.bufferedAmount < 128_000) socket.send(frame);
       },
+      setVolume: (v) => output.setVolume(v),
+      setMuted: (m) => output.setMuted(m),
+      skipTextWait: () => resolveTextWait?.(),
+      setTextHold: (hold) => {
+        textHoldFlag = hold;
+        setTextHoldState(hold);
+      },
     };
-    const hidden = () => {
-      if (document.hidden && active) pause();
+
+    // D4 / §4.5: 30-second tab-switch rule
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (!active) return;
+        hiddenAt = Date.now();
+        output.stop();
+        setAudioSpeaking(false);
+        window.clearTimeout(tabTimer);
+        tabTimer = window.setTimeout(() => {
+          if (document.hidden && active) {
+            pause(true);
+          }
+        }, TAB_AWAY_PAUSE_MS);
+      } else {
+        window.clearTimeout(tabTimer);
+        tabTimer = 0;
+        if (hiddenAt && active && Date.now() - hiddenAt < TAB_AWAY_PAUSE_MS) {
+          hiddenAt = 0;
+          if (socket?.readyState === WebSocket.OPEN) {
+            send("lesson.control", { action: "resume", audio });
+          }
+        }
+        hiddenAt = 0;
+      }
     };
-    document.addEventListener("visibilitychange", hidden);
+    document.addEventListener("visibilitychange", onVisibility);
     void connect();
     return () => {
       closed = true;
       connection.current = null;
       window.clearTimeout(timer);
-      document.removeEventListener("visibilitychange", hidden);
+      window.clearTimeout(tabTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
       const currentSocket = socket;
       if (currentSocket?.readyState === WebSocket.CONNECTING) {
         currentSocket.onopen = () => currentSocket.close();
@@ -463,21 +628,36 @@ export function useClassroom(
     connected,
     started,
     resuming,
-    speaking,
+    speaking: audioSpeaking,
+    audioSpeaking,
+    audioBuffering,
     lastAudio,
     error,
     errorSeq,
+    fatalError,
+    reconnectAttempt,
     fallback,
     prefill,
+    previewVerdict,
     transcript,
+    studentEntries,
+    appendStudentEntry,
     echoProtected,
     recap,
     latency,
+    tabPaused,
+    textHold,
+    ending,
+    hasFirstBeat,
     start: (audio: boolean) => connection.current?.start(audio),
     reconnect: () => connection.current?.reconnect(),
     send: (type: string, data?: Record<string, unknown>) => connection.current?.send(type, data) ?? false,
-    pause: () => connection.current?.pause(),
+    pause: () => connection.current?.pause(false),
     interrupt: () => connection.current?.interrupt() ?? false,
     upload: (frame: ArrayBuffer) => connection.current?.upload(frame),
+    setVolume: (v: number) => connection.current?.setVolume(v),
+    setMuted: (m: boolean) => connection.current?.setMuted(m),
+    skipTextWait: () => connection.current?.skipTextWait(),
+    setTextHold: (hold: boolean) => connection.current?.setTextHold(hold),
   };
 }

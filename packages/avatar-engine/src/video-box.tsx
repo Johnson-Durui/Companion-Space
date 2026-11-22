@@ -3,6 +3,7 @@ import { VideoDriverManager } from "./driver-manager";
 import type {
   DecodedSpeechChunk,
   InstantAction,
+  LessonPhase,
   SidecarSessionConnector,
   TutorEmotion,
   TutorPose,
@@ -28,6 +29,7 @@ export interface TutorVideoBoxHandle {
   pushSpeechChunk: (chunk: DecodedSpeechChunk) => void;
   triggerInstantAction: (action: InstantAction, gen: number) => void;
   interrupt: (gen: number) => void;
+  switchToFreeTier: () => Promise<void>;
 }
 
 export interface TutorVideoBoxProps {
@@ -37,13 +39,19 @@ export interface TutorVideoBoxProps {
   emotion: TutorEmotion;
   gen: number;
   statusLabel: string;
+  phase?: LessonPhase;
   caption?: string;
+  captionVisible?: boolean;
+  showSoundBars?: boolean;
+  stageMode?: boolean;
   showOverlay?: boolean;
   compact?: boolean;
   cost?: VideoDriverCostEvent | null;
   labels: TutorVideoBoxLabels;
   sidecarConnector?: SidecarSessionConnector;
   onTierChange?: (tier: VideoAvatarTier) => void;
+  onDegraded?: (info: { code?: VideoDriverDegradedCode; message: string }) => void;
+  onQualityInfoClick?: () => void;
 }
 
 function formatDuration(totalSec: number): string {
@@ -60,24 +68,33 @@ export function TutorVideoBox({
   emotion,
   gen,
   statusLabel,
+  phase,
   caption = "",
+  captionVisible: captionVisibleProp,
+  showSoundBars = false,
+  stageMode = false,
   showOverlay = true,
   compact = false,
   cost = null,
   labels,
   sidecarConnector,
   onTierChange,
+  onDegraded,
+  onQualityInfoClick,
 }: TutorVideoBoxProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const managerRef = useRef<VideoDriverManager | null>(null);
   const onTierChangeRef = useRef(onTierChange);
   onTierChangeRef.current = onTierChange;
+  const onDegradedRef = useRef(onDegraded);
+  onDegradedRef.current = onDegraded;
   const sidecarConnectorRef = useRef(sidecarConnector);
   sidecarConnectorRef.current = sidecarConnector;
 
   const [activeTier, setActiveTier] = useState<VideoAvatarTier>(config.preferredTier);
   const [notice, setNotice] = useState<string>("");
-  const [captionVisible, setCaptionVisible] = useState(true);
+  const [localCaptionVisible, setLocalCaptionVisible] = useState(true);
+  const captionVisible = captionVisibleProp ?? localCaptionVisible;
 
   const configKey = JSON.stringify({
     characterId: config.characterId,
@@ -104,6 +121,9 @@ export function TutorVideoBox({
       interrupt(interruptGen: number) {
         managerRef.current?.interrupt(interruptGen);
       },
+      async switchToFreeTier() {
+        await managerRef.current?.switchToFreeTier();
+      },
     }),
     [],
   );
@@ -122,7 +142,10 @@ export function TutorVideoBox({
           const mapped = (event.code && labels.degradedReasons?.[event.code])
             || labels.degradedFallback
             || "";
-          if (mapped) setNotice(mapped);
+          if (mapped) {
+            setNotice(mapped);
+            onDegradedRef.current?.({ code: event.code, message: mapped });
+          }
           return;
         }
         if (event.state === "ready" || event.state === "connecting") {
@@ -130,7 +153,10 @@ export function TutorVideoBox({
           onTierChangeRef.current?.(event.tier);
           if (event.code) {
             const mapped = labels.degradedReasons?.[event.code] || labels.degradedFallback || "";
-            if (mapped) setNotice(mapped);
+            if (mapped) {
+              setNotice(mapped);
+              onDegradedRef.current?.({ code: event.code, message: mapped });
+            }
           }
         }
       },
@@ -152,16 +178,22 @@ export function TutorVideoBox({
     managerRef.current?.setPose(pose, gen);
   }, [pose, gen]);
 
-  const showFreeSwitch = activeTier === "local_sidecar" || activeTier === "cloud_live";
+  const showFreeSwitch = !stageMode && (activeTier === "local_sidecar" || activeTier === "cloud_live");
+  const isThinkingPhase = phase === "thinking" || phase === "buffering" || phase === "preparing";
+  const hasVisibleCaption = captionVisible && Boolean(caption.trim());
+  const isBasicDegraded = Boolean(notice) || (activeTier === "static" && config.preferredTier !== "static");
 
   return (
     <div
-      className={`tvb-frame ${compact ? "tvb-compact" : ""}`}
+      className={`tvb-frame ${stageMode ? "tvb-stage-fill" : ""} ${compact ? "tvb-compact" : ""}`.trim()}
       data-testid="tutor-video-box"
       data-aspect={config.aspectRatio}
       data-pose={pose}
       data-emotion={emotion}
       data-tier={activeTier}
+      data-phase={phase}
+      data-stage-mode={stageMode ? "true" : undefined}
+      data-has-caption={hasVisibleCaption ? "true" : undefined}
       role="region"
       aria-label={config.name}
     >
@@ -169,12 +201,40 @@ export function TutorVideoBox({
       {showOverlay ? (
         <>
           <div className="tvb-top-bar">
-            <span className="tvb-status-pill" data-pose={pose}>
-              <span className="tvb-status-dot" aria-hidden="true" />
-              <span>{statusLabel}</span>
-              <span className="tvb-tier-tag">{labels.tiers[activeTier]}</span>
-            </span>
-            {cost || showFreeSwitch ? (
+            <div className="tvb-top-left">
+              <span className="tvb-status-pill" data-pose={pose} data-phase={phase}>
+                {showSoundBars ? (
+                  <span className="tvb-bars" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                ) : isThinkingPhase ? (
+                  <span className="tvb-dots" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                ) : (
+                  <span className="tvb-status-dot" aria-hidden="true" />
+                )}
+                <span>{statusLabel}</span>
+                {!stageMode ? <span className="tvb-tier-tag">{labels.tiers[activeTier]}</span> : null}
+              </span>
+              {stageMode && isBasicDegraded ? (
+                <button
+                  type="button"
+                  className="tvb-quality-icon"
+                  title={notice || labels.degradedFallback}
+                  aria-label={notice || labels.degradedFallback || labels.tiers[activeTier]}
+                  onClick={onQualityInfoClick}
+                >
+                  !
+                </button>
+              ) : null}
+            </div>
+            {!stageMode && (cost || showFreeSwitch) ? (
               <div className="tvb-top-actions">
                 {cost ? (
                   <span className="tvb-cost-pill">
@@ -195,7 +255,7 @@ export function TutorVideoBox({
             ) : null}
           </div>
 
-          {notice ? (
+          {!stageMode && notice ? (
             <div className="tvb-degraded-banner" role="status">
               <span>{labels.degradedPrefix} {notice}</span>
               <button type="button" className="tvb-chip-btn" onClick={() => setNotice("")}>
@@ -205,20 +265,33 @@ export function TutorVideoBox({
           ) : null}
 
           <div className="tvb-bottom-bar">
-            {captionVisible ? (
-              <p className="tvb-caption" aria-live="polite">{caption}</p>
-            ) : null}
-            <div className="tvb-speaker-row">
-              <strong className="tvb-speaker-name">{config.name}</strong>
-              <button
-                type="button"
-                className="tvb-chip-btn"
-                aria-pressed={captionVisible}
-                onClick={() => setCaptionVisible((value) => !value)}
-              >
-                {labels.toggleCaption}
-              </button>
-            </div>
+            {stageMode ? (
+              <>
+                <strong className="tvb-speaker-name">{config.name}</strong>
+                {captionVisible ? (
+                  <p className="tvb-caption" aria-live="polite">
+                    {caption || (isThinkingPhase ? "…" : "")}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {captionVisible ? (
+                  <p className="tvb-caption" aria-live="polite">{caption}</p>
+                ) : null}
+                <div className="tvb-speaker-row">
+                  <strong className="tvb-speaker-name">{config.name}</strong>
+                  <button
+                    type="button"
+                    className="tvb-chip-btn"
+                    aria-pressed={captionVisible}
+                    onClick={() => setLocalCaptionVisible((value) => !value)}
+                  >
+                    {labels.toggleCaption}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </>
       ) : null}

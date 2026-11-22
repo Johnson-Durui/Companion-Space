@@ -5,8 +5,27 @@ export type TutorPose =
   | "lecturing"
   | "board_guiding"
   | "listening_empathy"
+  | "thinking"
   | "feedback_reaction"
   | "idle_companion";
+
+export type LessonPhase =
+  | "loading"
+  | "preparing"
+  | "lobby"
+  | "connecting"
+  | "thinking"
+  | "buffering"
+  | "speaking"
+  | "listening"
+  | "awaiting"
+  | "judging"
+  | "feedback"
+  | "paused"
+  | "reconnecting"
+  | "ending"
+  | "ended"
+  | "failed";
 
 export type InstantAction =
   | "greet"

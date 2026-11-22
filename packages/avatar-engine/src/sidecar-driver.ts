@@ -259,7 +259,9 @@ export class LocalSidecarVideoDriver implements ITutorVideoDriver {
     if (gen > 0 && gen < this.currentGen) return;
     this.currentGen = Math.max(this.currentGen, gen);
     if (this.root) this.root.dataset.pose = pose;
-    this.sendControl("pose", this.currentGen, { pose });
+    // Map frontend-only "thinking" pose to an existing external sidecar protocol pose.
+    const wirePose = pose === "thinking" ? "idle_companion" : pose;
+    this.sendControl("pose", this.currentGen, { pose: wirePose });
   }
 
   setMood(emotion: TutorEmotion, intensity: number, gen: number): void {

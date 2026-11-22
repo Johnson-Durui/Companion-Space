@@ -29,11 +29,20 @@ class TestAudioContext {
   destination = {} as AudioDestinationNode;
   state: AudioContextState = "running";
   sources: AudioSource[] = [];
+  gains: Array<{ gain: { value: number }; connect: ReturnType<typeof vi.fn> }> = [];
+  analyserConnections: unknown[] = [];
   createAnalyser() {
+    const analyserConnections = this.analyserConnections;
     return {
-      connect() {}, fftSize: 8,
+      connect(target: unknown) { analyserConnections.push(target); },
+      fftSize: 8,
       getFloatTimeDomainData(values: Float32Array) { values.fill(0.25); },
     } as unknown as AnalyserNode;
+  }
+  createGain() {
+    const node = { gain: { value: 1 }, connect: vi.fn() };
+    this.gains.push(node);
+    return node as unknown as GainNode;
   }
   createBuffer(_channels: number, length: number, sampleRate: number) {
     const samples = new Float32Array(length);
@@ -58,6 +67,7 @@ function audioBrowser() {
     lang = "";
     pitch = 1;
     rate = 1;
+    volume = 1;
     voice: SpeechSynthesisVoice | null = null;
     onstart: (() => void) | null = null;
     onend: (() => void) | null = null;
@@ -191,5 +201,45 @@ describe("SpeechOutput", () => {
     output.setGeneration(4);
     await expect(active).rejects.toMatchObject({ name: "AbortError" });
     expect(output.pushFrame(csa1(3, 1, CSA1_FLAG_LAST, [1, 0]), { format: "pcm_s16le" })).toBe(false);
+  });
+
+  it("places GainNode after AnalyserNode so avatar speech level stays active when muted", async () => {
+    const browser = audioBrowser();
+    let frame: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frame = callback; return 9; });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const onLevel = vi.fn();
+    const output = new SpeechOutput({ onLevel });
+    output.setVolume(0.4);
+    output.setMuted(true);
+    output.setGeneration(1);
+    output.pushFrame(csa1(1, 1, CSA1_FLAG_LAST, [1, 0, 2, 0]), { format: "pcm_s16le", sampleRate: 24000 });
+    const played = output.play(1, 1);
+    await Promise.resolve();
+    await Promise.resolve();
+    const ctx = browser.contexts[0]!;
+    expect(ctx.gains).toHaveLength(1);
+    expect(ctx.analyserConnections[0]).toBe(ctx.gains[0]);
+    expect(ctx.gains[0]!.connect).toHaveBeenCalledWith(ctx.destination);
+    expect(ctx.gains[0]!.gain.value).toBe(0);
+    frame?.(0);
+    expect(onLevel).toHaveBeenCalledWith(1);
+    output.setMuted(false);
+    expect(ctx.gains[0]!.gain.value).toBe(0.4);
+    ctx.sources[0]?.finish();
+    await played;
+
+    // Browser speech synthesis also honors volume and mute
+    output.setVolume(0.35);
+    const browserDone = output.useBrowser(1, 2, "hi");
+    expect(browser.spoken[0]?.volume).toBe(0.35);
+    browser.spoken[0]?.onend?.();
+    await browserDone;
+
+    output.setMuted(true);
+    const mutedDone = output.useBrowser(1, 3, "quiet");
+    expect(browser.spoken[1]?.volume).toBe(0);
+    browser.spoken[1]?.onend?.();
+    await mutedDone;
   });
 });

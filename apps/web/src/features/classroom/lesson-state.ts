@@ -10,6 +10,33 @@ export type Ask = {
 };
 export type Prefill = { item_id: string; value: string | string[]; via: "voice" | "text" };
 
+export type BoardDivider = {
+  id: string;
+  afterBlockCount: number;
+  kind: "stage" | "reexplain" | "prereq" | "return";
+  stage?: string;
+  style?: string;
+  kpName?: string;
+  repeat?: number;
+};
+
+export type SpokenEntry = {
+  id: string;
+  role: "teacher" | "student";
+  text: string;
+  badge?: "voice" | "text" | "quick";
+  seq?: number;
+};
+
+export type AnsweredCard = {
+  id: string;
+  afterBlockCount: number;
+  stem: string;
+  verdict: string;
+  studentAnswer?: string;
+  correctAnswer?: string;
+};
+
 const avatarEmotions = new Set(["neutral", "warm", "cheerful", "curious", "focused", "playful", "concerned"]);
 
 export type AvatarState = {
@@ -29,8 +56,16 @@ export type ClassroomState = {
   ask?: Ask;
   askSeq?: number;
   judge?: string;
+  revealedAnswer?: string;
   stage: string;
   paused: boolean;
+  lastMove?: string;
+  lastStyle?: string;
+  activeBlockId?: string;
+  dividers: readonly BoardDivider[];
+  spokenLog: readonly SpokenEntry[];
+  answeredCards: readonly AnsweredCard[];
+  pendingAnswered?: { stem: string; itemId?: string };
   avatar: AvatarState;
 };
 
@@ -39,6 +74,9 @@ export const initialClassroom: ClassroomState = {
   caption: "",
   stage: "opening",
   paused: false,
+  dividers: [],
+  spokenLog: [],
+  answeredCards: [],
   avatar: {
     emotion: "warm",
     pose: "greeting",
@@ -55,15 +93,38 @@ function parseEmotion(value: unknown, fallback: TutorEmotion): TutorEmotion {
   return typeof value === "string" && avatarEmotions.has(value) ? (value as TutorEmotion) : fallback;
 }
 
+function appendSpoken(log: readonly SpokenEntry[], entry: SpokenEntry): readonly SpokenEntry[] {
+  if (!entry.text.trim()) return log;
+  if (log.some((item) => item.id === entry.id)) return log;
+  const last = log[log.length - 1];
+  if (last && last.role === entry.role && last.text === entry.text && entry.seq && last.seq === entry.seq) {
+    return log;
+  }
+  return [...log.slice(-199), entry];
+}
+
+function appendDivider(dividers: readonly BoardDivider[], divider: BoardDivider): readonly BoardDivider[] {
+  if (dividers.some((item) => item.id === divider.id)) return dividers;
+  return [...dividers, divider];
+}
+
 export function advanceClassroom(state: ClassroomState, event: LessonEvent): ClassroomState {
   const { data } = event;
   const gen = Math.max(state.avatar.gen, event.gen);
   switch (event.type) {
     case "board":
-    case "mark":
+    case "mark": {
+      const nextBoard = applyBoardEvent(state.board, event);
+      const targetId =
+        typeof data.id === "string"
+          ? data.id
+          : typeof data.block_id === "string"
+            ? data.block_id
+            : nextBoard[nextBoard.length - 1]?.id;
       return {
         ...state,
-        board: applyBoardEvent(state.board, event),
+        board: nextBoard,
+        activeBlockId: targetId ?? state.activeBlockId,
         avatar: {
           ...state.avatar,
           gen,
@@ -71,12 +132,20 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
           gaze: { active: true, x: 0.72, y: 0.05 },
         },
       };
+    }
     case "say": {
+      const text = String(data.text ?? "");
       const seg = typeof data.seg === "number" ? data.seg : state.avatar.seg + 1;
       const pose: TutorPose = state.stage === "opening" && seg <= 1 ? "greeting" : "lecturing";
       return {
         ...state,
-        caption: String(data.text ?? ""),
+        caption: text,
+        spokenLog: appendSpoken(state.spokenLog, {
+          id: `t:${event.gen}:${seg}:${event.seq}`,
+          role: "teacher",
+          text,
+          seq: event.seq,
+        }),
         avatar: {
           ...state.avatar,
           gen,
@@ -88,10 +157,13 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
         },
       };
     }
-    case "point":
+    case "point": {
+      const nextBoard = applyBoardEvent(state.board, event);
+      const targetId = typeof data.target === "string" ? data.target.split(".")[0] : state.activeBlockId;
       return {
         ...state,
-        board: applyBoardEvent(state.board, event),
+        board: nextBoard,
+        activeBlockId: targetId,
         avatar: {
           ...state.avatar,
           gen,
@@ -102,6 +174,7 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
           instantAction: "board_point",
         },
       };
+    }
     case "cue": {
       const look = String(data.look ?? "");
       const pointingBoard = look === "board";
@@ -121,30 +194,100 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
         },
       };
     }
-    case "beat.start":
+    case "beat.start": {
+      const move = typeof data.move === "string" ? data.move : undefined;
+      const style = typeof data.style === "string" ? data.style : typeof data.style_id === "string" ? data.style_id : undefined;
+      const kpName = typeof data.kp_name === "string" ? data.kp_name : undefined;
+      const repeat = typeof data.attempt === "number" && data.attempt > 1 ? data.attempt : undefined;
+      let dividers = state.dividers;
+      if (move === "REEXPLAIN" || (style && state.lastStyle && style !== state.lastStyle)) {
+        dividers = appendDivider(dividers, {
+          id: `div:adapt:${event.seq}`,
+          afterBlockCount: state.board.length,
+          kind: "reexplain",
+          style: style ?? state.lastStyle,
+          repeat,
+        });
+      } else if (move === "PREREQ_REMEDIATE" || move === "REMEDIATE") {
+        dividers = appendDivider(dividers, {
+          id: `div:prereq:${event.seq}`,
+          afterBlockCount: state.board.length,
+          kind: "prereq",
+          kpName,
+        });
+      } else if (move === "RETURN_FROM_REMEDIATE" || move === "RETURN") {
+        dividers = appendDivider(dividers, {
+          id: `div:return:${event.seq}`,
+          afterBlockCount: state.board.length,
+          kind: "return",
+        });
+      }
       return {
         ...state,
         ask: undefined,
         caption: "",
+        lastMove: move ?? state.lastMove,
+        lastStyle: style ?? state.lastStyle,
+        dividers,
         avatar: { ...state.avatar, gen, seg: 0, instantAction: null },
       };
+    }
     case "ask": {
-      const sameAsk = state.ask?.item_id === data.item_id && state.ask?.purpose === data.purpose;
+      const askData = data as Ask;
+      const sameAsk =
+        !state.judge
+        && state.ask?.item_id === askData.item_id
+        && state.ask?.purpose === askData.purpose;
       return {
         ...state,
-        ask: data as Ask,
+        ask: askData,
         askSeq: sameAsk ? state.askSeq : event.seq,
         judge: sameAsk ? state.judge : undefined,
+        revealedAnswer: sameAsk ? state.revealedAnswer : undefined,
+        pendingAnswered: askData.widget?.stem
+          ? { stem: askData.widget.stem, itemId: askData.item_id }
+          : undefined,
         avatar: { ...state.avatar, gen, pose: "listening_empathy" },
       };
     }
     case "judge": {
-      const verdict = typeof data.verdict === "string" ? data.verdict : undefined;
-      if (!verdict) return state;
+      const verdict = typeof data.verdict === "string" && data.verdict.trim() ? data.verdict : undefined;
+      const revealed =
+        typeof data.answer === "string"
+          ? data.answer
+          : typeof data.expected === "string"
+            ? data.expected
+            : typeof data.solution === "string"
+              ? data.solution
+              : undefined;
+      // Show-answer judge without verdict reveals answer in tray without overwriting verdict.
+      if (!verdict) {
+        if (!revealed) return state;
+        return { ...state, revealedAnswer: revealed };
+      }
       const correct = verdict === "correct";
+      const stem = state.ask?.widget?.stem ?? state.pendingAnswered?.stem;
+      const studentVal = typeof data.value === "string" ? data.value : Array.isArray(data.value) ? data.value.join(", ") : undefined;
+      const cardId = `ans:${event.seq}`;
+      const answeredCards =
+        stem && !state.answeredCards.some((card) => card.id === cardId)
+          ? [
+              ...state.answeredCards,
+              {
+                id: cardId,
+                afterBlockCount: state.board.length,
+                stem,
+                verdict,
+                studentAnswer: studentVal,
+                correctAnswer: revealed,
+              },
+            ]
+          : state.answeredCards;
       return {
         ...state,
         judge: verdict,
+        revealedAnswer: revealed ?? state.revealedAnswer,
+        answeredCards,
         avatar: {
           ...state.avatar,
           gen,
@@ -156,13 +299,27 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
         },
       };
     }
-    case "state":
+    case "state": {
+      const nextStage = String(data.stage ?? state.stage);
+      const stageChanged = nextStage !== state.stage && nextStage !== "done";
+      const dividers = stageChanged
+        ? appendDivider(state.dividers, {
+            id: `div:stage:${nextStage}:${event.seq}`,
+            afterBlockCount: state.board.length,
+            kind: "stage",
+            stage: nextStage,
+          })
+        : state.dividers;
+      const nextStyle = typeof data.style_id === "string" ? data.style_id : state.lastStyle;
       return {
         ...state,
-        stage: String(data.stage ?? state.stage),
+        stage: nextStage,
         paused: data.paused === true,
+        lastStyle: nextStyle,
+        dividers,
         avatar: data.paused === true ? { ...state.avatar, gen, pose: "idle_companion" } : { ...state.avatar, gen },
       };
+    }
     default:
       return state;
   }
@@ -246,7 +403,7 @@ export function resolveClassroomDisplay(input: {
     : recording
       ? "listening_empathy"
       : instantAction
-        ? (instantAction === "board_point" ? "board_guiding" : "feedback_reaction")
+        ? (instantAction === "board_point" ? "board_guiding" : instantAction === "think_chin" ? "thinking" : "feedback_reaction")
         : speaking
           ? (classroom.avatar.pose === "board_guiding"
             ? "board_guiding"
@@ -255,9 +412,7 @@ export function resolveClassroomDisplay(input: {
               : "lecturing")
           : awaitingAnswer
             ? (quietCompanion ? "idle_companion" : "listening_empathy")
-            : (classroom.avatar.pose === "lecturing" || classroom.avatar.pose === "greeting"
-              ? "idle_companion"
-              : classroom.avatar.pose);
+            : "thinking";
 
   return { awaitingAnswer, statusKey, pose };
 }

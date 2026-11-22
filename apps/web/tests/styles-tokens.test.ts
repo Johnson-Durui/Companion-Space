@@ -14,7 +14,6 @@ const RUNTIME_VARS = new Set([
 const HEX_ALLOWED_FILES = new Set([
   "apps/web/src/styles/theme.css",
   "apps/web/src/styles/tokens.css",
-  "apps/web/src/features/classroom/classroom.css",
   "packages/board/board.module.css",
 ]);
 

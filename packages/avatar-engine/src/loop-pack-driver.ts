@@ -95,7 +95,12 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
 
     const videoA = this.createVideoElement();
     const videoB = this.createVideoElement();
-    root.append(anchor, videoA, videoB);
+
+    const halo = document.createElement("span");
+    halo.className = "tvb-halo";
+    halo.setAttribute("aria-hidden", "true");
+
+    root.append(anchor, videoA, videoB, halo);
     container.replaceChildren(root);
 
     this.root = root;

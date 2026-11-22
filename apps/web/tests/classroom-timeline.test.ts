@@ -132,7 +132,7 @@ describe("classroom timeline", () => {
       quietCompanion: false, submitted: false, instantAction: null, classroom: afterSay,
     });
     expect(thinking.statusKey).toBe("thinking");
-    expect(thinking.pose).toBe("idle_companion");
+    expect(thinking.pose).toBe("thinking");
 
     // Submitting an answer or receiving judge leaves awaitingAnswer false until a new ask arrives.
     const asked = advanceClassroom(afterSay, event(3, "ask", 1, { kind: "item", purpose: "check", item_id: "q1" }));

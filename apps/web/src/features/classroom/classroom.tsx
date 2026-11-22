@@ -21,6 +21,7 @@ import { learnerKeys } from "../learner/api";
 import { BoardBlock } from "./board-block";
 import { isSubmissionLocked, resolveClassroomDisplay, type Ask, type Prefill, type SubmissionLock } from "./lesson-state";
 import { useClassroom } from "./use-classroom";
+import "@companion-space/avatar-engine/video-box.css";
 import "./classroom.css";
 
 const copy = t.classroom;

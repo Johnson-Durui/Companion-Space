@@ -1,0 +1,259 @@
+/* StageShell layout styles — pure semantic tokens, zero hex literals */
+
+.cs-stage-shell {
+  display: grid;
+  grid-template-rows: 48px minmax(0, 1fr) 76px;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--surface-page);
+  background-image: radial-gradient(
+    58% 60% at 15% 42%,
+    color-mix(in oklab, var(--accent-on-dark) 13%, transparent),
+    transparent 72%
+  );
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  container-type: size;
+  container-name: stage;
+}
+
+.cs-stage-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  min-width: 0;
+  color: var(--text-secondary);
+}
+
+.cs-stage-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 0 12px 12px;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cs-stage-left {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  min-width: 280px;
+  max-width: 460px;
+  height: 100%;
+}
+
+.cs-stage-left[data-text-mode="true"] {
+  justify-content: stretch;
+  width: clamp(280px, 26cqi, 380px);
+}
+
+.cs-stage-left[data-text-mode="true"] .cs-stage-video-slot {
+  flex: 1 1 56%;
+  min-height: 180px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.cs-stage-video-slot {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-stage-right {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cs-stage-dock {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  height: 76px;
+  padding: 0 14px;
+  background-color: var(--surface-card);
+  border-top: 1px solid var(--border-subtle);
+  z-index: var(--z-dock);
+  min-width: 0;
+}
+
+/* Short laptop viewports (e.g. 1280x585, 1366x633, 1280x720) */
+@container stage (max-height: 650px) {
+  .cs-stage-left .tvb-frame.tvb-stage-fill {
+    width: 280px;
+    min-width: 280px;
+    aspect-ratio: auto;
+    height: 100%;
+  }
+  .cs-stage-left .tvb-anchor,
+  .cs-stage-left .tvb-video {
+    object-position: center 14%;
+  }
+}
+
+/* Ultra-short viewport (< 524px total => main < 400px): auto board-first corner stage */
+@container stage (max-height: 524px) {
+  .cs-stage-main {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cs-stage-left {
+    position: absolute;
+    top: 8px;
+    left: 16px;
+    z-index: var(--z-sticky);
+    width: 140px;
+    min-width: 140px;
+    height: 220px;
+    max-height: calc(100% - 16px);
+  }
+  .cs-stage-left .tvb-frame.tvb-stage-fill {
+    width: 140px;
+    min-width: 140px;
+    height: 100%;
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* Collapse quick chips into More menu when dock width gets tight (no wrapping) */
+@container stage (max-width: 1180px) {
+  .cs-dock-chip-inline {
+    display: none;
+  }
+}
+
+/* Narrow / mobile usable layout in U2a (full call layout arrives in U6) */
+@media (max-width: 767px) {
+  .cs-stage-shell {
+    grid-template-rows: 48px minmax(0, 1fr) auto;
+  }
+  .cs-stage-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(170px, 34dvh) minmax(0, 1fr);
+    gap: 8px;
+    padding: 0 8px 8px;
+  }
+  .cs-stage-left,
+  .cs-stage-left[data-text-mode="true"] {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 100%;
+    flex-direction: row;
+  }
+  .cs-stage-video-slot {
+    height: 100%;
+    width: auto;
+  }
+  .cs-stage-left .tvb-frame.tvb-stage-fill {
+    height: 100%;
+    width: auto;
+    min-width: 112px;
+    max-width: 196px;
+    aspect-ratio: 9 / 16;
+    border-radius: var(--radius-lg);
+  }
+  .cs-stage-dock {
+    height: auto;
+    min-height: 68px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+  .cs-dock-chip-inline,
+  .cs-dock-hide-mobile {
+    display: none;
+  }
+}
+
+/* Board & Tray animations (only transform + opacity) */
+@keyframes cs-tray-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.cs-tray-enter {
+  animation: cs-tray-in var(--dur-slow) var(--ease-sheet);
+}
+
+@keyframes cs-choice-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+.cs-choice-shake {
+  animation: cs-choice-shake 260ms var(--ease-out);
+}
+
+/* Styled paper markdown tables */
+.cs-board-paper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: 10px;
+  font-size: 0.9375rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cs-board-paper th,
+.cs-board-paper td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-inline-end: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.cs-board-paper th:last-child,
+.cs-board-paper td:last-child {
+  border-inline-end: 0;
+}
+
+.cs-board-paper th {
+  background-color: var(--surface-sunken);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cs-board-paper td[data-numeric="true"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-tray-enter {
+    animation: cs-route-enter var(--dur-fast) var(--ease-out);
+  }
+  .cs-choice-shake {
+    animation: none;
+  }
+}

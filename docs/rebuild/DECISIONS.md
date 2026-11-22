@@ -109,3 +109,9 @@
 - **舞台与纸面补齐的语义 token**（均纳入对比度单测）：
   - 纸面（`[data-surface="paper"]`）在书桌下 `--surface-page/--surface-card` 为 `#FFFDF6`、`--surface-sunken` 为 `#F5F1E4`、`--surface-overlay` 为 `#FFFFFF`、`--border-subtle` 为 `#E9E3D3`、`--border-default` 为 `#CFC7B4`；在深色舞台内（`[data-surface="stage"] [data-surface="paper"]`）降一档为 `--surface-page/--surface-card: #F6F2E6`、`--surface-sunken: #ECE6D6`、`--surface-overlay: #FAF7EE`、`--border-subtle: #DED7C4`、`--border-default: #C4BBA6`。两者共用 `--text-tertiary: #606A71`（对两档纸面对比度均 ≥ 4.8:1）、`--text-disabled: #959CA2`、`--border-control: #7D848B`（对两档纸面对比度均 ≥ 3.4:1）以及全套浅色状态色与浅色阴影，防止从外层舞台继承深色状态色。
   - 深色舞台（`[data-surface="stage"]`）补齐状态浅底（各提亮状态色 16% 混入 `#171B22`）、纯黑加倍不透明度三档阴影与 `--board-focus`（`--accent-on-dark` 16% 混入 `#171B22`）。
+
+## 体验重塑 U2a 执行决定（2026-11-22）
+
+- **单一编排映射层（删除 `reduceChoreographer`）**：原 `packages/avatar-engine/src/choreographer.ts` 中仅由单测调用的 `reduceChoreographer` 状态机已移除，统一改为由纯函数 `lessonPhase(input)` 决定 16 个显式课堂相位，再经 `choreographer.ts` 的唯一映射函数 `phaseToTutorPose(phase, ctx)` 驱动姿态与 `poseToClipSlot` 片段，消除双状态机并存。
+- **新增 `"thinking"` 姿态与外部 Sidecar 协议兼容**：`TutorPose` 新增 `"thinking"` 并映射到 `think_chin` 循环片段；`LocalSidecarVideoDriver.setPose` 向外部 Sidecar 进程发送控制消息时将 `"thinking"` 映射为协议已有的 `"idle_companion"`，不改动对外 Sidecar 协议。
+- **视频框样式迁入形象包**：原 `apps/web/src/features/classroom/classroom.css` 中的 `.tvb-*` 样式已迁移至 `packages/avatar-engine/src/video-box.css` 并经 `@companion-space/avatar-engine/video-box.css` 导出，且全量使用语义 token（零硬编码十六进制色）。

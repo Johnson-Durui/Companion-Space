@@ -100,10 +100,29 @@ export class SpeechOutput {
   private playbackToken = 0;
   private levelFrame = 0;
   private levelSamples: Float32Array<ArrayBuffer> | null = null;
+  private volume = 1;
+  private muted = false;
 
   analyser: AnalyserNode | null = null;
+  gainNode: GainNode | null = null;
 
   constructor(private readonly callbacks: SpeechOutputCallbacks = {}) {}
+
+  setVolume(volume: number) {
+    this.volume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 1;
+    this.applyGain();
+  }
+
+  setMuted(muted: boolean) {
+    this.muted = Boolean(muted);
+    this.applyGain();
+  }
+
+  private applyGain() {
+    if (this.gainNode) {
+      this.gainNode.gain.value = this.muted ? 0 : this.volume;
+    }
+  }
 
   async prepare() {
     const context = this.getContext();
@@ -228,6 +247,7 @@ export class SpeechOutput {
     const context = this.context;
     this.context = null;
     this.analyser = null;
+    this.gainNode = null;
     if (context && context.state !== "closed") await context.close();
   }
 
@@ -236,7 +256,15 @@ export class SpeechOutput {
       this.context = new AudioContext();
       this.analyser = this.context.createAnalyser();
       this.analyser.fftSize = 256;
-      this.analyser.connect(this.context.destination);
+      // GainNode sits AFTER analyser so avatar speech-level tap is unaffected by volume/mute.
+      if (typeof this.context.createGain === "function") {
+        this.gainNode = this.context.createGain();
+        this.applyGain();
+        this.analyser.connect(this.gainNode);
+        this.gainNode.connect(this.context.destination);
+      } else {
+        this.analyser.connect(this.context.destination);
+      }
       this.scheduledUntil = this.context.currentTime;
     }
     return this.context;
@@ -383,6 +411,7 @@ export class SpeechOutput {
     utterance.lang = voice.lang ?? "zh-CN";
     utterance.pitch = voice.pitch ?? 1;
     utterance.rate = voice.rate ?? 1;
+    utterance.volume = this.muted ? 0 : this.volume;
     utterance.voice = window.speechSynthesis.getVoices().find((candidate) =>
       candidate.voiceURI === voice.voiceId || candidate.name === voice.voiceId
     ) ?? null;

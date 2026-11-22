@@ -5,7 +5,7 @@ import type { Character } from "../../app/api";
 import t from "../../locales/zh-CN.json";
 import { toVideoAvatarConfig, videoBoxLabels } from "./video-config";
 import { createSidecarConnector } from "./sidecar-connector";
-import "../classroom/classroom.css";
+import "@companion-space/avatar-engine/video-box.css";
 
 export function TeacherPreview({
   character,
