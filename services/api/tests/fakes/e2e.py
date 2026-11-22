@@ -1,5 +1,6 @@
 """The browser harness injects this gateway. Model traffic stays in process."""
 
+import asyncio
 import json
 import re
 
@@ -192,6 +193,91 @@ def seed_stress_course(container):
         connection.execute("UPDATE plan_items SET lesson_id = ? WHERE id = ?", (lesson_id, plan_item_id))
 
 
+def seed_unprepared_lesson(container):
+    """Seed an active lesson plan item with grounded sources and bank items, but no lesson_plan yet."""
+    from test_teaching_storage import _seed_plan
+
+    course_id = "browser-unprepared-course"
+    plan_item_id = "browser-unprepared-item"
+    kp_id = "unprepared-kp"
+    material_id = "unprepared-material"
+    repository = container.repository
+    now = utcnow().isoformat()
+    with repository.connection() as connection:
+        _seed_plan(connection, course_id, plan_item_id)
+        connection.execute(
+            "UPDATE study_spaces SET name = '高等数学（待备课演示）', goal = '验证候课与实时备课体验' WHERE id = ?",
+            (course_id,),
+        )
+        connection.execute(
+            "UPDATE plan_items SET title = '函数极限与连续性判定', est_minutes = 20, kp_ids_json = ? WHERE id = ?",
+            (json.dumps([kp_id]), plan_item_id),
+        )
+        connection.execute(
+            """INSERT INTO materials
+               (id, space_id, title, kind, filename, storage_path, chunk_count,
+                created_at, updated_at, role, parse_status)
+               VALUES (?, ?, '极限教材', 'markdown', 'limit.md', ?, 1, ?, ?, 'textbook', 'parsed')""",
+            (material_id, course_id, f"spaces/{course_id}/limit.md", now, now),
+        )
+        connection.execute(
+            """INSERT INTO knowledge_points
+               (id, space_id, name, norm_name, kind, summary, pitfalls_json, question_types_json,
+                importance, difficulty, ord, source_refs_json, status, created_at, updated_at)
+               VALUES (?, ?, '函数极限', 'func-limit', 'concept', '左右极限存在且相等时极限存在。', '[]', '["choice"]',
+                       'core', 2, 1, ?, 'active', ?, ?)""",
+            (kp_id, course_id, json.dumps([{"material_id": material_id, "page_no": 1}]), now, now),
+        )
+        connection.execute(
+            """INSERT INTO chunks
+               (id, space_id, material_id, title, locator, content, sparse_terms, dense_vector,
+                metadata_json, created_at, section_id, page_no)
+               VALUES ('unprepared-chunk-1', ?, ?, '极限教材', '1',
+                       '函数在一点极限存在的充要条件是左极限与右极限均存在且相等。',
+                       '[]', '{}', '{}', ?, 'sec-1', 1)""",
+            (course_id, material_id, now),
+        )
+        for bank_id, variant_of, stem in (
+            ("unprepared-bank-1", None, "函数在某点极限存在的充要条件是什么？"),
+            ("unprepared-bank-2", "unprepared-bank-1", "若左极限等于右极限但不等于函数值，该点极限是否存在？"),
+            ("unprepared-bank-3", "unprepared-bank-1", "分段函数在分界点左右极限不相等时，极限是否存在？"),
+            ("unprepared-bank-ex1", None, "例题：判断分段函数在分界点处的极限。"),
+            ("unprepared-bank-ex2", None, "例题：利用左右极限检查连续性。"),
+        ):
+            connection.execute(
+                """INSERT INTO item_bank
+                   (id, space_id, kp_id, origin, purpose, type, difficulty, variant_of,
+                    item_json, verify_status, reserved, created_at)
+                   VALUES (?, ?, ?, 'textbook', 'check', 'choice', 1, ?, ?, 'verified', 0, ?)""",
+                (
+                    bank_id,
+                    course_id,
+                    kp_id,
+                    variant_of,
+                    json.dumps(
+                        {
+                            "stem": stem,
+                            "options": {"A": "左右极限存在且相等", "B": "函数值必须存在"},
+                            "answer": "A",
+                            "solution": "按极限定义，只需左右极限存在且相等。",
+                        },
+                        ensure_ascii=False,
+                    ),
+                    now,
+                ),
+            )
+        # Add 1 due warmup flashcard for this KP so lobby warmup renders
+        connection.execute(
+            """INSERT INTO review_cards
+               (id, space_id, kp_id, kind, front, back, fsrs_json, due_at, state, created_at, updated_at)
+               VALUES ('unprepared-warmup-card-1', ?, ?, 'flashcard',
+                       '函数在一点处极限存在的充要条件是什么？',
+                       '左极限与右极限均存在且相等（与该点函数值无关）。',
+                       '{}', '2020-01-01T00:00:00+00:00', 'active', ?, ?)""",
+            (course_id, kp_id, now, now),
+        )
+
+
 class BrowserHarnessGateway(LLMGateway):
     async def complete_tagged(self, role, prompt_name, variables, *, parse, **options):
         if prompt_name == "analysis/kp_extract":
@@ -234,6 +320,62 @@ class BrowserHarnessGateway(LLMGateway):
             raw = "<brief><summary>资料已整理为可核对的知识地图与真题索引。</summary><top_point>条件关系</top_point></brief>"
         elif prompt_name == "analysis/lesson_recap":
             raw = "<recap>本节课复习了如何从条件出发。</recap>"
+        elif prompt_name == "analysis/lesson_check_scope":
+            raw = '<check_scope>{"requires_target":true,"uses_later":false}</check_scope>'
+        elif prompt_name == "analysis/lesson_plan":
+            await asyncio.sleep(0.55)
+            course_blob = variables.get("course_context", "")
+            kp_matches = re.findall(r'"id":"([^"]+)"', course_blob)
+            kp_id = kp_matches[0] if kp_matches else "unprepared-kp"
+            existing_blob = variables.get("existing_items", "")
+            bank_matches = re.findall(r'"bank_id":"([^"]+)"', existing_blob)
+            b1 = bank_matches[0] if len(bank_matches) > 0 else "unprepared-bank-1"
+            b2 = bank_matches[1] if len(bank_matches) > 1 else b1
+            b3 = bank_matches[2] if len(bank_matches) > 2 else b2
+            ex1 = bank_matches[3] if len(bank_matches) > 3 else b1
+            ex2 = bank_matches[4] if len(bank_matches) > 4 else b2
+            plan_obj = {
+                "title": "函数极限与连续性判定",
+                "est_minutes": 20,
+                "objectives": [{"kp_id": kp_id, "text": "掌握函数极限存在判定与连续性检验"}],
+                "segments": [{
+                    "id": "s1",
+                    "kp_id": kp_id,
+                    "kind": "concept",
+                    "goal": "理解左右极限与连续性",
+                    "est_minutes": 18,
+                    "keypoints": ["确认左右极限分别存在", "判断左右极限是否相等"],
+                    "approaches": [
+                        {"kind": kind, "keypoint": "all", "outline": kind}
+                        for kind in ("intuition", "example", "visual", "formal")
+                    ],
+                    "examples": [{"bank_id": ex1}, {"bank_id": ex2}],
+                    "misconceptions": [],
+                    "checks": ["c1", "c2", "c3"],
+                    "backfills": [],
+                    "sources": [],
+                }],
+                "practice": [],
+                "wrap": {"summary_points": ["左右极限存在且相等"], "cards": []},
+                "items": {
+                    "c1": {
+                        "bank_id": b1,
+                        "keypoints": [0],
+                        "fallback_hints": {"1": "想想极限定义关注的是什么位置。", "2": "分别看看左侧和右侧的趋势。"},
+                    },
+                    "c2": {
+                        "bank_id": b2,
+                        "keypoints": [0, 1],
+                        "fallback_hints": {"1": "把函数值和两侧趋势分开看。", "2": "比较左极限与右极限是否一致。"},
+                    },
+                    "c3": {
+                        "bank_id": b3,
+                        "keypoints": [0, 1],
+                        "fallback_hints": {"1": "先分别看左右两侧的极限值。", "2": "检查两侧趋势是否指向同一数值。"},
+                    },
+                },
+            }
+            raw = f"<lesson_plan>{json.dumps(plan_obj, ensure_ascii=False)}</lesson_plan>"
         else:
             raise AssertionError(f"Unexpected tagged prompt: {prompt_name}")
         return parse(raw)

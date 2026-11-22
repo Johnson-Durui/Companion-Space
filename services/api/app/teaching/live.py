@@ -11,11 +11,13 @@ from typing import TYPE_CHECKING
 
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
+from app.core.errors import CodedValueError
 from app.providers.errors import ProviderError, provider_error_code
 from app.teaching.director import VALID_STYLES
 from app.teaching.lsp_parser import LspEvent
 from app.teaching.runtime import LessonRuntime, PreparedBeat
 from app.teaching.timers import lesson_time_limit_ms, silence_delay_ms
+from app.teaching.understanding import InvalidAnswer
 from app.voice.stt import MAX_PCM_BYTES, VoiceTranscriber
 from app.voice.tts.engines import resolve_tts
 from app.voice.tts.pipeline import SpeechQueue, SpeechSynthesisError, VoiceSpec, split_speech
@@ -205,8 +207,12 @@ class LiveLesson:
                 await self._send("recap", self.lesson["recap"] or {})
         except ProviderError as exc:
             await self._send("error", {"code": provider_error_code(exc), "recoverable": True})
-        except ValueError as exc:
-            await self._send("error", {"code": "lesson_action_failed", "message": str(exc), "recoverable": True})
+        except InvalidAnswer:
+            await self._send("error", {"code": "invalid_answer", "recoverable": True})
+        except CodedValueError as exc:
+            await self._send("error", {"code": exc.code, "recoverable": True})
+        except ValueError:
+            await self._send("error", {"code": "lesson_action_failed", "recoverable": True})
         finally:
             if queue is not None:
                 await queue.cancel()
@@ -407,13 +413,17 @@ class LiveLesson:
             return
         except Exception:
             logger.exception("Classroom connection failed")
-            await self.socket.close(code=1011)
+            with suppress(Exception):
+                await self.socket.close(code=1011)
         finally:
             tasks = [task for task in (receiver, work) if task is not None]
             for task in tasks:
                 task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            for task in tasks:
+                with suppress(asyncio.CancelledError, Exception):
+                    await task
             if self.prepared is not None:
                 self.prepared.cancel()
-                await asyncio.gather(self.prepared, return_exceptions=True)
+                with suppress(asyncio.CancelledError, Exception):
+                    await self.prepared
                 self.prepared = None

@@ -301,7 +301,13 @@ class LessonRuntime:
     ) -> list[dict]:
         events.append({
             "type": "state",
-            "data": {"stage": state.get("stage"), "seg_idx": state.get("seg_idx", 0), "paused": status == "paused"},
+            "data": {
+                "stage": state.get("stage"),
+                "seg_idx": state.get("seg_idx", 0),
+                "kp_cursor": state.get("kp_cursor", 0),
+                "style_id": state.get("style_id"),
+                "paused": status == "paused",
+            },
             "t_ms": time_ns() // 1_000_000,
         })
         writing = asyncio.create_task(asyncio.to_thread(

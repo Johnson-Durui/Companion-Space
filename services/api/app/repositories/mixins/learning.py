@@ -301,6 +301,20 @@ class LearningMixin:
         item["kp_ids"] = json.loads(item.pop("kp_ids_json"))
         return item
 
+    def locate_teachable_plan_item(self, item_id: str) -> dict | None:
+        with self.connection() as conn:
+            row = conn.execute(
+                """SELECT p.*, s.status AS plan_status FROM plan_items p JOIN study_plans s
+                   ON s.id = p.plan_id AND s.space_id = p.space_id
+                   WHERE p.id = ? AND s.status IN ('active', 'on_demand') AND p.kind = 'lesson'""",
+                (item_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        item = dict(row)
+        item["kp_ids"] = json.loads(item.pop("kp_ids_json"))
+        return item
+
     def skip_quiz_items(self, space_id: str, kp_ids: list[str]) -> list[dict]:
         result = []
         with self.connection() as conn:

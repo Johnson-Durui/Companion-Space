@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
+from typing import Any
 
 from fastapi import Depends, Header, HTTPException, Request, status
 
@@ -44,7 +45,7 @@ class ServiceContainer:
     sidecars: SidecarSessionRegistry = field(default_factory=SidecarSessionRegistry)
     settings_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     preparing_lessons: set[str] = field(default_factory=set)
-    live_lessons: set[str] = field(default_factory=set)
+    live_lessons: dict[str, Any] = field(default_factory=dict)
 
     async def aclose(self) -> None:
         try:

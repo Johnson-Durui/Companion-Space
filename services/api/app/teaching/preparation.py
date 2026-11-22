@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from app.providers.errors import ProviderError
-from app.services.jobs import Job, JobProgress, JobRunner, ReportProgress
+from app.providers.errors import ProviderError, provider_error_code
+from app.services.jobs import Job, JobFailure, JobProgress, JobRunner, ReportProgress
 from app.teaching.planner import LessonPlanError, LessonPlanner
 
 
@@ -44,6 +44,10 @@ def register_preparation_jobs(jobs: JobRunner, repository, gateway, preparing: s
         try:
             await LessonPlanner(repository, gateway).prepare(job.space_id, plan_item_id)
             await report(JobProgress(stage="lesson_prepare", progress=1.0))
+        except ProviderError as exc:
+            raise JobFailure(provider_error_code(exc)) from exc
+        except (LessonPlanError, ValueError) as exc:
+            raise JobFailure("lesson_prepare_failed") from exc
         finally:
             preparing.discard(plan_item_id)
 

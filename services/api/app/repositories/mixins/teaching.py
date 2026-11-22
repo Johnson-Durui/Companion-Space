@@ -134,6 +134,37 @@ class TeachingMixin:
             ).fetchone()
         return _decode(row) if row is not None else None
 
+    def get_lesson_by_plan_item(self, space_id: str, plan_item_id: str) -> dict | None:
+        with self.connection() as conn:
+            row = conn.execute(
+                f"SELECT *, {_PROGRESS_COLUMNS} FROM lessons WHERE space_id = ? AND plan_item_id = ? LIMIT 1",
+                (space_id, plan_item_id),
+            ).fetchone()
+        return _decode(row) if row is not None else None
+
+    def latest_lesson_prepare_job(self, space_id: str, plan_item_id: str) -> dict | None:
+        with self.connection() as conn:
+            row = conn.execute(
+                """SELECT id, status, error, created_at, updated_at FROM jobs
+                   WHERE kind = 'lesson_prepare' AND space_id = ?
+                     AND json_extract(payload_json, '$.plan_item_id') = ?
+                   ORDER BY created_at DESC, rowid DESC LIMIT 1""",
+                (space_id, plan_item_id),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def kp_names_by_id(self, space_id: str, kp_ids: Sequence[str]) -> dict[str, str]:
+        unique = [kp_id for kp_id in dict.fromkeys(kp_ids) if kp_id]
+        if not unique:
+            return {}
+        placeholders = ",".join("?" for _ in unique)
+        with self.connection() as conn:
+            rows = conn.execute(
+                f"SELECT id, name FROM knowledge_points WHERE space_id = ? AND id IN ({placeholders})",
+                (space_id, *unique),
+            ).fetchall()
+        return {row["id"]: row["name"] for row in rows}
+
     def create_or_resume_lesson(
         self, space_id: str, plan_item_id: str, *, state: dict,
         board: dict | None = None, character_id: str | None = None, lesson_plan_id: str | None = None,

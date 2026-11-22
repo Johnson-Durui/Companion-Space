@@ -570,6 +570,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/courses/{course_id}/point-plan-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Point Plan Item */
+        post: operations["create_point_plan_item_api_v2_courses__course_id__point_plan_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/courses/{course_id}/progress": {
         parameters: {
             query?: never;
@@ -786,6 +803,40 @@ export interface paths {
         put?: never;
         /** Open Plan Item Lesson */
         post: operations["open_plan_item_lesson_api_v2_plan_items__plan_item_id__lesson_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/plan-items/{plan_item_id}/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Prepare Plan Item */
+        post: operations["prepare_plan_item_api_v2_plan_items__plan_item_id__prepare_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/plan-items/{plan_item_id}/prepare-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plan Item Prepare Status */
+        get: operations["get_plan_item_prepare_status_api_v2_plan_items__plan_item_id__prepare_status_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1945,16 +1996,60 @@ export interface components {
              */
             updated_at: string;
         };
+        /** LessonPrepareStatus */
+        LessonPrepareStatus: {
+            /** Course Id */
+            course_id?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /** Est Minutes */
+            est_minutes?: number | null;
+            /** Lesson Id */
+            lesson_id?: string | null;
+            /** Outline */
+            outline?: components["schemas"]["OutlinePoint"][];
+            /** Started At */
+            started_at?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "preparing" | "ready" | "failed" | "has_lesson" | "missing";
+            teacher?: components["schemas"]["Character"] | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** LessonProgress */
+        LessonProgress: {
+            /** Current Index */
+            current_index: number;
+            /** Kp Cursor */
+            kp_cursor: number;
+            /** Seg Idx */
+            seg_idx: number;
+            /** Total */
+            total: number;
+        };
         /** LessonView */
         LessonView: {
+            /**
+             * Active Ms
+             * @default 0
+             */
+            active_ms: number;
             /** Course Id */
             course_id: string;
+            /** Est Minutes */
+            est_minutes?: number | null;
             /** Gen */
             gen: number;
             /** Id */
             id: string;
+            /** Outline */
+            outline?: components["schemas"]["OutlinePoint"][];
             /** Playback After Seq */
             playback_after_seq?: number | null;
+            progress?: components["schemas"]["LessonProgress"] | null;
             /** Recap */
             recap: {
                 [key: string]: unknown;
@@ -1966,6 +2061,8 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "paused" | "done" | "abandoned";
+            /** Style Id */
+            style_id?: string | null;
             teacher: components["schemas"]["Character"] | null;
             /** Title */
             title: string;
@@ -2091,6 +2188,19 @@ export interface components {
             title: string;
             /** Year */
             year?: number | null;
+        };
+        /** OutlinePoint */
+        OutlinePoint: {
+            /** Kp Id */
+            kp_id: string;
+            /** Kp Idx */
+            kp_idx: number;
+            /** Kp Name */
+            kp_name: string;
+            /** Seg Idx */
+            seg_idx: number;
+            /** Text */
+            text: string;
         };
         /** PackMetadata */
         PackMetadata: {
@@ -2223,6 +2333,17 @@ export interface components {
         PointLessonRequest: {
             /** Kp Id */
             kp_id: string;
+        };
+        /** PointPlanItemView */
+        PointPlanItemView: {
+            /** Course Id */
+            course_id: string;
+            /** Est Minutes */
+            est_minutes: number;
+            /** Plan Item Id */
+            plan_item_id: string;
+            /** Title */
+            title: string;
         };
         /** PointUpdate */
         PointUpdate: {
@@ -4242,6 +4363,43 @@ export interface operations {
             };
         };
     };
+    create_point_plan_item_api_v2_courses__course_id__point_plan_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PointLessonRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PointPlanItemView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     course_progress_api_v2_courses__course_id__progress_get: {
         parameters: {
             query?: never;
@@ -4716,6 +4874,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LessonView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prepare_plan_item_api_v2_plan_items__plan_item_id__prepare_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                plan_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonPrepareStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plan_item_prepare_status_api_v2_plan_items__plan_item_id__prepare_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                plan_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonPrepareStatus"];
                 };
             };
             /** @description Validation Error */
