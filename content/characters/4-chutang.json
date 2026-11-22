@@ -48,6 +48,15 @@
   },
   "default_style_id": "guided",
   "theme": "chutang",
+  "tagline": "清新温暖",
+  "greeting": "来啦？今天也一起往前走一小步。",
+  "lines": {
+    "morning": "早上好呀！今天一点点来，不着急。",
+    "afternoon": "下午好，先看一道轻松的小题热热身？",
+    "evening": "晚上好，忙完一天辛苦啦，我们稳稳学一节。",
+    "lobby": "我都准备好啦，随时可以开始上课哦。",
+    "empty": "这里还没有内容呢，我们一起迈出第一步吧。"
+  },
   "license": "Apache-2.0",
   "pack_metadata": {
     "author": "Companion Space",

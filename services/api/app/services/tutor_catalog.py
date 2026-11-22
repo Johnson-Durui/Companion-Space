@@ -97,6 +97,13 @@ class Voice(BaseModel):
     pitch: int = Field(default=0, ge=-100, le=100)
 
 
+class VoiceUpdate(BaseModel):
+    engine: str | None = Field(default=None, max_length=60)
+    voice_id: str | None = Field(default=None, max_length=240)
+    rate: float | None = Field(default=None, ge=0.5, le=2.0)
+    pitch: int | None = Field(default=None, ge=-100, le=100)
+
+
 class Persona(BaseModel):
     relationship: str
     traits: list[str]
@@ -114,18 +121,25 @@ class Character(BaseModel):
     persona: Persona
     default_style_id: str
     theme: TutorThemeId = "default"
+    tagline: str = ""
+    greeting: str = ""
+    lines: dict[str, str] = Field(default_factory=dict)
     license: str
     pack_metadata: PackMetadata = Field(default_factory=PackMetadata)
 
 
 class TutorUpdate(BaseModel):
-    name: ShortLine
-    relationship: str = Field(max_length=160)
-    traits: list[ShortLine] = Field(max_length=8)
-    catchphrases: list[ShortLine] = Field(max_length=8)
-    address_user_as: str = Field(max_length=160)
-    default_style_id: StyleId
+    name: ShortLine | None = None
+    relationship: str | None = Field(default=None, max_length=160)
+    traits: list[ShortLine] | None = Field(default=None, max_length=8)
+    catchphrases: list[ShortLine] | None = Field(default=None, max_length=8)
+    address_user_as: str | None = Field(default=None, max_length=160)
+    default_style_id: StyleId | None = None
+    tagline: str | None = Field(default=None, max_length=32)
+    greeting: str | None = Field(default=None, max_length=120)
+    lines: dict[str, str] | None = Field(default=None, max_length=16)
     theme: TutorThemeId | None = None
+    voice: VoiceUpdate | None = None
     preferred_tier: VideoTier | None = None
     local_sidecar_driver_id: str | None = Field(default=None, max_length=120)
 
@@ -223,12 +237,53 @@ class TutorCatalog:
         }
         normalized["video_avatar"] = video_raw
         normalized["pack_metadata"] = pack_meta_raw
+
+        builtin_manifest = self._builtin_manifests().get(char_id)
+        edited_fields = {
+            str(item) for item in normalized.get("_edited_fields", [])
+            if isinstance(item, str)
+        }
         raw_theme = normalized.get("theme")
         if isinstance(raw_theme, str) and raw_theme in _VALID_THEMES:
             normalized["theme"] = raw_theme
         else:
-            builtin_default = self._builtin_manifests().get(char_id, {}).get("theme")
-            normalized["theme"] = builtin_default if isinstance(builtin_default, str) and builtin_default in _VALID_THEMES else "default"
+            builtin_theme = builtin_manifest.get("theme") if builtin_manifest else None
+            normalized["theme"] = builtin_theme if isinstance(builtin_theme, str) and builtin_theme in _VALID_THEMES else "default"
+
+        if builtin_manifest:
+            if "tagline" not in edited_fields and not str(normalized.get("tagline") or "").strip():
+                normalized["tagline"] = str(builtin_manifest.get("tagline") or "")
+            if "greeting" not in edited_fields and not str(normalized.get("greeting") or "").strip():
+                normalized["greeting"] = str(builtin_manifest.get("greeting") or "")
+            if "lines" not in edited_fields:
+                existing_lines = normalized.get("lines") if isinstance(normalized.get("lines"), dict) else {}
+                manifest_lines = builtin_manifest.get("lines") if isinstance(builtin_manifest.get("lines"), dict) else {}
+                merged_lines = {str(k): str(v) for k, v in manifest_lines.items() if isinstance(k, str) and isinstance(v, str)}
+                for k, v in existing_lines.items():
+                    if isinstance(k, str) and isinstance(v, str) and v.strip():
+                        merged_lines[k] = v
+                normalized["lines"] = merged_lines
+            if "voice" not in edited_fields:
+                manifest_voice = builtin_manifest.get("voice")
+                current_voice = normalized.get("voice")
+                if (
+                    isinstance(manifest_voice, dict)
+                    and isinstance(current_voice, dict)
+                    and current_voice.get("engine", "edge") == "edge"
+                    and current_voice.get("voice_id") == "zh-CN-XiaoxiaoNeural"
+                    and manifest_voice.get("voice_id")
+                    and manifest_voice.get("voice_id") != "zh-CN-XiaoxiaoNeural"
+                ):
+                    normalized["voice"] = dict(manifest_voice)
+
+        raw_lines = normalized.get("lines")
+        normalized["lines"] = (
+            {str(k): str(v).strip()[:60] for k, v in raw_lines.items() if isinstance(k, str) and isinstance(v, str) and v.strip()}
+            if isinstance(raw_lines, dict)
+            else {}
+        )
+        normalized["tagline"] = str(normalized.get("tagline") or "").strip()[:32]
+        normalized["greeting"] = str(normalized.get("greeting") or "").strip()[:120]
         normalized.pop("model_metadata", None)
         return Character.model_validate(normalized)
 
@@ -361,26 +416,88 @@ class TutorCatalog:
             if existing is None:
                 return None
             data = existing.model_dump()
-            data["name"] = payload.name
-            data["default_style_id"] = payload.default_style_id
-            data["persona"] = payload.model_dump(include={"relationship", "traits", "catchphrases", "address_user_as"})
-            if payload.theme is not None:
+            edited = {str(x) for x in raw_stored.get("_edited_fields", []) if isinstance(x, str)}
+            fields_set = payload.model_fields_set
+
+            if "name" in fields_set and payload.name is not None:
+                data["name"] = payload.name
+                edited.add("name")
+            if "default_style_id" in fields_set and payload.default_style_id is not None:
+                data["default_style_id"] = payload.default_style_id
+                edited.add("default_style_id")
+            for persona_field in ("relationship", "traits", "catchphrases", "address_user_as"):
+                if persona_field in fields_set:
+                    value = getattr(payload, persona_field)
+                    if value is not None:
+                        data["persona"][persona_field] = value
+                        edited.add(persona_field)
+            if "tagline" in fields_set and payload.tagline is not None:
+                data["tagline"] = payload.tagline.strip()[:32]
+                edited.add("tagline")
+            if "greeting" in fields_set and payload.greeting is not None:
+                data["greeting"] = payload.greeting.strip()[:120]
+                edited.add("greeting")
+            if "lines" in fields_set and payload.lines is not None:
+                data["lines"] = {
+                    str(k): str(v).strip()[:60]
+                    for k, v in payload.lines.items()
+                    if isinstance(k, str) and isinstance(v, str) and v.strip()
+                }
+                edited.add("lines")
+            if "theme" in fields_set and payload.theme is not None:
                 data["theme"] = payload.theme
-            if payload.preferred_tier is not None:
+                edited.add("theme")
+            if "voice" in fields_set and payload.voice is not None:
+                voice_patch = payload.voice.model_dump(exclude_none=True)
+                data["voice"].update(voice_patch)
+                edited.add("voice")
+            if "preferred_tier" in fields_set and payload.preferred_tier is not None:
                 data["video_avatar"]["preferred_tier"] = payload.preferred_tier
-            if "local_sidecar_driver_id" in payload.model_fields_set:
+                edited.add("preferred_tier")
+            if "local_sidecar_driver_id" in fields_set:
                 data["video_avatar"]["local_sidecar"]["driver_id"] = payload.local_sidecar_driver_id
+                edited.add("local_sidecar_driver_id")
+
             character = Character.model_validate(data)
             stored = character.model_dump()
-            if payload.preferred_tier is not None or raw_stored.get("_tier_explicit"):
+            stored["_edited_fields"] = sorted(edited)
+            if ("preferred_tier" in fields_set and payload.preferred_tier is not None) or raw_stored.get("_tier_explicit"):
                 stored["_tier_explicit"] = True
-            if payload.theme is not None or raw_stored.get("_theme_explicit"):
+            if ("theme" in fields_set and payload.theme is not None) or raw_stored.get("_theme_explicit"):
                 stored["_theme_explicit"] = True
             conn.execute(
                 "UPDATE character_packs SET name = ?, recipe_json = ?, updated_at = ? WHERE id = ?",
                 (character.name, json.dumps(stored), datetime.now(timezone.utc).isoformat(), identifier),
             )
         return character
+
+    def reset_character(self, identifier: str) -> Character | None:
+        manifests = self._builtin_manifests()
+        with self.repository.connection() as conn:
+            row = conn.execute("SELECT recipe_json FROM character_packs WHERE id = ?", (identifier,)).fetchone()
+            if row is None:
+                return None
+            if identifier not in manifests:
+                raise CodedValueError("tutor_reset_builtin_only", "Only built-in teachers can be reset to defaults.")
+            restored = self._normalize_recipe(manifests[identifier])
+            if restored is None:
+                return None
+            conn.execute(
+                "UPDATE character_packs SET name = ?, recipe_json = ?, updated_at = ? WHERE id = ?",
+                (restored.name, restored.model_dump_json(), datetime.now(timezone.utc).isoformat(), identifier),
+            )
+
+        voice_settings = get_setting(self.repository, "voice_settings", {})
+        if isinstance(voice_settings, dict):
+            char_overrides = voice_settings.get("characters")
+            if isinstance(char_overrides, dict) and identifier in char_overrides:
+                updated_overrides = {k: v for k, v in char_overrides.items() if k != identifier}
+                put_setting(
+                    self.repository,
+                    "voice_settings",
+                    {**voice_settings, "characters": updated_overrides},
+                )
+        return restored
 
     def delete_character(self, identifier: str) -> bool:
         with self.repository.connection() as conn:

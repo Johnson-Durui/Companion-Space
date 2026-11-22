@@ -30,9 +30,9 @@
   },
   "voice": {
     "engine": "edge",
-    "voice_id": "zh-CN-XiaoxiaoNeural",
-    "rate": 1.0,
-    "pitch": -4
+    "voice_id": "zh-TW-HsiaoChenNeural",
+    "rate": 1.04,
+    "pitch": 0
   },
   "persona": {
     "relationship": "敏锐干练的声学与实战提分导师，专注高频考点与精准复盘",
@@ -48,6 +48,15 @@
   },
   "default_style_id": "exam",
   "theme": "lanyin",
+  "tagline": "敏锐干练",
+  "greeting": "到点了。先抓最容易丢分的地方。",
+  "lines": {
+    "morning": "早上好，高频考点优先过一遍。",
+    "afternoon": "下午好，趁手感好，把易错点一次扫清。",
+    "evening": "晚上好，精准复盘完就能安心收工。",
+    "lobby": "要点和真题都就位了，开始吧。",
+    "empty": "还没有资料，传进来我立刻帮你标重点。"
+  },
   "license": "Apache-2.0",
   "pack_metadata": {
     "author": "Companion Space",

@@ -42,6 +42,14 @@ async def update_tutor(character_id: str, payload: TutorUpdate, container: Conta
     return character
 
 
+@router.post("/{character_id}/reset", response_model=Character)
+async def reset_tutor(character_id: str, container: Container) -> Character:
+    character = await asyncio.to_thread(container.tutors.reset_character, character_id)
+    if character is None:
+        raise ResourceNotFoundError("Teacher is unavailable.", code="tutor_not_found")
+    return character
+
+
 @router.delete("/{character_id}", status_code=204)
 async def delete_tutor(character_id: str, container: Container) -> Response:
     deleted = await asyncio.to_thread(container.tutors.delete_character, character_id)

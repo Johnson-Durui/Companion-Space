@@ -121,6 +121,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/characters/{character_id}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Tutor */
+        post: operations["reset_tutor_api_v2_characters__character_id__reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/courses": {
         parameters: {
             query?: never;
@@ -1416,10 +1433,19 @@ export interface components {
             appearance: components["schemas"]["Appearance"];
             /** Default Style Id */
             default_style_id: string;
+            /**
+             * Greeting
+             * @default
+             */
+            greeting: string;
             /** Id */
             id: string;
             /** License */
             license: string;
+            /** Lines */
+            lines?: {
+                [key: string]: string;
+            };
             /** Name */
             name: string;
             pack_metadata?: components["schemas"]["PackMetadata"];
@@ -1430,6 +1456,11 @@ export interface components {
              * @constant
              */
             schema_version: 3;
+            /**
+             * Tagline
+             * @default
+             */
+            tagline: string;
             /** @default default */
             theme: components["schemas"]["TutorThemeId"];
             video_avatar: components["schemas"]["VideoAvatarConfig"];
@@ -3027,21 +3058,30 @@ export interface components {
         /** TutorUpdate */
         TutorUpdate: {
             /** Address User As */
-            address_user_as: string;
+            address_user_as?: string | null;
             /** Catchphrases */
-            catchphrases: string[];
-            default_style_id: components["schemas"]["StyleId"];
+            catchphrases?: string[] | null;
+            default_style_id?: components["schemas"]["StyleId"] | null;
+            /** Greeting */
+            greeting?: string | null;
+            /** Lines */
+            lines?: {
+                [key: string]: string;
+            } | null;
             /** Local Sidecar Driver Id */
             local_sidecar_driver_id?: string | null;
             /** Name */
-            name: string;
+            name?: string | null;
             /** Preferred Tier */
             preferred_tier?: ("static" | "loop_pack" | "local_sidecar" | "cloud_live") | null;
             /** Relationship */
-            relationship: string;
+            relationship?: string | null;
+            /** Tagline */
+            tagline?: string | null;
             theme?: components["schemas"]["TutorThemeId"] | null;
             /** Traits */
-            traits: string[];
+            traits?: string[] | null;
+            voice?: components["schemas"]["VoiceUpdate"] | null;
         };
         /** UnlockRequest */
         UnlockRequest: {
@@ -3235,6 +3275,17 @@ export interface components {
             stt_configured: boolean;
             /** Tts Configured */
             tts_configured: boolean;
+        };
+        /** VoiceUpdate */
+        VoiceUpdate: {
+            /** Engine */
+            engine?: string | null;
+            /** Pitch */
+            pitch?: number | null;
+            /** Rate */
+            rate?: number | null;
+            /** Voice Id */
+            voice_id?: string | null;
         };
         Weekday: number;
     };
@@ -3534,6 +3585,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_tutor_api_v2_characters__character_id__reset_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                character_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Character"];
+                };
             };
             /** @description Validation Error */
             422: {

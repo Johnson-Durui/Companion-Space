@@ -48,6 +48,15 @@
   },
   "default_style_id": "rigorous",
   "theme": "qingheng",
+  "tagline": "儒雅博学",
+  "greeting": "久等。今日把前因后果慢慢理顺。",
+  "lines": {
+    "morning": "晨光正好，今日按脉络逐层推演。",
+    "afternoon": "午后宜静心，我们把易混处辨析清楚。",
+    "evening": "晚安前复查一遍逻辑链，明日便稳了。",
+    "lobby": "讲义已就绪，请随时开课。",
+    "empty": "案头尚空，先将讲义或真题放进来吧。"
+  },
   "license": "Apache-2.0",
   "pack_metadata": {
     "author": "Companion Space",

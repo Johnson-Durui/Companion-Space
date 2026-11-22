@@ -48,6 +48,15 @@
   },
   "default_style_id": "guided",
   "theme": "xuechuan",
+  "tagline": "清透耐心",
+  "greeting": "来了？我们把今天的题连成一条星轨。",
+  "lines": {
+    "morning": "早安，趁头脑清亮，一起点亮今天的星轨吧。",
+    "afternoon": "下午好，我们顺着思路慢慢往前走。",
+    "evening": "晚上好，把今天最重要的一块收稳再休息。",
+    "lobby": "准备好啦，随时点开始我就讲。",
+    "empty": "这里还是空的，先放一份资料进来吧。"
+  },
   "license": "Apache-2.0",
   "pack_metadata": {
     "author": "Companion Space",

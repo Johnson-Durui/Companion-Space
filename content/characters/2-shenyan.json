@@ -48,6 +48,15 @@
   },
   "default_style_id": "direct",
   "theme": "shenyan",
+  "tagline": "沉稳果断",
+  "greeting": "坐。先看条件，再下结论。",
+  "lines": {
+    "morning": "早。今天先拿下最关键的硬骨头。",
+    "afternoon": "下午好，把思路收紧，直接看重点。",
+    "evening": "晚上好，复盘收口，不留模糊点。",
+    "lobby": "教案已经备好，准备好了就开始。",
+    "empty": "还没有内容。先建一门课或放进资料。"
+  },
   "license": "Apache-2.0",
   "pack_metadata": {
     "author": "Companion Space",
