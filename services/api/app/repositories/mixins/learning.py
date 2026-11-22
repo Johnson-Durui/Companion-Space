@@ -211,12 +211,47 @@ class LearningMixin:
                 "SELECT * FROM plan_items WHERE space_id = ? AND plan_id = ? ORDER BY ord, id",
                 (space_id, plan["id"]),
             )]
+            kp_names = {
+                row["id"]: row["name"]
+                for row in conn.execute(
+                    "SELECT id, name FROM knowledge_points WHERE space_id = ?", (space_id,),
+                )
+            }
+            prereq_ids = {
+                row["from_kp"]
+                for row in conn.execute(
+                    "SELECT DISTINCT from_kp FROM kp_edges WHERE space_id = ?", (space_id,),
+                )
+            }
         result = dict(plan)
-        result["params"] = json.loads(result.pop("params_json") or "{}")
-        result["deferred"] = json.loads(result.pop("deferred_json") or "[]")
+        params = json.loads(result.pop("params_json") or "{}")
+        result["params"] = params
+        deferred = json.loads(result.pop("deferred_json") or "[]")
+        result["deferred"] = deferred
+        result["deferred_items"] = [
+            {"kp_id": kp_id, "kp_name": kp_names.get(kp_id, kp_id)}
+            for kp_id in deferred
+            if isinstance(kp_id, str)
+        ]
+        result["deferred_weight"] = params.get("deferred_weight") if "deferred_weight" in params else None
+        result["over_capacity"] = params.get("over_capacity") if "over_capacity" in params else None
+        result["capacity_minutes"] = params.get("capacity_minutes") if "capacity_minutes" in params else None
+        highlighted = set(params.get("highlighted_kp_ids") or [])
         for item in items:
             item["kp_ids"] = json.loads(item.pop("kp_ids_json"))
-            item["why"] = json.loads(item.pop("why_text") or "[]")
+            raw_why = json.loads(item.pop("why_text") or "[]")
+            enriched_why = []
+            for entry in raw_why:
+                if not isinstance(entry, dict):
+                    continue
+                kp_id = str(entry.get("kp_id", ""))
+                enriched_why.append({
+                    **entry,
+                    "kp_name": kp_names.get(kp_id, ""),
+                    "highlighted": kp_id in highlighted,
+                    "is_prereq": kp_id in prereq_ids,
+                })
+            item["why"] = enriched_why
         result["items"] = items
         return result
 

@@ -346,6 +346,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/courses/{course_id}/journey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Course Journey */
+        get: operations["course_journey_api_v2_courses__course_id__journey_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/courses/{course_id}/kps/{kp_id}": {
         parameters: {
             query?: never;
@@ -682,6 +699,23 @@ export interface paths {
         };
         /** Get Events */
         get: operations["get_events_api_v2_lessons__lesson_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/lessons/{lesson_id}/recap-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Lesson Recap Summary */
+        get: operations["get_lesson_recap_summary_api_v2_lessons__lesson_id__recap_summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1257,6 +1291,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/voice/speak": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Speak Text */
+        post: operations["speak_text_api_v2_voice_speak_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/voice/status": {
         parameters: {
             query?: never;
@@ -1504,18 +1555,35 @@ export interface components {
             course_id: string;
             /** Due Review Count */
             due_review_count: number;
+            /** Exam Date */
+            exam_date?: string | null;
+            /** Exam Name */
+            exam_name?: string | null;
             /**
              * Has Plan
              * @default false
              */
             has_plan: boolean;
+            journey?: components["schemas"]["CourseJourney"] | null;
+            /** Lesson Index */
+            lesson_index?: number | null;
+            /** Lesson Total */
+            lesson_total?: number | null;
             /** Remaining Days */
             remaining_days?: number | null;
             /** Score Scale */
             score_scale?: number | null;
             /** Secured Score */
             secured_score?: number | null;
+            /** Target Score */
+            target_score?: number | null;
             today_lesson?: components["schemas"]["TodayLesson"] | null;
+            /**
+             * Today Lesson Why
+             * @default []
+             */
+            today_lesson_why: components["schemas"]["PlanWhyEntry"][];
+            today_practice?: components["schemas"]["TodayLesson"] | null;
         };
         /** CourseEnrollment */
         CourseEnrollment: {
@@ -1592,6 +1660,59 @@ export interface components {
             goal: string;
             /** Name */
             name: string;
+        };
+        /** CourseJourney */
+        CourseJourney: {
+            /** All Done */
+            all_done: boolean;
+            /** Analysis Status */
+            analysis_status?: string | null;
+            /** Course Id */
+            course_id: string;
+            /**
+             * Deferred Count
+             * @default 0
+             */
+            deferred_count: number;
+            /** Exam Passed */
+            exam_passed: boolean;
+            /** Has Materials */
+            has_materials: boolean;
+            /** Has Plan */
+            has_plan: boolean;
+            /**
+             * Kps Learned
+             * @default 0
+             */
+            kps_learned: number;
+            /**
+             * Kps Mastered
+             * @default 0
+             */
+            kps_mastered: number;
+            /**
+             * Kps Total
+             * @default 0
+             */
+            kps_total: number;
+            /**
+             * Lessons Completed
+             * @default 0
+             */
+            lessons_completed: number;
+            /** Materials Ready */
+            materials_ready: boolean;
+            /**
+             * Next Step
+             * @enum {string}
+             */
+            next_step: "materials" | "analysis" | "interview" | "placement" | "plan" | "learn";
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "needs_materials" | "analyzing" | "interview" | "placement" | "plan_ready" | "learning" | "today_done" | "all_done" | "exam_passed";
+            steps: components["schemas"]["JourneySteps"];
         };
         /** CourseMap */
         CourseMap: {
@@ -1890,6 +2011,34 @@ export interface components {
              */
             updated_at: string;
         };
+        /** JourneySteps */
+        JourneySteps: {
+            /**
+             * Analysis
+             * @enum {string}
+             */
+            analysis: "done" | "active" | "todo" | "waiting";
+            /**
+             * Interview
+             * @enum {string}
+             */
+            interview: "done" | "active" | "todo" | "waiting";
+            /**
+             * Materials
+             * @enum {string}
+             */
+            materials: "done" | "active" | "todo" | "waiting";
+            /**
+             * Placement
+             * @enum {string}
+             */
+            placement: "done" | "active" | "todo" | "waiting";
+            /**
+             * Plan
+             * @enum {string}
+             */
+            plan: "done" | "active" | "todo" | "waiting";
+        };
         JsonValue: unknown;
         /** KnowledgePoint */
         KnowledgePoint: {
@@ -2030,6 +2179,33 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** LessonRecapSummary */
+        LessonRecapSummary: {
+            /** Abandoned */
+            abandoned: boolean;
+            /** Course Id */
+            course_id: string;
+            /** Finished At */
+            finished_at?: string | null;
+            /** Lesson Id */
+            lesson_id: string;
+            /** Mastery Changes */
+            mastery_changes?: components["schemas"]["MasteryChange"][];
+            next?: components["schemas"]["NextPlanItem"] | null;
+            plan_change?: components["schemas"]["RecapPlanChange"] | null;
+            /** Review Cards Created */
+            review_cards_created?: number | null;
+            stats: components["schemas"]["RecapStats"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "paused" | "done" | "abandoned";
+            /** Summary */
+            summary?: string | null;
+            /** Title */
+            title: string;
+        };
         /** LessonView */
         LessonView: {
             /**
@@ -2146,6 +2322,19 @@ export interface components {
              */
             crossfade_ms: number;
         };
+        /** MasteryChange */
+        MasteryChange: {
+            /** Kp Id */
+            kp_id: string;
+            /** Kp Name */
+            kp_name: string;
+            /** P After */
+            p_after: number;
+            /** P Before */
+            p_before: number;
+            /** Status */
+            status: string;
+        };
         /** MaterialMetadata */
         MaterialMetadata: {
             /** Exam Name */
@@ -2173,6 +2362,21 @@ export interface components {
         ModelList: {
             /** Models */
             models: string[];
+        };
+        /** NextPlanItem */
+        NextPlanItem: {
+            /** Est Minutes */
+            est_minutes: number;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Lesson Id */
+            lesson_id?: string | null;
+            /** Scheduled Date */
+            scheduled_date?: string | null;
+            /** Title */
+            title: string;
         };
         /** NoteInput */
         NoteInput: {
@@ -2329,6 +2533,36 @@ export interface components {
              */
             today?: string;
         };
+        /** PlanWhyEntry */
+        PlanWhyEntry: {
+            /**
+             * Highlighted
+             * @default false
+             */
+            highlighted: boolean;
+            /**
+             * Is Prereq
+             * @default false
+             */
+            is_prereq: boolean;
+            /** Kp Id */
+            kp_id: string;
+            /**
+             * Kp Name
+             * @default
+             */
+            kp_name: string;
+            /**
+             * Mastery
+             * @default 0
+             */
+            mastery: number;
+            /**
+             * Weight
+             * @default 0
+             */
+            weight: number;
+        };
         /** PointLessonRequest */
         PointLessonRequest: {
             /** Kp Id */
@@ -2423,6 +2657,8 @@ export interface components {
             free_tier_note: string;
             /** Id */
             id: string;
+            /** Key Guide */
+            key_guide?: string[];
             /** Key Url */
             key_url?: string | null;
             /** Label */
@@ -2460,6 +2696,71 @@ export interface components {
              * @enum {string}
              */
             rating: "again" | "hard" | "good" | "easy";
+        };
+        /** RecapPlanChange */
+        RecapPlanChange: {
+            /**
+             * Changed
+             * @default true
+             */
+            changed: boolean;
+            /** Reason */
+            reason: string;
+            /** Version */
+            version: number;
+        };
+        /** RecapStats */
+        RecapStats: {
+            /**
+             * Active Ms
+             * @default 0
+             */
+            active_ms: number;
+            /**
+             * Backfill Count
+             * @default 0
+             */
+            backfill_count: number;
+            /**
+             * Correct Count
+             * @default 0
+             */
+            correct_count: number;
+            /**
+             * Correct With Hint Count
+             * @default 0
+             */
+            correct_with_hint_count: number;
+            /**
+             * Dont Know Count
+             * @default 0
+             */
+            dont_know_count: number;
+            /**
+             * Incorrect Count
+             * @default 0
+             */
+            incorrect_count: number;
+            /**
+             * Keypoints Done
+             * @default 0
+             */
+            keypoints_done: number;
+            /**
+             * Keypoints Total
+             * @default 0
+             */
+            keypoints_total: number;
+            /**
+             * Revealed Count
+             * @default 0
+             */
+            revealed_count: number;
+            /**
+             * Style Switches
+             * @default 0
+             */
+            style_switches: number;
         };
         /** RetryAnalysis */
         RetryAnalysis: {
@@ -2503,7 +2804,9 @@ export interface components {
         /** SettingsUpdate */
         SettingsUpdate: {
             /** Analysis Concurrency */
-            analysis_concurrency: number;
+            analysis_concurrency?: number | null;
+            /** Onboarding Completed */
+            onboarding_completed?: boolean | null;
         };
         /** SettingsView */
         SettingsView: {
@@ -2513,6 +2816,8 @@ export interface components {
             data_dir: string;
             /** Default Character Id */
             default_character_id: string | null;
+            /** Onboarding Completed At */
+            onboarding_completed_at?: string | null;
         };
         /** SidecarCapabilities */
         SidecarCapabilities: {
@@ -2705,6 +3010,11 @@ export interface components {
             est_minutes: number;
             /** Id */
             id: string;
+            /**
+             * Kind
+             * @default lesson
+             */
+            kind: string;
             /** Lesson Id */
             lesson_id?: string | null;
             /** Status */
@@ -2879,6 +3189,37 @@ export interface components {
                 [key: string]: components["schemas"]["VoiceSetting"];
             };
             default?: components["schemas"]["VoiceSetting"];
+        };
+        /** VoiceSpeakRequest */
+        VoiceSpeakRequest: {
+            /** Character Id */
+            character_id?: string | null;
+            /** Text */
+            text?: string | null;
+            /** Voice Id */
+            voice_id?: string | null;
+        };
+        /** VoiceSpeakResult */
+        VoiceSpeakResult: {
+            /** Audio B64 */
+            audio_b64?: string | null;
+            /** Engine */
+            engine: string;
+            /** Format */
+            format?: ("pcm_s16le" | "mp3") | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "audio" | "unavailable";
+            /** Reason Code */
+            reason_code?: string | null;
+            /** Sample Rate Hz */
+            sample_rate_hz?: number | null;
+            /** Text */
+            text: string;
+            /** Warning */
+            warning?: string | null;
         };
         /** VoiceStatus */
         VoiceStatus: {
@@ -3786,6 +4127,39 @@ export interface operations {
             };
         };
     };
+    course_journey_api_v2_courses__course_id__journey_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourseJourney"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     revise_point_api_v2_courses__course_id__kps__kp_id__patch: {
         parameters: {
             query?: never;
@@ -4629,6 +5003,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LessonEvent"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lesson_recap_summary_api_v2_lessons__lesson_id__recap_summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonRecapSummary"];
                 };
             };
             /** @description Validation Error */
@@ -5942,6 +6349,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VoiceSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    speak_text_api_v2_voice_speak_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoiceSpeakRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoiceSpeakResult"];
                 };
             };
             /** @description Validation Error */

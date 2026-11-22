@@ -143,17 +143,25 @@ def test_course_dashboard_batches_today_review_and_score_projection(
     response = client.get("/api/v2/courses/dashboard", headers=auth)
     assert response.status_code == 200
     summary = next(item for item in response.json() if item["course_id"] == course_id)
-    assert summary == {
+    assert {
+        k: summary[k]
+        for k in ("course_id", "has_plan", "due_review_count", "remaining_days", "secured_score", "score_scale")
+    } == {
         "course_id": course_id, "has_plan": True, "due_review_count": 2,
-        "today_lesson": {
-            "id": "today-lesson", "title": "Addition", "est_minutes": 20,
-            "status": "todo", "lesson_id": None,
-        },
         "remaining_days": 10, "secured_score": 60.0, "score_scale": 120.0,
     }
+    assert summary["today_lesson"] == {
+        "id": "today-lesson", "title": "Addition", "est_minutes": 20,
+        "status": "todo", "kind": "lesson", "lesson_id": None,
+    }
+    assert summary["today_practice"] is None
+    assert summary["lesson_index"] == 1
+    assert summary["lesson_total"] == 1
+    assert summary["journey"]["stage"] == "learning"
     unplanned_summary = next(item for item in response.json() if item["course_id"] == unplanned)
     assert unplanned_summary["has_plan"] is False
     assert unplanned_summary["today_lesson"] is None
+    assert unplanned_summary["journey"]["stage"] == "needs_materials"
     assert client.get("/api/v2/courses/dashboard").status_code == 401
 
 

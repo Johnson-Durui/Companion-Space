@@ -91,6 +91,57 @@ class LiveTicket(BaseModel):
     expires_at: datetime
 
 
+class RecapStats(BaseModel):
+    active_ms: int = 0
+    keypoints_done: int = 0
+    keypoints_total: int = 0
+    correct_count: int = 0
+    correct_with_hint_count: int = 0
+    incorrect_count: int = 0
+    dont_know_count: int = 0
+    revealed_count: int = 0
+    style_switches: int = 0
+    backfill_count: int = 0
+
+
+class MasteryChange(BaseModel):
+    kp_id: str
+    kp_name: str
+    p_before: float
+    p_after: float
+    status: str
+
+
+class NextPlanItem(BaseModel):
+    id: str
+    kind: str
+    title: str
+    scheduled_date: str | None = None
+    est_minutes: int
+    lesson_id: str | None = None
+
+
+class RecapPlanChange(BaseModel):
+    changed: bool = True
+    reason: str
+    version: int
+
+
+class LessonRecapSummary(BaseModel):
+    lesson_id: str
+    course_id: str
+    title: str
+    status: Literal["active", "paused", "done", "abandoned"]
+    abandoned: bool
+    finished_at: str | None = None
+    summary: str | None = None
+    review_cards_created: int | None = None
+    stats: RecapStats
+    mastery_changes: list[MasteryChange] = Field(default_factory=list)
+    next: NextPlanItem | None = None
+    plan_change: RecapPlanChange | None = None
+
+
 def _lesson(container: ServiceContainer, lesson_id: str) -> tuple[str, dict]:
     space_id = container.repository.lesson_course(lesson_id)
     lesson = container.repository.get_lesson(space_id, lesson_id) if space_id else None
@@ -368,6 +419,166 @@ async def open_plan_item_lesson(plan_item_id: str, container: Container, _: Owne
 def get_lesson(lesson_id: str, container: Container, _: Owner) -> LessonView:
     space_id, lesson = _lesson(container, lesson_id)
     return _view(container, space_id, lesson)
+
+
+@router.get("/lessons/{lesson_id}/recap-summary")
+def get_lesson_recap_summary(lesson_id: str, container: Container, _: Owner) -> LessonRecapSummary:
+    space_id, lesson = _lesson(container, lesson_id)
+    item = container.repository.get_plan_item(space_id, lesson["plan_item_id"])
+    saved_plan = container.repository.get_lesson_plan(
+        space_id, lesson["plan_item_id"], lesson_plan_id=lesson.get("lesson_plan_id"),
+    )
+    outline = _build_outline(container, space_id, saved_plan)
+    state = lesson.get("state") or {}
+    recap = lesson.get("recap") if isinstance(lesson.get("recap"), dict) else {}
+    events = container.repository.list_lesson_events(space_id, lesson_id)
+
+    style_switches = 0
+    last_style: str | None = None
+    backfill_events = 0
+    for event in events:
+        etype = event.get("type")
+        data = event.get("data") if isinstance(event.get("data"), dict) else {}
+        if etype == "turn.start":
+            action = data.get("action")
+            if action == "reexplain":
+                style_switches += 1
+            elif action == "backfill":
+                backfill_events += 1
+            style = data.get("style_id")
+            if isinstance(style, str) and style:
+                if last_style is not None and style != last_style and action != "reexplain":
+                    style_switches += 1
+                last_style = style
+
+    backfilled_state = state.get("backfilled") if isinstance(state.get("backfilled"), list) else []
+    backfill_count = max(len(set(backfilled_state)), backfill_events)
+
+    with container.repository.connection() as conn:
+        evidence_rows = [
+            dict(row)
+            for row in conn.execute(
+                """SELECT kp_id, verdict, hint_level, p_before, p_after
+                   FROM evidence WHERE space_id = ? AND lesson_id = ? ORDER BY rowid""",
+                (space_id, lesson_id),
+            )
+        ]
+        kp_info = {
+            row["id"]: {"name": row["name"], "status": row["status"] or "unseen"}
+            for row in conn.execute(
+                """SELECT k.id, k.name, m.status
+                   FROM knowledge_points k
+                   LEFT JOIN kp_mastery m ON m.space_id = k.space_id AND m.kp_id = k.id
+                   WHERE k.space_id = ?""",
+                (space_id,),
+            )
+        }
+        next_row = conn.execute(
+            """SELECT p.id, p.kind, p.title, p.scheduled_date, p.est_minutes, p.lesson_id
+               FROM plan_items p
+               JOIN study_plans s ON s.id = p.plan_id AND s.space_id = p.space_id
+               WHERE s.space_id = ? AND s.status = 'active' AND p.status IN ('todo', 'active')
+               ORDER BY p.ord, p.id LIMIT 1""",
+            (space_id,),
+        ).fetchone()
+        latest_plan = conn.execute(
+            """SELECT version, reason, created_at FROM study_plans
+               WHERE space_id = ? AND status = 'active'
+               ORDER BY version DESC LIMIT 1""",
+            (space_id,),
+        ).fetchone()
+
+    correct_count = 0
+    correct_with_hint = 0
+    incorrect_count = 0
+    dont_know_count = 0
+    revealed_count = 0
+    per_kp: dict[str, tuple[float, float]] = {}
+    kp_order: list[str] = []
+    for row in evidence_rows:
+        verdict = row.get("verdict")
+        hint_level = int(row.get("hint_level") or 0)
+        if verdict == "correct":
+            if hint_level > 0:
+                correct_with_hint += 1
+            else:
+                correct_count += 1
+        elif verdict in {"incorrect", "partial"}:
+            incorrect_count += 1
+        elif verdict == "dont_know":
+            dont_know_count += 1
+        elif verdict == "revealed":
+            revealed_count += 1
+        kp_id = str(row.get("kp_id") or "")
+        if kp_id:
+            p_before = float(row.get("p_before") or 0.0)
+            p_after = float(row.get("p_after") or 0.0)
+            if kp_id not in per_kp:
+                per_kp[kp_id] = (p_before, p_after)
+                kp_order.append(kp_id)
+            else:
+                per_kp[kp_id] = (per_kp[kp_id][0], p_after)
+
+    mastery_changes = [
+        MasteryChange(
+            kp_id=kp_id,
+            kp_name=kp_info.get(kp_id, {}).get("name", kp_id),
+            p_before=round(per_kp[kp_id][0], 4),
+            p_after=round(per_kp[kp_id][1], 4),
+            status=str(kp_info.get(kp_id, {}).get("status", "unseen")),
+        )
+        for kp_id in kp_order
+    ]
+
+    keypoints_total = len(outline)
+    if lesson["status"] == "done":
+        keypoints_done = keypoints_total
+    else:
+        seg_idx = int(state.get("seg_idx", 0) or 0)
+        kp_cursor = int(state.get("kp_cursor", 0) or 0)
+        keypoints_done = sum(1 for pt in outline if (pt.seg_idx, pt.kp_idx) < (seg_idx, kp_cursor))
+
+    plan_change: RecapPlanChange | None = None
+    ended_at = lesson.get("ended_at")
+    if latest_plan and latest_plan["reason"] == "lesson_finished":
+        plan_created = latest_plan["created_at"]
+        if not ended_at or not plan_created or plan_created >= ended_at:
+            plan_change = RecapPlanChange(
+                changed=True,
+                reason=str(latest_plan["reason"]),
+                version=int(latest_plan["version"]),
+            )
+
+    raw_cards_created = recap.get("review_cards_created")
+    review_cards_created = int(raw_cards_created) if isinstance(raw_cards_created, int) else None
+    raw_summary = recap.get("summary")
+    summary_text = raw_summary if isinstance(raw_summary, str) and raw_summary.strip() else None
+
+    return LessonRecapSummary(
+        lesson_id=lesson["id"],
+        course_id=space_id,
+        title=item["title"] if item else "",
+        status=lesson["status"],
+        abandoned=lesson["status"] == "abandoned",
+        finished_at=ended_at,
+        summary=summary_text,
+        review_cards_created=review_cards_created,
+        stats=RecapStats(
+            active_ms=int(state.get("active_ms", 0) or 0),
+            keypoints_done=keypoints_done,
+            keypoints_total=keypoints_total,
+            correct_count=correct_count,
+            correct_with_hint_count=correct_with_hint,
+            incorrect_count=incorrect_count,
+            dont_know_count=dont_know_count,
+            revealed_count=revealed_count,
+            style_switches=style_switches,
+            backfill_count=backfill_count,
+        ),
+        mastery_changes=mastery_changes,
+        next=NextPlanItem(**dict(next_row)) if next_row else None,
+        plan_change=plan_change,
+    )
 
 
 @router.get("/lessons/{lesson_id}/events")

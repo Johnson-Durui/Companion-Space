@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 from functools import lru_cache
 import json
 from pathlib import Path
@@ -11,10 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.api.deps import ServiceContainer, get_container, require_owner
+from app.api.routes.voice import synthesize_tutor_speech
 from app.llm.usage import UsageRow, list_usage
+from app.repositories.mixins.common import utcnow
 from app.services.settings_store import get_setting, put_setting
 from app.services.tutor_catalog import Character
-from app.voice.tts.edge import DEFAULT_VOICE, EdgeUnavailableError, EdgeVoiceUnavailableError
 
 router = APIRouter(dependencies=[Depends(require_owner)])
 Container = Annotated[ServiceContainer, Depends(get_container)]
@@ -24,10 +24,12 @@ class SettingsView(BaseModel):
     default_character_id: str | None
     data_dir: str
     analysis_concurrency: int
+    onboarding_completed_at: str | None = None
 
 
 class SettingsUpdate(BaseModel):
-    analysis_concurrency: int = Field(ge=1, le=16)
+    analysis_concurrency: int | None = Field(default=None, ge=1, le=16)
+    onboarding_completed: bool | None = None
 
 
 class DefaultCharacterRequest(BaseModel):
@@ -65,10 +67,17 @@ def _settings_view(container: ServiceContainer) -> SettingsView:
     if saved_default and container.tutors.get_character(saved_default) is None:
         fallback = container.tutors.resolve_active_character(None)
         saved_default = fallback.id if fallback else None
+    onboarding_completed_at = get_setting(repository, "onboarding_completed_at", None)
+    if onboarding_completed_at is None:
+        with repository.connection() as conn:
+            row = conn.execute("SELECT MIN(created_at) AS first_at FROM study_spaces").fetchone()
+        if row and row["first_at"]:
+            onboarding_completed_at = str(row["first_at"])
     return SettingsView(
         default_character_id=saved_default,
         data_dir=str(container.settings.storage_root),
         analysis_concurrency=get_setting(repository, "analysis_concurrency", 4),
+        onboarding_completed_at=onboarding_completed_at,
     )
 
 
@@ -79,11 +88,20 @@ def get_settings(container: Container) -> SettingsView:
 
 @router.put("/settings", response_model=SettingsView)
 async def update_settings(payload: SettingsUpdate, container: Container) -> SettingsView:
-    limit = payload.analysis_concurrency
     async with container.settings_lock:
-        await asyncio.to_thread(put_setting, container.repository, "analysis_concurrency", limit)
-        container.gateway.set_concurrency(limit)
-        await container.jobs.set_concurrency(limit)
+        if payload.analysis_concurrency is not None:
+            limit = payload.analysis_concurrency
+            await asyncio.to_thread(put_setting, container.repository, "analysis_concurrency", limit)
+            container.gateway.set_concurrency(limit)
+            await container.jobs.set_concurrency(limit)
+        if payload.onboarding_completed:
+            existing = await asyncio.to_thread(
+                get_setting, container.repository, "onboarding_completed_at", None,
+            )
+            if not existing:
+                await asyncio.to_thread(
+                    put_setting, container.repository, "onboarding_completed_at", utcnow().isoformat(),
+                )
     return await asyncio.to_thread(_settings_view, container)
 
 
@@ -112,25 +130,24 @@ def _voice_copy(root: Path) -> dict[str, str]:
 
 @router.post("/tts/preview", response_model=PreviewResult)
 async def preview(payload: PreviewRequest, container: Container) -> PreviewResult:
-    character = await asyncio.to_thread(_require_tutor, container, payload.character_id)
     copy = await asyncio.to_thread(_voice_copy, container.settings.repo_root)
-    text = payload.text or copy["preview_sample"].format(name=character.name)
-    voice = payload.voice_id or character.voice.voice_id
-    warning = None
-    try:
-        try:
-            audio = await container.gateway.preview_voice(text, voice, character.voice.rate, character.voice.pitch)
-        except EdgeVoiceUnavailableError:
-            if voice == DEFAULT_VOICE:
-                raise
-            audio = await container.gateway.preview_voice(text, DEFAULT_VOICE, character.voice.rate, character.voice.pitch)
-            warning = copy["preview_voice_changed"]
-    except EdgeUnavailableError:
-        return PreviewResult(kind="browser", text=text, warning=copy["preview_browser"])
+    spoken = await synthesize_tutor_speech(
+        container,
+        character_id=payload.character_id,
+        text=payload.text,
+        voice_id=payload.voice_id,
+    )
+    if spoken.kind == "unavailable":
+        return PreviewResult(
+            kind="browser",
+            text=spoken.text,
+            warning=spoken.warning or copy["preview_browser"],
+        )
+    content_type = "audio/mpeg" if spoken.format == "mp3" else "audio/pcm"
     return PreviewResult(
         kind="audio",
-        text=text,
-        audio_b64=base64.b64encode(audio).decode("ascii"),
-        content_type="audio/mpeg",
-        warning=warning,
+        text=spoken.text,
+        audio_b64=spoken.audio_b64,
+        content_type=content_type,
+        warning=spoken.warning,
     )

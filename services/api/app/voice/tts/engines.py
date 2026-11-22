@@ -24,9 +24,25 @@ _PROVIDER_ENGINES = {
 }
 
 
-def edge_engine() -> SpeechEngine:
+def edge_engine(gateway: object | None = None) -> SpeechEngine:
+    from app.llm.gateway import LLMGateway
+
+    use_gateway_preview = False
+    if gateway is not None and hasattr(gateway, "preview_voice"):
+        is_default_impl = (
+            isinstance(gateway, LLMGateway)
+            and "preview_voice" not in vars(gateway)
+            and type(gateway).preview_voice is LLMGateway.preview_voice
+        )
+        use_gateway_preview = not is_default_impl
+
     async def synthesize(text: str, voice: VoiceSpec) -> AsyncIterator[bytes]:
         try:
+            if use_gateway_preview and gateway is not None:
+                audio = await gateway.preview_voice(text, voice.voice_id, voice.rate, voice.pitch)  # type: ignore[attr-defined]
+                if audio:
+                    yield audio
+                return
             async with aclosing(edge_synthesize(text, voice.voice_id, voice.rate, voice.pitch)) as chunks:
                 async for chunk in chunks:
                     yield chunk
@@ -185,7 +201,7 @@ async def resolve_tts(container: ServiceContainer, character_id: str | None) -> 
     voice = _voice_spec(voice_data)
     if voice is None:
         raise ValueError("Character voice is incomplete")
-    engines = {"edge": edge_engine()}
+    engines = {"edge": edge_engine(container.gateway)}
     defaults = {
         "edge": VoiceSpec(
             engine="edge", voice_id="zh-CN-XiaoxiaoNeural", rate=voice.rate, pitch=voice.pitch,

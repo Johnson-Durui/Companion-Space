@@ -74,4 +74,5 @@ async def finish_lesson(
         bad_cards.discard(item_ref)
         if needs_confirmation:
             clean[point].clear()
+    recap["review_cards_created"] = len(cards)
     return recap, cards

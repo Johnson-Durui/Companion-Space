@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from app.api.deps import ServiceContainer, get_container, require_owner
 from app.providers.url_policy import is_local_endpoint
@@ -90,6 +90,23 @@ class VoicePreviewResult(BaseModel):
     sample_rate_hz: int | None = None
     audio_b64: str | None = None
     warning: str | None = None
+
+
+class VoiceSpeakRequest(BaseModel):
+    character_id: str | None = Field(default=None, min_length=1, max_length=120)
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=240)] | None = None
+    voice_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9-]{5,60}$")
+
+
+class VoiceSpeakResult(BaseModel):
+    kind: Literal["audio", "unavailable"]
+    text: str
+    engine: str
+    format: Literal["pcm_s16le", "mp3"] | None = None
+    sample_rate_hz: int | None = None
+    audio_b64: str | None = None
+    warning: str | None = None
+    reason_code: str | None = None
 
 
 def load_voice_settings(container: ServiceContainer) -> VoiceSettings:
@@ -175,54 +192,135 @@ def get_voice_status(container: Container) -> VoiceStatus:
     )
 
 
-@router.post("/preview", response_model=VoicePreviewResult)
-async def preview_voice(payload: VoicePreviewRequest, container: Container) -> VoicePreviewResult:
-    character = await asyncio.to_thread(container.tutors.get_character, payload.character_id)
+async def synthesize_tutor_speech(
+    container: ServiceContainer,
+    *,
+    character_id: str | None = None,
+    text: str | None = None,
+    voice_id: str | None = None,
+) -> VoiceSpeakResult:
+    if character_id:
+        character = await asyncio.to_thread(container.tutors.get_character, character_id)
+    else:
+        default_id = await asyncio.to_thread(get_setting, container.repository, "default_character_id", None)
+        character = await asyncio.to_thread(container.tutors.resolve_active_character, default_id)
     if character is None:
         raise HTTPException(
             404,
             detail={"code": "character_not_found", "message": "Teacher is unavailable."},
         )
-    text = payload.text or _voice_copy(container.settings.repo_root)["preview_sample"].format(name=character.name)
+    spoken_text = text or _voice_copy(container.settings.repo_root)["preview_sample"].format(name=character.name)
     configured = await asyncio.to_thread(load_voice_settings, container)
     override = configured.characters.get(character.id)
-    if override is not None and override.engine == "browser":
-        return VoicePreviewResult(kind="browser", text=text, engine="browser")
+    if voice_id is None and override is not None and override.engine == "browser":
+        return VoiceSpeakResult(
+            kind="unavailable", text=spoken_text, engine="browser", reason_code="browser_engine",
+        )
     service, voice = await resolve_tts(container, character.id)
+    if voice_id:
+        voice = voice.__class__(
+            engine="edge",
+            voice_id=voice_id,
+            model=voice.model,
+            rate=voice.rate,
+            pitch=voice.pitch,
+            options=voice.options,
+        )
     if voice.engine == "browser":
-        return VoicePreviewResult(kind="browser", text=text, engine="browser")
+        return VoiceSpeakResult(
+            kind="unavailable", text=spoken_text, engine="browser", reason_code="browser_engine",
+        )
 
     audio = bytearray()
     engine = voice.engine
-    audio_format = None
+    audio_format: Literal["pcm_s16le", "mp3"] | None = None
     sample_rate = None
     warning = None
-    async with aclosing(service.stream(text, voice)) as chunks:
-        async for chunk in chunks:
-            engine = chunk.engine
-            if chunk.kind == "fallback":
-                warning = chunk.reason
-                if chunk.engine == "browser":
-                    return VoicePreviewResult(
-                        kind="browser", text=text, engine="browser", warning=warning,
+    try:
+        async with aclosing(service.stream(spoken_text, voice)) as chunks:
+            async for chunk in chunks:
+                engine = chunk.engine
+                if chunk.kind == "fallback":
+                    warning = chunk.reason
+                    if chunk.engine == "browser":
+                        return VoiceSpeakResult(
+                            kind="unavailable",
+                            text=spoken_text,
+                            engine="browser",
+                            warning=warning,
+                            reason_code="tts_unavailable",
+                        )
+                    continue
+                audio_format = chunk.format
+                sample_rate = chunk.sample_rate_hz
+                if chunk.data:
+                    audio.extend(chunk.data)
+                if len(audio) > 10 * 1024 * 1024:
+                    return VoiceSpeakResult(
+                        kind="unavailable",
+                        text=spoken_text,
+                        engine=engine,
+                        reason_code="tts_too_large",
                     )
-                continue
-            audio_format = chunk.format
-            sample_rate = chunk.sample_rate_hz
-            if chunk.data:
-                audio.extend(chunk.data)
-            if len(audio) > 10 * 1024 * 1024:
-                raise ValueError("Voice preview exceeds the configured size limit.")
+    except Exception:
+        return VoiceSpeakResult(
+            kind="unavailable",
+            text=spoken_text,
+            engine=engine,
+            reason_code="tts_unavailable",
+        )
     if not audio or audio_format is None:
-        raise ValueError("The speech engine returned no preview audio.")
-    return VoicePreviewResult(
+        return VoiceSpeakResult(
+            kind="unavailable",
+            text=spoken_text,
+            engine=engine,
+            warning=warning,
+            reason_code="tts_empty",
+        )
+    return VoiceSpeakResult(
         kind="audio",
-        text=text,
+        text=spoken_text,
         engine=engine,
         format=audio_format,
         sample_rate_hz=sample_rate,
         audio_b64=base64.b64encode(audio).decode("ascii"),
         warning=warning,
+        reason_code=None,
+    )
+
+
+@router.post("/speak", response_model=VoiceSpeakResult)
+async def speak_text(payload: VoiceSpeakRequest, container: Container) -> VoiceSpeakResult:
+    return await synthesize_tutor_speech(
+        container,
+        character_id=payload.character_id,
+        text=payload.text,
+        voice_id=payload.voice_id,
+    )
+
+
+@router.post("/preview", response_model=VoicePreviewResult)
+async def preview_voice(payload: VoicePreviewRequest, container: Container) -> VoicePreviewResult:
+    result = await synthesize_tutor_speech(
+        container,
+        character_id=payload.character_id,
+        text=payload.text,
+    )
+    if result.kind == "unavailable":
+        return VoicePreviewResult(
+            kind="browser",
+            text=result.text,
+            engine="browser",
+            warning=result.warning,
+        )
+    return VoicePreviewResult(
+        kind="audio",
+        text=result.text,
+        engine=result.engine,
+        format=result.format,
+        sample_rate_hz=result.sample_rate_hz,
+        audio_b64=result.audio_b64,
+        warning=result.warning,
     )
 
 

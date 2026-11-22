@@ -419,6 +419,9 @@ async def create_plan(course_id: str, payload: PlanRequest, container: Container
         "today": payload.today.isoformat(), "exam_date": settings.exam_date.isoformat()
         if settings.exam_date else None,
         "hints_mapping": mapping_status, "highlighted_kp_ids": sorted(highlighted),
+        "deferred_weight": result.get("deferred_weight"),
+        "over_capacity": result.get("over_capacity"),
+        "capacity_minutes": result.get("capacity_minutes"),
     }
     if payload.reason != "setup":
         result = stabilize_plan(result, container.repository.current_plan(course_id))

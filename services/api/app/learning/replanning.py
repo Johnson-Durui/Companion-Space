@@ -49,6 +49,9 @@ async def rebuild_course_plan(repository, gateway, course_id: str, *, today: dat
     result["params"] = {
         "today": today.isoformat(), "exam_date": settings.exam_date.isoformat() if settings.exam_date else None,
         "hints_mapping": mapping_status, "highlighted_kp_ids": sorted(highlighted),
+        "deferred_weight": result.get("deferred_weight"),
+        "over_capacity": result.get("over_capacity"),
+        "capacity_minutes": result.get("capacity_minutes"),
     }
     result = stabilize_plan(result, previous)
     return persist_plan(repository, course_id, result, reason=reason)

@@ -38,6 +38,11 @@
       "list_models": true
     },
     "notes": "图片诊断走兼容聊天接口。",
+    "key_guide": [
+      "打开智谱开放平台并登录账号",
+      "进入「API Keys」页面，点「添加新的 API Key」（这就是这里说的密钥）",
+      "复制生成好的密钥，粘贴到下方输入框"
+    ],
     "sources": [
       "https://docs.bigmodel.cn/cn/guide/models/free/glm-4.7-flash",
       "https://docs.bigmodel.cn/cn/guide/models/free/glm-4.6v-flash",
@@ -70,6 +75,11 @@
       "list_models": true
     },
     "notes": "图片模型可从连接的模型列表中选择。",
+    "key_guide": [
+      "打开硅基流动控制台并注册登录",
+      "在「API 密钥」页点击「新建 API 密钥」（对应页面上的 API Key）",
+      "复制密钥并粘贴到下方"
+    ],
     "sources": [
       "https://docs.siliconflow.cn/docs/api/chat-completions-post",
       "https://docs.siliconflow.cn/docs/api/embeddings-post",
@@ -110,6 +120,11 @@
       "vision": true,
       "list_models": true
     },
+    "key_guide": [
+      "登录 DeepSeek 开放平台",
+      "打开左侧「API keys」并点「创建 API key」（这就是这里说的密钥）",
+      "复制后粘贴到下方输入框"
+    ],
     "sources": [
       "https://api-docs.deepseek.com/quick_start/pricing.md",
       "https://api-docs.deepseek.com/guides/thinking_mode.md",
@@ -145,6 +160,11 @@
       "vision": true,
       "list_models": true
     },
+    "key_guide": [
+      "登录阿里云百炼控制台",
+      "在「API-KEY 管理」中创建新的 API Key（这就是这里说的密钥）",
+      "复制密钥并粘贴到下方"
+    ],
     "sources": [
       "https://www.alibabacloud.com/help/en/model-studio/deep-thinking",
       "https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-dashscope"

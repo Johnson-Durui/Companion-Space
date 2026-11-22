@@ -19,6 +19,7 @@ from app.analysis.models import (
 from app.analysis.results import CourseResults
 from app.api.deps import ServiceContainer, get_container, require_owner
 from app.api.job_events import job_progress_response
+from app.learning.journey import CourseJourney, load_course_journeys
 from app.services.jobs import Job, latest_analysis_job
 
 router = APIRouter(dependencies=[Depends(require_owner)])
@@ -49,7 +50,17 @@ class TodayLesson(RequestModel):
     title: str
     est_minutes: int
     status: str
+    kind: str = "lesson"
     lesson_id: str | None = None
+
+
+class PlanWhyEntry(RequestModel):
+    kp_id: str
+    kp_name: str = ""
+    weight: float = 0.0
+    mastery: float = 0.0
+    highlighted: bool = False
+    is_prereq: bool = False
 
 
 class CourseDashboard(RequestModel):
@@ -57,9 +68,17 @@ class CourseDashboard(RequestModel):
     has_plan: bool = False
     due_review_count: int
     today_lesson: TodayLesson | None = None
+    today_practice: TodayLesson | None = None
+    today_lesson_why: list[PlanWhyEntry] = []
+    lesson_index: int | None = None
+    lesson_total: int | None = None
     remaining_days: int | None = None
+    exam_name: str | None = None
+    exam_date: str | None = None
+    target_score: float | None = None
     secured_score: float | None = None
     score_scale: float | None = None
+    journey: CourseJourney | None = None
 
 
 def public_job(job: Job | None) -> Job | None:
@@ -69,6 +88,13 @@ def public_job(job: Job | None) -> Job | None:
 @router.get("/courses")
 def list_courses(container: Container) -> list[Course]:
     return container.analysis.data.courses()
+
+
+@router.get("/courses/{course_id}/journey")
+def course_journey(course_id: str, container: Container) -> CourseJourney:
+    container.analysis.data.course(course_id)
+    journeys = load_course_journeys(container.repository, [course_id])
+    return journeys[course_id]
 
 
 @router.get("/courses/dashboard")
@@ -86,9 +112,10 @@ def course_dashboard(container: Container) -> list[CourseDashboard]:
             )
         }
         lessons = {}
+        lesson_why_raw: dict[str, str] = {}
         for row in conn.execute(
             """WITH eligible AS (
-                 SELECT p.space_id, p.id, p.title, p.est_minutes, p.status, p.lesson_id, p.ord,
+                 SELECT p.space_id, p.id, p.title, p.est_minutes, p.status, p.kind, p.lesson_id, p.ord, p.why_text,
                         ROW_NUMBER() OVER (
                           PARTITION BY p.space_id
                           ORDER BY CASE p.status WHEN 'active' THEN 0 ELSE 1 END,
@@ -97,11 +124,53 @@ def course_dashboard(container: Container) -> list[CourseDashboard]:
                  FROM plan_items p JOIN study_plans s ON s.id=p.plan_id AND s.space_id=p.space_id
                  WHERE s.status='active' AND p.kind='lesson'
                    AND (p.status='active' OR (p.status='todo' AND p.scheduled_date<=?))
-               ) SELECT space_id,id,title,est_minutes,status,lesson_id FROM eligible WHERE choice=1""",
+               ) SELECT space_id,id,title,est_minutes,status,kind,lesson_id,why_text FROM eligible WHERE choice=1""",
             (today.isoformat(),),
         ):
             lesson = dict(row)
-            lessons[lesson.pop("space_id")] = lesson
+            sid = lesson.pop("space_id")
+            lesson_why_raw[sid] = lesson.pop("why_text") or "[]"
+            lessons[sid] = lesson
+        practices = {}
+        for row in conn.execute(
+            """WITH eligible AS (
+                 SELECT p.space_id, p.id, p.title, p.est_minutes, p.status, p.kind, p.lesson_id, p.ord,
+                        ROW_NUMBER() OVER (
+                          PARTITION BY p.space_id
+                          ORDER BY CASE p.status WHEN 'active' THEN 0 ELSE 1 END,
+                                   COALESCE(p.scheduled_date, ''), p.ord, p.id
+                        ) AS choice
+                 FROM plan_items p JOIN study_plans s ON s.id=p.plan_id AND s.space_id=p.space_id
+                 WHERE s.status='active' AND p.kind!='lesson'
+                   AND (p.status='active' OR (p.status='todo' AND p.scheduled_date<=?))
+               ) SELECT space_id,id,title,est_minutes,status,kind,lesson_id FROM eligible WHERE choice=1""",
+            (today.isoformat(),),
+        ):
+            practice = dict(row)
+            practices[practice.pop("space_id")] = practice
+        lesson_positions: dict[str, tuple[dict[str, int], int]] = {}
+        for row in conn.execute(
+            """SELECT p.space_id, p.id
+               FROM plan_items p JOIN study_plans s ON s.id=p.plan_id AND s.space_id=p.space_id
+               WHERE s.status='active' AND p.kind='lesson'
+               ORDER BY p.space_id, p.ord, p.id""",
+        ):
+            pos_map, total = lesson_positions.get(row["space_id"], ({}, 0))
+            total += 1
+            pos_map[row["id"]] = total
+            lesson_positions[row["space_id"]] = (pos_map, total)
+        kp_names = {
+            (row["space_id"], row["id"]): row["name"]
+            for row in conn.execute("SELECT space_id, id, name FROM knowledge_points WHERE status='active'")
+        }
+        prereq_set = {
+            (row["space_id"], row["from_kp"])
+            for row in conn.execute("SELECT DISTINCT space_id, from_kp FROM kp_edges")
+        }
+        highlighted_by_space = {
+            row["space_id"]: set(json.loads(row["params_json"] or "{}").get("highlighted_kp_ids", []))
+            for row in conn.execute("SELECT space_id, params_json FROM study_plans WHERE status='active'")
+        }
         reviews = {row["space_id"]: row["n"] for row in conn.execute(
             """SELECT space_id, COUNT(*) AS n FROM review_cards
                WHERE state!='archived' AND COALESCE(due_at, '')<=? GROUP BY space_id""",
@@ -120,23 +189,54 @@ def course_dashboard(container: Container) -> list[CourseDashboard]:
             "SELECT space_id,enrollment_json FROM course_enrollment",
         )}
 
+    journeys = load_course_journeys(container.repository, course_ids, today=today)
     result = []
     for course_id in course_ids:
         enrollment = enrollments.get(course_id, {})
-        exam_date = date.fromisoformat(enrollment["exam_date"]) if enrollment.get("exam_date") else None
+        raw_exam_date = enrollment.get("exam_date")
+        exam_date = date.fromisoformat(raw_exam_date) if raw_exam_date else None
         remaining_days = (exam_date - today).days if exam_date and exam_date >= today else None
         projection = projections.get(course_id)
         score_scale = float(enrollment.get("full_score", 100))
         has_score = bool(projection and projection["score_share"] > 0)
         lesson = lessons.get(course_id)
+        practice = practices.get(course_id)
+        pos_map, total_lessons = lesson_positions.get(course_id, ({}, 0))
+        lesson_index = pos_map.get(lesson["id"]) if lesson else None
+        highlighted_ids = highlighted_by_space.get(course_id, set())
+        raw_why = json.loads(lesson_why_raw.get(course_id, "[]")) if lesson else []
+        why_entries = [
+            PlanWhyEntry(
+                kp_id=str(entry.get("kp_id", "")),
+                kp_name=kp_names.get((course_id, str(entry.get("kp_id", ""))), ""),
+                weight=float(entry.get("weight", 0.0)),
+                mastery=float(entry.get("mastery", 0.0)),
+                highlighted=str(entry.get("kp_id", "")) in highlighted_ids,
+                is_prereq=(course_id, str(entry.get("kp_id", ""))) in prereq_set,
+            )
+            for entry in raw_why
+            if isinstance(entry, dict) and entry.get("kp_id")
+        ]
+        raw_target = enrollment.get("target_score")
+        target_score = float(raw_target) if isinstance(raw_target, (int, float)) else None
+        raw_exam_name = enrollment.get("exam_name")
+        exam_name = str(raw_exam_name).strip() if isinstance(raw_exam_name, str) and raw_exam_name.strip() else None
         result.append(CourseDashboard(
             course_id=course_id,
             has_plan=course_id in planned,
             due_review_count=int(reviews.get(course_id, 0)),
             today_lesson=TodayLesson(**lesson) if lesson else None,
+            today_practice=TodayLesson(**practice) if practice else None,
+            today_lesson_why=why_entries,
+            lesson_index=lesson_index,
+            lesson_total=total_lessons if total_lessons > 0 else None,
             remaining_days=remaining_days,
+            exam_name=exam_name,
+            exam_date=raw_exam_date if isinstance(raw_exam_date, str) and raw_exam_date else None,
+            target_score=target_score,
             secured_score=round(score_scale * projection["secured_ratio"], 1) if has_score else None,
             score_scale=round(score_scale, 1) if has_score else None,
+            journey=journeys.get(course_id),
         ))
     return result
 
