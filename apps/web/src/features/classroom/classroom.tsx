@@ -9,7 +9,7 @@ import {
   type PointerEvent,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import {
   IDLE_COMPANION_MS,
   quickActionToInstantAction,
@@ -23,7 +23,7 @@ import type {
 } from "@companion-space/avatar-engine/types";
 import { TutorVideoBox, type TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import "@companion-space/avatar-engine/video-box.css";
-import { api, bodyOf } from "../../app/api";
+import { api, bodyOf, sessionKey } from "../../app/api";
 import { Loading } from "../../app/ui";
 import { StageShell } from "../../shell/StageShell";
 import {
@@ -98,9 +98,20 @@ function useReducedMotion() {
   return reduced;
 }
 
+function formatClock(totalMs: number): string {
+  const secs = Math.max(0, Math.floor(totalMs / 1000));
+  const mins = Math.floor(secs / 60);
+  const rem = secs % 60;
+  return `${String(mins).padStart(2, "0")}:${String(rem).padStart(2, "0")}`;
+}
+
 function Lesson({ id }: { id: string }) {
+  const location = useLocation();
   const navigate = useNavigate();
   const queries = useQueryClient();
+  const lobbyNavState = (location.state as { fromLobby?: boolean; autoStartAudio?: boolean } | null) ?? null;
+  const fromLobby = Boolean(lobbyNavState?.fromLobby);
+  const autoStartConsumedRef = useRef(false);
   const videoRef = useRef<TutorVideoBoxHandle>(null);
   const composerRef = useRef<HTMLInputElement>(null);
   const spokenScrollRef = useRef<HTMLDivElement>(null);
@@ -206,7 +217,22 @@ function Lesson({ id }: { id: string }) {
   }, [live.echoProtected]);
 
   // Derive active teaching style (local pick takes precedence until next server style update)
-  const currentStyle = live.classroom.lastStyle ?? selectedStyle ?? "guided";
+  const currentStyle = live.classroom.lastStyle ?? selectedStyle ?? live.room?.style_id ?? "guided";
+
+  // Elapsed active lesson clock (seeded from B1 active_ms, ticks only while active)
+  const [extraActiveMs, setExtraActiveMs] = useState(0);
+  const baseActiveMs = live.room?.active_ms ?? 0;
+  const clockRunning = Boolean(
+    live.started && live.connected && !live.classroom.paused && !live.recap && live.room?.status !== "done" && live.room?.status !== "abandoned",
+  );
+  useEffect(() => {
+    if (!clockRunning) return;
+    const timer = window.setInterval(() => {
+      setExtraActiveMs((prev) => prev + 1000);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [clockRunning]);
+  const totalElapsedMs = baseActiveMs + extraActiveMs;
 
   // Briefly display R6 adaptation hint in topbar when a new adaptation divider arrives
   const latestDivider = live.classroom.dividers[live.classroom.dividers.length - 1];
@@ -262,7 +288,7 @@ function Lesson({ id }: { id: string }) {
     started: live.started,
     resuming: live.resuming,
     reconnectAttempt: live.reconnectAttempt,
-    fatalError: live.fatalError && !live.room,
+    fatalError: Boolean(live.conflict || live.vaultLocked || (live.fatalError && !live.room)),
     recording,
     audioSpeaking: live.audioSpeaking,
     audioBuffering: live.audioBuffering,
@@ -287,6 +313,15 @@ function Lesson({ id }: { id: string }) {
     classroom: live.classroom,
     audioSpeaking: live.audioSpeaking,
   });
+
+  // Seamless single-click entry when navigating from /plan-items/:itemId/lesson Lobby
+  useEffect(() => {
+    if (!fromLobby || autoStartConsumedRef.current) return;
+    if (!live.connected || live.started || ended) return;
+    if (phase !== "lobby" && phase !== "paused") return;
+    autoStartConsumedRef.current = true;
+    void live.start(lobbyNavState?.autoStartAudio ?? true);
+  }, [ended, fromLobby, live, lobbyNavState?.autoStartAudio, phase]);
 
   // Quiet companion timer while awaiting student answer
   useEffect(() => {
@@ -712,18 +747,60 @@ function Lesson({ id }: { id: string }) {
   const effectiveTier = activeTier ?? teacherConfig?.preferredTier ?? "static";
   const tierLabel = copy.videoTiers[effectiveTier as keyof typeof copy.videoTiers] ?? effectiveTier;
 
+  // Compute live flattened outline progress (B1 / §5.6.11)
+  const outline = room.outline ?? [];
+  const outlineProgress = (() => {
+    if (outline.length === 0) return null;
+    const total = outline.length;
+    if (classroom.stage === "wrap" || classroom.stage === "done") {
+      return { current: total, total, text: outline[total - 1]?.text ?? "" };
+    }
+    const segIdx = classroom.segIdx;
+    const kpCursor = classroom.kpCursor;
+    const matchIdx = outline.findIndex((pt) => pt.seg_idx === segIdx && pt.kp_idx === kpCursor);
+    const current = matchIdx >= 0
+      ? matchIdx + 1
+      : Math.max(1, Math.min(total, room.progress?.current_index ?? 1));
+    return { current, total, text: outline[current - 1]?.text ?? "" };
+  })();
+
   const topbar = (
     <>
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <button
           type="button"
           onClick={handleBackClick}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1 text-caption font-medium text-fg-secondary hover:bg-surface-card hover:text-fg-primary"
+          className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-caption font-medium text-fg-secondary hover:bg-surface-card hover:text-fg-primary"
         >
           <ArrowLeft size={15} aria-hidden="true" />
           <span className="hidden sm:inline">{copy.back}</span>
         </button>
         <h1 className="truncate text-ui font-semibold text-fg-primary">{room.title}</h1>
+        {outlineProgress ? (
+          <div
+            data-testid="lesson-outline-progress"
+            className="hidden min-w-0 items-center gap-2 border-l border-line-subtle pl-3 md:flex"
+          >
+            <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
+              {outline.map((pt, idx) => (
+                <span
+                  key={`${pt.seg_idx}-${pt.kp_idx}-${idx}`}
+                  className={
+                    idx + 1 <= outlineProgress.current
+                      ? "h-1.5 w-3.5 rounded-pill bg-accent"
+                      : "h-1.5 w-3.5 rounded-pill bg-line-default"
+                  }
+                />
+              ))}
+            </span>
+            <span className="truncate text-caption text-fg-secondary">
+              {copy.pointProgress
+                .replace("{current}", String(outlineProgress.current))
+                .replace("{total}", String(outlineProgress.total))}
+              {outlineProgress.text ? ` · ${outlineProgress.text}` : ""}
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
@@ -733,6 +810,15 @@ function Lesson({ id }: { id: string }) {
               <Sparkles size={12} aria-hidden="true" />
               <span>{adaptBanner}</span>
             </Badge>
+          </span>
+        ) : null}
+
+        {live.started || totalElapsedMs > 0 ? (
+          <span
+            data-testid="lesson-elapsed-clock"
+            className="hidden rounded-sm bg-surface-card px-2 py-1 text-caption tabular-nums text-fg-secondary sm:inline-block"
+          >
+            {formatClock(totalElapsedMs)}
           </span>
         ) : null}
 
@@ -890,6 +976,71 @@ function Lesson({ id }: { id: string }) {
     }
 
     if (phase === "failed") {
+      if (live.vaultLocked) {
+        return (
+          <div
+            data-testid="stage-overlay-locked"
+            className="absolute inset-0 z-overlay flex flex-col items-center justify-center gap-3 rounded-lg bg-scrim p-5 text-center backdrop-blur-xs"
+          >
+            <p className="text-ui font-medium text-fg-primary" role="alert">
+              {copy.serviceRestartLocked}
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => void queries.invalidateQueries({ queryKey: sessionKey })}
+            >
+              {copy.unlockNow}
+            </Button>
+          </div>
+        );
+      }
+      if (live.conflict === "other_tab") {
+        return (
+          <div
+            data-testid="stage-overlay-conflict"
+            className="absolute inset-0 z-overlay flex flex-col items-center justify-center gap-3 rounded-lg bg-scrim p-5 text-center backdrop-blur-xs"
+          >
+            <p className="text-ui font-medium text-fg-primary" role="alert">
+              {copy.otherTab}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => void live.reconnect({ takeover: true })}
+              >
+                {copy.takeoverHere}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void navigate(`/courses/${room.course_id}`)}
+              >
+                {copy.backToCourse}
+              </Button>
+            </div>
+          </div>
+        );
+      }
+      if (live.conflict === "taken_over") {
+        return (
+          <div
+            data-testid="stage-overlay-taken-over"
+            className="absolute inset-0 z-overlay flex flex-col items-center justify-center gap-3 rounded-lg bg-scrim p-5 text-center backdrop-blur-xs"
+          >
+            <p className="text-body font-semibold text-fg-primary">{copy.takenOver}</p>
+            <p className="max-w-[260px] text-caption text-fg-secondary">{copy.takenOverHint}</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void navigate(`/courses/${room.course_id}`)}
+            >
+              {copy.backToCourse}
+            </Button>
+          </div>
+        );
+      }
       return (
         <div
           data-testid="stage-overlay-failed"
@@ -898,14 +1049,35 @@ function Lesson({ id }: { id: string }) {
           <p className="text-ui font-medium text-fg-primary" role="alert">
             {error || copy.connectionError}
           </p>
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<RefreshCw size={14} />}
-            onClick={() => void (connected ? live.start(live.lastAudio) : live.reconnect())}
-          >
-            {copy.retryNow}
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<RefreshCw size={14} />}
+              onClick={() => void (connected ? live.start(live.lastAudio) : live.reconnect())}
+            >
+              {copy.retryNow}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void navigate(`/courses/${room.course_id}`)}
+            >
+              {copy.backToCourse}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (phase === "connecting") {
+      return (
+        <div
+          data-testid="stage-overlay-connecting"
+          className="absolute inset-0 z-overlay flex flex-col items-center justify-center gap-3 rounded-lg bg-scrim p-5 text-center backdrop-blur-xs"
+        >
+          <Spinner size={26} />
+          <p className="text-ui font-medium text-fg-primary">{copy.connectingLesson}</p>
         </div>
       );
     }
@@ -1042,6 +1214,8 @@ function Lesson({ id }: { id: string }) {
       <BoardPanel
         title={room.title}
         stage={classroom.stage}
+        estMinutes={room.est_minutes}
+        outline={outline}
         board={[...classroom.board]}
         dividers={[...classroom.dividers]}
         answeredCards={[...classroom.answeredCards]}
@@ -1136,6 +1310,7 @@ function Lesson({ id }: { id: string }) {
       <StageShell
         phase={phase}
         textMode={textMode}
+        className={fromLobby ? "cs-stage-connecting" : undefined}
         topbar={topbar}
         stage={stageNode}
         board={boardNode}

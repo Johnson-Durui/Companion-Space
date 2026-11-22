@@ -232,6 +232,120 @@ describe("LoopPackVideoDriver and fallback resolution", () => {
     }
     await driver.unmount();
   });
+
+  it("keeps previous clip visible until next clip decodes first frame, discards stale commands, and prefetches clips on idle", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true } as Response));
+    const createdVideos: Array<{
+      src: string;
+      readyState: number;
+      style: Record<string, unknown>;
+      listeners: Map<string, Set<() => void>>;
+      emit: (event: string) => void;
+    }> = [];
+
+    const makeElement = (tag: string) => {
+      const attrs = new Map<string, string>();
+      const listeners = new Map<string, Set<() => void>>();
+      const style: Record<string, unknown> = {
+        setProperty(k: string, v: string) { style[k] = v; },
+      };
+      const el = {
+        tagName: tag.toUpperCase(),
+        className: "",
+        dataset: {} as Record<string, string>,
+        style,
+        children: [] as unknown[],
+        src: "",
+        loop: false,
+        muted: false,
+        playsInline: false,
+        preload: "",
+        readyState: 0,
+        currentTime: 0,
+        onended: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+        listeners,
+        emit(event: string) {
+          for (const cb of [...(listeners.get(event) ?? [])]) {
+            listeners.get(event)?.delete(cb);
+            cb();
+          }
+        },
+        append(...items: unknown[]) { this.children.push(...items); },
+        replaceChildren(...items: unknown[]) { this.children = [...items]; },
+        remove() {},
+        getAttribute(name: string) { return name === "src" ? (this.src || null) : (attrs.get(name) ?? null); },
+        setAttribute(name: string, value: string) { attrs.set(name, value); },
+        removeAttribute(name: string) { if (name === "src") this.src = ""; attrs.delete(name); },
+        addEventListener(name: string, cb: () => void) {
+          const set = listeners.get(name) ?? new Set();
+          set.add(cb);
+          listeners.set(name, set);
+        },
+        removeEventListener(name: string, cb: () => void) {
+          listeners.get(name)?.delete(cb);
+        },
+        load: vi.fn(),
+        play: vi.fn(() => Promise.resolve()),
+        pause: vi.fn(),
+      };
+      if (tag === "video") createdVideos.push(el);
+      return el;
+    };
+
+    vi.stubGlobal("document", { createElement: makeElement });
+    vi.stubGlobal("window", { setTimeout, clearTimeout });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const container = makeElement("div") as unknown as HTMLElement;
+    const driver = new LoopPackVideoDriver();
+    await driver.mount(container, {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/static/avatars/portraits/chutang.webp",
+      loopPack: {
+        crossfadeMs: 180,
+        clips: {
+          idle_breathe: "/clips/idle.webm",
+          listen_nod: "/clips/listen.webm",
+          speak_explain_a: "/clips/speak_a.webm",
+        },
+      },
+    });
+
+    // Simulate idle_breathe decoding its first frame -> video[1] becomes active & visible
+    const idleVideo = createdVideos.find((v) => v.src === "/clips/idle.webm")!;
+    idleVideo.readyState = 2;
+    idleVideo.emit("loadeddata");
+    expect(idleVideo.style.opacity).toBe("1");
+
+    // Switch to lecturing while nextVideo is not yet decoded (readyState = 0)
+    driver.setPose("lecturing", 2);
+    const speakVideo = createdVideos.find((v) => v.src === "/clips/speak_a.webm")!;
+    // Even after 250ms, old video stays visible until loadeddata fires (no premature 120ms swap)
+    vi.advanceTimersByTime(250);
+    expect(idleVideo.style.opacity).toBe("1");
+    expect(speakVideo.style.opacity).toBe("0");
+
+    // Stale generation command is ignored
+    driver.setPose("listening_empathy", 1);
+    expect(driver.getActiveClipSlot()).toBe("speak_explain_a");
+
+    // Idle prefetch runs and fetches all unique clip URLs
+    vi.advanceTimersByTime(300);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+
+    // Once speakVideo decodes first frame, it swaps cleanly to opacity=1
+    speakVideo.readyState = 2;
+    speakVideo.emit("loadeddata");
+    expect(speakVideo.style.opacity).toBe("1");
+    expect(idleVideo.style.opacity).toBe("0");
+
+    await driver.unmount();
+  });
 });
 
 describe("LiveCostGuard and Sidecar Protocol + Fallback", () => {

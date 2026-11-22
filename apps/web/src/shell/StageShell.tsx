@@ -10,6 +10,7 @@ export interface StageShellProps {
   board: ReactNode;
   dock: ReactNode;
   textMode?: boolean;
+  className?: string;
 }
 
 export function StageShell({
@@ -19,6 +20,7 @@ export function StageShell({
   board,
   dock,
   textMode = false,
+  className,
 }: StageShellProps) {
   useEffect(() => {
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -32,7 +34,7 @@ export function StageShell({
   return (
     <TooltipProvider>
       <div
-        className="cs-stage-shell"
+        className={className ? `cs-stage-shell ${className}` : "cs-stage-shell"}
         data-surface="stage"
         data-phase={phase}
         data-testid="classroom-stage-shell"

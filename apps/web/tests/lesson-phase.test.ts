@@ -3,10 +3,12 @@ import {
   isJudgingActive,
   lessonPhase,
   phaseStatusKey,
+  reconnectDelayMs,
   resolvePhasePose,
   type LessonPhaseInput,
 } from "../src/features/classroom/lesson-phase";
 import { advanceClassroom, initialClassroom } from "../src/features/classroom/lesson-state";
+import { buildReplayTimeline, formatMediaTime, indexAtTimeMs } from "../src/features/replay/replay-timeline";
 import type { LessonEvent } from "../src/features/classroom/timeline";
 
 function evt(seq: number, gen: number, type: string, data: Record<string, unknown> = {}): LessonEvent {
@@ -197,5 +199,25 @@ describe("lessonPhase explicit state machine (experience-design §5.6.2)", () =>
     expect(state.dividers.some((d) => d.kind === "reexplain" && d.style === "analogy" && d.repeat === 2)).toBe(true);
     state = advanceClassroom(state, evt(3, 3, "beat.start", { move: "PREREQ_REMEDIATE", kp_name: "导数定义" }));
     expect(state.dividers.some((d) => d.kind === "prereq" && d.kpName === "导数定义")).toBe(true);
+  });
+
+  it("uses unbounded exponential backoff capped at 15s and builds time-based replay timelines", () => {
+    expect(reconnectDelayMs(1)).toBe(500);
+    expect(reconnectDelayMs(2)).toBeGreaterThan(reconnectDelayMs(1));
+    expect(reconnectDelayMs(5)).toBeLessThanOrEqual(15_000);
+    expect(reconnectDelayMs(100)).toBe(15_000);
+
+    const sampleEvents = [
+      evt(1, 1, "beat.start", { move: "OPEN" }),
+      evt(2, 1, "say", { text: "先确认已知条件。", seg: 1 }),
+      evt(3, 1, "board", { id: "b1", type: "text", content: "条件" }),
+      evt(4, 1, "say", { text: "接下来我们一步步看结论。", seg: 2 }),
+    ];
+    const timeline = buildReplayTimeline(sampleEvents);
+    expect(timeline.offsetsMs).toHaveLength(5);
+    expect(timeline.totalMs).toBeGreaterThan(2000);
+    expect(indexAtTimeMs(timeline, 0)).toBe(0);
+    expect(indexAtTimeMs(timeline, timeline.totalMs)).toBe(4);
+    expect(formatMediaTime(65_000)).toBe("01:05");
   });
 });

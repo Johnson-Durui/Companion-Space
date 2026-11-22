@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DecodedSpeechChunk } from "@companion-space/avatar-engine/types";
 import { SpeechOutput, parseCsa1Frame, type BrowserVoice, type SpeechFormat } from "../../audio";
-import { publicMessage } from "../../app/api";
+import { ApiError, bootstrapSession, classroomErrorMessage } from "../../app/api";
 import t from "../../locales/zh-CN.json";
 import { fetchLesson, fetchLessonEvents, openLessonSocket } from "./lesson-api";
-import { TAB_AWAY_PAUSE_MS } from "./lesson-phase";
+import { reconnectDelayMs, TAB_AWAY_PAUSE_MS } from "./lesson-phase";
 import { advanceClassroom, initialClassroom, restoreClassroom, type Prefill, type SpokenEntry } from "./lesson-state";
 import { captionDelay, Timeline, type LessonEvent } from "./timeline";
 
@@ -12,9 +12,10 @@ type Format = SpeechFormat | "text" | "browser";
 type AudioMeta = { format: Format; rate: number; browserVoice?: BrowserVoice };
 type Room = Awaited<ReturnType<typeof fetchLesson>>;
 type Command = (type: string, data?: Record<string, unknown>) => boolean;
+export type ClassroomConflict = "other_tab" | "taken_over" | null;
 type Connection = {
   start: (audio: boolean) => Promise<void>;
-  reconnect: () => Promise<void>;
+  reconnect: (options?: { takeover?: boolean }) => Promise<void>;
   send: Command;
   interrupt: () => boolean;
   pause: (fromTabAway?: boolean) => void;
@@ -74,6 +75,8 @@ export function useClassroom(
   const [error, setError] = useState("");
   const [errorSeq, setErrorSeq] = useState(0);
   const [fatalError, setFatalError] = useState(false);
+  const [conflict, setConflict] = useState<ClassroomConflict>(null);
+  const [vaultLocked, setVaultLocked] = useState(false);
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [fallback, setFallback] = useState("");
   const [prefill, setPrefill] = useState<Prefill>();
@@ -247,7 +250,14 @@ export function useClassroom(
       cancelled.clear();
       output.stop();
       output.resetGeneration(lesson.gen);
-      setClassroom({ ...restoreClassroom(events, after), paused: lesson.status === "paused" });
+      const restored = restoreClassroom(events, after);
+      setClassroom({
+        ...restored,
+        paused: lesson.status === "paused",
+        segIdx: lesson.progress?.seg_idx ?? restored.segIdx,
+        kpCursor: lesson.progress?.kp_cursor ?? restored.kpCursor,
+        lastStyle: restored.lastStyle ?? lesson.style_id ?? undefined,
+      });
       timeline = new Timeline(after, execute, () => {
         setError(copy.actionError);
         setErrorSeq((count) => count + 1);
@@ -449,7 +459,7 @@ export function useClassroom(
         case "error":
           setResuming(false);
           setEnding(false);
-          setError(publicMessage(event.data) ?? copy.actionError);
+          setError(classroomErrorMessage(event.data, copy.actionError));
           setErrorSeq((count) => count + 1);
           return;
         case "state":
@@ -466,11 +476,11 @@ export function useClassroom(
       if (active) timeline?.append(event);
     }
 
-    async function connect() {
+    async function connect(options?: { takeover?: boolean }) {
       try {
         await history();
         if (closed || !current || current.status === "done" || current.status === "abandoned") return;
-        const next = await openLessonSocket(id);
+        const next = await openLessonSocket(id, options);
         if (closed) {
           next.addEventListener("open", () => next.close(), { once: true });
           return;
@@ -480,6 +490,9 @@ export function useClassroom(
         next.onopen = () => {
           setConnected(true);
           setFatalError(false);
+          setConflict(null);
+          setVaultLocked(false);
+          setError("");
           offline = 0;
           setReconnectAttempt(0);
           if (active && !document.hidden) {
@@ -493,22 +506,44 @@ export function useClassroom(
           timeline?.dispose();
           stop();
           if (event.code === 4409) {
+            const taken = event.reason === "taken_over";
             setFatalError(true);
-            setError(copy.otherTab);
+            setConflict(taken ? "taken_over" : "other_tab");
+            setError(taken ? copy.takenOver : copy.otherTab);
             return;
           }
+          // Unbounded exponential backoff capped at 15 seconds (§5.6.12)
           offline += 1;
           setReconnectAttempt(offline);
-          if (offline > 5) {
-            setError(copy.connectionError);
-            return;
-          }
-          timer = window.setTimeout(() => void connect(), Math.min(2400, offline * 400));
+          timer = window.setTimeout(() => void connect(), reconnectDelayMs(offline));
         };
       } catch (cause) {
-        if (!closed) {
-          setError(cause instanceof Error ? cause.message : copy.connectionError);
+        if (closed) return;
+        if (cause instanceof ApiError && cause.status === 401) {
+          try {
+            const session = await bootstrapSession();
+            if (closed) return;
+            if (session.state === "ready") {
+              await connect(options);
+              return;
+            }
+            setVaultLocked(true);
+            setFatalError(true);
+            setError(copy.serviceRestartLocked);
+            return;
+          } catch {
+            // Fall through to backoff retry if backend is still restarting
+          }
         }
+        if (cause instanceof ApiError && cause.status === 404) {
+          setFatalError(true);
+          setError(classroomErrorMessage(cause, copy.connectionError));
+          return;
+        }
+        offline += 1;
+        setReconnectAttempt(offline);
+        setError(classroomErrorMessage(cause, copy.connectionError));
+        timer = window.setTimeout(() => void connect(), reconnectDelayMs(offline));
       }
     }
 
@@ -549,13 +584,15 @@ export function useClassroom(
           setError(copy.connectionError);
         }
       },
-      async reconnect() {
+      async reconnect(options?: { takeover?: boolean }) {
         window.clearTimeout(timer);
         offline = 0;
         setReconnectAttempt(0);
         setFatalError(false);
+        setConflict(null);
+        setVaultLocked(false);
         setError("");
-        if (socket?.readyState === WebSocket.OPEN) {
+        if (!options?.takeover && socket?.readyState === WebSocket.OPEN) {
           await connection.current?.start(audio);
           return;
         }
@@ -564,7 +601,7 @@ export function useClassroom(
           socket.close();
           socket = undefined;
         }
-        await connect();
+        await connect(options);
       },
       interrupt,
       pause,
@@ -635,6 +672,8 @@ export function useClassroom(
     error,
     errorSeq,
     fatalError,
+    conflict,
+    vaultLocked,
     reconnectAttempt,
     fallback,
     prefill,
@@ -650,7 +689,7 @@ export function useClassroom(
     ending,
     hasFirstBeat,
     start: (audio: boolean) => connection.current?.start(audio),
-    reconnect: () => connection.current?.reconnect(),
+    reconnect: (options?: { takeover?: boolean }) => connection.current?.reconnect(options),
     send: (type: string, data?: Record<string, unknown>) => connection.current?.send(type, data) ?? false,
     pause: () => connection.current?.pause(false),
     interrupt: () => connection.current?.interrupt() ?? false,

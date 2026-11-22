@@ -58,6 +58,8 @@ export type ClassroomState = {
   judge?: string;
   revealedAnswer?: string;
   stage: string;
+  segIdx: number;
+  kpCursor: number;
   paused: boolean;
   lastMove?: string;
   lastStyle?: string;
@@ -73,6 +75,8 @@ export const initialClassroom: ClassroomState = {
   board: [],
   caption: "",
   stage: "opening",
+  segIdx: 0,
+  kpCursor: 0,
   paused: false,
   dividers: [],
   spokenLog: [],
@@ -311,9 +315,13 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
           })
         : state.dividers;
       const nextStyle = typeof data.style_id === "string" ? data.style_id : state.lastStyle;
+      const nextSegIdx = typeof data.seg_idx === "number" ? data.seg_idx : state.segIdx;
+      const nextKpCursor = typeof data.kp_cursor === "number" ? data.kp_cursor : state.kpCursor;
       return {
         ...state,
         stage: nextStage,
+        segIdx: nextSegIdx,
+        kpCursor: nextKpCursor,
         paused: data.paused === true,
         lastStyle: nextStyle,
         dividers,

@@ -241,6 +241,37 @@
   animation: cs-choice-shake 260ms var(--ease-out);
 }
 
+/* Connect transition from Lobby -> Live Classroom (360ms, transform + opacity only) */
+@keyframes cs-stage-board-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes cs-stage-left-shift {
+  from {
+    opacity: 0.72;
+    transform: translateX(36px) scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.cs-stage-connecting .cs-stage-right {
+  animation: cs-stage-board-in 380ms var(--ease-sheet);
+}
+
+.cs-stage-connecting .cs-stage-left {
+  animation: cs-stage-left-shift 380ms var(--ease-sheet);
+}
+
 /* Styled paper markdown tables */
 .cs-board-paper table {
   width: 100%;
@@ -280,7 +311,9 @@
   .cs-tray-enter {
     animation: cs-route-enter var(--dur-fast) var(--ease-out);
   }
-  .cs-choice-shake {
+  .cs-choice-shake,
+  .cs-stage-connecting .cs-stage-right,
+  .cs-stage-connecting .cs-stage-left {
     animation: none;
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
-import { api, bodyOf, publicMessage } from "../../app/api";
+import { publicMessage } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import { Button, ChevronRight, ConfirmDialog, DifficultyDots, toast } from "../../ui";
 import t from "../../locales/zh-CN.json";
@@ -13,6 +13,7 @@ import { inferMaterial } from "./materials";
 import type { AnalysisStart, ExamItem, Job, KnowledgePoint, Material, MaterialRole } from "./types";
 import { learnerKeys } from "../learner/api";
 import { LearnerSetup } from "../learner/setup";
+import { createPointPlanItem } from "../classroom/lesson-api";
 
 const roles = Object.keys(t.courses.roles) as MaterialRole[];
 const stages = ["parse", "structure", "index", "kp_extract", "kp_reduce", "exam_extract", "item_verify", "exam_stats", "diag_pool", "brief"];
@@ -206,10 +207,8 @@ function KnowledgePointDetail({ courseId, point, allPoints, onChanged }: { cours
     onSuccess: () => { setEditing(false); setDeleteOpen(false); toast.success(t.common.saved); onChanged(); },
   });
   const lesson = useMutation({
-    mutationFn: async () => bodyOf(await api.POST("/api/v2/courses/{course_id}/lessons", {
-      params: { path: { course_id: courseId } }, body: { kp_id: point.id },
-    })),
-    onSuccess: (result) => navigate(`/lessons/${result.id}`),
+    mutationFn: () => createPointPlanItem(courseId, point.id),
+    onSuccess: (result) => navigate(`/plan-items/${result.plan_item_id}/lesson`),
   });
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

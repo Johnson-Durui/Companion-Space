@@ -22,6 +22,7 @@ const Diagnostics = lazy(() => import("./features/settings/diagnostics"));
 const Courses = lazy(() => import("./features/courses/courses"));
 const CourseWorkspace = lazy(() => import("./features/courses/course"));
 const Classroom = lazy(() => import("./features/classroom/classroom"));
+const LessonLobby = lazy(() => import("./features/classroom/lobby"));
 const Review = lazy(() => import("./features/review/review"));
 const Practice = lazy(() => import("./features/practice/practice"));
 const ProgressPage = lazy(() => import("./features/progress/progress"));
@@ -55,6 +56,7 @@ function pageTitleFor(pathname: string, search: string): string {
   if (matchPath("/courses/:courseId/progress", pathname)) return titles.progress;
   if (matchPath("/courses/:courseId", pathname)) return titles.course;
   if (matchPath("/plan-items/:itemId/practice", pathname)) return titles.practice;
+  if (matchPath("/plan-items/:itemId/lesson", pathname)) return titles.lessonLobby;
   if (matchPath("/lessons/:lessonId/history", pathname)) return titles.lessonHistory;
   if (matchPath("/lessons/:lessonId", pathname)) return titles.lesson;
   if (matchPath("/settings/diagnostics", pathname)) return titles.diagnostics;
@@ -134,7 +136,12 @@ function App() {
   const location = useLocation();
   const session = useQuery({ queryKey: sessionKey, queryFn: bootstrapSession, staleTime: Infinity });
   useTutorThemeSync(session.data?.state === "ready");
-  const isStageRoute = Boolean(matchPath("/lessons/:lessonId", location.pathname));
+  const isStageRoute = Boolean(
+    matchPath("/lessons/:lessonId", location.pathname) ||
+    matchPath("/lessons/:lessonId/history", location.pathname) ||
+    matchPath("/plan-items/:itemId/lesson", location.pathname) ||
+    matchPath("/sample-lesson", location.pathname),
+  );
 
   if (session.data?.state === "ready" && isStageRoute) {
     return (
@@ -144,6 +151,9 @@ function App() {
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/lessons/:lessonId" element={<Classroom />} />
+              <Route path="/lessons/:lessonId/history" element={<LessonHistory />} />
+              <Route path="/plan-items/:itemId/lesson" element={<LessonLobby />} />
+              <Route path="/sample-lesson" element={<SampleLesson />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>

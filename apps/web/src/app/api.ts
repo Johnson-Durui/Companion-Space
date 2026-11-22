@@ -12,10 +12,12 @@ export const avatarDriversKey = ["avatar-drivers"] as const;
 
 export class ApiError extends Error {
   status?: number;
-  constructor(message: string, status?: number) {
+  code?: string;
+  constructor(message: string, status?: number, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -23,23 +25,44 @@ export function isClientError(error: unknown): boolean {
   return error instanceof ApiError && error.status !== undefined && error.status >= 400 && error.status < 500;
 }
 
-export function publicMessage(error: unknown) {
-  if (error && typeof error === "object" && "code" in error && typeof error.code === "string" && Object.hasOwn(t.errors, error.code)) {
-    return t.errors[error.code as keyof typeof t.errors];
+export function errorCodeOf(error: unknown): string | undefined {
+  if (error instanceof ApiError && error.code) return error.code;
+  if (error && typeof error === "object") {
+    if ("code" in error && typeof error.code === "string") return error.code;
+    if (
+      "detail" in error &&
+      error.detail &&
+      typeof error.detail === "object" &&
+      "code" in error.detail &&
+      typeof error.detail.code === "string"
+    ) {
+      return error.detail.code;
+    }
   }
-  if (
-    error && typeof error === "object" && "detail" in error && error.detail && typeof error.detail === "object"
-    && "code" in error.detail && typeof error.detail.code === "string" && Object.hasOwn(t.errors, error.detail.code)
-  ) {
-    return t.errors[error.detail.code as keyof typeof t.errors];
+  return undefined;
+}
+
+export function publicMessage(error: unknown) {
+  const code = errorCodeOf(error);
+  if (code && Object.hasOwn(t.errors, code)) {
+    return t.errors[code as keyof typeof t.errors];
   }
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message;
   if (error && typeof error === "object" && "detail" in error && typeof error.detail === "string") return error.detail;
   return undefined;
 }
 
+/** Map classroom HTTP / WS errors strictly through zh-CN error codes (never leaks raw English text). */
+export function classroomErrorMessage(error: unknown, fallback: string = t.classroom.actionError): string {
+  const code = errorCodeOf(error);
+  if (code && Object.hasOwn(t.errors, code)) {
+    return t.errors[code as keyof typeof t.errors];
+  }
+  return fallback;
+}
+
 export function ensureOK(response: Response, error: unknown) {
-  if (!response.ok) throw new ApiError(publicMessage(error) ?? t.common.error, response.status);
+  if (!response.ok) throw new ApiError(publicMessage(error) ?? t.common.error, response.status, errorCodeOf(error));
 }
 
 export function bodyOf<T>(result: { data?: T; error?: unknown; response: Response }): T {

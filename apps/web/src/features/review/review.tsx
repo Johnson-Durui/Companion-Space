@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 import { charactersKey, fetchCharacters, fetchSettings, settingsKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import { Button, ChevronRight } from "../../ui";
@@ -49,6 +49,10 @@ export default function Review() {
   const answer = useMutation({ mutationFn: ({ id, value, dontKnow }: { id: string; value: unknown; dontKnow?: boolean }) => answerCard(id, value, dontKnow), onSuccess: advance });
   const card = limitReached ? undefined : queue.data?.cards[0];
   const points = Array.from(new Map((mistakes.data?.cards ?? []).filter((entry) => entry.kp_id).map((entry) => [entry.kp_id, entry.kp_name])).entries());
+
+  if (plan) {
+    return <Navigate to={`/plan-items/${encodeURIComponent(plan)}/lesson`} replace />;
+  }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

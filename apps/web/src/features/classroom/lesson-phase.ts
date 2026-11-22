@@ -5,6 +5,12 @@ import type { Ask, ClassroomState } from "./lesson-state";
 export const JUDGING_TIMEOUT_MS = 20_000;
 export const TAB_AWAY_PAUSE_MS = 30_000;
 
+/** Unbounded exponential backoff capped at 15 seconds (§5.6.12). */
+export function reconnectDelayMs(attempt: number): number {
+  const step = Math.max(0, attempt - 1);
+  return Math.min(15_000, Math.round(500 * Math.pow(1.6, Math.min(step, 10))));
+}
+
 export interface PendingSubmit {
   itemId: string;
   askSeq: number;

@@ -34,9 +34,19 @@ export function formatDividerText(divider: BoardDivider): string {
   return copy.adaptReturn;
 }
 
+export interface BoardOutlinePoint {
+  kp_id: string;
+  kp_name: string;
+  text: string;
+  seg_idx: number;
+  kp_idx: number;
+}
+
 export interface BoardPanelProps {
   title: string;
   stage: string;
+  estMinutes?: number | null;
+  outline?: readonly BoardOutlinePoint[];
   board: Block[];
   dividers: BoardDivider[];
   answeredCards: AnsweredCard[];
@@ -51,6 +61,8 @@ export interface BoardPanelProps {
 export function BoardPanel({
   title,
   stage,
+  estMinutes,
+  outline = [],
   board,
   dividers,
   answeredCards,
@@ -172,13 +184,42 @@ export function BoardPanel({
       >
         <div className="mx-auto grid w-full max-w-[780px] gap-4">
           {/* Opening cover (moves up as page header once blocks arrive) */}
-          <header className="grid gap-1.5 border-b border-line-subtle pb-3">
+          <header
+            data-testid="board-cover"
+            className={clsx(
+              "grid gap-2 border-b border-line-subtle",
+              board.length === 0 ? "py-6" : "pb-3",
+            )}
+          >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-caption font-medium text-fg-tertiary">{copy.board}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-caption font-medium text-fg-tertiary">{copy.board}</span>
+                {estMinutes ? (
+                  <span className="text-caption tabular-nums text-fg-tertiary">
+                    · {copy.estMinutes.replace("{min}", String(estMinutes))}
+                  </span>
+                ) : null}
+              </div>
               <Badge tone="neutral">{stageLabel}</Badge>
             </div>
-            <h2 className="text-title font-semibold text-fg-primary leading-snug">{title}</h2>
-            {board.length === 0 ? (
+            <h2 className={clsx("font-semibold text-fg-primary leading-snug", board.length === 0 ? "text-display" : "text-title")}>
+              {title}
+            </h2>
+            {board.length === 0 && outline.length > 0 ? (
+              <div className="mt-2 grid gap-1.5 rounded-md border border-line-subtle bg-surface-sunken/60 p-3.5">
+                <p className="text-caption font-semibold text-fg-secondary">{copy.outlineHeading}</p>
+                <ol className="m-0 grid gap-1 pl-4 text-ui text-fg-primary">
+                  {outline.map((point, idx) => (
+                    <li key={`${point.seg_idx}-${point.kp_idx}-${idx}`} className="leading-relaxed">
+                      <span>{point.text}</span>
+                      {point.kp_name && point.kp_name !== point.text ? (
+                        <span className="ml-1.5 text-caption text-fg-tertiary">({point.kp_name})</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : board.length === 0 ? (
               <p className="text-ui text-fg-secondary">{copy.openingHint}</p>
             ) : null}
           </header>

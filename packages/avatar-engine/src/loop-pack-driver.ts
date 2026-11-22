@@ -32,6 +32,9 @@ const ALL_ACTIONS: readonly InstantAction[] = [
   "farewell",
 ];
 
+/** Maximum time to wait for a video frame decode before falling back to showing the clip anyway. */
+const DECODE_SAFETY_TIMEOUT_MS = 3000;
+
 export function resolveClipUrl(
   clips: Partial<Record<ClipSlot, string>>,
   desired: ClipSlot,
@@ -59,6 +62,11 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
   private listeners = new Set<(event: VideoDriverStatusEvent) => void>();
   private fadeTimer: number | null = null;
   private oneShotTimer: number | null = null;
+  private revealTimer: number | null = null;
+  private prefetchTimer: number | null = null;
+  private prefetchIdleId: number | null = null;
+  private prefetchControllers: AbortController[] = [];
+  private prefetchedUrls = new Set<string>();
   private transitionSeq = 0;
 
   getCapabilities(): VideoDriverCapabilities {
@@ -120,6 +128,7 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
 
     if (!this.reducedMotion) {
       this.switchToClip("idle_breathe", false);
+      this.scheduleIdlePrefetch();
     }
     this.emitStatus({ state: "ready", tier: "loop_pack" });
   }
@@ -127,6 +136,7 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
   async unmount(): Promise<void> {
     this.transitionSeq += 1;
     this.clearTimers();
+    this.cancelPrefetch();
     if (this.players) {
       for (const video of this.players) {
         video.onended = null;
@@ -213,12 +223,65 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     return video;
   }
 
+  private scheduleIdlePrefetch(): void {
+    if (typeof fetch !== "function" || typeof AbortController === "undefined") return;
+    const urls = Array.from(
+      new Set(
+        Object.values(this.clips).filter(
+          (url): url is string => typeof url === "string" && Boolean(url) && !this.prefetchedUrls.has(url),
+        ),
+      ),
+    );
+    if (!urls.length) return;
+
+    const run = () => {
+      this.prefetchTimer = null;
+      this.prefetchIdleId = null;
+      if (!this.root) return;
+      for (const url of urls) {
+        if (this.prefetchedUrls.has(url)) continue;
+        this.prefetchedUrls.add(url);
+        const controller = new AbortController();
+        this.prefetchControllers.push(controller);
+        void fetch(url, { signal: controller.signal, credentials: "same-origin" }).catch(() => {
+          this.prefetchedUrls.delete(url);
+        });
+      }
+    };
+
+    const idle = (window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number;
+    }).requestIdleCallback;
+    if (typeof idle === "function") {
+      this.prefetchIdleId = idle(run, { timeout: 1500 });
+    } else {
+      this.prefetchTimer = window.setTimeout(run, 400);
+    }
+  }
+
+  private cancelPrefetch(): void {
+    if (this.prefetchTimer !== null) {
+      window.clearTimeout(this.prefetchTimer);
+      this.prefetchTimer = null;
+    }
+    if (this.prefetchIdleId !== null) {
+      const cancelIdle = (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+      if (typeof cancelIdle === "function") cancelIdle(this.prefetchIdleId);
+      this.prefetchIdleId = null;
+    }
+    for (const controller of this.prefetchControllers) {
+      controller.abort();
+    }
+    this.prefetchControllers = [];
+  }
+
   private switchToClip(desired: ClipSlot, oneShot: boolean): void {
     if (!this.players || !this.root) return;
     const resolved = resolveClipUrl(this.clips, desired);
     if (!resolved) return;
 
     this.clearOneShotTimer();
+    this.clearRevealTimer();
     if (resolved.url === this.currentUrl && !oneShot) {
       this.currentSlot = resolved.slot;
       this.root.dataset.clip = resolved.slot;
@@ -236,6 +299,7 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     nextVideo.onended = null;
     nextVideo.onerror = () => {
       if (seq !== this.transitionSeq) return;
+      this.clearRevealTimer();
       if (desired !== "idle_breathe") {
         this.switchToClip("idle_breathe", false);
       } else {
@@ -265,6 +329,7 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     const reveal = () => {
       if (revealed || seq !== this.transitionSeq || !this.players || !this.root) return;
       revealed = true;
+      this.clearRevealTimer();
       nextVideo.style.zIndex = "3";
       prevVideo.style.zIndex = "2";
       nextVideo.style.opacity = "1";
@@ -308,6 +373,8 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
       }
     };
 
+    // Decode-before-swap: only reveal immediately if first frame is already decoded (readyState >= 2).
+    // Otherwise keep prevVideo playing visibly until loadeddata/canplay fires (no flash to static anchor).
     if (nextVideo.readyState >= 2) {
       reveal();
       return;
@@ -319,7 +386,18 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
     };
     nextVideo.addEventListener("loadeddata", onReady, { once: true });
     nextVideo.addEventListener("canplay", onReady, { once: true });
-    window.setTimeout(reveal, 120);
+    this.revealTimer = window.setTimeout(() => {
+      nextVideo.removeEventListener("loadeddata", onReady);
+      nextVideo.removeEventListener("canplay", onReady);
+      reveal();
+    }, DECODE_SAFETY_TIMEOUT_MS);
+  }
+
+  private clearRevealTimer(): void {
+    if (this.revealTimer !== null) {
+      window.clearTimeout(this.revealTimer);
+      this.revealTimer = null;
+    }
   }
 
   private clearOneShotTimer(): void {
@@ -331,6 +409,7 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
 
   private clearTimers(): void {
     this.clearOneShotTimer();
+    this.clearRevealTimer();
     if (this.fadeTimer !== null) {
       window.clearTimeout(this.fadeTimer);
       this.fadeTimer = null;

@@ -85,7 +85,7 @@ export default function Courses() {
                 <div className="actions">
                   {lesson?.status === "active" && lesson.lesson_id
                     ? <Link className="button primary" to={`/lessons/${lesson.lesson_id}`}>{t.courses.continueLesson}</Link>
-                    : lesson ? <Link className="button primary" to={`/courses/${course.id}/review?plan=${lesson.id}`}>{t.courses.warmup}</Link> : null}
+                    : lesson ? <Link className="button primary" to={`/plan-items/${lesson.id}/lesson`}>{t.courses.warmup}</Link> : null}
                   {summary.due_review_count > 0 ? <Link className="button quiet" to={`/courses/${course.id}/review`}>{t.courses.reviewDue}</Link> : null}
                 </div>
               </aside> : null}
