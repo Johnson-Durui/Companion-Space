@@ -78,6 +78,14 @@ class ReviewMixin:
             result = []
             for row in rows:
                 card = _card(row)
+                item_row = conn.execute(
+                    "SELECT type, item_json FROM item_bank WHERE id = ? AND space_id = ?",
+                    (card["item_ref"], space_id),
+                ).fetchone()
+                if item_row:
+                    raw_item = json.loads(item_row["item_json"] or "{}")
+                    raw_item["type"] = item_row["type"]
+                    card["item"] = {key: raw_item.get(key) for key in ("type", "stem", "options")}
                 evidence = conn.execute(
                     """SELECT verdict, detail_json, created_at FROM evidence
                        WHERE space_id = ? AND item_ref = ? AND verdict IN ('incorrect', 'dont_know', 'revealed')

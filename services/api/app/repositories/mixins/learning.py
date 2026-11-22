@@ -223,6 +223,20 @@ class LearningMixin:
                     "SELECT DISTINCT from_kp FROM kp_edges WHERE space_id = ?", (space_id,),
                 )
             }
+            prev_plan = conn.execute(
+                """SELECT id, deferred_json FROM study_plans
+                   WHERE space_id = ? AND version < ?
+                   ORDER BY version DESC LIMIT 1""",
+                (space_id, plan["version"]),
+            ).fetchone()
+            prev_items = [
+                {**dict(row), "kp_ids": json.loads(row["kp_ids_json"])}
+                for row in conn.execute(
+                    "SELECT kind, title, kp_ids_json, ord FROM plan_items WHERE space_id = ? AND plan_id = ? ORDER BY ord, id",
+                    (space_id, prev_plan["id"]),
+                )
+            ] if prev_plan is not None else None
+            prev_deferred = json.loads(prev_plan["deferred_json"] or "[]") if prev_plan is not None else None
         result = dict(plan)
         params = json.loads(result.pop("params_json") or "{}")
         result["params"] = params
@@ -253,6 +267,12 @@ class LearningMixin:
                 })
             item["why"] = enriched_why
         result["items"] = items
+        if prev_items is not None:
+            from app.learning.planner import compute_plan_diff
+
+            result["diff"] = compute_plan_diff(items, deferred, prev_items, prev_deferred or [], kp_names)
+        else:
+            result["diff"] = None
         return result
 
     def replace_plan(self, space_id: str, plan: dict, *, reason: str) -> dict:

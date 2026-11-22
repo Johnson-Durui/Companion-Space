@@ -22,6 +22,81 @@ def _item(row) -> dict:
     return value
 
 
+def _select_items(conn, plan) -> list:
+    if plan["kind"] == "mock":
+        return conn.execute(
+            """SELECT b.* FROM item_bank b JOIN exam_items i ON i.id = b.exam_item_id
+               JOIN exam_papers p ON p.id = i.paper_id
+               WHERE b.space_id = ? AND b.verify_status = 'verified' AND b.type IN (?, ?, ?, ?)
+                 AND p.reserved_for_mock = 1 ORDER BY i.rowid""",
+            (plan["space_id"], *OBJECTIVE),
+        ).fetchall()
+    kp_ids = json.loads(plan["kp_ids_json"])
+    if not kp_ids:
+        return []
+    return conn.execute(
+        """SELECT * FROM item_bank WHERE space_id = ? AND kp_id IN (%s)
+           AND verify_status = 'verified' AND reserved = 0 AND type IN (?, ?, ?, ?)
+           ORDER BY difficulty, id LIMIT 12""" % ",".join("?" for _ in kp_ids),
+        (plan["space_id"], *kp_ids, *OBJECTIVE),
+    ).fetchall()
+
+
+def preview_run(repository, plan_item_id: str) -> dict | None:
+    with repository.connection() as conn:
+        plan = conn.execute(
+            "SELECT * FROM plan_items WHERE id = ? AND kind IN ('practice', 'mock')",
+            (plan_item_id,),
+        ).fetchone()
+        if plan is None:
+            return None
+        current = conn.execute(
+            "SELECT id, status, item_refs_json FROM practice_runs WHERE plan_item_id = ? ORDER BY started_at DESC LIMIT 1",
+            (plan_item_id,),
+        ).fetchone()
+        kp_names_map = {
+            row["id"]: row["name"]
+            for row in conn.execute(
+                "SELECT id, name FROM knowledge_points WHERE space_id = ?",
+                (plan["space_id"],),
+            )
+        }
+        if current is not None:
+            refs = json.loads(current["item_refs_json"] or "[]")
+            rows = (
+                conn.execute(
+                    "SELECT kp_id FROM item_bank WHERE id IN (%s)" % ",".join("?" for _ in refs),
+                    refs,
+                ).fetchall()
+                if refs
+                else []
+            )
+            item_count = len(refs)
+        else:
+            rows = _select_items(conn, plan)
+            item_count = len(rows)
+        seen_kps: list[str] = []
+        for row in rows:
+            kp_id = row["kp_id"]
+            if kp_id and kp_id not in seen_kps:
+                seen_kps.append(kp_id)
+        if not seen_kps:
+            for kp_id in json.loads(plan["kp_ids_json"] or "[]"):
+                if kp_id and kp_id not in seen_kps:
+                    seen_kps.append(kp_id)
+        return {
+            "plan_item_id": plan["id"],
+            "course_id": plan["space_id"],
+            "kind": plan["kind"],
+            "title": plan["title"],
+            "est_minutes": max(1, int(plan["est_minutes"] or 15)),
+            "item_count": item_count,
+            "kp_names": [kp_names_map.get(kp_id, kp_id) for kp_id in seen_kps],
+            "active_run_id": current["id"] if current and current["status"] == "active" else None,
+            "submitted_run_id": current["id"] if current and current["status"] == "submitted" else None,
+        }
+
+
 def start_run(repository, plan_item_id: str, *, now: datetime | None = None) -> dict | None:
     started = _now(now)
     with repository.connection() as conn:
@@ -36,24 +111,7 @@ def start_run(repository, plan_item_id: str, *, now: datetime | None = None) -> 
         ).fetchone()
         if current:
             return get_run(repository, current["id"], reveal=current["status"] == "submitted")
-        if plan["kind"] == "mock":
-            rows = conn.execute(
-                """SELECT b.* FROM item_bank b JOIN exam_items i ON i.id = b.exam_item_id
-                   JOIN exam_papers p ON p.id = i.paper_id
-                   WHERE b.space_id = ? AND b.verify_status = 'verified' AND b.type IN (?, ?, ?, ?)
-                     AND p.reserved_for_mock = 1 ORDER BY i.rowid""",
-                (plan["space_id"], *OBJECTIVE),
-            ).fetchall()
-        else:
-            kp_ids = json.loads(plan["kp_ids_json"])
-            if not kp_ids:
-                return None
-            rows = conn.execute(
-                """SELECT * FROM item_bank WHERE space_id = ? AND kp_id IN (%s)
-                   AND verify_status = 'verified' AND reserved = 0 AND type IN (?, ?, ?, ?)
-                   ORDER BY difficulty, id LIMIT 12""" % ",".join("?" for _ in kp_ids),
-                (plan["space_id"], *kp_ids, *OBJECTIVE),
-            ).fetchall()
+        rows = _select_items(conn, plan)
         if not rows:
             return None
         run_id = str(uuid4())
@@ -83,11 +141,22 @@ def get_run(repository, run_id: str, *, reveal: bool = False) -> dict | None:
         saved = {row["item_ref"]: dict(row) for row in conn.execute(
             "SELECT * FROM practice_answers WHERE run_id = ?", (run_id,),
         )}
+        kp_names = {
+            row["id"]: row["name"]
+            for row in conn.execute(
+                "SELECT id, name FROM knowledge_points WHERE space_id = ?",
+                (run["space_id"],),
+            )
+        }
     items = []
     for ref in refs:
         item = by_id[ref]
+        saved_row = saved.get(ref)
+        saved_val = json.loads(saved_row["answer_json"]) if saved_row and saved_row.get("answer_json") else None
         public = {key: item.get(key) for key in ("id", "kp_id", "type", "stem", "options")}
+        public["kp_name"] = kp_names.get(item.get("kp_id"), "")
         public["answer_saved"] = ref in saved
+        public["saved_answer"] = saved_val
         if reveal:
             public.update(answer=item.get("answer"), solution=item.get("solution") or str(item.get("answer", "")))
         items.append(public)
@@ -96,8 +165,17 @@ def get_run(repository, run_id: str, *, reveal: bool = False) -> dict | None:
     result["items"] = items
     if reveal:
         result["debrief"] = [{
-            "item_id": ref, "verdict": saved[ref]["verdict"], "score": saved[ref]["score"],
-            "max_score": saved[ref]["max_score"], "answer": by_id[ref].get("answer"),
+            "item_id": ref,
+            "kp_id": by_id[ref].get("kp_id"),
+            "kp_name": kp_names.get(by_id[ref].get("kp_id"), ""),
+            "type": by_id[ref].get("type"),
+            "stem": by_id[ref].get("stem", ""),
+            "options": by_id[ref].get("options"),
+            "learner_answer": json.loads(saved[ref]["answer_json"]) if ref in saved and saved[ref].get("answer_json") else None,
+            "verdict": saved[ref]["verdict"],
+            "score": saved[ref]["score"],
+            "max_score": saved[ref]["max_score"],
+            "answer": by_id[ref].get("answer"),
             "solution": by_id[ref].get("solution") or str(by_id[ref].get("answer", "")),
             "moves": ["SHOW_SOLUTION", "REEXPLAIN", "CHECK"]
             if saved[ref]["verdict"] != "correct" else ["CHECK"],
@@ -195,9 +273,7 @@ def submit_run(repository, run_id: str, *, now: datetime | None = None) -> dict 
         )
         if run["plan_item_id"]:
             conn.execute("UPDATE plan_items SET status = 'done' WHERE id = ?", (run["plan_item_id"],))
-    result = get_run(repository, run_id, reveal=True)
-    result["debrief"] = debrief
-    return result
+    return get_run(repository, run_id, reveal=True)
 
 
 def _record_evidence(conn, space_id: str, item: dict, result: dict, now: datetime) -> None:

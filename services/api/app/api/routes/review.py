@@ -29,17 +29,26 @@ class AnswerRequest(BaseModel):
 
 def _public_card(container: ServiceContainer, card: dict) -> dict:
     public = {key: card[key] for key in ("id", "kp_id", "kind", "front", "back", "due_at", "state")}
-    if card["kind"] == "item":
-        public.pop("back")
-        with container.repository.connection() as conn:
+    with container.repository.connection() as conn:
+        kp_row = (
+            conn.execute(
+                "SELECT name FROM knowledge_points WHERE id = ? AND space_id = ?",
+                (card["kp_id"], card["space_id"]),
+            ).fetchone()
+            if card.get("kp_id")
+            else None
+        )
+        public["kp_name"] = kp_row["name"] if kp_row else None
+        if card["kind"] == "item":
+            public.pop("back")
             row = conn.execute(
                 "SELECT type, item_json FROM item_bank WHERE id = ? AND space_id = ?",
                 (card["item_ref"], card["space_id"]),
             ).fetchone()
-        item = json.loads(row["item_json"]) if row else {}
-        if row:
-            item["type"] = row["type"]
-        public["item"] = {key: item.get(key) for key in ("type", "stem", "options")}
+            item = json.loads(row["item_json"]) if row else {}
+            if row:
+                item["type"] = row["type"]
+            public["item"] = {key: item.get(key) for key in ("type", "stem", "options")}
     return public
 
 

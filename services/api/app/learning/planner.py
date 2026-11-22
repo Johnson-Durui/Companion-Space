@@ -145,6 +145,56 @@ def _item_key(item: dict) -> tuple[str, tuple[str, ...]]:
     return item["kind"], tuple(item.get("kp_ids", []))
 
 
+def compute_plan_diff(
+    current_items: list[dict],
+    current_deferred: list[str],
+    previous_items: list[dict],
+    previous_deferred: list[str],
+    kp_names: dict[str, str],
+) -> dict:
+    """Compare two plan versions using the planner's stable (kind, kp_ids) key."""
+    prev_pos: dict[tuple[str, tuple[str, ...]], int] = {}
+    for idx, item in enumerate(previous_items):
+        key = _item_key(item)
+        prev_pos.setdefault(key, idx)
+
+    moved_earlier: list[dict] = []
+    moved_later: list[dict] = []
+    added: list[dict] = []
+    seen_curr: set[tuple[str, tuple[str, ...]]] = set()
+    for idx, item in enumerate(current_items):
+        key = _item_key(item)
+        if key in seen_curr:
+            continue
+        seen_curr.add(key)
+        entry = {
+            "title": str(item.get("title") or ""),
+            "kind": str(item.get("kind") or "lesson"),
+            "kp_ids": list(item.get("kp_ids") or []),
+        }
+        if key not in prev_pos:
+            added.append(entry)
+        else:
+            old_idx = prev_pos[key]
+            if idx < old_idx:
+                moved_earlier.append({**entry, "from_ord": old_idx, "to_ord": idx})
+            elif idx > old_idx:
+                moved_later.append({**entry, "from_ord": old_idx, "to_ord": idx})
+
+    prev_deferred_set = set(previous_deferred)
+    newly_deferred = [
+        {"kp_id": kp_id, "kp_name": kp_names.get(kp_id, kp_id)}
+        for kp_id in current_deferred
+        if isinstance(kp_id, str) and kp_id not in prev_deferred_set
+    ]
+    return {
+        "moved_earlier": moved_earlier,
+        "moved_later": moved_later,
+        "added": added,
+        "deferred": newly_deferred,
+    }
+
+
 def _priority(item: dict) -> float:
     reasons = item.get("why", [])
     value = sum(reason.get("weight", 0) * (1 - reason.get("mastery", 0)) for reason in reasons)

@@ -125,6 +125,7 @@ class RecapPlanChange(BaseModel):
     changed: bool = True
     reason: str
     version: int
+    diff: dict | None = None
 
 
 class LessonRecapSummary(BaseModel):
@@ -543,10 +544,12 @@ def get_lesson_recap_summary(lesson_id: str, container: Container, _: Owner) -> 
     if latest_plan and latest_plan["reason"] == "lesson_finished":
         plan_created = latest_plan["created_at"]
         if not ended_at or not plan_created or plan_created >= ended_at:
+            active_plan = container.repository.current_plan(space_id)
             plan_change = RecapPlanChange(
                 changed=True,
                 reason=str(latest_plan["reason"]),
                 version=int(latest_plan["version"]),
+                diff=active_plan.get("diff") if active_plan else None,
             )
 
     raw_cards_created = recap.get("review_cards_created")

@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.api.deps import ServiceContainer, get_container, require_owner
 from app.core.errors import ResourceNotFoundError
-from app.learning.practice import get_debrief_item, get_run, save_answer, start_run, submit_run
+from app.learning.practice import get_debrief_item, get_run, preview_run, save_answer, start_run, submit_run
 from app.services.settings_store import get_setting
 from app.teaching.director import Decision
 from app.teaching.realizer import Realizer
@@ -30,6 +30,14 @@ class DebriefRequest(BaseModel):
     move: Literal["SHOW_SOLUTION", "REEXPLAIN", "CHECK"]
 
 
+@router.get("/plan-items/{item_id}/practice/preview")
+def get_practice_preview(item_id: str, container: Container) -> dict:
+    result = preview_run(container.repository, item_id)
+    if result is None:
+        raise ResourceNotFoundError("Practice is unavailable", code="practice_unavailable")
+    return result
+
+
 @router.post("/plan-items/{item_id}/practice")
 def start_practice(item_id: str, container: Container) -> dict:
     result = start_run(container.repository, item_id)
@@ -43,6 +51,8 @@ def read_practice(run_id: str, container: Container) -> dict:
     result = get_run(container.repository, run_id, reveal=False)
     if result is None:
         raise ResourceNotFoundError("Practice not found", code="practice_not_found")
+    if result.get("status") == "submitted":
+        result = get_run(container.repository, run_id, reveal=True) or result
     return result
 
 

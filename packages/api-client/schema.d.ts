@@ -397,6 +397,23 @@ export interface paths {
         patch: operations["revise_point_api_v2_courses__course_id__kps__kp_id__patch"];
         trace?: never;
     };
+    "/api/v2/courses/{course_id}/kps/{kp_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Kp Timeline */
+        get: operations["kp_timeline_api_v2_courses__course_id__kps__kp_id__timeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/courses/{course_id}/lessons": {
         parameters: {
             query?: never;
@@ -690,6 +707,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/learner/week-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Learner Week Summary */
+        get: operations["learner_week_summary_api_v2_learner_week_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/lessons/{lesson_id}": {
         parameters: {
             query?: never;
@@ -820,6 +854,23 @@ export interface paths {
         put?: never;
         /** Start Practice */
         post: operations["start_practice_api_v2_plan_items__item_id__practice_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/plan-items/{item_id}/practice/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Practice Preview */
+        get: operations["get_practice_preview_api_v2_plan_items__item_id__practice_preview_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2164,10 +2215,27 @@ export interface components {
         };
         /** LessonHistory */
         LessonHistory: {
+            /**
+             * Active Ms
+             * @default 0
+             */
+            active_ms: number;
             /** Id */
             id: string;
+            /**
+             * Keypoints Done
+             * @default 0
+             */
+            keypoints_done: number;
+            /**
+             * Keypoints Total
+             * @default 0
+             */
+            keypoints_total: number;
             /** Status */
             status: string;
+            /** Summary First Line */
+            summary_first_line?: string | null;
             /** Title */
             title: string;
             /**
@@ -2735,6 +2803,10 @@ export interface components {
              * @default true
              */
             changed: boolean;
+            /** Diff */
+            diff?: {
+                [key: string]: unknown;
+            } | null;
             /** Reason */
             reason: string;
             /** Version */
@@ -4282,6 +4354,42 @@ export interface operations {
             };
         };
     };
+    kp_timeline_api_v2_courses__course_id__kps__kp_id__timeline_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                course_id: string;
+                kp_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     prepare_lesson_api_v2_courses__course_id__lessons_post: {
         parameters: {
             query?: never;
@@ -5032,6 +5140,39 @@ export interface operations {
             };
         };
     };
+    learner_week_summary_api_v2_learner_week_summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_lesson_api_v2_lessons__lesson_id__get: {
         parameters: {
             query?: never;
@@ -5272,6 +5413,41 @@ export interface operations {
         };
     };
     start_practice_api_v2_plan_items__item_id__practice_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_practice_preview_api_v2_plan_items__item_id__practice_preview_get: {
         parameters: {
             query?: never;
             header?: {

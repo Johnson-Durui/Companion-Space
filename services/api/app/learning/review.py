@@ -41,7 +41,27 @@ def rate_flashcard(repository, card_id: str, rating: str, *, now: datetime | Non
                WHERE id = ? AND kind = 'flashcard'""",
             (fsrs_json, due_at, reviewed_at.isoformat(), card_id),
         )
-    return {**card, "fsrs": json.loads(fsrs_json), "due_at": due_at, "state": "active"}
+        kp_row = (
+            conn.execute(
+                """SELECT k.name, COALESCE(m.p, 0) AS p, COALESCE(m.status, 'unseen') AS status
+                   FROM knowledge_points k
+                   LEFT JOIN kp_mastery m ON m.space_id = k.space_id AND m.kp_id = k.id
+                   WHERE k.space_id = ? AND k.id = ?""",
+                (card["space_id"], card["kp_id"]),
+            ).fetchone()
+            if card.get("kp_id")
+            else None
+        )
+    mastery = {"probability": float(kp_row["p"]), "status": kp_row["status"]} if kp_row else None
+    return {
+        **card,
+        "fsrs": json.loads(fsrs_json),
+        "due_at": due_at,
+        "state": "active",
+        "kp_name": kp_row["name"] if kp_row else None,
+        "before_mastery": mastery,
+        "mastery": mastery,
+    }
 
 
 def answer_item(
@@ -78,6 +98,15 @@ def answer_item(
         ).fetchone()
         settings = json.loads(enrollment["enrollment_json"]) if enrollment else {}
         before = current["p"] if current else initial_mastery_probability(settings.get("self_level", "never"))
+        before_status = current["status"] if current and current["status"] else "unseen"
+        kp_row = (
+            conn.execute(
+                "SELECT name FROM knowledge_points WHERE space_id = ? AND id = ?",
+                (card["space_id"], card["kp_id"]),
+            ).fetchone()
+            if card.get("kp_id")
+            else None
+        )
         option_count = len(item.get("options") or []) if item["type"] == "choice" else None
         evidence = Evidence("review", verdict, hint_level, item["type"], "exact", option_count)
         after = update_mastery_probability(before, evidence)
@@ -136,6 +165,15 @@ def answer_item(
             (fsrs_json, due_at, state, reviewed_at.isoformat(), card_id),
         )
     return {
-        "card_id": card_id, "verdict": verdict, "rating": rating, "solution": card["back"],
-        "due_at": due_at, "state": state, "mastery": {"probability": after, "status": status},
+        "card_id": card_id,
+        "verdict": verdict,
+        "rating": rating,
+        "answer": item.get("answer"),
+        "solution": card["back"],
+        "due_at": due_at,
+        "state": state,
+        "kp_id": card.get("kp_id"),
+        "kp_name": kp_row["name"] if kp_row else None,
+        "before_mastery": {"probability": before, "status": before_status},
+        "mastery": {"probability": after, "status": status},
     }
