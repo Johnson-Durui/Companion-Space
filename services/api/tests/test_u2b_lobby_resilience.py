@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import struct
 import time
 
 from fastapi.testclient import TestClient
@@ -366,3 +367,56 @@ def test_e2e_unprepared_lesson_fixture_prepares_cleanly(isolated_settings):
         opened = client.post("/api/v2/plan-items/browser-unprepared-item/lesson", headers=headers)
         assert opened.status_code == 200
         assert len(opened.json()["outline"]) == 2
+
+
+class _AudioHarnessGateway(BrowserHarnessGateway):
+    async def preview_voice(self, text, voice, rate=1, pitch=0):
+        return b"ID3-test-mp3-frame"
+
+
+def test_mid_beat_voice_resume_streams_matching_generation_without_stale_preview(isolated_settings):
+    app = create_app(gateway_factory=_AudioHarnessGateway, settings=isolated_settings)
+    container = app.dependency_overrides[get_container]()
+    seed_classroom(container, "voice")
+    room_url = "/api/v2/lessons/browser-voice-lesson"
+
+    with TestClient(app, base_url="http://127.0.0.1:8000", client=("127.0.0.1", 51000)) as client:
+        headers = _auth_headers(container)
+        t1 = client.post(f"{room_url}/ticket", headers=headers).json()["ticket"]
+        with client.websocket_connect(
+            f"{room_url}/live", subprotocols=["companion-v1", f"ticket.{t1}"], headers=_origin(),
+        ) as sock1:
+            sock1.send_json({"type": "lesson.control", "data": {"action": "resume", "audio": False}})
+            initial = _receive_through(sock1, "state")
+            say_initial = [f for f in initial if f["type"] == "say"]
+            assert len(say_initial) == 1
+            beat_gen = say_initial[0]["gen"]
+            beat_seq = say_initial[0]["seq"]
+
+        t2 = client.post(f"{room_url}/ticket", headers=headers).json()["ticket"]
+        with client.websocket_connect(
+            f"{room_url}/live", subprotocols=["companion-v1", f"ticket.{t2}"], headers=_origin(),
+        ) as sock2:
+            sock2.send_json({"type": "lesson.control", "data": {"action": "resume", "audio": True}})
+            json_frames: list[dict] = []
+            binary_headers: list[tuple[bytes, int, int]] = []
+            for _ in range(40):
+                packet = sock2.receive()
+                if packet.get("text") is not None:
+                    frame = json.loads(packet["text"])
+                    json_frames.append(frame)
+                    if frame["type"] == "error":
+                        pytest.fail(f"Unexpected classroom error frame: {frame}")
+                    if frame["type"] == "audio" and frame["data"].get("last") is True:
+                        break
+                elif packet.get("bytes") is not None:
+                    magic, gen, seg, _, _ = struct.unpack(">4sIIHH", packet["bytes"][:16])
+                    binary_headers.append((magic, gen, seg))
+
+            assert [f for f in json_frames if f["type"] == "say.preview"] == []
+            audio_frames = [f for f in json_frames if f["type"] == "audio"]
+            assert len(audio_frames) >= 2
+            assert audio_frames[-1]["data"]["last"] is True
+            assert all(f["gen"] == beat_gen and f["seq"] == beat_seq for f in audio_frames)
+            assert binary_headers == [(b"CSA1", beat_gen, say_initial[0]["data"]["seg"])]
+

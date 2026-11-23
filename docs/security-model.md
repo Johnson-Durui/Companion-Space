@@ -1,70 +1,47 @@
 # Security Model
 
-## Threat Model
+Companion Space is a single-user, local-first application that handles model API credentials, personal study documents, and live microphone input on the owner's machine.
 
-Companion Space is a single-user self-hosted app, but it still handles secrets, private study materials, and microphone input. The primary risks are:
+## Architecture Baseline
 
-- provider API key exposure
-- LAN/mobile access by untrusted devices attempting to bypass device pairing
-- prompt injection through uploaded materials
-- unsafe or unlicensed imported asset packs
-- accidental persistence of audio or secrets in logs
+- **Single-process loopback server**: Both the FastAPI backend and built React web frontend are served from `127.0.0.1:8000` by default (both in source launches and in single-container `docker compose` deployments).
+- **No public exposure by default**: Companion Space is not designed to listen directly on `0.0.0.0` on untrusted networks. If remote access is ever required by an advanced operator, it must be placed behind an independent HTTPS reverse proxy with strong external authentication.
+- **Zero-secret CI**: Automated test suites use in-process test doubles injected through `create_app(gateway_factory=...)` and never require live API keys.
 
-## Security Baseline In This Repository Slice
+## Implemented Controls
 
-- Caddy is the only public edge.
-- `web` and `api` are internal-only in Docker Compose.
-- `.gitignore` excludes `.env`, storage data, caches, and local CA state.
-- CI does not require real provider keys.
+### 1. Loopback, Session & WebSocket Protection
 
-The historical v0.1 release was same-machine only. The current repository adds
-an opt-in mobile slice with one-time pairing, local-owner-only device
-administration, revocation, and native secure credential storage. It does not
-turn Companion Space into a public multi-user service.
+- Owner REST routes require an in-memory bearer session token issued to the local browser session, combined with Origin and CSRF validation on state-mutating requests.
+- Live classroom and avatar bridge WebSockets use short-lived, single-use tickets bound to the target session (`companion-v1` subprotocol) and validate request `Origin` headers.
+- Duplicate classroom tabs are explicitly arbitrated (`4409 other_tab` / explicit `?takeover=1` handoff).
 
-## Implemented Application-Layer Controls
+### 2. Credential Vault & Secret Redaction
 
-The following controls are implemented and covered by the v0.1 backend test
-suite:
+- Provider API keys never enter browser `localStorage`, URL query strings, frontend bundles, or API list responses.
+- Credentials are encrypted at rest inside `vault.json` under `COMPANION_DATA_DIR`. New installations run seamlessly with a locally protected key file, and owners can enable an explicit **master password** at any time under **Settings → Privacy & Data** to lock the vault on restart.
+- Application logs redact bearer tokens and provider secrets, and never log full prompts, uploaded textbook contents, or student transcripts.
 
-- owner-authenticated REST and WebSocket access
-- encrypted provider vault with unlock/lock flow
-- study-space scoped retrieval and persistence
-- upload validation for file type, size, and path traversal
-- explicit redaction of secrets in logs
-- no durable raw audio storage by default
-- one-time mobile pairing challenges with attempt and expiry limits
-- atomic trusted-device enrollment and hashed credential persistence
-- local-owner-only pairing/device/password administration
-- 15-minute mobile access tokens plus rotating, recoverable 30-day refresh tokens
-- Android Keystore and iOS Keychain storage for the refresh credential
+### 3. Per-Course Data Isolation & Prompt Fencing
 
-The browser uses an in-memory owner bearer token for REST. The mobile wrapper
-also keeps the access token in native memory and exposes it only to the exact
-HTTPS origin approved during pairing; its refresh token never enters the remote
-Web document. WebSocket access uses
-a short-lived, single-use ticket bound to one session and carried in the
-`companion-v1` subprotocol. The backend does not use owner-authentication
-cookies.
+- Every course-scoped SQLite table carries `space_id`, and repository queries enforce course-level isolation so materials, item banks, evidence, and history from one course never leak into another.
+- Uploaded study materials, student inputs, and imported `.tutorpack` persona fields are treated as **untrusted data**: they are wrapped inside explicit data blocks when passed to LLMs and cannot override system-level safety or grading rules.
+- Executable or structured visual outputs (KaTeX, SVG plots, Mermaid diagrams) are parsed and rendered safely without ever invoking `eval` or `exec` on model output.
 
-## Remaining Validation And Hardening
+### 4. Hardened `.tutorpack` & Media Import
 
-- Real OpenAI-compatible, Anthropic, Gemini, and ElevenLabs credentials still
-  require release-machine validation.
-- Physical microphone, speaker, Bluetooth-headset, and Desktop Edge checks are
-  still open release gates.
-- HTTPX-based provider endpoints are resolved and validated for each operation,
-  then their TCP connections are pinned to that immutable address snapshot while
-  the original hostname remains authoritative for TLS verification, SNI, and
-  `Host`. Redirects and environment proxies are disabled. Gemini keeps its fixed
-  Google SDK endpoint and is not presented as part of the custom-URL surface.
-- Signed iOS/Android store distribution and real-device certificate/network
-  validation remain operator/release gates.
+Importing custom `.tutorpack` / `.zip` archives or single-image portraits runs strict server-side validation before extraction:
+
+- Rejects path traversal (`..` / Zip-Slip), symlinks, absolute paths, Windows reserved device names, executable extensions, oversized archives, and excessive entry counts.
+- Verifies binary container headers (`WebM`/EBML, `MP4`/`ftyp`, `PNG`, `JPEG`, `WebP`) against magic bytes rather than trusting file extensions.
+
+### 5. Local GPU Sidecar Boundary (`/api/v2/avatar-drivers/*`)
+
+- Optional Tier 2 real-time avatar sidecar drivers default strictly to loopback endpoints (`127.0.0.1` / `localhost`) and require explicit private-LAN allowlisting if hosted on another machine on the owner's home network.
+- Cloud-live avatar configurations remain disabled by default behind explicit idle-suspend, max-duration, and session budget circuit breakers (`LiveCostGuard`).
 
 ## Operator Guidance
 
-- Treat the host machine as sensitive because it stores private materials.
-- When enabling mobile access, use a device-trusted HTTPS origin, limit exposure
-  to networks you control, and revoke devices immediately after loss or transfer.
-- Keep Docker and browser updates current.
-- Rotate any provider key that is ever logged or copied into the wrong place.
+- Keep `storage/` (or your custom `COMPANION_DATA_DIR`) private and encrypted when backing it up off-machine.
+- Enable a master password in **Settings → Privacy & Data** on shared computers.
+- Immediately rotate any provider API key if you accidentally paste it into a public screenshot or bug report.

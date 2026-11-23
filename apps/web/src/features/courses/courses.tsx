@@ -5,17 +5,23 @@ import { charactersKey, fetchCharacters, fetchSettings, settingsKey } from "../.
 import { Loading, Problem } from "../../app/ui";
 import {
   ArrowRight,
+  Badge,
+  BookOpen,
   Button,
+  Calendar,
   Card,
   ConfirmDialog,
   Dialog,
   EmptyState,
   Field,
+  GraduationCap,
+  Layers,
   Menu,
   MoreHorizontal,
   Pencil,
   Plus,
   Settings,
+  Sparkles,
   TextInput,
   Textarea,
   Trash2,
@@ -119,21 +125,49 @@ export default function Courses() {
     });
   }
 
+  const courseCount = courses.data?.length ?? 0;
+  const dueLessonCount = dashboard.data?.filter((entry) => Boolean(entry.today_lesson)).length ?? 0;
+  const dueReviewTotal = dashboard.data?.reduce((sum, entry) => sum + entry.due_review_count, 0) ?? 0;
+
   return (
     <div className="grid min-w-0 gap-6 py-6 sm:py-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="grid gap-1">
-          <h1 className="text-headline font-semibold text-fg-primary">{t.courses.heading}</h1>
-          <p className="text-ui text-fg-secondary">{t.courses.lead}</p>
+      <section className="cs-hero-stage cs-enter-1 rounded-xl p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="grid gap-2">
+            <div className="flex flex-wrap items-center gap-2 text-caption">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-0.5 font-semibold text-accent-strong">
+                <GraduationCap size={13} aria-hidden="true" />
+                <span>{t.richUi.statActiveCourses}</span>
+              </span>
+              {courseCount > 0 ? (
+                <>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-line-subtle bg-surface-card/85 px-2.5 py-0.5 font-medium tabular-nums text-fg-secondary">
+                    <BookOpen size={12} aria-hidden="true" />
+                    <span>
+                      {t.richUi.statDueLessons} {dueLessonCount}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-line-subtle bg-surface-card/85 px-2.5 py-0.5 font-medium tabular-nums text-fg-secondary">
+                    <Layers size={12} aria-hidden="true" />
+                    <span>
+                      {t.richUi.statDueReviews} {dueReviewTotal}
+                    </span>
+                  </span>
+                </>
+              ) : null}
+            </div>
+            <h1 className="text-headline font-semibold text-fg-primary">{t.courses.heading}</h1>
+            <p className="text-ui text-fg-secondary">{t.courses.lead}</p>
+          </div>
+          <Button
+            variant="primary"
+            leftIcon={<Plus size={16} aria-hidden="true" />}
+            onClick={openCreateDialog}
+          >
+            {t.courses.new}
+          </Button>
         </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus size={16} aria-hidden="true" />}
-          onClick={openCreateDialog}
-        >
-          {t.courses.new}
-        </Button>
-      </div>
+      </section>
 
       {courses.isPending ? <Loading /> : null}
       {courses.isError ? <Problem error={courses.error} onRetry={() => void courses.refetch()} /> : null}
@@ -174,6 +208,9 @@ export default function Courses() {
                     ? t.today.examPassed
                     : "—";
 
+            const kpsTotal = course.brief?.knowledge_point_count ?? summary?.journey?.kps_total ?? null;
+            const kpsLearned = summary?.journey?.kps_learned ?? 0;
+
             return (
               <li
                 key={course.id}
@@ -181,17 +218,26 @@ export default function Courses() {
                 data-stage={action.stage}
                 className="min-w-0"
               >
-                <Card padding="lg" className="grid h-full content-between gap-4">
-                  <div className="grid gap-3">
+                <Card padding="lg" className="cs-bento-card grid h-full content-between gap-4">
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-accent/65 to-transparent"
+                  />
+                  <div className="grid gap-3.5">
                     <div className="flex items-start justify-between gap-3">
-                      <Link to={`/courses/${course.id}`} className="grid min-w-0 gap-1">
-                        <h2 className="truncate text-title font-semibold text-fg-primary hover:text-accent-strong">
-                          {course.name}
-                        </h2>
-                        <p className="line-clamp-2 text-ui text-fg-secondary">
-                          {course.goal || t.courses.goalEmpty}
-                        </p>
-                      </Link>
+                      <div className="flex min-w-0 items-start gap-3">
+                        <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent-strong shadow-1">
+                          <BookOpen size={18} aria-hidden="true" />
+                        </span>
+                        <Link to={`/courses/${course.id}`} className="grid min-w-0 gap-1">
+                          <h2 className="truncate text-title font-semibold text-fg-primary hover:text-accent-strong">
+                            {course.name}
+                          </h2>
+                          <p className="line-clamp-2 text-ui text-fg-secondary">
+                            {course.goal || t.courses.goalEmpty}
+                          </p>
+                        </Link>
+                      </div>
                       <Menu
                         trigger={
                           <span
@@ -235,38 +281,78 @@ export default function Courses() {
 
                     <p
                       data-testid="course-stage-status"
-                      className="rounded-md bg-surface-sunken/70 px-3 py-2 text-ui font-medium text-fg-primary"
+                      className="flex items-center gap-2 rounded-md border border-line-subtle/80 bg-surface-sunken/70 px-3 py-2 text-ui font-medium text-fg-primary"
                     >
-                      {action.statusText}
+                      <span
+                        aria-hidden="true"
+                        className={
+                          action.stage === "learning"
+                            ? "h-2 w-2 shrink-0 rounded-full bg-accent"
+                            : action.stage === "today_done" || action.stage === "all_done"
+                              ? "h-2 w-2 shrink-0 rounded-full bg-ok"
+                              : "h-2 w-2 shrink-0 rounded-full bg-warn"
+                        }
+                      />
+                      <span className="min-w-0 truncate">{action.statusText}</span>
                     </p>
 
-                    <dl className="grid grid-cols-3 gap-2 border-t border-line-subtle pt-3 text-caption">
-                      <div className="grid gap-0.5">
-                        <dt className="text-fg-tertiary">{t.courses.kps}</dt>
-                        <dd className="text-ui font-semibold text-fg-primary">
-                          {course.brief?.knowledge_point_count ?? summary?.journey?.kps_total ?? "—"}
+                    {kpsTotal && kpsTotal > 0 ? (
+                      <div className="grid gap-1">
+                        <div className="flex justify-between text-caption text-fg-tertiary tabular-nums">
+                          <span>{t.richUi.courseProgressLabel}</span>
+                          <span>
+                            {kpsLearned} / {kpsTotal}
+                          </span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                          <div
+                            className="h-full rounded-full bg-accent"
+                            style={{ width: `${Math.min(100, Math.round((kpsLearned / kpsTotal) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <dl className="grid grid-cols-3 gap-2 text-caption">
+                      <div className="grid gap-0.5 rounded-md bg-surface-sunken/55 px-2.5 py-2">
+                        <dt className="flex items-center gap-1 text-fg-tertiary">
+                          <Sparkles size={11} aria-hidden="true" />
+                          <span className="truncate">{t.courses.kps}</span>
+                        </dt>
+                        <dd className="text-ui font-semibold tabular-nums text-fg-primary">
+                          {kpsTotal ?? "—"}
                         </dd>
                       </div>
-                      <div className="grid gap-0.5">
-                        <dt className="text-fg-tertiary">{t.courses.questions}</dt>
-                        <dd className="text-ui font-semibold text-fg-primary">
+                      <div className="grid gap-0.5 rounded-md bg-surface-sunken/55 px-2.5 py-2">
+                        <dt className="flex items-center gap-1 text-fg-tertiary">
+                          <Layers size={11} aria-hidden="true" />
+                          <span className="truncate">{t.courses.questions}</span>
+                        </dt>
+                        <dd className="text-ui font-semibold tabular-nums text-fg-primary">
                           {course.brief?.item_count ?? "—"}
                         </dd>
                       </div>
-                      <div className="grid gap-0.5">
-                        <dt className="text-fg-tertiary">{t.learner.examDate.replace("（可选）", "")}</dt>
-                        <dd className="text-ui font-semibold text-fg-primary">{daysText}</dd>
+                      <div className="grid gap-0.5 rounded-md bg-surface-sunken/55 px-2.5 py-2">
+                        <dt className="flex items-center gap-1 text-fg-tertiary">
+                          <Calendar size={11} aria-hidden="true" />
+                          <span className="truncate">{t.learner.examDate.replace("（可选）", "")}</span>
+                        </dt>
+                        <dd className="truncate text-ui font-semibold tabular-nums text-fg-primary">
+                          {daysText}
+                        </dd>
                       </div>
                     </dl>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle/80 pt-3">
                     {summary && summary.due_review_count > 0 ? (
                       <Link
-                        className="text-ui font-medium text-fg-secondary hover:text-accent-strong"
+                        className="inline-flex items-center gap-1.5 text-ui font-medium text-accent-strong hover:underline"
                         to={`/courses/${course.id}/review`}
                       >
-                        {t.courses.dueReviews.replace("{count}", String(summary.due_review_count))}
+                        <Badge tone="accent">
+                          {t.courses.dueReviews.replace("{count}", String(summary.due_review_count))}
+                        </Badge>
                       </Link>
                     ) : (
                       <Link

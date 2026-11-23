@@ -6,8 +6,10 @@ export {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Award,
   BarChart3,
   BookOpen,
+  Brain,
   Calendar,
   Captions,
   CaptionsOff,
@@ -34,6 +36,7 @@ export {
   GraduationCap,
   Hand,
   Headphones,
+  Heart,
   HelpCircle,
   History,
   Home,
@@ -53,6 +56,7 @@ export {
   Monitor,
   MoreHorizontal,
   MoreVertical,
+  Orbit,
   Pause,
   Pencil,
   PhoneOff,
@@ -74,17 +78,22 @@ export {
   Sparkle,
   Sparkles,
   Square,
+  Star,
+  Target,
   Trash2,
+  TrendingUp,
   Unlock,
   Upload,
   Users,
   Volume1,
   Volume2,
   VolumeX,
+  Wand2,
   Wifi,
   WifiOff,
   X,
   XCircle,
+  Zap,
 } from "lucide-react";
 
 export interface BrandMarkProps extends SVGProps<SVGSVGElement> {
@@ -102,11 +111,22 @@ export function BrandMark({ size = 36, className, ...props }: BrandMarkProps) {
       className={className}
       {...props}
     >
-      <rect width="36" height="36" rx="10" fill="#1B2126" />
-      <path
-        d="M18 7.5C18.55 13.1 22.9 17.45 28.5 18C22.9 18.55 18.55 22.9 18 28.5C17.45 22.9 13.1 18.55 7.5 18C13.1 17.45 17.45 13.1 18 7.5Z"
-        fill="#F6F5F2"
+      <rect width="36" height="36" rx="10" fill="var(--text-primary)" />
+      <rect
+        x="1"
+        y="1"
+        width="34"
+        height="34"
+        rx="9"
+        stroke="var(--surface-card)"
+        strokeOpacity="0.16"
       />
+      <circle cx="26.5" cy="9.5" r="5.5" fill="var(--accent)" fillOpacity="0.32" />
+      <path
+        d="M17.2 7.5C17.75 12.95 21.95 17.15 27.4 17.7C21.95 18.25 17.75 22.45 17.2 27.9C16.65 22.45 12.45 18.25 7 17.7C12.45 17.15 16.65 12.95 17.2 7.5Z"
+        fill="var(--surface-page)"
+      />
+      <circle cx="26.8" cy="9.4" r="2.1" fill="var(--accent-on-dark)" />
     </svg>
   );
 }

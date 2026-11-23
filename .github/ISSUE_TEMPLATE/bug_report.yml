@@ -1,0 +1,59 @@
+name: Bug Report / 问题反馈
+description: Report a reproducible bug in Companion Space / 反馈可复现的功能或界面异常
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈问题！提交前请确认**切勿粘贴或上传**真实 API Key、`vault.json`、`.env` 或受版权保护/含个人隐私的教材与真题。
+        *Before submitting, never attach real API keys, `vault.json`, `.env`, or private/copyrighted study files.*
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: 运行方式 / Installation Method
+      options:
+        - Windows Portable ZIP (免安装便携包)
+        - Source — Windows (start.ps1 / start.bat)
+        - Source — macOS / Linux (start.sh)
+        - Docker Compose
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: 系统与浏览器环境 / OS & Browser
+      description: 例如 Windows 11 24H2 + Edge 136 / macOS 15 + Chrome
+      placeholder: "Windows 11 + Edge"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to Reproduce
+      description: 请按顺序列出触发问题的操作步骤
+      placeholder: |
+        1. 启动服务打开 `/`
+        2. 进入……
+        3. 点击……
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际现象与报错信息 / Actual Behavior & Error Code
+      description: 界面上显示的中文提示、错误码或终端脱敏日志
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: 隐私与安全确认 / Privacy Check
+      options:
+        - label: 我已确认下方内容和截图中不包含任何 API Key、`vault.json` 或受版权保护的私人教材文件
+          required: true

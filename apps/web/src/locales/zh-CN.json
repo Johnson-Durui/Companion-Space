@@ -1466,5 +1466,41 @@
     "historyReplay": "回放",
     "historyToday": "今天",
     "historyYesterday": "昨天"
+  },
+  "richUi": {
+    "studioSubtitle": "1v1 本地伴学书桌",
+    "footerTagline": "本地一对一动态伴学空间 · 资料与记录仅保存在本机",
+    "companionOnline": "在线伴学",
+    "todayStudioKicker": "今日伴学台",
+    "statDueLessons": "待学课堂",
+    "statDueReviews": "到期复习",
+    "statWeekFocus": "本周专注",
+    "statUnitLesson": "节",
+    "statUnitCard": "张",
+    "statUnitMin": "分钟",
+    "statActiveCourses": "在学课程",
+    "missionKicker": "今日主线任务",
+    "whyHeader": "老师这样排课的依据",
+    "checklistProgress": "已完成 {done} / {total} 步",
+    "reviewMemoryTag": "间隔记忆巩固",
+    "examTargetTag": "考前目标追踪",
+    "weekDaysShort": ["一", "二", "三", "四", "五", "六", "日"],
+    "tutorStudioKicker": "专属导师工坊",
+    "tutorGalleryLead": "每位老师都有独立声线、主题色与 8 段课堂即时反应。",
+    "tutorMotionReady": "8/8 动态就绪",
+    "tutorCustomAvatar": "自定义形象",
+    "tutorVoiceTag": "专属声线",
+    "tutorRosterTitle": "导师名册",
+    "tutorRosterMeta": "{count} 位可选导师 · 支持拖入单图或角色包",
+    "welcomeHighlights": [
+      "1对1 动态讲授",
+      "同步公式黑板",
+      "随时打断追问",
+      "本机私密存储"
+    ],
+    "lobbyReadyTag": "教案与黑板已就绪",
+    "lobbyOutlineSub": "本节课将按以下脉络循序展开",
+    "courseProgressLabel": "已学进度",
+    "masteredRatio": "已掌握 {mastered}/{total}"
   }
 }

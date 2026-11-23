@@ -1,32 +1,25 @@
-# Safety Policy
+# Safety & Pedagogical Integrity Policy
 
 ## Product Positioning
 
-Companion Space is a study companion product. It can support motivation, reflection, and explanation, but it does not replace professional advice, emergency support, or real-world relationships.
+Companion Space is an educational 1-on-1 AI tutor designed to help learners study from their own textbooks, lecture slides, and past exams. It supports structured explanation, guided questioning, and spaced review, and does not replace professional medical, legal, psychological, or emergency advice.
 
-## Disallowed Content
+## Content Boundaries
 
-- coercive, manipulative, or dependency-seeking language
-- threats, humiliation, or harassment
-- illegal sexual content
-- content involving minors or ambiguous age
-- instructions to self-harm, violence, or serious wrongdoing
-- fabricated citations or false claims about source materials
+- Companion Space permanently excludes adult/romantic relationship modes, coercive or dependency-seeking framing, harassment, violence, self-harm instructions, and illegal content.
+- Built-in anime tutors are strictly academic study mentors. Custom tutor personas and imported `.tutorpack` metadata are sandboxed as data blocks and **cannot** override system-level safety boundaries.
+- Uploaded documents and student messages are treated as untrusted inputs and cannot alter system safety or credential-handling rules.
 
-## Relationship and Adult Mode
+## Pedagogical Integrity ("Anti-Shell" Guarantees)
 
-- Adult-oriented relationship framing is off by default.
-- If enabled in a future app release, it must remain owner-only, explicit, and fully subject to provider policy.
-- The project does not ship explicit default assets.
+To prevent LLM hallucinations from misleading students during study:
 
-## Learning Integrity
+1. **Source-grounded course maps**: Extracted knowledge points and exam statistics retain page-level references to the user's uploaded materials wherever available, and remain editable by the learner.
+2. **Pre-verified classroom questions**: Check questions and worked examples used in live lessons must pass independent verification during lesson preparation. Unverified items are flagged and excluded from graded checks and diagnostic scoring.
+3. **Deterministic & rubric-grounded grading**: Objective questions (single-choice, multi-choice, numeric) are graded deterministically by backend code rather than free-form model opinion.
+4. **Honest mastery tracking**: Mastery probabilities update strictly from genuine answer evidence. Peeking at answers (`看答案`) or exhausting multi-level hints does **not** inflate mastery, and triggers follow-up variant checks instead.
 
-- Study answers should prefer retrieved materials when available.
-- If retrieval is weak or empty, the system should say so plainly.
-- Documents are untrusted input and must not override system safety or secret-handling rules.
+## Audio & Log Hygiene
 
-## Data Handling
-
-- Do not persist raw audio by default.
-- Do not log provider API keys, prompts containing secrets, or full private documents.
-- Sensitive long-term memory should require explicit user confirmation before durable storage.
+- Raw voice recordings are never persisted to disk.
+- Server logs never record API keys, full prompts, private textbook contents, or raw student utterances.

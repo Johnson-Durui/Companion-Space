@@ -1,46 +1,33 @@
 # Privacy and Data Handling
 
-## Local-First Default
+Companion Space is built around a strict **local-first** principle: your textbooks, past exams, study progress, and API credentials stay on your own computer.
 
-Companion Space is intended to run on a machine the owner controls. The default privacy posture is:
+## Default Privacy Posture
 
-- browser session state stays local
-- provider keys stay server-side only
-- uploaded materials stay on local storage
-- raw audio should not persist by default
+- **Loopback-only server**: Runs on `127.0.0.1:8000` with no telemetry, analytics beacons, or mandatory cloud accounts.
+- **Server-side encrypted credentials**: API keys are stored only in the backend encrypted vault (`vault.json`), never in browser `localStorage` or frontend state.
+- **Explicit external requests**: Network calls occur only when you actively analyze materials, chat/study in a live lesson, test a connection, or synthesize/transcribe speech through a provider you configured.
 
 ## Data Categories
 
-### Persistent by design
+### Stored Locally on Disk (`COMPANION_DATA_DIR`, default `./storage`)
 
-- uploaded materials
-- final transcripts
-- summaries and review items
-- memory candidates or approved memory items
-- container and proxy configuration
+- **Course materials & parsed index**: Uploaded PDF, PPTX, DOCX, Markdown, plain-text, and image files alongside extracted chunks, page references, and course maps.
+- **Verified item bank & study plans**: Extracted/generated check items, verification status, learner interview preferences, placement results, and versioned study plans.
+- **Learning evidence & FSRS cards**: Objective/rubric grading records, per-knowledge-point mastery probabilities, review flashcards, mistake cards, lesson events, and recaps.
+- **Settings & custom tutors**: Partitioned user preferences, imported portraits / `.tutorpack` archives, and the encrypted `vault.json` credential store.
 
-### Ephemeral by design
+### Kept Strictly Ephemeral in Memory (Never Persisted to Disk)
 
-- live audio buffers
-- partial ASR results
-- streaming LLM deltas
-- streaming TTS chunks
+- **Raw microphone audio**: Live `16 kHz` PCM16 voice buffers and Silero VAD frames exist only in memory during active speech capture and are discarded immediately after transcription.
+- **Live classroom transcript drawer (`Shift+T`)**: The real-time interleaved speech/input transcript inside an active classroom session stays strictly in browser memory and is never written to disk or server logs.
+- **Streaming deltas & audio chunks**: Partial LLM token streams, TTS audio buffers, and short-lived owner session tokens.
 
-## Sensitive Data Rules
+## Cross-Course Isolation
 
-- Never store API keys in browser local storage.
-- Never commit `.env`, `storage/`, or local CA material.
-- Redact credentials and bearer tokens from logs.
-- Treat imported character packs and uploaded files as untrusted.
-- Confirming a memory item authorizes the backend to include that item in later prompts sent to the chat model assigned to the same study space. Sensitive candidates are not used this way before explicit confirmation, and deleting a confirmed item stops future inclusion.
-- Memory and review context must remain scoped to one study space and must stay separate from material citations.
+All course data is partitioned by `space_id` in SQLite. Context retrieved during analysis, lesson preparation, or live teaching for one course never reads materials, notes, or evidence belonging to another course.
 
-## Backup Guidance
+## Backup & Deletion
 
-- If you back up `storage/`, assume it contains private study materials and transcripts.
-- If you back up `infra/caddy/data`, treat the local CA keys as sensitive.
-- Prefer encrypted backups whenever data leaves the host machine.
-
-## Current State
-
-Provider credentials are now stored in the server-side encrypted vault. Keep browser storage free of keys, and treat unlock/reset/wipe behavior as release-critical flows that should be re-verified whenever the vault schema changes.
+- Deleting a course from **Course Hub → More → Delete Course** removes its materials, chunks, plans, lessons, and review records from your local data directory.
+- If you back up `storage/` (or `companion_data` in Docker), treat the backup archive as confidential personal data and prefer encrypted storage if copying it off your machine.

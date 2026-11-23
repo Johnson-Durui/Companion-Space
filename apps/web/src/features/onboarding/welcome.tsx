@@ -14,13 +14,16 @@ import { Loading, Problem } from "../../app/ui";
 import { FocusShell } from "../../shell/FocusShell";
 import {
   ArrowLeft,
+  Badge,
   Button,
   Card,
   Field,
   Play,
+  Sparkles,
   Stepper,
   TextInput,
   Textarea,
+  TutorAvatar,
   toast,
 } from "../../ui";
 import { TeacherPreview } from "../characters/teacher-preview";
@@ -212,11 +215,27 @@ export default function Welcome() {
                 </div>
               </Card>
             ) : (
-              <div className="grid gap-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h1 className="text-headline font-semibold text-fg-primary">{t.welcome.heading}</h1>
+              <div className="grid gap-4">
+                <div className="cs-bento-card flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 sm:px-5 sm:py-3.5">
+                  <div className="grid gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="accent">
+                        <Sparkles size={12} aria-hidden="true" />
+                        <span>{t.richUi.tutorStudioKicker}</span>
+                      </Badge>
+                      {t.richUi.welcomeHighlights.map((tag) => (
+                        <span
+                          key={tag}
+                          className="hidden sm:inline-flex rounded-full border border-line-subtle bg-surface-page/80 px-2.5 py-0.5 text-caption text-fg-secondary"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <h1 className="text-headline font-semibold text-fg-primary">{t.welcome.heading}</h1>
+                  </div>
                   {sample.data ? (
-                    <Link className="button quiet" to="/sample-lesson">
+                    <Link className="button quiet shadow-1" to="/sample-lesson">
                       <Play size={15} aria-hidden="true" />
                       <span>{copy.trySampleNoConfig}</span>
                     </Link>
@@ -247,8 +266,8 @@ export default function Welcome() {
 
           {/* Step 2: Nickname */}
           {step === 2 ? (
-            <Card padding="lg" className="grid gap-5">
-              <div>
+            <Card padding="lg" className="cs-featured-card grid gap-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -257,6 +276,12 @@ export default function Welcome() {
                 >
                   {copy.back}
                 </Button>
+                {candidate ? (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-line-subtle bg-surface-card px-3 py-1 text-caption font-medium text-fg-secondary shadow-1">
+                    <TutorAvatar src={candidate.appearance.src} name={candidate.name} size="sm" />
+                    <span>{candidate.name}</span>
+                  </span>
+                ) : null}
               </div>
               <div className="grid gap-1.5">
                 <h1 className="text-headline font-semibold text-fg-primary">{copy.nicknameTitle}</h1>
@@ -324,8 +349,8 @@ export default function Welcome() {
 
           {/* Step 4: First Course */}
           {step === 4 ? (
-            <Card padding="lg" className="grid gap-5">
-              <div>
+            <Card padding="lg" className="cs-featured-card grid gap-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -334,6 +359,12 @@ export default function Welcome() {
                 >
                   {copy.back}
                 </Button>
+                {candidate ? (
+                  <span className="inline-flex items-center gap-2 rounded-full border border-line-subtle bg-surface-card px-3 py-1 text-caption font-medium text-fg-secondary shadow-1">
+                    <TutorAvatar src={candidate.appearance.src} name={candidate.name} size="sm" />
+                    <span>{candidate.name}</span>
+                  </span>
+                ) : null}
               </div>
               <div className="grid gap-1.5">
                 <h1 className="text-headline font-semibold text-fg-primary">{copy.firstCourseTitle}</h1>

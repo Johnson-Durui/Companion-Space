@@ -6,6 +6,7 @@ import clsx from "clsx";
 export interface TabItem {
   value: string;
   label: string;
+  icon?: ReactNode;
   badge?: ReactNode;
   content: ReactNode;
 }
@@ -39,6 +40,7 @@ export function Tabs({ value, defaultValue, onValueChange, items, className }: T
               "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-transparent aria-[selected=true]:after:bg-accent data-[active]:after:bg-accent",
             )}
           >
+            {item.icon}
             <span>{item.label}</span>
             {item.badge}
           </BaseTabs.Tab>
@@ -56,6 +58,7 @@ export function Tabs({ value, defaultValue, onValueChange, items, className }: T
 export interface RouteTabEntry {
   to: string;
   label: string;
+  icon?: ReactNode;
   active: boolean;
   badge?: ReactNode;
 }
@@ -70,7 +73,10 @@ export function RouteTabs({ items, "aria-label": ariaLabel, className }: RouteTa
   return (
     <nav
       aria-label={ariaLabel}
-      className={clsx("flex items-center gap-1 overflow-x-auto border-b border-line-subtle", className)}
+      className={clsx(
+        "flex items-center gap-1 overflow-x-auto rounded-lg border border-line-subtle bg-surface-card/80 p-1 shadow-1 backdrop-blur-sm",
+        className,
+      )}
     >
       {items.map((item) => (
         <Link
@@ -78,17 +84,15 @@ export function RouteTabs({ items, "aria-label": ariaLabel, className }: RouteTa
           to={item.to}
           aria-current={item.active ? "page" : undefined}
           className={clsx(
-            "relative inline-flex min-h-10 shrink-0 items-center gap-1.5 px-3.5 text-ui transition-colors duration-fast ease-out",
+            "relative inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-md px-3 text-ui transition-[background-color,color,box-shadow] duration-fast ease-out",
             item.active
-              ? "font-semibold text-accent-strong"
-              : "font-medium text-fg-secondary hover:text-fg-primary",
+              ? "bg-accent-soft/85 font-semibold text-accent-strong shadow-1 ring-1 ring-accent/25"
+              : "font-medium text-fg-secondary hover:bg-surface-sunken/70 hover:text-fg-primary",
           )}
         >
+          {item.icon}
           <span>{item.label}</span>
           {item.badge}
-          {item.active ? (
-            <span aria-hidden="true" className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent" />
-          ) : null}
         </Link>
       ))}
     </nav>

@@ -6,14 +6,18 @@ import {
   Badge,
   Button,
   Card,
+  CheckCircle2,
   ChevronRight,
+  Clock,
   Dialog,
   EmptyState,
+  GraduationCap,
   MasteryGrid,
   MasteryShapeGlyph,
   RotateCcw,
   ScoreBar,
   StudyCalendar,
+  Target,
   TutorAvatar,
   WeeklyMinutes,
   normalizeMasteryStatus,
@@ -193,33 +197,67 @@ export default function ProgressPage({ embedded = false }: { embedded?: boolean 
         </Card>
       ) : (
         <>
-          {/* Three key counters */}
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label={copy.heading}>
-            <Card padding="md" className="grid gap-1">
-              <span className="text-caption text-fg-tertiary">{copy.minutes}</span>
-              <strong className="text-headline font-semibold tabular-nums text-fg-primary">
-                {data.studied_minutes}
-              </strong>
+          {/* Three key counters (Vitalis-inspired KPI Bento Cards) */}
+          <section className="grid grid-cols-1 gap-3.5 sm:grid-cols-3" aria-label={copy.heading}>
+            <Card padding="md" className="cs-bento-card grid gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-caption font-medium text-fg-secondary">{copy.minutes}</span>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-accent-soft text-accent-strong">
+                  <Clock size={16} aria-hidden="true" />
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <strong className="text-display font-semibold tabular-nums text-fg-primary">
+                  {data.studied_minutes}
+                </strong>
+                <span className="text-caption text-fg-tertiary">{t.richUi.statUnitMin}</span>
+              </div>
             </Card>
-            <Card padding="md" className="grid gap-1">
-              <span className="text-caption text-fg-tertiary">{copy.mastered}</span>
-              <strong className="text-headline font-semibold tabular-nums text-fg-primary">
+            <Card padding="md" className="cs-bento-card grid gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-caption font-medium text-fg-secondary">{copy.mastered}</span>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-ok-soft text-ok">
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                </span>
+              </div>
+              <strong className="text-display font-semibold tabular-nums text-fg-primary">
                 {masteredCount}
-                <span className="ml-1 text-ui font-normal text-fg-tertiary">/ {data.points.length}</span>
+                <span className="ml-1.5 text-title font-normal text-fg-tertiary">/ {data.points.length}</span>
               </strong>
+              {data.points.length > 0 ? (
+                <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunken">
+                  <div
+                    className="h-full rounded-full bg-ok"
+                    style={{ width: `${Math.min(100, Math.round((masteredCount / data.points.length) * 100))}%` }}
+                  />
+                </div>
+              ) : null}
             </Card>
-            <Card padding="md" className="grid gap-1">
-              <span className="text-caption text-fg-tertiary">{viz.lessonsCompleted}</span>
-              <strong className="text-headline font-semibold tabular-nums text-fg-primary">
-                {lessonsCompleted}
-              </strong>
+            <Card padding="md" className="cs-bento-card grid gap-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-caption font-medium text-fg-secondary">{viz.lessonsCompleted}</span>
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-info-soft text-info">
+                  <GraduationCap size={16} aria-hidden="true" />
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <strong className="text-display font-semibold tabular-nums text-fg-primary">
+                  {lessonsCompleted}
+                </strong>
+                <span className="text-caption text-fg-tertiary">{t.richUi.statUnitLesson}</span>
+              </div>
             </Card>
           </section>
 
           {/* ScoreBar (shown only when exam stats exist) */}
           {data.has_exam_stats ? (
-            <Card padding="lg" className="grid gap-2">
-              <h2 className="text-title font-semibold text-fg-primary">{copy.secured}</h2>
+            <Card padding="lg" className="cs-featured-card grid gap-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-accent-soft text-accent-strong">
+                  <Target size={15} aria-hidden="true" />
+                </span>
+                <h2 className="text-title font-semibold text-fg-primary">{copy.secured}</h2>
+              </div>
               <ScoreBar
                 secured={data.secured_score}
                 scale={data.score_scale}
@@ -236,7 +274,7 @@ export default function ProgressPage({ embedded = false }: { embedded?: boolean 
           ) : null}
 
           {/* MasteryGrid (color + shape + weight, clickable for B5 timeline) */}
-          <Card padding="lg" className="grid gap-3">
+          <Card padding="lg" className="cs-bento-card grid gap-3">
             <h2 className="text-title font-semibold text-fg-primary">{copy.map}</h2>
             <MasteryGrid
               points={gridPoints}

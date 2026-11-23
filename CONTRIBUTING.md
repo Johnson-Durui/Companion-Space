@@ -1,65 +1,85 @@
-# Contributing
+# Contributing to Companion Space
 
-## Scope
+Companion Space is a local-first, single-user 1-on-1 AI tutor released under **Apache-2.0**. Contributions are welcome and should preserve local ownership, real-model teaching integrity, and clean licensing.
 
-Companion Space is a local-first, single-user study companion project. Contributions should preserve that constraint unless a maintainer explicitly widens the scope.
+## Prerequisites
 
-## Setup
+- **Python 3.12+** (CI runs on Python 3.13; the optional Windows portable archive builder uses Python 3.14 x64)
+- **Node.js 24+** (workspace lockfile is managed with `npm@11.21.2`)
+- **Docker** *(optional)* for single-container `docker compose` verification
 
-### Prerequisites
-
-- Node.js 24+
-- npm 11.21.2 for reproducible workspace installs
-- Python 3.13+
-- Docker Desktop or compatible Docker Engine for Compose validation
-
-### Install
+## Development Setup
 
 ```bash
-cp .env.example .env
+# Install frontend workspace dependencies (use npm, not pnpm)
 npx --yes npm@11.21.2 ci
-python3 -m pip install -r services/api/requirements-dev.txt
+
+# Create a virtual environment and install backend dev dependencies
+python -m venv .venv
+# Windows: .venv\Scripts\python.exe -m pip install -r services/api/requirements-dev.txt
+# macOS/Linux:
+.venv/bin/python -m pip install -r services/api/requirements-dev.txt
 ```
 
-## Development Workflow
+> **Important**: Never run tests or evaluation scripts against a live `storage/` directory containing personal study data. Backend tests automatically isolate state via temporary directories (`isolated_settings`), and manual test runs should set `COMPANION_DATA_DIR` to a temporary path.
 
-1. Keep changes small and reversible.
-2. Reuse existing patterns before introducing new abstractions.
-3. Do not commit API keys, local certificates, Caddy CA private keys, `.env` values, `storage/`, or user databases.
-4. This is an npm workspace. Use `npm` / `npm.cmd`, not pnpm.
-5. If you add assets, include their license metadata in `docs/asset-licensing.md` or an adjacent manifest.
-6. If you add new externally reachable behavior, update `docs/security-model.md` and `docs/deployment.md`.
-7. Do not enable `*` CORS, disable TLS verification, or place refresh tokens in URLs, remote JS, localStorage, or logs.
+## Verification Gate
 
-## Verification
+Before opening a pull request, make sure all checks pass.
 
-Run the relevant checks before opening a PR:
+**Windows (full one-command gate):**
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1 -Frontend -Contract
+```
+
+**Cross-platform individual checks:**
 
 ```bash
-python3 -m ruff check services/api
-PYTHONPATH=services/api pytest services/api/tests -q
-npm run typecheck:web
-npm run lint:web
-npm run build:web
+python -m ruff check services/api tools/tutorpack sidecars/local-gpu-avatar
+PYTHONPATH=services/api python -m pytest services/api/tests -q
+python -m pytest sidecars/local-gpu-avatar/tests -q
+npm run generate:api:check
+python scripts/check_no_fakes.py
+npm run typecheck --workspace web
+npm run lint --workspace web
+npm run test --workspace web
+npm run build --workspace web
+npm run test:e2e
 ```
 
-If Docker is available, also validate:
+If you modified any FastAPI route request/response schema, regenerate and commit the typed frontend client first:
 
 ```bash
-docker compose up --build
+npm run generate:api
 ```
 
-## Documentation Expectations
+## Engineering & Licensing Rules
 
-- User-facing behavior changes must update `README.md`.
-- Data-handling changes must update `docs/privacy-and-data.md`.
-- Proxy, LAN, or container changes must update `docs/deployment.md` and `docs/lan-pairing.md`.
-- Safety-boundary changes must update `docs/safety-policy.md`.
+1. **No fake providers or canned teaching content in production code**: Test doubles belong strictly under `services/api/tests/fakes/` and `apps/web/tests/`. Enforced by `scripts/check_no_fakes.py`.
+2. **Structured API errors**: User-facing HTTP errors must return structured `{"code": "...", "message": "..."}` details mapped cleanly in `apps/web/src/locales/zh-CN.json`.
+3. **Design tokens & accessibility**: Keep hex colors confined to `apps/web/src/styles/theme.css`, preserve keyboard navigation and `prefers-reduced-motion` support, and keep technical jargon inside Advanced sections.
+4. **Never commit secrets or private study files**: Do not commit API keys, `.env`, `vault.json`, `storage/`, SQLite databases, or copyrighted third-party textbooks and exam papers.
+5. **Clean licenses only**: Code and dependencies must use permissive licenses (`Apache-2.0`, `MIT`, `BSD`, `ISC`, `MPL-2.0`; `OFL-1.1` for fonts). Do not introduce `GPL`/`AGPL` dependencies or proprietary SDKs. Any bundled portrait, video clip, voice sample, or font must have verified redistribution rights registered in [`assets/avatars/LICENSES.md`](assets/avatars/LICENSES.md) and [`assets/THIRD_PARTY_NOTICES.md`](assets/THIRD_PARTY_NOTICES.md).
+
+## Documentation Sync
+
+- User-facing workflow or CLI changes → [`README.md`](README.md) & [`README.en.md`](README.en.md)
+- Data persistence or telemetry boundaries → [`docs/privacy-and-data.md`](docs/privacy-and-data.md)
+- Loopback, vault, WebSocket, or Sidecar trust rules → [`docs/security-model.md`](docs/security-model.md)
+- Content & pedagogical guardrails → [`docs/safety-policy.md`](docs/safety-policy.md)
+- Media & `.tutorpack` provenance rules → [`docs/asset-licensing.md`](docs/asset-licensing.md)
 
 ## Security Reporting
 
-Do not open a public issue for credential leaks, trust-boundary bypasses, or unsafe asset execution paths. Report them privately to the maintainers with reproduction steps and affected files.
+Please do **not** open public issues for credential leaks, sandbox/loopback bypasses, or archive extraction vulnerabilities. Follow [`SECURITY.md`](SECURITY.md) to report security issues privately.
 
-## 中文摘要
+---
 
-这是本地优先、单用户的学习搭子。贡献请保持范围，不要把密钥、证书、用户数据和构建快照提交进仓库。验证命令见仓库根 `README.md`。
+## 中文贡献简引
+
+Companion Space 是本地优先、单用户的开源 1v1 AI 导师（Apache-2.0）：
+
+- 开发环境需 **Python 3.12+** 与 **Node.js 24+**，前端工作区统一使用 `npx --yes npm@11.21.2 ci`（不使用 `pnpm`）。
+- 提交前请确保 `scripts/gate.ps1 -Frontend -Contract` 全绿（含 Ruff、Pytest、OpenAPI 契约检查、`check_no_fakes.py` 防空壳扫描、TypeScript、ESLint、Vitest 与 Vite 构建）。
+- 严禁提交真实 API Key、`vault.json`、`storage/` 用户库或受版权保护的教材/真题文件。

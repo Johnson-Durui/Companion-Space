@@ -12,6 +12,11 @@ export interface SpeakResult {
   reason_code?: string | null;
 }
 
+export interface SpeakCallbacks {
+  onStart?: () => void;
+  onEnd?: () => void;
+}
+
 export async function requestTutorSpeech(params: {
   characterId?: string;
   text?: string;
@@ -39,12 +44,25 @@ function decodeBase64Bytes(b64: string): Uint8Array {
 
 export function playEncodedSpeech(
   result: SpeakResult,
-  options?: { playbackRate?: number; onEnd?: () => void; onError?: () => void },
+  options?: {
+    playbackRate?: number;
+    onStart?: () => void;
+    onEnd?: () => void;
+    onError?: () => void;
+  },
 ): () => void {
   if (result.kind !== "audio" || !result.audio_b64) {
     options?.onError?.();
     return () => {};
   }
+
+  let stopped = false;
+  let started = false;
+  const notifyStart = () => {
+    if (stopped || started) return;
+    started = true;
+    options?.onStart?.();
+  };
 
   if (result.format === "pcm_s16le") {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -66,17 +84,24 @@ export function playEncodedSpeech(
     source.buffer = buffer;
     if (options?.playbackRate) source.playbackRate.value = options.playbackRate;
     source.connect(ctx.destination);
-    let stopped = false;
     source.onended = () => {
       if (!stopped) options?.onEnd?.();
       void ctx.close().catch(() => {});
     };
-    try {
-      source.start();
-    } catch {
-      void ctx.close().catch(() => {});
-      options?.onError?.();
-    }
+    const startPcm = async () => {
+      try {
+        if (ctx.state === "suspended") {
+          await ctx.resume();
+        }
+        if (stopped) return;
+        source.start();
+        notifyStart();
+      } catch {
+        void ctx.close().catch(() => {});
+        if (!stopped) options?.onError?.();
+      }
+    };
+    void startPcm();
     return () => {
       stopped = true;
       try {
@@ -90,25 +115,31 @@ export function playEncodedSpeech(
 
   const audio = new Audio(`data:audio/mpeg;base64,${result.audio_b64}`);
   if (options?.playbackRate) audio.playbackRate = options.playbackRate;
-  let stopped = false;
+  audio.onplaying = notifyStart;
   audio.onended = () => {
     if (!stopped) options?.onEnd?.();
   };
   audio.onerror = () => {
     if (!stopped) options?.onError?.();
   };
-  void audio.play().catch(() => {
+  void audio.play().then(notifyStart).catch(() => {
     if (!stopped) options?.onError?.();
   });
   return () => {
     stopped = true;
+    audio.onplaying = null;
+    audio.onended = null;
+    audio.onerror = null;
     audio.pause();
     audio.src = "";
   };
 }
 
 export interface UseTutorSpeechReturn {
-  speak: (params: { characterId?: string; text?: string; voiceId?: string }) => Promise<boolean>;
+  speak: (
+    params: { characterId?: string; text?: string; voiceId?: string },
+    callbacks?: SpeakCallbacks,
+  ) => Promise<boolean>;
   stop: () => void;
   loading: boolean;
   speaking: boolean;
@@ -118,8 +149,8 @@ export interface UseTutorSpeechReturn {
 
 /**
  * B13 unified out-of-classroom tutor speech hook.
- * On failure/unavailable, marks `unavailable = true` (UI shows "声音暂时用不了" and keeps text)
- * without falling back to robotic browser speechSynthesis.
+ * Marks `speaking = true` strictly when audible playback begins (`onStart`),
+ * never prematurely while waiting for server TTS synthesis or media buffering.
  */
 export function useTutorSpeech(): UseTutorSpeechReturn {
   const [loading, setLoading] = useState(false);
@@ -139,42 +170,75 @@ export function useTutorSpeech(): UseTutorSpeechReturn {
 
   useEffect(() => stop, [stop]);
 
-  const speak = useCallback(async (params: { characterId?: string; text?: string; voiceId?: string }) => {
-    stop();
-    const mySeq = seqRef.current;
-    setLoading(true);
-    setUnavailable(false);
-    setWarning(null);
-    try {
-      const result = await requestTutorSpeech(params);
-      if (seqRef.current !== mySeq) return false;
-      setLoading(false);
-      if (result.warning) setWarning(result.warning);
-      if (result.kind !== "audio" || !result.audio_b64) {
+  const speak = useCallback(
+    async (
+      params: { characterId?: string; text?: string; voiceId?: string },
+      callbacks?: SpeakCallbacks,
+    ) => {
+      stop();
+      const mySeq = seqRef.current;
+      setLoading(true);
+      setUnavailable(false);
+      setWarning(null);
+      try {
+        const result = await requestTutorSpeech(params);
+        if (seqRef.current !== mySeq) return false;
+        if (result.warning) setWarning(result.warning);
+        if (result.kind !== "audio" || !result.audio_b64) {
+          setLoading(false);
+          setUnavailable(true);
+          return false;
+        }
+        return await new Promise<boolean>((resolve) => {
+          let settled = false;
+          const settle = (ok: boolean) => {
+            if (settled) return;
+            settled = true;
+            resolve(ok);
+          };
+          const cleanup = playEncodedSpeech(result, {
+            onStart: () => {
+              if (seqRef.current !== mySeq) {
+                settle(false);
+                return;
+              }
+              setLoading(false);
+              setSpeaking(true);
+              callbacks?.onStart?.();
+              settle(true);
+            },
+            onEnd: () => {
+              if (seqRef.current === mySeq) {
+                setLoading(false);
+                setSpeaking(false);
+                callbacks?.onEnd?.();
+              }
+              settle(true);
+            },
+            onError: () => {
+              if (seqRef.current === mySeq) {
+                setLoading(false);
+                setSpeaking(false);
+                setUnavailable(true);
+              }
+              settle(false);
+            },
+          });
+          stopRef.current = () => {
+            cleanup();
+            settle(false);
+          };
+        });
+      } catch {
+        if (seqRef.current !== mySeq) return false;
+        setLoading(false);
+        setSpeaking(false);
         setUnavailable(true);
         return false;
       }
-      setSpeaking(true);
-      stopRef.current = playEncodedSpeech(result, {
-        onEnd: () => {
-          if (seqRef.current === mySeq) setSpeaking(false);
-        },
-        onError: () => {
-          if (seqRef.current === mySeq) {
-            setSpeaking(false);
-            setUnavailable(true);
-          }
-        },
-      });
-      return true;
-    } catch {
-      if (seqRef.current !== mySeq) return false;
-      setLoading(false);
-      setSpeaking(false);
-      setUnavailable(true);
-      return false;
-    }
-  }, [stop]);
+    },
+    [stop],
+  );
 
   return { speak, stop, loading, speaking, unavailable, warning };
 }

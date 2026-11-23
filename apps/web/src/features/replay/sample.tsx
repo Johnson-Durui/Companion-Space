@@ -100,7 +100,6 @@ function SampleRecording({
         if (cancelled) return;
         if (result.kind === "audio" && result.audio_b64) {
           setBrowserTts(false);
-          setSpeaking(true);
           const finish = () => {
             if (cancelled) return;
             window.clearTimeout(fallbackTimer);
@@ -110,6 +109,9 @@ function SampleRecording({
           fallbackTimer = window.setTimeout(finish, Math.max(dwell + 4000, 12_000));
           stopAudioRef.current = playEncodedSpeech(result, {
             playbackRate: speed,
+            onStart: () => {
+              if (!cancelled) setSpeaking(true);
+            },
             onEnd: finish,
             onError: runFallback,
           });

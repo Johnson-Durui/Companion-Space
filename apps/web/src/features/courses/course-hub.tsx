@@ -5,15 +5,22 @@ import { Loading, Problem } from "../../app/ui";
 import {
   ArrowRight,
   Badge,
+  BarChart3,
+  BookOpen,
   Button,
+  Calendar,
   Card,
   Checkbox,
   ChevronRight,
+  Compass,
   ConfirmDialog,
   Dialog,
   DifficultyDots,
   Field,
   FileDropzone,
+  FolderOpen,
+  History,
+  Home,
   MasteryBar,
   MasteryShapeGlyph,
   Menu,
@@ -145,18 +152,49 @@ export function CourseHubLayout({ children }: { children: ReactNode }) {
   const base = `/courses/${courseId}`;
 
   const tabs = [
-    { to: base, label: t.courseHub.tabs.today, active: location.pathname === base },
-    { to: `${base}/plan`, label: t.courseHub.tabs.plan, active: location.pathname === `${base}/plan` },
-    { to: `${base}/map`, label: t.courseHub.tabs.map, active: location.pathname === `${base}/map` },
+    {
+      to: base,
+      label: t.courseHub.tabs.today,
+      icon: <Home size={15} aria-hidden="true" />,
+      active: location.pathname === base,
+    },
+    {
+      to: `${base}/plan`,
+      label: t.courseHub.tabs.plan,
+      icon: <Calendar size={15} aria-hidden="true" />,
+      active: location.pathname === `${base}/plan`,
+    },
+    {
+      to: `${base}/map`,
+      label: t.courseHub.tabs.map,
+      icon: <Compass size={15} aria-hidden="true" />,
+      active: location.pathname === `${base}/map`,
+    },
     {
       to: `${base}/review`,
       label: t.courseHub.tabs.review,
+      icon: <RotateCcw size={15} aria-hidden="true" />,
       active: location.pathname.startsWith(`${base}/review`),
       badge: summary && summary.due_review_count > 0 ? <Badge tone="accent">{summary.due_review_count}</Badge> : undefined,
     },
-    { to: `${base}/progress`, label: t.courseHub.tabs.progress, active: location.pathname === `${base}/progress` },
-    { to: `${base}/history`, label: t.courseHub.tabs.history, active: location.pathname === `${base}/history` },
-    { to: `${base}/materials`, label: t.courseHub.tabs.materials, active: location.pathname === `${base}/materials` },
+    {
+      to: `${base}/progress`,
+      label: t.courseHub.tabs.progress,
+      icon: <BarChart3 size={15} aria-hidden="true" />,
+      active: location.pathname === `${base}/progress`,
+    },
+    {
+      to: `${base}/history`,
+      label: t.courseHub.tabs.history,
+      icon: <History size={15} aria-hidden="true" />,
+      active: location.pathname === `${base}/history`,
+    },
+    {
+      to: `${base}/materials`,
+      label: t.courseHub.tabs.materials,
+      icon: <FolderOpen size={15} aria-hidden="true" />,
+      active: location.pathname === `${base}/materials`,
+    },
   ];
 
   const headerMeta = (() => {
@@ -183,52 +221,74 @@ export function CourseHubLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="grid min-w-0 gap-5 py-5 sm:py-7" data-testid="course-hub">
-      <div className="grid min-w-0 gap-3">
-        <div className="flex min-w-0 items-center gap-1.5 text-caption text-fg-secondary">
-          <Link to="/courses" className="shrink-0 hover:text-fg-primary">{t.courses.heading}</Link>
-          <ChevronRight size={14} className="shrink-0" aria-hidden="true" />
-          <span className="truncate text-fg-primary">{course.data.name}</span>
-        </div>
+      <div className="grid min-w-0 gap-3.5">
+        <div className="cs-hero-stage rounded-xl p-4 sm:p-6">
+          <div className="grid min-w-0 gap-3">
+            <div className="flex min-w-0 items-center gap-1.5 text-caption text-fg-secondary">
+              <Link to="/courses" className="shrink-0 font-medium hover:text-fg-primary">
+                {t.courses.heading}
+              </Link>
+              <ChevronRight size={14} className="shrink-0" aria-hidden="true" />
+              <span className="truncate text-fg-primary">{course.data.name}</span>
+            </div>
 
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-          <div className="grid min-w-0 flex-1 gap-1">
-            <h1 className="break-words text-headline font-semibold text-fg-primary">{course.data.name}</h1>
-            <p className="text-ui text-fg-secondary">{headerMeta}</p>
+            <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-1 items-start gap-3.5">
+                <span className="mt-1 hidden sm:inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-strong shadow-1 ring-1 ring-accent/20">
+                  <BookOpen size={20} aria-hidden="true" />
+                </span>
+                <div className="grid min-w-0 flex-1 gap-1">
+                  <h1 className="break-words text-headline font-semibold text-fg-primary">
+                    {course.data.name}
+                  </h1>
+                  <p className="text-ui text-fg-secondary">{headerMeta}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {j && j.kps_total > 0 ? (
+                  <Badge tone="accent">
+                    {t.richUi.masteredRatio
+                      .replace("{mastered}", String(j.kps_mastered))
+                      .replace("{total}", String(j.kps_total))}
+                  </Badge>
+                ) : null}
+                <Menu
+                  trigger={
+                    <span className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-line-control bg-surface-card px-3 text-ui font-medium text-fg-primary shadow-1 hover:bg-surface-sunken">
+                      <MoreHorizontal size={16} aria-hidden="true" />
+                      <span>{t.courseHub.more}</span>
+                    </span>
+                  }
+                  items={[
+                    {
+                      id: "settings",
+                      label: t.courseHub.courseSettings,
+                      icon: <Settings size={15} aria-hidden="true" />,
+                      onSelect: () => setSettingsDialogOpen(true),
+                    },
+                    {
+                      id: "rename",
+                      label: t.courseHub.rename,
+                      icon: <Pencil size={15} aria-hidden="true" />,
+                      onSelect: () => {
+                        setRenameName(course.data.name);
+                        setRenameGoal(course.data.goal ?? "");
+                        setRenameOpen(true);
+                      },
+                    },
+                    {
+                      id: "delete",
+                      label: t.courseHub.deleteCourse,
+                      icon: <Trash2 size={15} aria-hidden="true" />,
+                      danger: true,
+                      onSelect: () => setDeleteOpen(true),
+                    },
+                  ]}
+                />
+              </div>
+            </div>
           </div>
-
-          <Menu
-            trigger={
-              <span className="inline-flex min-h-10 items-center gap-1.5 rounded-md border border-line-control bg-surface-card px-3 text-ui font-medium text-fg-primary hover:bg-surface-sunken">
-                <MoreHorizontal size={16} aria-hidden="true" />
-                <span>{t.courseHub.more}</span>
-              </span>
-            }
-            items={[
-              {
-                id: "settings",
-                label: t.courseHub.courseSettings,
-                icon: <Settings size={15} aria-hidden="true" />,
-                onSelect: () => setSettingsDialogOpen(true),
-              },
-              {
-                id: "rename",
-                label: t.courseHub.rename,
-                icon: <Pencil size={15} aria-hidden="true" />,
-                onSelect: () => {
-                  setRenameName(course.data.name);
-                  setRenameGoal(course.data.goal ?? "");
-                  setRenameOpen(true);
-                },
-              },
-              {
-                id: "delete",
-                label: t.courseHub.deleteCourse,
-                icon: <Trash2 size={15} aria-hidden="true" />,
-                danger: true,
-                onSelect: () => setDeleteOpen(true),
-              },
-            ]}
-          />
         </div>
 
         <RouteTabs items={tabs} aria-label={course.data.name} />
@@ -338,7 +398,7 @@ export function CourseTodayTab() {
       { id: "plan", label: stepLabels[4], status: j.steps.plan },
     ];
     return (
-      <Card padding="lg" className="grid gap-6 shadow-1" data-testid="course-today-preparing" data-stage={j.stage}>
+      <Card padding="lg" className="cs-featured-card grid gap-6" data-testid="course-today-preparing" data-stage={j.stage}>
         <div className="flex flex-wrap items-center gap-3.5">
           {tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="md" /> : null}
           <div className="grid gap-0.5">

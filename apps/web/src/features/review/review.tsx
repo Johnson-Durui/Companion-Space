@@ -120,9 +120,12 @@ export default function Review({ embedded = false }: { embedded?: boolean } = {}
       ) : null}
 
       {/* Due Review Hero Card */}
-      <Card padding="lg" className="grid gap-4 shadow-1" data-testid="review-due-card">
+      <Card padding="lg" className="cs-featured-card grid gap-4" data-testid="review-due-card">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-caption font-medium text-fg-tertiary">{viz.reviewDueHeading}</span>
+          <span className="inline-flex items-center gap-1.5 text-caption font-semibold text-accent-strong">
+            <RotateCcw size={13} aria-hidden="true" />
+            <span>{viz.reviewDueHeading}</span>
+          </span>
           <Badge tone={dueCount > 0 ? "accent" : "neutral"}>
             {dueCount} {copy.cards}
           </Badge>
@@ -162,7 +165,7 @@ export default function Review({ embedded = false }: { embedded?: boolean } = {}
       </Card>
 
       {/* Mistake Book grouped by KP */}
-      <Card padding="lg" className="grid gap-4" data-testid="mistake-book">
+      <Card padding="lg" className="cs-bento-card grid gap-4" data-testid="mistake-book">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="grid gap-0.5">
             <span className="text-caption text-fg-tertiary">{copy.history}</span>

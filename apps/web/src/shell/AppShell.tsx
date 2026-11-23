@@ -53,7 +53,8 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
 
   return (
     <TooltipProvider>
-      <div className="min-h-dvh flex flex-col bg-surface-page text-fg-primary">
+      <div className="cs-desk-canvas min-h-dvh flex flex-col overflow-x-clip bg-surface-page text-fg-primary">
+        <div aria-hidden="true" className="cs-desk-grid" />
         <a
           className="fixed left-2 -top-24 z-modal rounded-md bg-surface-card px-3 py-2 text-ui font-medium text-fg-primary shadow-2 focus:top-2"
           href="#main"
@@ -61,20 +62,27 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
           {t.app.skip}
         </a>
 
-        <header className="sticky top-0 z-sticky border-b border-line-subtle bg-surface-card/95 backdrop-blur">
-          <div className="mx-auto grid min-h-16 max-w-[1200px] grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-8">
-            <Link to="/" className="inline-flex items-center gap-3 justify-self-start min-h-10">
-              <BrandMark size={34} />
+        <header className="sticky top-0 z-sticky border-b border-line-subtle/80 bg-surface-card/82 backdrop-blur-xl">
+          <div className="mx-auto grid min-h-16 max-w-[1220px] grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-8">
+            <Link
+              to="/"
+              className="group inline-flex items-center gap-3 justify-self-start min-h-10"
+            >
+              <span className="inline-flex rounded-md p-0.5 ring-1 ring-accent/20 transition-transform duration-fast group-hover:scale-[1.03]">
+                <BrandMark size={34} />
+              </span>
               <span className="grid leading-tight">
                 <strong className="text-body font-semibold tracking-wide text-fg-primary">
                   {t.app.name}
                 </strong>
-                <small className="text-caption text-fg-secondary">Companion Space</small>
+                <small className="text-caption text-fg-secondary">
+                  {t.richUi.studioSubtitle}
+                </small>
               </span>
             </Link>
 
             <nav
-              className="hidden md:flex items-stretch self-stretch gap-1"
+              className="cs-glass-nav hidden md:flex items-center gap-1 rounded-full p-1"
               aria-label={t.app.name}
             >
               {DESK_NAV.map(({ to, label, icon: Icon }) => {
@@ -85,18 +93,18 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
                     to={to}
                     aria-current={active ? "page" : undefined}
                     className={clsx(
-                      "relative inline-flex items-center gap-2 px-3.5 text-ui transition-colors duration-fast ease-out",
+                      "relative inline-flex min-h-9 items-center gap-2 rounded-full px-4 text-ui transition-[background-color,color,box-shadow] duration-fast ease-out",
                       active
-                        ? "font-semibold text-accent-strong"
-                        : "font-medium text-fg-secondary hover:text-fg-primary",
+                        ? "bg-surface-card font-semibold text-accent-strong shadow-1 ring-1 ring-accent/25"
+                        : "font-medium text-fg-secondary hover:bg-surface-card/55 hover:text-fg-primary",
                     )}
                   >
-                    <Icon size={17} strokeWidth={1.85} aria-hidden="true" />
+                    <Icon size={16} strokeWidth={active ? 2.1 : 1.85} aria-hidden="true" />
                     <span>{label}</span>
                     {active ? (
                       <span
                         aria-hidden="true"
-                        className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-accent"
+                        className="h-1.5 w-1.5 rounded-full bg-accent"
                       />
                     ) : null}
                   </Link>
@@ -109,9 +117,9 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
                 <span
                   data-testid="readiness-indicator"
                   data-ready="true"
-                  className="hidden sm:inline-flex items-center gap-1.5 text-caption text-fg-secondary whitespace-nowrap"
+                  className="hidden sm:inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line-subtle bg-surface-card/85 px-3 text-caption font-medium text-fg-secondary whitespace-nowrap shadow-1"
                 >
-                  <span aria-hidden="true" className="h-2 w-2 rounded-full bg-ok" />
+                  <span aria-hidden="true" className="h-2 w-2 rounded-full bg-ok ring-3 ring-ok-soft" />
                   <span>{t.app.local}</span>
                 </span>
               ) : (
@@ -119,7 +127,7 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
                   to="/settings/ai"
                   data-testid="readiness-indicator"
                   data-ready="false"
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-warn/30 bg-warn-soft px-2.5 text-caption font-medium text-warn-text whitespace-nowrap transition-colors duration-fast ease-out hover:bg-warn-soft/80"
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-warn/35 bg-warn-soft px-3 text-caption font-medium text-warn-text whitespace-nowrap shadow-1 transition-colors duration-fast ease-out hover:bg-warn-soft/80"
                 >
                   <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-warn" />
                   <span className="hidden sm:inline">{t.app.aiNotReady}</span>
@@ -132,7 +140,11 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
                   aria-label={`${t.tutorsGallery.currentTeacher}：${tutor.name}`}
                   className="inline-flex rounded-full transition-transform duration-fast hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <TutorChip name={tutor.name} src={tutor.appearance.src} />
+                  <TutorChip
+                    name={tutor.name}
+                    src={tutor.appearance.src}
+                    subtitle={tutor.tagline ? <span className="hidden lg:inline">{tutor.tagline}</span> : undefined}
+                  />
                 </Link>
               ) : null}
             </div>
@@ -141,16 +153,24 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
 
         <main
           id="main"
-          className="mx-auto w-full min-w-0 max-w-[1200px] flex-1 px-4 pb-20 md:px-8 md:pb-12"
+          className="mx-auto w-full min-w-0 max-w-[1220px] flex-1 px-4 pb-20 md:px-8 md:pb-10"
         >
           <div key={location.pathname} className="cs-route-enter min-w-0">
             {children}
           </div>
         </main>
 
+        <footer className="hidden md:block border-t border-line-subtle/70 bg-surface-card/45">
+          <div className="mx-auto flex max-w-[1220px] items-center justify-between gap-4 px-8 py-4 text-caption text-fg-tertiary">
+            <span className="font-medium text-fg-secondary">{t.app.name} · Companion Space</span>
+            <span>{t.richUi.footerTagline}</span>
+            <span className="font-mono">127.0.0.1</span>
+          </div>
+        </footer>
+
         <nav
           aria-label={`${t.app.name}导航`}
-          className="fixed inset-x-0 bottom-0 z-dock flex md:hidden items-center justify-around border-t border-line-subtle bg-surface-card/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
+          className="fixed inset-x-0 bottom-0 z-dock flex md:hidden items-center justify-around border-t border-line-subtle bg-surface-card/92 px-2 py-1 backdrop-blur-xl pb-[max(0.25rem,env(safe-area-inset-bottom))]"
         >
           {DESK_NAV.map(({ to, label, icon: Icon }) => {
             const active = navActive(to, location.pathname);
@@ -160,11 +180,13 @@ export function AppShell({ sessionReady = false, children }: AppShellProps) {
                 to={to}
                 aria-current={active ? "page" : undefined}
                 className={clsx(
-                  "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-caption transition-colors duration-fast ease-out",
-                  active ? "font-semibold text-accent-strong" : "font-medium text-fg-secondary",
+                  "flex min-h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-md text-caption transition-colors duration-fast ease-out",
+                  active
+                    ? "bg-accent-soft/75 font-semibold text-accent-strong"
+                    : "font-medium text-fg-secondary",
                 )}
               >
-                <Icon size={19} strokeWidth={1.85} aria-hidden="true" />
+                <Icon size={19} strokeWidth={active ? 2.1 : 1.85} aria-hidden="true" />
                 <span>{label}</span>
               </Link>
             );

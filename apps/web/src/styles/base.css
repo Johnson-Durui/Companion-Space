@@ -287,8 +287,167 @@
     animation: cs-toast-in var(--dur-base) var(--ease-out);
   }
 
+  /* Atmospheric Desk Canvas & Layered Studio Surfaces (prompt-archive synthesis) */
+  .cs-desk-canvas {
+    position: relative;
+    isolation: isolate;
+    background-color: var(--surface-page);
+    background-image:
+      radial-gradient(64% 44% at 10% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 72%),
+      radial-gradient(52% 40% at 92% 4%, color-mix(in srgb, var(--accent-soft) 72%, transparent), transparent 68%),
+      radial-gradient(48% 42% at 50% 100%, color-mix(in srgb, var(--surface-sunken) 65%, transparent), transparent 75%);
+  }
+
+  .cs-desk-grid {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 520px;
+    pointer-events: none;
+    z-index: -1;
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--border-default) 62%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 26px 26px;
+    mask-image: linear-gradient(180deg, rgb(0 0 0 / 0.58) 0%, rgb(0 0 0 / 0.16) 62%, transparent 100%);
+  }
+
+  .cs-glass-nav {
+    background-color: color-mix(in srgb, var(--surface-sunken) 74%, var(--surface-card));
+    backdrop-filter: blur(14px) saturate(135%);
+    border: 1px solid color-mix(in srgb, var(--border-default) 70%, transparent);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--surface-card) 88%, transparent),
+      var(--shadow-1);
+  }
+
+  .cs-hero-stage {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--surface-card);
+    background-image:
+      radial-gradient(58% 72% at 8% 18%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
+      radial-gradient(46% 64% at 94% 12%, color-mix(in srgb, var(--accent-soft) 82%, transparent), transparent 72%),
+      linear-gradient(
+        140deg,
+        color-mix(in srgb, var(--accent-soft) 42%, var(--surface-card)) 0%,
+        var(--surface-card) 48%,
+        color-mix(in srgb, var(--surface-sunken) 38%, var(--surface-card)) 100%
+      );
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-subtle));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--surface-card) 92%, transparent),
+      var(--shadow-2);
+  }
+
+  .cs-featured-card {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--surface-card);
+    background-image:
+      radial-gradient(52% 85% at 0% 0%, color-mix(in srgb, var(--accent-soft) 68%, transparent), transparent 66%),
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent-soft) 34%, var(--surface-card)) 0%,
+        var(--surface-card) 56%
+      );
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border-subtle));
+    box-shadow:
+      inset 4px 0 0 var(--accent),
+      inset 0 1px 0 color-mix(in srgb, var(--surface-card) 92%, transparent),
+      var(--shadow-2);
+  }
+
+  .cs-bento-card {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--surface-card);
+    background-image: linear-gradient(
+      180deg,
+      var(--surface-card) 0%,
+      color-mix(in srgb, var(--surface-sunken) 28%, var(--surface-card)) 100%
+    );
+    border: 1px solid color-mix(in srgb, var(--border-default) 58%, var(--border-subtle));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--surface-card) 95%, transparent),
+      var(--shadow-1);
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      transform var(--dur-fast) var(--ease-out);
+  }
+
+  .cs-bento-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--border-default));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--surface-card) 95%, transparent),
+      var(--shadow-2);
+  }
+
+  .cs-stage-aura {
+    position: absolute;
+    inset: -14%;
+    pointer-events: none;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--accent) 28%, transparent) 0%,
+      color-mix(in srgb, var(--accent-soft) 38%, transparent) 42%,
+      transparent 72%
+    );
+    filter: blur(18px);
+  }
+
+  @keyframes cs-eq-bounce {
+    0%, 100% {
+      transform: scaleY(0.45);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+
+  .cs-eq-bar {
+    transform-origin: bottom center;
+    animation: cs-eq-bounce 820ms ease-in-out infinite;
+  }
+  .cs-eq-bar:nth-child(2) {
+    animation-delay: 140ms;
+  }
+  .cs-eq-bar:nth-child(3) {
+    animation-delay: 280ms;
+  }
+  .cs-eq-bar:nth-child(4) {
+    animation-delay: 90ms;
+  }
+
+  @keyframes cs-card-rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .cs-enter-1 {
+    animation: cs-card-rise var(--dur-slow) var(--ease-out) both;
+  }
+  .cs-enter-2 {
+    animation: cs-card-rise var(--dur-slow) var(--ease-out) 55ms both;
+  }
+  .cs-enter-3 {
+    animation: cs-card-rise var(--dur-slow) var(--ease-out) 110ms both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .cs-route-enter {
+    .cs-route-enter,
+    .cs-enter-1,
+    .cs-enter-2,
+    .cs-enter-3,
+    .cs-eq-bar {
       animation: none;
     }
     .cs-spinner {

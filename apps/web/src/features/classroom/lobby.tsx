@@ -265,8 +265,13 @@ export default function LessonLobby() {
         data-phase={phase}
         data-testid="lesson-lobby"
         className="flex min-h-[100dvh] w-full flex-col bg-surface-page text-fg-primary"
+        style={{
+          backgroundImage:
+            "radial-gradient(58% 60% at 18% 42%, color-mix(in oklab, var(--accent-on-dark) 16%, transparent), transparent 72%), radial-gradient(46% 52% at 86% 14%, color-mix(in oklab, var(--accent-on-dark) 9%, transparent), transparent 70%), radial-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1px)",
+          backgroundSize: "100% 100%, 100% 100%, 28px 28px",
+        }}
       >
-        <header className="flex h-12 shrink-0 items-center justify-between gap-3 px-4 text-fg-secondary">
+        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-line-subtle bg-surface-card/65 px-4 text-fg-secondary backdrop-blur-md">
           <Link
             to={backTarget}
             className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 py-1 text-caption font-medium text-fg-secondary hover:bg-surface-card hover:text-fg-primary"
@@ -303,7 +308,7 @@ export default function LessonLobby() {
                   {teacherConfig ? (
                     <TutorVideoBox
                       config={teacherConfig}
-                      pose={isPreparing ? "thinking" : connecting ? "greeting" : "idle_companion"}
+                      pose={isPreparing ? "thinking" : "idle_companion"}
                       phase={phase}
                       emotion={isPreparing ? "focused" : "warm"}
                       gen={0}
@@ -321,8 +326,13 @@ export default function LessonLobby() {
                 </div>
 
                 {/* Right info + controls panel */}
-                <div className="grid gap-5 rounded-lg border border-line-subtle bg-surface-card p-6">
-                  <div className="grid gap-1.5">
+                <div className="grid gap-5 rounded-xl border border-line-subtle bg-surface-card/90 p-6 shadow-3 backdrop-blur-md">
+                  <div className="grid gap-2">
+                    {isReady ? (
+                      <div>
+                        <Badge tone="ok">{t.richUi.lobbyReadyTag}</Badge>
+                      </div>
+                    ) : null}
                     <h1 className="text-display font-semibold text-fg-primary leading-tight">
                       {data?.title || t.app.titles.lessonLobby}
                     </h1>
@@ -335,13 +345,24 @@ export default function LessonLobby() {
 
                   {/* Outline points (appear once lesson plan is ready) */}
                   {outline.length > 0 ? (
-                    <div data-testid="lobby-outline" className="grid gap-2 rounded-md bg-surface-sunken p-4">
-                      <p className="text-caption font-semibold text-fg-secondary">{copy.outlineHeading}</p>
-                      <ul className="m-0 grid gap-1.5 pl-4 text-ui text-fg-primary">
+                    <div data-testid="lobby-outline" className="grid gap-2.5 rounded-lg border border-line-subtle bg-surface-sunken/85 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-caption font-semibold text-fg-secondary">{copy.outlineHeading}</p>
+                        <span className="text-caption text-fg-tertiary">{t.richUi.lobbyOutlineSub}</span>
+                      </div>
+                      <ol className="m-0 grid gap-2 p-0 list-none text-ui text-fg-primary">
                         {outline.map((pt, idx) => (
-                          <li key={`${pt.seg_idx}-${pt.kp_idx}-${idx}`}>{pt.text}</li>
+                          <li
+                            key={`${pt.seg_idx}-${pt.kp_idx}-${idx}`}
+                            className="flex items-start gap-2.5"
+                          >
+                            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-line-default bg-surface-card font-mono text-[11px] font-semibold text-accent-strong">
+                              {String(idx + 1).padStart(2, "0")}
+                            </span>
+                            <span>{pt.text}</span>
+                          </li>
                         ))}
-                      </ul>
+                      </ol>
                     </div>
                   ) : isPreparing ? (
                     <div

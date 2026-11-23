@@ -1,0 +1,27 @@
+name: Feature Request / 功能建议
+description: Propose an improvement for local-first 1-on-1 study / 提出符合本地优先定位的教学或角色体验建议
+title: "[Feat]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 学习场景与痛点 / Study Scenario & Problem
+      description: 你在导入资料、上课、白板互动、复习或制作角色时遇到了什么不便？
+      placeholder: "例如：在复习数学错题时，希望……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望方案 / Proposed Solution
+      description: 你希望界面或流程如何表现？
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 补充说明 / Additional Context
+      description: 可选：参考交互草图或兼容性考量（请保持单用户、本地优先边界）

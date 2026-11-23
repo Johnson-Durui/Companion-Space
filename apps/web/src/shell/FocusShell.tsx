@@ -30,8 +30,9 @@ export function FocusShell({
     <TooltipProvider>
       <div
         data-surface="desk"
-        className="min-h-dvh flex flex-col bg-surface-page text-fg-primary"
+        className="cs-desk-canvas min-h-dvh flex flex-col overflow-x-clip bg-surface-page text-fg-primary"
       >
+        <div aria-hidden="true" className="cs-desk-grid" />
         <a
           className="fixed left-2 -top-24 z-modal rounded-md bg-surface-card px-3 py-2 text-ui font-medium text-fg-primary shadow-2 focus:top-2"
           href="#main"
@@ -39,16 +40,20 @@ export function FocusShell({
           {t.app.skip}
         </a>
 
-        <header className="sticky top-0 z-sticky border-b border-line-subtle bg-surface-card/95 backdrop-blur">
+        <header className="sticky top-0 z-sticky border-b border-line-subtle/80 bg-surface-card/82 backdrop-blur-xl">
           <div className="mx-auto flex min-h-14 w-full max-w-[1160px] items-center justify-between gap-4 px-4 sm:px-6">
             <div className="flex min-w-0 max-w-[240px] items-center gap-2.5">
-              <BrandMark size={28} />
+              <span className="inline-flex rounded-md p-0.5 ring-1 ring-accent/20">
+                <BrandMark size={28} />
+              </span>
               <span className="truncate text-ui font-semibold text-fg-primary">{flowName}</span>
             </div>
 
             {progress ? (
               <div className="hidden md:flex min-w-0 flex-1 items-center justify-center">
-                {progress}
+                <div className="rounded-full border border-line-subtle bg-surface-card/80 px-4 py-1 shadow-1">
+                  {progress}
+                </div>
               </div>
             ) : null}
 
@@ -56,7 +61,7 @@ export function FocusShell({
               <button
                 type="button"
                 onClick={onExit}
-                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-ui font-medium text-fg-secondary transition-colors duration-fast ease-out hover:bg-surface-sunken hover:text-fg-primary"
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-line-subtle bg-surface-card/80 px-3 text-ui font-medium text-fg-secondary shadow-1 transition-colors duration-fast ease-out hover:bg-surface-sunken hover:text-fg-primary"
               >
                 <ArrowLeft size={16} aria-hidden="true" />
                 <span>{exitLabel}</span>
@@ -64,7 +69,7 @@ export function FocusShell({
             ) : (
               <Link
                 to={exitTo}
-                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-ui font-medium text-fg-secondary transition-colors duration-fast ease-out hover:bg-surface-sunken hover:text-fg-primary"
+                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-line-subtle bg-surface-card/80 px-3 text-ui font-medium text-fg-secondary shadow-1 transition-colors duration-fast ease-out hover:bg-surface-sunken hover:text-fg-primary"
               >
                 <ArrowLeft size={16} aria-hidden="true" />
                 <span>{exitLabel}</span>
@@ -72,7 +77,7 @@ export function FocusShell({
             )}
           </div>
           {progress ? (
-            <div className="border-t border-line-subtle px-4 py-2 md:hidden">
+            <div className="border-t border-line-subtle/80 bg-surface-card/65 px-4 py-2 md:hidden">
               {progress}
             </div>
           ) : null}
@@ -80,7 +85,7 @@ export function FocusShell({
 
         <main
           id="main"
-          className={clsx("mx-auto w-full flex-1 px-4 py-6 sm:px-6 sm:py-8", containerWidth)}
+          className={clsx("mx-auto w-full flex-1 px-4 py-4 sm:px-6 sm:py-5", containerWidth)}
         >
           <div key={location.pathname} className="cs-route-enter">
             {children}

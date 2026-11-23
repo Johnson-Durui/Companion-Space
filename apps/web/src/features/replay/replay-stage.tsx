@@ -106,7 +106,7 @@ export function ReplayStage({
 
   const phase: LessonPhase = tray
     ? "awaiting"
-    : playing && (speaking || current?.type === "say")
+    : playing && speaking
       ? "speaking"
       : playing
         ? "thinking"
@@ -118,9 +118,11 @@ export function ReplayStage({
     ? t.classroom.waiting
     : phase === "speaking"
       ? t.classroom.speaking
-      : phase === "lobby"
-        ? t.classroom.waitingStart
-        : t.classroom.paused;
+      : phase === "thinking"
+        ? t.classroom.thinking
+        : phase === "lobby"
+          ? t.classroom.waitingStart
+          : t.classroom.paused;
 
   const resolvedPose = tray
     ? "listening_empathy"
@@ -128,7 +130,9 @@ export function ReplayStage({
       ? state.avatar.pose === "board_guiding"
         ? "board_guiding"
         : "lecturing"
-      : "idle_companion";
+      : phase === "thinking"
+        ? "thinking"
+        : "idle_companion";
 
   function downloadBoard() {
     const url = URL.createObjectURL(

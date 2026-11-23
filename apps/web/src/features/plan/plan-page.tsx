@@ -6,6 +6,7 @@ import { Loading, Problem } from "../../app/ui";
 import {
   Badge,
   Button,
+  Calendar,
   Card,
   ChevronDown,
   ChevronUp,
@@ -196,26 +197,31 @@ export default function PlanPage() {
   return (
     <div className="grid gap-5" data-testid="course-plan-page">
       {/* Explanation Bar + B4b Diff List */}
-      <Card padding="md" className="grid gap-3">
+      <Card padding="md" className="cs-bento-card grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="grid gap-1">
-            {createdText ? (
-              <p className="text-ui font-medium text-fg-primary">
-                {copy.reasonBar.replace("{time}", createdText).replace("{reason}", reasonText)}
-              </p>
-            ) : null}
-            {!hasExamDate && enrollment.data ? (
-              <p className="text-caption text-fg-secondary">
-                {t.setup.step5SummaryNoExam
-                  .replace("{daysPerWeek}", String((enrollment.data.weekly_days ?? []).length))
-                  .replace("{min}", String(enrollment.data.session_minutes ?? 30))}
-              </p>
-            ) : null}
-            {data.params?.hints_mapping === "unavailable" ? (
-              <p className="text-caption text-warn-text" role="status">
-                {t.learner.hintsMappingUnavailable}
-              </p>
-            ) : null}
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent-strong">
+              <Calendar size={17} aria-hidden="true" />
+            </span>
+            <div className="grid gap-1">
+              {createdText ? (
+                <p className="text-ui font-medium text-fg-primary">
+                  {copy.reasonBar.replace("{time}", createdText).replace("{reason}", reasonText)}
+                </p>
+              ) : null}
+              {!hasExamDate && enrollment.data ? (
+                <p className="text-caption text-fg-secondary">
+                  {t.setup.step5SummaryNoExam
+                    .replace("{daysPerWeek}", String((enrollment.data.weekly_days ?? []).length))
+                    .replace("{min}", String(enrollment.data.session_minutes ?? 30))}
+                </p>
+              ) : null}
+              {data.params?.hints_mapping === "unavailable" ? (
+                <p className="text-caption text-warn-text" role="status">
+                  {t.learner.hintsMappingUnavailable}
+                </p>
+              ) : null}
+            </div>
           </div>
           <Button
             variant="secondary"
@@ -256,8 +262,8 @@ export default function PlanPage() {
                   data-testid="plan-item"
                   data-status={item.status}
                   className={clsx(
-                    "rounded-lg border bg-surface-card p-4 shadow-1 transition-[transform,background-color,border-color,box-shadow] duration-base ease-out",
-                    isToday ? "border-accent/50 bg-accent-soft/20" : "border-line-subtle",
+                    "rounded-lg p-4 transition-[transform,background-color,border-color,box-shadow] duration-base ease-out",
+                    isToday || isFirst ? "cs-featured-card" : "cs-bento-card",
                     isRecentlyMoved && "ring-2 ring-accent/45 -translate-y-0.5 shadow-2",
                     isDone && "opacity-75",
                   )}

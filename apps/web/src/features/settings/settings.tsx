@@ -204,17 +204,24 @@ export default function Settings() {
   if (!active) return <Navigate to="/settings/me" replace />;
 
   return (
-    <div className="grid gap-6 pb-12" data-testid={`settings-section-${active.id}`}>
-      <header className="grid gap-1.5 pt-2">
-        <h1 className="text-headline font-semibold text-fg-primary">{t.settings.heading}</h1>
-        <p className="text-body text-fg-secondary">{t.settings.lead}</p>
+    <div className="grid gap-6 py-6 pb-12 sm:py-8" data-testid={`settings-section-${active.id}`}>
+      <header className="cs-hero-stage cs-enter-1 rounded-xl p-5 sm:p-6">
+        <div className="flex items-start gap-3.5">
+          <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-strong shadow-1">
+            <SlidersHorizontal size={19} aria-hidden="true" />
+          </span>
+          <div className="grid gap-1">
+            <h1 className="text-headline font-semibold text-fg-primary">{t.settings.heading}</h1>
+            <p className="text-body text-fg-secondary">{t.settings.lead}</p>
+          </div>
+        </div>
       </header>
 
-      <div className="grid items-start gap-6 md:grid-cols-[204px_minmax(0,1fr)]">
+      <div className="grid items-start gap-6 md:grid-cols-[224px_minmax(0,1fr)]">
         <nav
           aria-label={t.settings.heading}
           data-testid="settings-nav"
-          className="flex gap-1.5 overflow-x-auto pb-1 md:sticky md:top-6 md:grid md:gap-1 md:overflow-visible md:border-r md:border-line-subtle md:pr-4 md:pb-0"
+          className="flex gap-1.5 overflow-x-auto pb-1 md:sticky md:top-20 md:grid md:gap-1 md:overflow-visible md:rounded-xl md:border md:border-line-subtle md:bg-surface-card/85 md:p-2 md:shadow-1 md:backdrop-blur-sm"
         >
           {SETTINGS_SECTIONS.map((item) => {
             const Icon = item.icon;
@@ -225,13 +232,20 @@ export default function Settings() {
                 to={`/settings/${item.id}`}
                 aria-current={current ? "page" : undefined}
                 className={clsx(
-                  "inline-flex min-h-10 shrink-0 items-center gap-2.5 rounded-md px-3 py-2 text-ui font-medium transition-[background-color,color] duration-fast ease-out",
+                  "inline-flex min-h-10 shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-ui font-medium transition-[background-color,color,box-shadow] duration-fast ease-out",
                   current
-                    ? "bg-accent-soft text-accent-strong font-semibold"
+                    ? "bg-accent-soft text-accent-strong font-semibold shadow-1 ring-1 ring-accent/20"
                     : "text-fg-secondary hover:bg-surface-sunken hover:text-fg-primary",
                 )}
               >
-                <Icon size={16} aria-hidden="true" />
+                <span
+                  className={clsx(
+                    "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm",
+                    current ? "bg-surface-card/85 text-accent-strong" : "bg-surface-sunken/70 text-fg-tertiary",
+                  )}
+                >
+                  <Icon size={14} aria-hidden="true" />
+                </span>
                 <span>{item.label}</span>
               </Link>
             );

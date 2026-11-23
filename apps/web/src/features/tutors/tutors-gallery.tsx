@@ -10,22 +10,21 @@ import {
   type Character,
 } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
-import { toast } from "../../ui";
+import { Button, Plus, Sparkles, toast } from "../../ui";
 import t from "../../locales/zh-CN.json";
-import { useTutorSpeech } from "../voice/use-tutor-speech";
 import { ImportTutorWizardDialog } from "./import-wizard";
 import { TutorRoster, TutorShowcase } from "./tutor-showcase";
 import { tutorGreeting } from "./use-active-tutor";
 
 export default function TutorsGalleryPage() {
   const queries = useQueryClient();
-  const speech = useTutorSpeech();
   const roster = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
   const settings = useQuery({ queryKey: settingsKey, queryFn: fetchSettings });
 
   const [focusedId, setFocusedId] = useState<string>();
   const [introSeq, setIntroSeq] = useState(0);
   const [chosenGreeting, setChosenGreeting] = useState("");
+  const [chosenSpeakSeq, setChosenSpeakSeq] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
   const [droppedFile, setDroppedFile] = useState<File | null>(null);
 
@@ -44,7 +43,7 @@ export default function TutorsGalleryPage() {
       const line = tutorGreeting(character);
       if (line) {
         setChosenGreeting(line);
-        void speech.speak({ characterId: character.id, text: line });
+        setChosenSpeakSeq((seq) => seq + 1);
       }
     },
   });
@@ -75,7 +74,28 @@ export default function TutorsGalleryPage() {
   }
 
   return (
-    <div className="grid min-w-0 gap-7 py-6 sm:py-8" data-testid="tutors-gallery-page">
+    <div className="grid min-w-0 gap-4 py-4 sm:py-5" data-testid="tutors-gallery-page">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-caption font-semibold text-accent-strong">
+            <Sparkles size={13} aria-hidden="true" />
+            <span>{t.richUi.tutorStudioKicker}</span>
+          </span>
+          <p className="text-ui text-fg-secondary">{t.richUi.tutorGalleryLead}</p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<Plus size={15} aria-hidden="true" />}
+          onClick={() => {
+            setDroppedFile(null);
+            setImportOpen(true);
+          }}
+        >
+          {t.tutorsGallery.importTile}
+        </Button>
+      </div>
+
       <TutorShowcase
         character={candidate}
         isCurrent={candidate.id === currentId}
@@ -84,6 +104,7 @@ export default function TutorsGalleryPage() {
         showEditLink
         introSeq={introSeq}
         chosenGreeting={chosenGreeting}
+        chosenSpeakSeq={chosenSpeakSeq}
         onChoose={(entry) => choose.mutate(entry)}
       />
 

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security Vulnerability Report / 私密安全漏洞上报
+    url: https://github.com/Johnson-Durui/Companion-Space/security/advisories/new
+    about: 请勿在公开 Issue 中披露密钥泄漏或安全边界问题，请通过私密安全通告提交。

@@ -25,9 +25,12 @@ import {
   ConfirmDialog,
   Download,
   Field,
+  Layers,
   RotateCcw,
   Select,
   Slider,
+  SlidersHorizontal,
+  Sparkles,
   Tabs,
   TextInput,
   Trash2,
@@ -618,11 +621,11 @@ export default function TutorDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queries = useQueryClient();
-  const speech = useTutorSpeech();
 
   const roster = useQuery({ queryKey: charactersKey, queryFn: fetchCharacters });
   const settings = useQuery({ queryKey: settingsKey, queryFn: fetchSettings });
   const [chosenGreeting, setChosenGreeting] = useState("");
+  const [chosenSpeakSeq, setChosenSpeakSeq] = useState(0);
 
   const activeTab = searchParams.get("tab") || "about";
 
@@ -641,7 +644,7 @@ export default function TutorDetailPage() {
       const line = tutorGreeting(character);
       if (line) {
         setChosenGreeting(line);
-        void speech.speak({ characterId: character.id, text: line });
+        setChosenSpeakSeq((seq) => seq + 1);
       }
     },
   });
@@ -700,6 +703,7 @@ export default function TutorDetailPage() {
           {
             value: "about",
             label: copy.tabs.about,
+            icon: <Sparkles size={15} aria-hidden="true" />,
             content: (
               <TutorShowcase
                 character={character}
@@ -708,6 +712,7 @@ export default function TutorDetailPage() {
                 headingLevel="h2"
                 showEditLink={false}
                 chosenGreeting={chosenGreeting}
+                chosenSpeakSeq={chosenSpeakSeq}
                 onChoose={(entry) => choose.mutate(entry)}
               />
             ),
@@ -715,6 +720,7 @@ export default function TutorDetailPage() {
           {
             value: "persona",
             label: copy.tabs.persona,
+            icon: <SlidersHorizontal size={15} aria-hidden="true" />,
             content: (
               <PersonaTab
                 key={character.id}
@@ -726,6 +732,7 @@ export default function TutorDetailPage() {
           {
             value: "assets",
             label: copy.tabs.assets,
+            icon: <Layers size={15} aria-hidden="true" />,
             content: <AssetsAdvancedTab key={character.id} character={character} />,
           },
         ]}

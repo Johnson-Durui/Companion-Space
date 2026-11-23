@@ -273,7 +273,10 @@ export class SpeechOutput {
   private async consume(packet: AudioPacket) {
     if (packet.gen !== this.generation) return;
     if (packet.format === "pcm_s16le") {
-      const buffer = decodePcm16(this.getContext(), packet.payload, packet.sampleRate ?? 24000);
+      const context = this.getContext();
+      if (context.state === "suspended") await context.resume();
+      if (packet.gen !== this.generation) return;
+      const buffer = decodePcm16(context, packet.payload, packet.sampleRate ?? 24000);
       this.schedule(packet, buffer);
       return;
     }
@@ -294,6 +297,7 @@ export class SpeechOutput {
       offset += chunk.byteLength;
     }
     const context = this.getContext();
+    if (context.state === "suspended") await context.resume();
     const buffer = await context.decodeAudioData(encoded.buffer);
     if (gen === this.generation) this.schedule({ format: "mp3", gen, last: true, payload: encoded.buffer, seg }, buffer);
   }
@@ -371,12 +375,20 @@ export class SpeechOutput {
     this.sources.add(source);
     this.startLevelMeter();
     source.start(startAt);
+    const hwLatencySec = Math.min(
+      0.4,
+      Math.max(
+        0,
+        ((context as AudioContext & { outputLatency?: number }).outputLatency ?? 0) +
+          (context.baseLatency ?? 0),
+      ),
+    );
     window.setTimeout(() => {
       if (token === this.playbackToken && packet.gen === this.generation && !state.started) {
         state.started = true;
         this.callbacks.onSegmentStart?.(packet.gen, packet.seg);
       }
-    }, Math.max(0, (startAt - context.currentTime) * 1000));
+    }, Math.max(0, (startAt - context.currentTime + hwLatencySec) * 1000));
   }
 
   private markSegmentEnded(seg: number) {

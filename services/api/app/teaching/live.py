@@ -149,7 +149,9 @@ class LiveLesson:
         sayings: dict[int, dict] = {}
         preview_gen = self.lesson["gen"] + 1
 
-        async def prefetch(seg: int, text: str) -> None:
+        async def prefetch(
+            seg: int, text: str, *, row: dict | None = None, send_preview: bool = True,
+        ) -> None:
             nonlocal queue, voice, speaker
             if queue is None:
                 service, voice = await resolve_tts(self.container, self.lesson["character_id"])
@@ -158,8 +160,9 @@ class LiveLesson:
                 voice = replace(voice, rate=max(0.5, min(2.0, voice.rate * multiplier)))
                 queue = SpeechQueue(service)
                 speaker = asyncio.create_task(self._speak(sayings, queue, voice))
-            sayings[seg] = {"gen": preview_gen, "seq": 0, "data": {"seg": seg, "text": text}}
-            await self._send("say.preview", {"seg": seg, "text": text}, gen=preview_gen)
+            sayings[seg] = row or {"gen": preview_gen, "seq": 0, "data": {"seg": seg, "text": text}}
+            if send_preview:
+                await self._send("say.preview", {"seg": seg, "text": text}, gen=preview_gen)
             await queue.enqueue(seg, text, voice)
 
         async def preview_visual(event: LspEvent) -> None:
@@ -195,7 +198,9 @@ class LiveLesson:
                 if queue is None:
                     for row in rows:
                         if row["type"] == "say":
-                            await prefetch(row["data"]["seg"], row["data"]["text"])
+                            await prefetch(
+                                row["data"]["seg"], row["data"]["text"], row=row, send_preview=False,
+                            )
                 if queue is not None and voice is not None:
                     sayings.update({row["data"]["seg"]: row for row in rows if row["type"] == "say"})
                     await queue.close()

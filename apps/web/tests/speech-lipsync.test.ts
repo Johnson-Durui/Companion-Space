@@ -107,4 +107,52 @@ describe("SpeechOutput audio level and 24kHz PCM chunk forwarding", () => {
     expect(pcm[1]).toBeGreaterThan(10_000);
     expect(pcm[3]).toBeLessThan(-10_000);
   });
+
+  it("resumes a suspended AudioContext before scheduling and firing onSegmentStart", async () => {
+    let resolveResume!: () => void;
+    class SuspendedContext extends Context {
+      override state: AudioContextState = "suspended";
+      override resume = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveResume = () => {
+              this.state = "running";
+              resolve();
+            };
+          }),
+      );
+    }
+
+    vi.stubGlobal("AudioContext", SuspendedContext);
+    vi.stubGlobal("requestAnimationFrame", () => 1);
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.stubGlobal("window", {
+      setTimeout: (callback: () => void) => {
+        callback();
+        return 1;
+      },
+    });
+
+    const onSegmentStart = vi.fn();
+    const output = new SpeechOutput({ onSegmentStart });
+    output.setGeneration(1);
+
+    const packet = new ArrayBuffer(20);
+    new Uint8Array(packet).set(new TextEncoder().encode("CSA1"));
+    const header = new DataView(packet);
+    header.setUint32(4, 1);
+    header.setUint32(8, 1);
+    output.pushFrame(packet, { format: "pcm_s16le", sampleRate: 24000 });
+    void output.play(1, 1).catch(() => undefined);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onSegmentStart).not.toHaveBeenCalled();
+
+    resolveResume();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onSegmentStart).toHaveBeenCalledWith(1, 1);
+    await output.close();
+  });
 });

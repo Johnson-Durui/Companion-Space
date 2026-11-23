@@ -20,16 +20,22 @@ export function TutorChip({
 }: TutorChipProps) {
   const content = (
     <>
-      <TutorAvatar src={src} name={name} size="sm" />
+      <span className="relative inline-flex shrink-0">
+        <TutorAvatar src={src} name={name} size="sm" className="ring-2 ring-accent/25" />
+        <span
+          aria-hidden="true"
+          className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-card bg-ok"
+        />
+      </span>
       <span className="grid text-left leading-tight">
-        <span className="text-ui font-medium text-fg-primary">{name}</span>
+        <span className="text-ui font-semibold text-fg-primary">{name}</span>
         {subtitle ? <span className="text-caption text-fg-secondary">{subtitle}</span> : null}
       </span>
     </>
   );
 
   const shared = clsx(
-    "inline-flex min-h-10 items-center gap-2 rounded-full border border-line-subtle bg-surface-card py-1 pl-1.5 pr-3 shadow-1",
+    "inline-flex min-h-10 items-center gap-2.5 rounded-full border border-accent/25 bg-surface-card/90 py-1 pl-1.5 pr-3.5 shadow-1 backdrop-blur-sm",
     className,
   );
 
