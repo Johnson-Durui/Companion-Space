@@ -13,6 +13,7 @@ from app.api.deps import get_container
 from app.main import create_app
 from fakes.e2e import (
     BrowserHarnessGateway,
+    build_media_fixture_tutorpack_bytes,
     seed_classroom,
     seed_empty_course,
     seed_stress_course,
@@ -29,6 +30,7 @@ if __name__ == "__main__":
         settings = Settings(COMPANION_DATA_DIR=directory, app_base_url=origin, api_base_url=origin, _env_file=None)
         application = create_app(gateway_factory=BrowserHarnessGateway, settings=settings)
         container = application.dependency_overrides[get_container]()
+        fixture_seq = {"n": 0}
 
         @application.post("/__test__/disconnect-lesson/{lesson_id}", include_in_schema=False)
         async def _disconnect_lesson(lesson_id: str) -> dict[str, bool]:
@@ -38,6 +40,18 @@ if __name__ == "__main__":
             with suppress(Exception):
                 await ws.close(code=1011, reason="simulated_drop")
             return {"closed": True}
+
+        @application.post("/__test__/seed-media-fixture-lesson", include_in_schema=False)
+        async def _seed_media_fixture_lesson() -> dict[str, str]:
+            fixture_seq["n"] += 1
+            idx = fixture_seq["n"]
+            character = container.tutors.import_upload("media-fixture.tutorpack", build_media_fixture_tutorpack_bytes())
+            scenario = f"avatar-media-fixture-{idx}"
+            seed_classroom(container, scenario, character_id=character.id)
+            return {
+                "character_id": character.id,
+                "lesson_id": f"browser-{scenario}-lesson",
+            }
 
         for scenario in (
             "board",
@@ -55,6 +69,12 @@ if __name__ == "__main__":
             "avatar-inv-reconnect",
         ):
             seed_classroom(container, scenario)
+        for scenario in (
+            "avatar-media-builtin",
+            "avatar-reduced-correct",
+            "avatar-reduced-incorrect",
+        ):
+            seed_classroom(container, scenario, character_id="tutor-xuechuan")
         seed_stress_course(container)
         seed_empty_course(container)
         seed_unprepared_lesson(container)

@@ -408,8 +408,9 @@ export class LoopPackVideoDriver implements ITutorVideoDriver {
       return;
     }
 
-    // If a non-speech one-shot is running and situation stays idle/feedback/ended, let the one-shot finish naturally
-    if (this.activeOneShotSlot !== null && (situation === "idle" || situation === "ended")) {
+    // Non-interrupting continuous situations (idle/wait/listening/thinking/review/preparing/ended)
+    // let the active one-shot finish and then transition to the latest `this.currentSituation` (§4.4).
+    if (this.activeOneShotSlot !== null) {
       return;
     }
 

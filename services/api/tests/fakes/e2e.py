@@ -1,8 +1,13 @@
 """The browser harness injects this gateway. Model traffic stays in process."""
 
 import asyncio
+import io
 import json
+from pathlib import Path
 import re
+import zipfile
+
+from PIL import Image
 
 from app.llm.gateway import LLMGateway
 from app.repositories.mixins.common import utcnow
@@ -11,7 +16,7 @@ from app.services.provider_registry import RoleTestResult
 from app.voice.tts.edge import EdgeUnavailableError
 
 
-def seed_classroom(container, scenario: str):
+def seed_classroom(container, scenario: str, character_id: str = "tutor-chutang"):
     from test_teaching_storage import _seed_plan
 
     course_id = f"browser-{scenario}-course"
@@ -35,7 +40,7 @@ def seed_classroom(container, scenario: str):
                VALUES (?, ?, ?, 'generated', 'check', 'choice', '{}', 'verified', ?)""",
             (bank_id, course_id, kp_id, now),
         )
-    teacher = container.tutors.resolve_active_character("tutor-chutang")
+    teacher = container.tutors.resolve_active_character(character_id)
     assert teacher is not None
     plan = {
         "title": "关系判断", "est_minutes": 10,
@@ -59,6 +64,60 @@ def seed_classroom(container, scenario: str):
     with repository.connection() as connection:
         connection.execute("UPDATE lessons SET id = ? WHERE id = ?", (lesson_id, lesson["id"]))
         connection.execute("UPDATE plan_items SET lesson_id = ? WHERE id = ?", (lesson_id, plan_item_id))
+
+
+def build_media_fixture_tutorpack_bytes() -> bytes:
+    """Build a tiny test-only .tutorpack zip with greet_wave, farewell_wave, and 2 expression stills."""
+    tiny_webm = (Path(__file__).resolve().parents[1] / "fixtures" / "tiny-loop.webm").read_bytes()
+
+    def _webp(rgb: tuple[int, int, int]) -> bytes:
+        buf = io.BytesIO()
+        Image.new("RGB", (288, 512), rgb).save(buf, format="WEBP", quality=80)
+        return buf.getvalue()
+
+    manifest = {
+        "name": "测试媒体助教",
+        "aspect_ratio": "9:16",
+        "anchor": "anchor.webp",
+        "crossfade_ms": 120,
+        "canvas": {"width": 288, "height": 512, "fps": 24},
+        "clips": {
+            "idle_breathe": "clips/idle_breathe.webm",
+            "speak_calm": "clips/speak_calm.webm",
+            "greet_wave": "clips/greet_wave.webm",
+            "farewell_wave": "clips/farewell_wave.webm",
+            "react_praise": "clips/react_praise.webm",
+            "react_comfort": "clips/react_comfort.webm",
+        },
+        "clip_meta": {
+            "greet_wave": {"duration_ms": 500, "settle_ms": 350},
+            "farewell_wave": {"duration_ms": 500, "settle_ms": 350},
+            "react_praise": {"duration_ms": 500, "settle_ms": 350},
+            "react_comfort": {"duration_ms": 500, "settle_ms": 350},
+        },
+        "stills": {
+            "praise": "stills/praise.webp",
+            "caring": "stills/caring.webp",
+        },
+        "media": {
+            "generator": "E2E test fixture",
+            "ai_generated": False,
+        },
+        "license": {
+            "author": "E2E Fixture",
+            "terms": "Test only",
+            "allow_redistribution": False,
+        },
+    }
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False))
+        zf.writestr("anchor.webp", _webp((48, 64, 92)))
+        zf.writestr("stills/praise.webp", _webp((64, 128, 96)))
+        zf.writestr("stills/caring.webp", _webp((128, 86, 72)))
+        for rel in manifest["clips"].values():
+            zf.writestr(rel, tiny_webm)
+    return archive.getvalue()
 
 
 def seed_empty_course(container):

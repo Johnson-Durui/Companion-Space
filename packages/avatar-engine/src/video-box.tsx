@@ -182,6 +182,12 @@ export function TutorVideoBox({
       },
     });
     managerRef.current = manager;
+    manager.setMood(emotion, 1, gen);
+    if (situation) {
+      manager.setSituation(situation, sentenceSeq, gen);
+    } else {
+      manager.setPose(pose, gen);
+    }
     void manager.mount(container, config);
     return () => {
       if (managerRef.current === manager) managerRef.current = null;
@@ -195,12 +201,14 @@ export function TutorVideoBox({
   }, [emotion, gen]);
 
   useLayoutEffect(() => {
-    if (situation) {
-      managerRef.current?.setSituation(situation, sentenceSeq, gen);
-    } else {
-      managerRef.current?.setPose(pose, gen);
-    }
-  }, [situation, sentenceSeq, pose, gen]);
+    if (!situation) return;
+    managerRef.current?.setSituation(situation, sentenceSeq, gen);
+  }, [situation, sentenceSeq, gen]);
+
+  useLayoutEffect(() => {
+    if (situation) return;
+    managerRef.current?.setPose(pose, gen);
+  }, [situation, pose, gen]);
 
   const showFreeSwitch = !stageMode && (activeTier === "local_sidecar" || activeTier === "cloud_live");
   const isThinkingPhase = phase === "thinking" || phase === "buffering" || phase === "preparing";

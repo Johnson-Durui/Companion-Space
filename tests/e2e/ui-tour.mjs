@@ -135,6 +135,8 @@ try {
   ];
   const VOCAB_EXEMPT_SHOTS = new Set([
     "tutor-detail-assets",
+    "tutor-detail-assets-xuechuan",
+    "tutor-detail-assets-still",
     "settings-advanced",
     "m-settings-advanced",
   ]);
@@ -167,12 +169,25 @@ try {
     const file = `${String(counter).padStart(2, "0")}-${name}.png`;
     try {
       await target.screenshot({ path: join(out, file), fullPage: full, animations: "disabled" });
-      const size = await target.evaluate(() => ({
-        w: document.documentElement.scrollWidth,
-        h: document.documentElement.scrollHeight,
-        vh: window.innerHeight,
-      }));
-      note(`shot ${file} page=${size.w}x${size.h} viewport-h=${size.vh}`);
+      const info = await target.evaluate(() => {
+        const phaseEl = document.querySelector("[data-phase]");
+        const clipEl = document.querySelector('[data-testid="lesson-stage"] [data-clip], [data-clip]');
+        const stillEl = document.querySelector('[data-testid="lesson-stage"] [data-still], [data-still]');
+        return {
+          w: document.documentElement.scrollWidth,
+          h: document.documentElement.scrollHeight,
+          vh: window.innerHeight,
+          phase: phaseEl?.getAttribute("data-phase") ?? "",
+          clip: clipEl?.getAttribute("data-clip") ?? "",
+          still: stillEl?.getAttribute("data-still") ?? "",
+        };
+      });
+      const mediaMeta = [
+        info.phase ? `phase=${info.phase}` : "",
+        info.clip ? `clip=${info.clip}` : "",
+        info.still ? `still=${info.still}` : "",
+      ].filter(Boolean).join(" ");
+      note(`shot ${file} page=${info.w}x${info.h} viewport-h=${info.vh}${mediaMeta ? ` ${mediaMeta}` : ""}`);
       if (!full) await scanStudentVocabulary(target, name);
     } catch (error) {
       failures += 1;
@@ -539,6 +554,13 @@ try {
     await page.getByTestId("tutor-assets-tab").waitFor({ timeout: 15_000 });
     await settle(700);
     await shot(page, "tutor-detail-assets");
+    await page.goto("/tutors/tutor-xuechuan?tab=assets");
+    await page.getByTestId("tutor-audition-card").waitFor({ timeout: 15_000 });
+    await settle(600);
+    await shot(page, "tutor-detail-assets-xuechuan", { full: true });
+    await page.getByTestId("audition-still-praise").click();
+    await settle(400);
+    await shot(page, "tutor-detail-assets-still");
   });
   for (const [section, testId] of [
     ["me", "settings-section-me"],

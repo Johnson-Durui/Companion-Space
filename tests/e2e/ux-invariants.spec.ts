@@ -374,7 +374,10 @@ test("I8 & I9 (U2a): explicit phase transitions and non-speaking clip during thi
       if (ph && win.__phaseHistory?.[win.__phaseHistory.length - 1] !== ph) {
         win.__phaseHistory?.push(ph);
       }
-      if ((ph === "thinking" || ph === "buffering") && (clip === "speak_explain_a" || clip === "speak_explain_b")) {
+      if (
+        (ph === "thinking" || ph === "buffering") &&
+        (clip === "speak_calm" || clip === "speak_explain_a" || clip === "speak_explain_b")
+      ) {
         win.__badThinkingClips?.push({ phase: ph, clip });
       }
     };
@@ -852,4 +855,134 @@ test("U7 keyboard-only navigation and prefers-reduced-motion clarity", async ({ 
   await submitBtn.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("status").filter({ hasText: t.classroom.verdicts.correct })).toBeVisible({ timeout: 15_000 });
+});
+
+async function startStillObserver(page: Page) {
+  await page.evaluate(() => {
+    const target = document.querySelector<HTMLElement>('[data-testid="lesson-stage"] [data-still]');
+    if (!target) throw new Error("Missing [data-still] surface inside lesson-stage");
+    const win = window as unknown as {
+      __seenStills?: string[];
+      __stillObserver?: MutationObserver;
+    };
+    win.__stillObserver?.disconnect();
+    const initial = target.getAttribute("data-still");
+    win.__seenStills = initial ? [initial] : [];
+    const observer = new MutationObserver(() => {
+      const value = target.getAttribute("data-still");
+      if (value) win.__seenStills?.push(value);
+    });
+    observer.observe(target, { attributes: true, attributeFilter: ["data-still"] });
+    win.__stillObserver = observer;
+  });
+}
+
+async function readSeenStills(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const win = window as unknown as { __seenStills?: string[] };
+    return [...(win.__seenStills ?? [])];
+  });
+}
+
+test("I21 (UM-1 & UM-2): start triggers greet_wave and confirm-end triggers farewell_wave on fixture and built-in packs", async ({ page }) => {
+  // 1. Synthetic test .tutorpack fixture (UM-1 Task 9)
+  const seeded = await page.request.post("/__test__/seed-media-fixture-lesson");
+  expect(seeded.ok()).toBe(true);
+  const { character_id: characterId, lesson_id: fixtureLessonId } = (await seeded.json()) as {
+    character_id: string;
+    lesson_id: string;
+  };
+  try {
+    await page.goto(`/lessons/${fixtureLessonId}`);
+    const stage = page.getByTestId("lesson-stage");
+    await expect(stage.locator("[data-clip]")).toBeVisible({ timeout: 15_000 });
+    await startClipObserver(page);
+
+    await page.getByRole("button", { name: t.classroom.startText }).click();
+    await expect.poll(() => readSeenClips(page), { timeout: 10_000 }).toContain("greet_wave");
+    await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("radio", { name: "A 按条件推导" }).check();
+    await page.getByRole("button", { name: t.classroom.submitAnswer }).click();
+    await expect(page.getByRole("status").filter({ hasText: t.classroom.verdicts.correct })).toBeVisible({ timeout: 15_000 });
+
+    await startClipObserver(page);
+    await page.getByRole("button", { name: t.classroom.end }).click();
+    const confirmDialog = page.getByRole("alertdialog");
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole("button", { name: t.classroom.confirmEnd }).click();
+    await expect.poll(() => readSeenClips(page), { timeout: 10_000 }).toContain("farewell_wave");
+    await expect(page.getByTestId("lesson-recap")).toBeVisible({ timeout: 20_000 });
+  } finally {
+    await page.request.delete(`/api/v2/characters/${characterId}`);
+  }
+
+  // 2. Real built-in tutor-xuechuan pack with ingested greet_wave & farewell_wave (UM-2 Task 6)
+  await page.goto("/lessons/browser-avatar-media-builtin-lesson");
+  const builtinStage = page.getByTestId("lesson-stage");
+  await expect(builtinStage.locator("[data-clip]")).toBeVisible({ timeout: 15_000 });
+  await startClipObserver(page);
+
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await expect.poll(() => readSeenClips(page), { timeout: 10_000 }).toContain("greet_wave");
+  await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("radio", { name: "A 按条件推导" }).check();
+  await page.getByRole("button", { name: t.classroom.submitAnswer }).click();
+  await expect(page.getByRole("status").filter({ hasText: t.classroom.verdicts.correct })).toBeVisible({ timeout: 15_000 });
+
+  await startClipObserver(page);
+  await page.getByRole("button", { name: t.classroom.end }).click();
+  const builtinDialog = page.getByRole("alertdialog");
+  await expect(builtinDialog).toBeVisible();
+  await builtinDialog.getByRole("button", { name: t.classroom.confirmEnd }).click();
+  await expect.poll(() => readSeenClips(page), { timeout: 10_000 }).toContain("farewell_wave");
+  await expect(page.getByTestId("lesson-recap")).toBeVisible({ timeout: 20_000 });
+});
+
+test("I23 (UM-1 & UM-2): reduced-motion classroom switches data-still on correct/wrong and audition tab previews clips/stills", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  // 1. Correct answer -> praise (or cheerful) still
+  await page.goto("/lessons/browser-avatar-reduced-correct-lesson");
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await expect(page.getByRole("radio", { name: "A 按条件推导" })).toBeVisible({ timeout: 20_000 });
+  await startStillObserver(page);
+
+  await page.getByRole("radio", { name: "A 按条件推导" }).check();
+  await page.getByRole("button", { name: t.classroom.submitAnswer }).click();
+  await expect(page.getByRole("status").filter({ hasText: t.classroom.verdicts.correct })).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(async () => {
+      const seen = await readSeenStills(page);
+      return seen.includes("praise") || seen.includes("cheerful");
+    })
+    .toBe(true);
+
+  // 2. Confused & wrong answer -> caring still
+  await page.goto("/lessons/browser-avatar-reduced-incorrect-lesson");
+  await page.getByRole("button", { name: t.classroom.startText }).click();
+  await expect(page.getByRole("radio", { name: "B 忽略条件" })).toBeVisible({ timeout: 20_000 });
+  await startStillObserver(page);
+
+  await page.getByRole("button", { name: t.classroom.quick.confused }).click();
+  await expect.poll(() => readSeenStills(page)).toContain("caring");
+
+  await startStillObserver(page);
+  await page.getByRole("radio", { name: "B 忽略条件" }).check();
+  await page.getByRole("button", { name: t.classroom.submitAnswer }).click();
+  await expect(page.getByRole("status").filter({ hasText: t.classroom.verdicts.incorrect })).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => readSeenStills(page)).toContain("caring");
+
+  // 3. Audition tab (/tutors/tutor-xuechuan?tab=assets): AI disclosure + still & clip preview
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tutors/tutor-xuechuan?tab=assets");
+  const auditionCard = page.getByTestId("tutor-audition-card");
+  await expect(auditionCard).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("tutor-license-card")).toContainText(t.characters.aiGeneratedBadge);
+  await expect(page.getByTestId("tutor-license-card")).toContainText("MiniMax H3");
+
+  await page.getByTestId("audition-clip-greet_wave").click();
+  await expect(auditionCard.locator("[data-clip]")).toHaveAttribute("data-clip", "greet_wave");
+
+  await page.getByTestId("audition-still-praise").click();
+  await expect(auditionCard.locator("[data-still]")).toHaveAttribute("data-still", "praise");
 });

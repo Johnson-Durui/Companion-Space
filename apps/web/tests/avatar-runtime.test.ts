@@ -860,4 +860,71 @@ describe("Tutor Media Extension Invariants (I17–I20, I23 driver)", () => {
     expect(resolveStillForLocation("recap", { cheerful: "/stills/cheerful.webp" }, "/anchor.webp").still).toBe("cheerful");
     expect(resolveStillForLocation("recap", {}, "/anchor.webp").still).toBe("anchor");
   });
+
+  it("preserves active comfort/praise one-shot across non-interrupting wait/thinking transitions and returns to latest situation", async () => {
+    vi.useFakeTimers();
+    const { container, videos } = setupDomHarness(3.0);
+    const driver = new LoopPackVideoDriver();
+    await driver.mount(container, {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/anchor.webp",
+      loopPack: {
+        crossfadeMs: 180,
+        clips: {
+          idle_breathe: "/clips/idle_breathe.webm",
+          wait_gentle: "/clips/wait_gentle.webm",
+          think_chin: "/clips/think_chin.webm",
+          react_comfort: "/clips/react_comfort.webm",
+        },
+        clipMeta: {
+          react_comfort: { durationMs: 3000, settleMs: 2200 },
+        },
+      },
+    });
+
+    driver.setSituation("wait", 0, 1);
+    expect(driver.getActiveClipSlot()).toBe("wait_gentle");
+
+    driver.triggerOneShot("comfort", 1);
+    expect(driver.getActiveClipSlot()).toBe("react_comfort");
+
+    // Non-interrupting situation updates (wait -> thinking) must NOT cut off react_comfort
+    driver.setSituation("wait", 0, 1);
+    expect(driver.getActiveClipSlot()).toBe("react_comfort");
+    driver.setSituation("thinking", 0, 1);
+    expect(driver.getActiveClipSlot()).toBe("react_comfort");
+
+    // Once react_comfort ends, driver enters the latest continuous situation (thinking -> think_chin)
+    const active = videos.find((v) => v.src.includes("react_comfort") && v.onended);
+    expect(active).toBeDefined();
+    active?.onended?.();
+    expect(driver.getActiveClipSlot()).toBe("think_chin");
+
+    await driver.unmount();
+  });
+
+  it("applies pre-mount situation='preparing' to play prepare_notes immediately on mount", async () => {
+    const { container, getSurface } = setupDomHarness(6.0);
+    const manager = new VideoDriverManager();
+    manager.setSituation("preparing", 0, 0);
+    await manager.mount(container, {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/anchor.webp",
+      loopPack: {
+        crossfadeMs: 180,
+        clips: {
+          idle_breathe: "/clips/idle_breathe.webm",
+          prepare_notes: "/clips/prepare_notes.webm",
+        },
+      },
+    });
+    expect(getSurface()?.dataset.clip).toBe("prepare_notes");
+    await manager.unmount();
+  });
 });

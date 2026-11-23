@@ -544,3 +544,83 @@
 - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**30 / 30 全部通过**（含 I1–I3、I5–I16、U7 旧地址重定向 + `UnsavedBar` + 保存角色不收起、纯键盘主线与 `prefers-reduced-motion`；其中 `m8.spec.ts` 放宽虚拟时钟步进上限后单测 7.3s 稳定通过）。
 - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- U7`：**46 步通过、0 失败、110 张截图**输出至 `docs/rebuild/review/U7/`，自动化 §6.2 学生词表扫描 **0 违规**，已完成 6 个设置分区、今天页、老师画廊、课堂、进度与手机端截图目视复核。
 - Windows 便携包构建与隔离冒烟通过：`scripts/build-portable.ps1 -SkipWebBuild` 产出 `outputs/Companion-Space-1.0.0-rc.2-windows-x64.zip`（SHA-256 `d40dfaea544175c0a3555ec0ed9411dcc27f350bec3de50e380cf7cebe01b31c`），`scripts/smoke-portable.ps1` 在独立隔离目录解压并验证 `/healthz`、`/welcome` SPA 壳与隔离 SQLite 创建全部通过（`Portable smoke passed: healthz + UI on loopback port 49870`）。
+
+## 老师素材扩展
+
+### 老师素材扩展 UM-1 + UM-2（首轮已选素材）— 代码完成（自动化通过）（2026-11-23）
+
+**待完成与待验证（先写未完成项与已知限制）**
+
+- **尚未挑中入库的视频片段（不替所有者挑片，只入库 `选中/` 内文件）**：
+  - **初棠（`tutor-chutang`）**：已入库 6/9 P0，尚缺 3 段 P0（`farewell_wave`、`speak_calm`、`speak_explain_a`；旧 `speak_explain_a` 仍在役）及全部 P1/P2（共缺 15/27 槽位）。
+  - **澜音（`tutor-lanyin`）**：已入库 5/9 P0，尚缺 4 段 P0（`farewell_wave`、`greet_wave`、`speak_calm`、`speak_explain_a`；旧 `speak_explain_a` 仍在役）及全部 P1/P2（共缺 16/27 槽位）。
+  - **雪川 / 沈砚 / 岚玥 / 青衡**：P0 全部 9/9 已入库；尚缺全部 P1/P2（各缺 13/27 槽位：`idle_fidget`、`listen_tilt`、`think_gaze`、`read_answer`、`speak_board`、`board_glance`、`react_clap`、`react_surprise`、`react_encourage`、`react_celebrate`、`hint_finger`、`nod_yes`、`intro_voice`）。后续所有者在 `outputs/老师素材扩展-20261122/02-视频提示词/回传/<编号-拼音>/选中/` 补齐挑中文件后，重新运行 `cli.py ingest`、`sync-licenses`、`validate --strict` 与 `sheet` 即可增量合入。
+  - **岚玥包体积余量提醒**：`tutor-lanyue` 当前 14 段合计 `13.86 MB`（已通过 ≤ 14 MB 上限，但余量仅 0.14 MB）；后续入库 P1 替换旧段或新增片段时，需要调高 CRF（34–38）以继续保持单包 ≤ 14 MB。
+  - **保留与未启用项**：三段式 `*_in/hold/out` 仅按规格预留 9 个目录名；`intro_voice` 按 DM-3 默认不使用；附录 B 项（`tod_morning/evening/night` 分时段换图、`key_board`、`key_notes`、`sheet_views`）保持忽略未启用。
+- **DM-1 许可与公开发布前提醒（已按所有者选定的方案 B 落地）**：
+  - 全部 6 个内置角色包清单、`assets/avatars/LICENSES.md`、`assets/THIRD_PARTY_NOTICES.md`、`README.md` 与 `README.en.md` 均已改写为真实 AI 来源（立绘与表情图：OpenAI Images 2.6 / Apache-2.0；短片与声音参考：MiniMax H3-Base FL2VA / MiniMax H3 Community License，`allow_redistribution: false`，含 EU/UK/KR/US 地域限制）。
+  - 本地保留全部短片以获得完整动态体验；如需对外公开发布安装包且尚未获得 MiniMax 上游书面授权，请使用 `scripts/build-portable.ps1 -ExcludeVideoClips` 构建不含短片的版本，用户可自行将角色包放入 `<数据目录>/avatar_packs/<tutor-id>/` 由应用自动发现。
+- **所有者手工与真实模型验收未做**：UM-1 验收清单 1–6 条与 UM-2 验收清单 1–10 条（真机逐段观看口型/动作衔接/配饰防穿模、待机轮换体感、减少动态效果实测及观感五问）仍待所有者亲测。
+
+**怎么验收**
+
+- 前端生产产物 `apps/web/dist` 已在最后一次代码改动后通过完整门禁重新构建（1.12s），启动后即可直接查看全部新素材与交互。
+- 启动方式：
+  - 使用日常真实数据：双击 `start.bat`。
+  - 使用全新隔离数据（不触碰真实数据）：运行 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-review.ps1`。
+- 评审离线素材与截图对照（全部位于 `docs/rebuild/review/UM/`，未提交进版本库）：
+  - **6 位老师素材对照图与逐段指标**：`docs/rebuild/review/UM/<xuechuan|shenyan|lanyue|chutang|qingheng|lanyin>/{clips-sheet.jpg,stills-sheet.jpg,metrics.json}`（每段 5 帧采样 + 8× 首末差异图 + 时长/体积/CRF/接缝/基准帧误差/`settle_ms`）。
+  - **界面巡览与相位-片段记录**：`docs/rebuild/review/UM/01-*.png` 至 `112-*.png` 与 `capture-log.txt`（重点核对 `01-today-desktop.png` [`still=cheerful`]、`49-lesson-lobby-preparing.png` [`phase=preparing clip=prepare_notes`]、`52-lesson-teaching.png` [`clip=greet_wave`]、`53-lesson-question.png` [`clip=wait_gentle`]、`62-lesson-recap.png` [`still=praise`]、`67-board-blocks-full.png` [`clip=think_chin`]、`68-lesson-board-first.png` [`clip=speak_explain_a`]、`71-lesson-confused-comfort.png` & `72-lesson-verdict-incorrect.png` [`clip=react_comfort`]、`80-tutor-detail-assets-xuechuan.png` & `81-tutor-detail-assets-still.png`、`94-not-found-404.png` [`still=curious`]）。
+- 建议手工重点点检：
+  1. 切换至雪川 / 沈砚 / 岚玥 / 青衡（P0 齐全），依次走完候课备课（`prepare_notes`）→ 开始上课（`greet_wave`）→ 连续讲解（`speak_calm` 首句 + `speak_explain_a/b` 轮换）→ 提问等待（`wait_gentle`）→ 答对/答错（反应播至 `settle_ms` 最多等 1.5s 再切讲话，声音不等待）→ 确认下课（`farewell_wave`）。
+  2. 打开 `/tutors/tutor-xuechuan?tab=assets`：「短片与表情图试演」应显示 `动态短片 14 / 27`、`静态表情图 7 / 7`，逐个点击可播可看，缺失槽位标注「还没有」及回退规则；「许可与作者」标明 `AI 生成素材` 与 `OpenAI Images 2.6 + MiniMax H3-Base (FL2VA)`。
+  3. 系统开启「减少动态效果」后进课堂：答对切 `praise`、答错或点「没听懂」切 `caring`，无视频晃动且交互不受影响。
+
+**已落地**
+
+- **UM-1 片段目录单一来源、清单扩展与播放规则（`4192fcf`、`7d21254`、`626df8f`）**：
+  - 建立单一来源 `libs/schemas/tutor_media_catalog.json`（27 个现用片段 + 9 个三段式预留 + 7 种静态表情图 + 课堂外位置映射表 `still_locations` + 上限约束），前后端、CLI 工具与测试统一从其派生；压缩包文件上限 32 → 96；内置发现支持 `<storage_root>/avatar_packs/<id>/` 优先并回退仓库 `assets/avatars/packs/`；`manifest.json` 扩展 `canvas`、`clip_meta`、`stills`、`media`。
+  - `packages/avatar-engine` 新增 `Situation` / `OneShotKind` / `phaseToSituation` 及兼容旧驱动的降级表；`LoopPackVideoDriver` 实现 27 槽情境选择、讲解首句 `speak_calm` + 2:1:1 轮换、倾听/思考两轮交替、表扬不连播、可注入随机源的待机调度（每次插入间隔完整 `idle_breathe`）、按媒体真实时长+400ms 结束一次性动作（取消固定 4000ms）、`settle_ms` 反应→讲话衔接（上限 1500ms）、非打断情境不截断进行中的一次性动作、初始挂载前同步 `situation`（修复候课首帧 `prepare_notes`）、两级预取以及静态档/减动效 200ms 表情图淡化（`data-still`）。
+  - 接入课堂内/候课/课后小结与课堂外全部位置（今天页问候、空状态、错误态、解锁页、404、复盘页）的表情图；升级 `/tutors/:tutorId?tab=assets` 为全部 27 短片 + 7 表情图试演页与真实 AI 许可展示。
+- **UM-1 工具链、脚本收编与许可登记（`2e34d71`、`0eddb94`）**：
+  - `tools/tutorpack/cli.py` + `media_ops.py` 落地 `legacy-fix`、`ingest`（16 位线性颜色校正、一次性裁剪与 `settle_ms` 计算、超阈值 ≤4 帧余弦过渡、单关键帧 VP9 编码与 §5 门槛复检）、`stills`（头部框 Sobel 相位相关配准、防误裁外缘背景合成、WebP 导出与裁切数据）、`validate --strict`、`sheet` 与 `sync-licenses`；收编 `generate-prompts.mjs` 与 `run-h3-batch.mjs` 并抽离 `tutors-data.json`，原 `outputs/` 两处副本改为一行转调。
+  - 更新 `assets/THIRD_PARTY_NOTICES.md`、`assets/avatars/LICENSES.md`（141 项资产含 `.wav`）、6 份 `manifest.json`、`README.md`、`README.en.md`、`docs/rebuild/DECISIONS.md`（记录 DM-1=B、DM-2=576×1024、DM-3 等），为 `scripts/build-portable.ps1` 增加 `-ExcludeVideoClips` 并升级 `test_avatar_asset_licenses.py`。
+- **UM-1 `legacy-fix` 48 段旧短片统一 576×1024 重编码体积前后对比**（全部裁切 5px 上下补边、单关键帧 VP9 CRF 32，单段均 ≤ 1.16 MB）：
+
+| 老师 | 旧 8 段重编码前 | `legacy-fix` 后 | 降幅 |
+| --- | ---: | ---: | ---: |
+| `tutor-xuechuan`（雪川） | 9,122,985 B (8.70 MB) | 4,755,640 B (4.54 MB) | -47.9% |
+| `tutor-shenyan`（沈砚） | 4,753,480 B (4.53 MB) | 2,538,062 B (2.42 MB) | -46.6% |
+| `tutor-lanyue`（岚玥） | 10,812,044 B (10.31 MB) | 6,111,662 B (5.83 MB) | -43.5% |
+| `tutor-chutang`（初棠） | 11,011,767 B (10.50 MB) | 6,233,868 B (5.95 MB) | -43.4% |
+| `tutor-qingheng`（青衡） | 7,793,411 B (7.43 MB) | 4,519,897 B (4.31 MB) | -42.0% |
+| `tutor-lanyin`（澜音） | 4,686,521 B (4.47 MB) | 2,591,285 B (2.47 MB) | -44.7% |
+| **合计（48 段）** | **48,180,208 B (45.95 MB)** | **26,750,414 B (25.51 MB)** | **-44.5%** |
+
+- **UM-2 首轮已选素材入库汇总（`ab686d5`，42/42 表情图 + 47/47 已选 P0 视频，0 拒收）**：
+
+| 老师 | 表情图 | 新入库 P0 视频（端部过渡数） | 现有总短片 | 总短片体积（上限 14 MB） | 拒收 | 待选缺失槽位 |
+| --- | --- | --- | --- | ---: | --- | --- |
+| 雪川（`tutor-xuechuan`） | 7/7（全过 ±9px） | 9/9（9 段做 ≤4 帧过渡） | 14/27 | 10,725,436 B (10.73 MB) | 0 | 13（P1/P2） |
+| 沈砚（`tutor-shenyan`） | 7/7（全过 ±9px） | 9/9（9 段做 ≤4 帧过渡） | 14/27 | 5,294,894 B (5.29 MB) | 0 | 13（P1/P2） |
+| 岚玥（`tutor-lanyue`） | 7/7（全过 ±9px） | 9/9（9 段做 ≤4 帧过渡） | 14/27 | 13,863,868 B (13.86 MB) | 0 | 13（P1/P2） |
+| 初棠（`tutor-chutang`） | 7/7（全过 ±9px） | 6/6 已选（6 段做 ≤4 帧过渡） | 12/27 | 11,405,415 B (11.41 MB) | 0 | 15（缺 3 P0 + P1/P2） |
+| 青衡（`tutor-qingheng`） | 7/7（全过 ±9px） | 9/9（9 段做 ≤4 帧过渡） | 14/27 | 9,249,393 B (9.25 MB) | 0 | 13（P1/P2） |
+| 澜音（`tutor-lanyin`） | 7/7（全过 ±9px） | 5/5 已选（2 段做 ≤4 帧过渡） | 11/27 | 3,828,235 B (3.83 MB) | 0 | 16（缺 4 P0 + P1/P2） |
+
+**本地验证**
+
+- `ruff check tools/tutorpack` & `scripts/gate.ps1 -Frontend -Contract` 全绿：
+  - Ruff clean；后端 Pytest **480 通过 / 0 失败 / 2 跳过**（含 I17 扩展目录导入与未知槽位拒绝、数据目录内置包发现、I22a 内置包不变式、`test_avatar_asset_licenses.py` 141 项全量校验）。
+  - OpenAPI 契约检查（`npm run generate:api:check`）与防空壳/中文文案长度检查（`scripts/check_no_fakes.py`）通过。
+  - 前端 `tsc --noEmit`、`eslint`、Vitest **16 文件 101 项通过**（含 I17–I20、I19b、I23 驱动单测、一次性动作防截断与初始 `preparing` 挂载单测）、`vite build`（1.12s）通过。
+- `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**32 / 32 全部通过**（I1–I16 零退步；新增 **I21** 同时覆盖测试目录合成 `.tutorpack` 夹具与真实内置 `tutor-xuechuan` 的 `greet_wave`/`farewell_wave`；新增 **I23** 覆盖减少动态效果下 `data-still` 答对切 `praise`/答错与没听懂切 `caring` 以及 `/tutors/tutor-xuechuan?tab=assets` 试演与 AI 来源声明）。
+- `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- UM`：**46 步通过、0 失败、112 张截图**输出至 `docs/rebuild/review/UM/`，自动化 §6.2 学生词表扫描 **0 违规**，全部课堂截图日志附带 `phase` / `clip` / `still` 并完成人工抽检。
+- **I22b 严格媒体校验（`cli.py validate assets/avatars/packs/tutor-<slug> --strict`，使用外部 FFmpeg 9.0.1 / ffprobe，`unchecked_items: []`）**：
+  - `tutor-xuechuan`：`ok: true`，576×1024 @ 24fps VP9 Profile 0 `yuv420p` 无音轨单关键帧，14 段共 10,725,436 B（单段最大 1,034,753 B），9 段新入库 `seam_mae ≤ 0.005` / `seam_block_max ≤ 0.205` / `hub_mae ≤ 2.811`，7/7 表情图 1080×1920 WebP。
+  - `tutor-shenyan`：`ok: true`，576×1024 @ 24fps VP9 Profile 0 `yuv420p` 无音轨单关键帧，14 段共 5,294,894 B（单段最大 620,466 B），9 段新入库 `seam_mae ≤ 0.050` / `seam_block_max ≤ 0.414` / `hub_mae ≤ 2.513`，7/7 表情图 1080×1920 WebP。
+  - `tutor-lanyue`：`ok: true`，576×1024 @ 24fps VP9 Profile 0 `yuv420p` 无音轨单关键帧，14 段共 13,863,868 B（单段最大 1,196,946 B），9 段新入库 `seam_mae ≤ 0.034` / `seam_block_max ≤ 0.380` / `hub_mae ≤ 3.336`，7/7 表情图 1080×1920 WebP。
+  - `tutor-chutang`：`ok: true`，576×1024 @ 24fps VP9 Profile 0 `yuv420p` 无音轨单关键帧，12 段共 11,405,415 B（单段最大 1,165,761 B），6 段新入库 `seam_mae ≤ 0.011` / `seam_block_max ≤ 0.095` / `hub_mae ≤ 3.218`，7/7 表情图 1080×1920 WebP。
+  - `tutor-qingheng`：`ok: true`，576×1024 @ 24fps VP9 Profile 0 `yuv420p` 无音轨单关键帧，14 段共 9,249,393 B（单段最大 1,038,054 B），9 段新入库 `seam_mae ≤ 0.013` / `seam_block_max ≤ 0.246` / `hub_mae ≤ 2.663`，7/7 表情图 1080×1920 WebP。
+  - `tutor-lanyin`：`ok: true`，576×1024 @ 24fps VP9 Profile 0 `yuv420p` 无音轨单关键帧，11 段共 3,828,235 B（单段最大 582,000 B），5 段新入库 `seam_mae ≤ 1.134` / `seam_block_max ≤ 5.672` / `hub_mae ≤ 3.415`，7/7 表情图 1080×1920 WebP。
+  - 全部 6 位老师完整 JSON 报告已落盘至 `docs/rebuild/review/UM/<slug>/metrics.json`。
