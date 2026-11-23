@@ -2,7 +2,7 @@
 
 > 面向在本仓库工作的编码代理。**先读 `docs/rebuild/PLAN.md`，再读 `docs/rebuild/PROGRESS.md`，然后只做当前里程碑（`docs/rebuild/MILESTONES.md`）。** **体验重塑阶段（U0–U7）**：先读 `docs/rebuild/UX-PLAN.md` 与 `docs/rebuild/TASK-UX-UPGRADE.md`，只做所有者点名的那个 U 里程碑；`MILESTONES.md` 只作为通用规则与历史的参考。
 > 文件之间有冲突时：`MILESTONES.md`（做什么、何时做）> `docs/rebuild/spec/*`（怎么做）> `PLAN.md` > 本文件之外的任何旧文档。
-> 体验重塑阶段的冲突顺序：`TASK-UX-UPGRADE.md` > `spec/experience-design.md` > `spec/design-system.md` > 其余 `spec/*` 中关于界面布局的段落。本文件的防空壳规则、安全与隐私红线、Git 规则，以及其余 `spec/*` 中关于协议、驱动、许可、安全的条款始终有效，任何 U 文件都不能放宽它们。
+> 体验重塑阶段的冲突顺序：`TASK-UX-UPGRADE.md` > `spec/experience-design.md` > `spec/design-system.md` > 其余 `spec/*` 中关于界面布局的段落。本文件的防空壳规则、安全与隐私红线、Git 规则，以及其余 `spec/*` 中关于协议、驱动、许可、安全的条款始终有效，任何 U 文件都不能放宽它们。老师画面上片段的选择与播放以 `docs/rebuild/spec/tutor-media.md` §4 为准，覆盖 `experience-design.md` §5.6.2 相位表的'形象'一列。
 
 ## 这是什么
 
