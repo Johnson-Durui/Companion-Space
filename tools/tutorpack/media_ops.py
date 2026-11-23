@@ -362,6 +362,7 @@ def encode_frames_vp9(
             "-crf", str(crf),
             "-b:v", "0",
             "-g", "240",
+            "-keyint_min", "240",
             "-row-mt", "1",
             "-deadline", "good",
             "-cpu-used", "1",
@@ -417,6 +418,7 @@ def legacy_fix_pack(
             "before_bytes": before_bytes,
             "after_bytes": enc["bytes"],
             "crf": enc["crf"],
+            "duration_ms": enc["duration_ms"],
             "cropped_legacy_padding": vf_prefix is not None,
         }
 

@@ -12,7 +12,10 @@
     "think_chin": "clips/think_chin.webm",
     "board_point": "clips/board_point.webm",
     "react_praise": "clips/react_praise.webm",
-    "react_comfort": "clips/react_comfort.webm"
+    "react_comfort": "clips/react_comfort.webm",
+    "idle_glance": "clips/idle_glance.webm",
+    "prepare_notes": "clips/prepare_notes.webm",
+    "wait_gentle": "clips/wait_gentle.webm"
   },
   "persona": {
     "relationship": "敏锐干练的声学与实战提分导师，专注高频考点与精准复盘",
@@ -44,5 +47,36 @@
     "ai_generated": true,
     "image_generator": "OpenAI Images 2.6",
     "video_generator": "MiniMax H3-Base (FL2VA, local ComfyUI)"
+  },
+  "stills": {
+    "caring": "stills/caring.webp",
+    "cheerful": "stills/cheerful.webp",
+    "curious": "stills/curious.webp",
+    "focused": "stills/focused.webp",
+    "playful": "stills/playful.webp",
+    "praise": "stills/praise.webp",
+    "thinking": "stills/thinking.webp"
+  },
+  "canvas": {
+    "width": 576,
+    "height": 1024,
+    "fps": 24
+  },
+  "clip_meta": {
+    "idle_breathe": {
+      "duration_ms": 6583
+    },
+    "idle_glance": {
+      "duration_ms": 6583
+    },
+    "listen_nod": {
+      "duration_ms": 5167
+    },
+    "prepare_notes": {
+      "duration_ms": 8000
+    },
+    "wait_gentle": {
+      "duration_ms": 6583
+    }
   }
 }

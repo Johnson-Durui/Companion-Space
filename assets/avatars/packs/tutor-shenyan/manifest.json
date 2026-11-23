@@ -12,7 +12,13 @@
     "think_chin": "clips/think_chin.webm",
     "board_point": "clips/board_point.webm",
     "react_praise": "clips/react_praise.webm",
-    "react_comfort": "clips/react_comfort.webm"
+    "react_comfort": "clips/react_comfort.webm",
+    "farewell_wave": "clips/farewell_wave.webm",
+    "greet_wave": "clips/greet_wave.webm",
+    "idle_glance": "clips/idle_glance.webm",
+    "prepare_notes": "clips/prepare_notes.webm",
+    "speak_calm": "clips/speak_calm.webm",
+    "wait_gentle": "clips/wait_gentle.webm"
   },
   "persona": {
     "relationship": "沉稳果断的策略与逻辑导师，直击核心结论与关键约束",
@@ -44,5 +50,50 @@
     "ai_generated": true,
     "image_generator": "OpenAI Images 2.6",
     "video_generator": "MiniMax H3-Base (FL2VA, local ComfyUI)"
+  },
+  "stills": {
+    "caring": "stills/caring.webp",
+    "cheerful": "stills/cheerful.webp",
+    "curious": "stills/curious.webp",
+    "focused": "stills/focused.webp",
+    "playful": "stills/playful.webp",
+    "praise": "stills/praise.webp",
+    "thinking": "stills/thinking.webp"
+  },
+  "canvas": {
+    "width": 576,
+    "height": 1024,
+    "fps": 24
+  },
+  "clip_meta": {
+    "farewell_wave": {
+      "duration_ms": 3667,
+      "settle_ms": 3500
+    },
+    "greet_wave": {
+      "duration_ms": 2750,
+      "settle_ms": 2583
+    },
+    "idle_breathe": {
+      "duration_ms": 6583
+    },
+    "idle_glance": {
+      "duration_ms": 6583
+    },
+    "listen_nod": {
+      "duration_ms": 5167
+    },
+    "prepare_notes": {
+      "duration_ms": 8000
+    },
+    "speak_calm": {
+      "duration_ms": 5167
+    },
+    "speak_explain_a": {
+      "duration_ms": 5167
+    },
+    "wait_gentle": {
+      "duration_ms": 6583
+    }
   }
 }
