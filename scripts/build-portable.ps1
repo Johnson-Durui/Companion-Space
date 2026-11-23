@@ -3,7 +3,8 @@ param(
     [ValidateSet('default', 'cn')][string]$Mirror = 'default',
     [string]$OutputDirectory,
     [switch]$SkipWebBuild,
-    [switch]$KeepStaging
+    [switch]$KeepStaging,
+    [switch]$ExcludeVideoClips
 )
 
 $ErrorActionPreference = 'Stop'
@@ -107,6 +108,14 @@ Copy-Tree 'apps\web\dist'
 Copy-Tree 'libs\prompts'
 Copy-Tree 'libs\schemas'
 Copy-Tree 'assets\avatars'
+if ($ExcludeVideoClips) {
+    Get-ChildItem -LiteralPath (Join-Path $stage 'assets\avatars\packs') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+        $clipsDir = Join-Path $_.FullName 'clips'
+        if (Test-Path -LiteralPath $clipsDir) { Remove-Item -LiteralPath $clipsDir -Recurse -Force }
+    }
+    $voicesDir = Join-Path $stage 'assets\avatars\voices'
+    if (Test-Path -LiteralPath $voicesDir) { Remove-Item -LiteralPath $voicesDir -Recurse -Force }
+}
 Copy-Tree 'assets\fonts\LICENSES'
 Copy-Tree 'assets\THIRD_PARTY_NOTICES.md'
 Copy-Tree 'content\characters'
@@ -126,19 +135,20 @@ Copy-Tree 'docs\images\today-showcase.png'
 Copy-Tree 'docs\images\progress-showcase.png'
 New-Item -ItemType Directory -Path (Join-Path $stage 'data') -Force | Out-Null
 
-# All six active built-in anime tutor anchor portraits (xuechuan, shenyan, lanyue,
-# chutang, qingheng, lanyin) are owner-created original assets registered under Apache-2.0.
-@'
+$clipModeNote = if ($ExcludeVideoClips) {
+    'MiniMax H3 video clips and voice references are excluded from this build (`-ExcludeVideoClips`). Built-in tutors run in static mode with OpenAI Images 2.6 portraits and expression stills; optional local clip packs can be extracted into `data/avatar_packs/<tutor-id>/`.'
+} else {
+    'Includes local MiniMax H3-Base video loop clips and voice references (subject to the MiniMax H3 Community License including regional restrictions; see `assets/THIRD_PARTY_NOTICES.md` and `assets/avatars/LICENSES.md`).'
+}
+@"
 # Portable asset eligibility
 
-All six active built-in anime tutor anchor portraits (`xuechuan.webp`,
-`shenyan.webp`, `lanyue.webp`, `chutang.webp`, `qingheng.webp`, `lanyin.webp`)
-and any verified `.tutorpack` clips registered under `assets/avatars/packs/`
-are covered by `assets/avatars/LICENSES.md` and `assets/THIRD_PARTY_NOTICES.md`.
+All six built-in anime tutor anchor portraits and expression stills are AI-generated with OpenAI Images 2.6 and distributed under Apache-2.0.
+$clipModeNote
 
 Retired 3D VRM models (`assets-archive/retired-vrm/`) and retired legacy
 portraits (`assets-archive/retired-portraits/`) are excluded from this package.
-'@ | Set-Content -LiteralPath (Join-Path $stage 'PORTABLE-ASSET-STATUS.md') -Encoding utf8
+"@ | Set-Content -LiteralPath (Join-Path $stage 'PORTABLE-ASSET-STATUS.md') -Encoding utf8
 
 $portableStart = @'
 [CmdletBinding()]

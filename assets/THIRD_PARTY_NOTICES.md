@@ -94,9 +94,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Original Six Anime Tutor Anchor Portraits (2026-11-19)
+## Original Six Anime Tutor Anchor Portraits & Expression Stills (2026-11-19 / 2026-11-22)
 
-- Bundled files (`1080×1920` 9:16 vertical WebP anchors):
+- Bundled files (`1080×1920` 9:16 vertical WebP anchors and expression stills under `assets/avatars/portraits/*.webp` and `assets/avatars/packs/tutor-*/stills/*.webp`):
   - `assets/avatars/portraits/xuechuan.webp` (雪川)
     (`633f82353aba238e6ea008d5e207fc7f8a6de55363cd23e57d939673c143c386`)
   - `assets/avatars/portraits/shenyan.webp` (沈砚)
@@ -110,23 +110,20 @@ SOFTWARE.
   - `assets/avatars/portraits/lanyin.webp` (澜音)
     (`2608f99ec48b5003cefae6362eef7c196184cd1fcf0c8e553f17b9dff670afd8`)
 - Author: Companion Space project owner.
-- Provenance: original AI-assisted artwork created specifically for Companion
-  Space on 2026-11-19 for the pure-video `<TutorVideoBox>` roster. None of the
-  images copy a third-party franchise, celebrity, or mascot.
-- Third-party license: none. These project-owned portrait assets are distributed
-  under the same Apache License 2.0 terms as the repository unless a release
-  notice says otherwise.
-- Runtime boundary: these are 9:16 2D anime anchor portraits (Tier 0) and base
-  frames for `.tutorpack` loop packs (Tier 1) and optional local GPU sidecar
-  drivers (Tier 2); they do not include Cubism Live2D runtimes.
+- Provenance: **AI-generated** original artwork created specifically for Companion Space using **OpenAI Images 2.6** (do not represent as human-painted). None of the images copy a third-party franchise, celebrity, or mascot.
+- License: OpenAI's terms assign output rights to the creator; the project owner distributes these portrait and expression still images under Apache License 2.0.
+- Runtime boundary: these are 9:16 2D anime anchor portraits and expression stills (Tier 0) and base frames for `.tutorpack` loop packs (Tier 1) and optional local GPU sidecar drivers (Tier 2); they do not include Cubism Live2D runtimes.
 
-## Original Six Anime Tutor Tier 1 Video Loop Packs & Voice References (2026-11-21)
+## Six Anime Tutor Tier 1 Video Loop Packs & Voice References (MiniMax H3-Base, Regional Restrictions Apply)
 
-- Bundled packs (`assets/avatars/packs/tutor-{xuechuan,shenyan,lanyue,chutang,qingheng,lanyin}/`):
-  - 6 complete 8-clip silent VP9 `.webm` packs (`480×864`, 24 fps, `idle_breathe`, `listen_nod`, `think_chin`, `speak_explain_a`, `speak_explain_b`, `board_point`, `react_praise`, `react_comfort`) plus matching `anchor.webp` and `manifest.json`.
-  - 6 matching dry 24 kHz mono PCM WAV voice-clone reference clips (`assets/avatars/voices/*-ref-24k.wav`) and `voices_manifest.json`.
-- Provenance: generated locally on 2026-11-21 by the Companion Space project owner from the six original 2026-11-19 anchor portraits using locally hosted MiniMax H3-Base (`H3-Base-FL2VA`), then sliced and transcoded into silent VP9 `.webm` loops and normalized reference WAV clips.
-- Third-party license: none. These project-owned media assets are distributed under Apache License 2.0 alongside the repository unless a release notice states otherwise. Individual file registrations are listed in [Avatar asset licenses](avatars/LICENSES.md).
+- Files (`assets/avatars/packs/tutor-*/clips/*.webm` and `assets/avatars/voices/*-ref-24k.wav`):
+  - Silent VP9 `.webm` motion clips (`576×1024`, 24 fps, single keyframe) and 6 normalized 24 kHz dry voice reference WAVs (`assets/avatars/voices/`).
+- Provenance: **AI-generated** locally by the project owner from the six anchor portraits using locally hosted **MiniMax H3-Base** (`H3-Base-FL2VA`) open weights.
+- License & Restrictions: **NOT Apache-2.0**. Governed by the **MiniMax H3 Community License Agreement (2026-08-02)** (`https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE`):
+  - **Regional restriction (Section V.4)**: Excluded territories include the European Union, United Kingdom, South Korea, and United States; outputs may not be used, copied, modified, distributed, or displayed outside permitted territories.
+  - **No model training (Section V.3)**: Outputs (including the 6 voice reference WAVs) must **not** be used to train, fine-tune, or improve any other AI or speech model.
+  - **Machine-generated disclosure (Exhibit A §12)**: Public distribution must clearly identify the media as AI/machine-generated.
+  - **Redistribution flag**: Marked `allow_redistribution: false` in pack manifests and [Avatar asset licenses](avatars/LICENSES.md). Release packaging supports `-ExcludeVideoClips` (`scripts/build-portable.ps1`) to omit all MiniMax H3 video clips and voice references cleanly while running built-in tutors on static portraits + OpenAI expression stills (and loading optional local clip packs from `<data_dir>/avatar_packs/<tutor-id>/`).
 
 ## Fonts
 

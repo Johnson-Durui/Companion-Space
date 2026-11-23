@@ -34,9 +34,15 @@
   },
   "default_style_id": "direct",
   "license": {
-    "author": "Companion Space",
-    "terms": "Apache-2.0",
-    "license_url": null,
-    "allow_redistribution": true
+    "author": "Companion Space (AI-generated)",
+    "terms": "Images: OpenAI Images 2.6 (Apache-2.0); Video clips: MiniMax H3 Community License (regional restrictions apply)",
+    "license_url": "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE",
+    "allow_redistribution": false
+  },
+  "media": {
+    "generator": "OpenAI Images 2.6 + MiniMax H3-Base (FL2VA)",
+    "ai_generated": true,
+    "image_generator": "OpenAI Images 2.6",
+    "video_generator": "MiniMax H3-Base (FL2VA, local ComfyUI)"
   }
 }

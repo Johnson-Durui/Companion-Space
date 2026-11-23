@@ -160,3 +160,12 @@
 - **全站原生 `<select>` 与遗留 CSS 清零**：同步将 `course-hub.tsx` 与 `course-setup.tsx` 中最后 3 处原生 `<select>` 迁移为 Base UI `<Select>`，彻底删除全部 6 个旧全局样式文件（`tokens.css` / `classroom.css` / `setup.css` / `practice.css` / `progress.css` / `review.css`）及 `@layer legacy`，并在 `apps/web/tests/styles-tokens.test.ts` 移除 `HEX_ALLOWED_FILES` 与 `LEGACY_LAYER_FILES` 白名单机制（强制仅 `theme.css` 允许十六进制色值）。
 - **B10 结构化错误码全覆盖守门**：除补齐 `courses.py` 与 `diagnostics.py` 全部剩余 `HTTPException` 结构化 `detail={"code", "message"}` 外，新增静态 AST + 运行时测试 `services/api/tests/test_u7_error_codes.py`，防止后续新增纯英文字符串异常绕过前端中文错误映射。
 - **`Field` 必填星号脱离 `<label>` 文本**：将 `<Field required>` 的 `*` 渲染为 `<label>` 旁带 `aria-hidden="true"` 的兄弟元素，既保留视觉必填标记，又不污染可访问名称与精确标签查询。
+
+## 老师素材扩展 UM-1 / UM-2 执行决定（2026-11-23）
+
+- **DM-1 许可方案（所有者书面选定方案 B）**：将 `assets/avatars/LICENSES.md`、`assets/THIRD_PARTY_NOTICES.md`、六个内置角色包 `manifest.json` 全部更正为真实来源——立绘与 7 张表情图登记为 `OpenAI Images 2.6`（AI 生成，所有者按 Apache-2.0 授权），动态短片与 6 条声音参考登记为 `MiniMax H3-Base (FL2VA)` 并适用《MiniMax H3 Community License Agreement》（含地域限制、禁止用于训练其他 AI 模型、`allow_redistribution: false`）。现阶段短片保留并入库至 `assets/avatars/packs/` 供本机完整体验；同时后端支持从 `<storage_root>/avatar_packs/<tutor-id>/` 发现角色包，便携打包脚本 `scripts/build-portable.ps1` 增加 `-ExcludeVideoClips` 开关，不带短片时内置老师自动降级至静态档 + 表情图。
+- **DM-2 画布尺寸与旧片统一**：采用 576×1024 @ 24 fps（精确 9:16），并通过 `tools/tutorpack/cli.py legacy-fix` 将尚未被新片替换的旧 480×864 片段裁掉上下 5px 黑边、Lanczos 缩放至 576×1024 并以单关键帧 VP9 重新编码，确保新旧片段同画布无尺寸跳变且体积达标。
+- **DM-3 `intro_voice` 默认不启用**：继续沿用 U4 的老师页展示编排与课堂一致语音；`intro_voice` 仅在目录与工具层支持。
+- **单一数据源方案**：将 27 个活跃片段 + 9 个预留三段式片段 + 7 个表情图键 + 课堂外位置映射表统一放在 `libs/schemas/tutor_media_catalog.json`（已随便携包分发）。后端 `services/api/app/services/tutorpack.py`、命令行工具 `tools/tutorpack/cli.py` 与前端 `packages/avatar-engine/src/catalog.ts` 均从该文件派生，消除各处手写片段枚举。
+- **内置包刷新策略**：`TutorCatalog._normalize_recipe` 对 `source_kind == "builtin"` 的角色每次读取时从磁盘（`storage_root/avatar_packs/<id>` 优先，回退 `assets/avatars/packs/<id>`）刷新 `loop_pack`（clips / clip_meta / stills / canvas / media）与许可元数据，确保旧数据库升级后立即看到新入库的短片、表情图与真实许可，同时绝不覆盖用户改过的 `persona`、`voice`、`default_style_id` 或显式选择的 `preferred_tier`。
+- **外部工具与依赖**：`tools/tutorpack/media_ops.py` 仅复用仓库既有的 `Pillow` 与 `numpy`（零新增 Python/JS 依赖），FFmpeg / ffprobe 通过环境变量 `TUTORPACK_FFMPEG` / `TUTORPACK_FFPROBE`（或系统 PATH）按外部程序调用，不随产品分发。

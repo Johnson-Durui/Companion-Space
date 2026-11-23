@@ -52,12 +52,12 @@
 
 ---
 
-## 六位内置原创二次元导师（Apache-2.0 开箱即动）
+## 六位内置二次元导师（AI 生成素材，开箱即动）
 
-仓库自带六位原创二次元导师，原画、视频与声音参考资产全部以 **Apache-2.0** 开源分发。每位导师均配备：
+仓库自带六位原创人设的二次元导师（**立绘与表情图由 OpenAI Images 2.6 生成，动态短片与干声参考由本机 MiniMax H3-Base 生成**；完整来源与地域限制见 [`assets/avatars/LICENSES.md`](assets/avatars/LICENSES.md) 与 [`assets/THIRD_PARTY_NOTICES.md`](assets/THIRD_PARTY_NOTICES.md)）。每位导师均配备：
 - **专属全站主题色与独立中文神经声线**（切换老师即切换书桌与白板强调色，全通过 WCAG 对比度校验）；
-- **8/8 完整静音 VP9 循环动作短片包**（待机呼吸、倾听点头、托腮思考、讲解 A/B、指向白板、答对点赞、答错安抚，共 48 条 `.webm`）；
-- **24 kHz 棚录级干声克隆参考 WAV**（[`assets/avatars/voices/`](assets/avatars/voices/voices_manifest.json)，可直接喂给本地 GPT-SoVITS / CosyVoice / FishSpeech）。
+- **扩展静音 VP9 动态短片包与 7 张静态表情图**（支持待机轮换、备课/问候/道别/倾听/等待/多段讲解与静态/减动效表情切换；亦可通过 `-ExcludeVideoClips` 拆分打包、按静态+表情图档运行）；
+- **24 kHz 棚录级干声参考 WAV**（[`assets/avatars/voices/`](assets/avatars/voices/voices_manifest.json)，受 MiniMax H3 社区许可约束，不得用于训练或微调其他 AI 语音模型）。
 
 <p align="center">
   <img src="docs/images/six-anime-tutors.jpg" alt="六位内置原创二次元导师：雪川、沈砚、岚玥、初棠、青衡、澜音" width="920" />
@@ -243,5 +243,5 @@ Companion-Space/
 
 ## 开源协议与致谢
 
-- 本仓库全部源码，以及内置六位二次元导师原画、48 条 VP9 循环动作短片与 6 条 24 kHz 干声参考音频，均由项目原创并以 **Apache-2.0** 协议开源。完整许可与第三方字体/依赖声明见 [LICENSE](LICENSE)、[NOTICE](NOTICE)、[`assets/avatars/LICENSES.md`](assets/avatars/LICENSES.md) 与 [`assets/THIRD_PARTY_NOTICES.md`](assets/THIRD_PARTY_NOTICES.md)。
+- 本仓库全部源码以 **Apache-2.0** 协议开源；内置六位导师的立绘与静态表情图由 **OpenAI Images 2.6** AI 生成（Apache-2.0），动态 VP9 短片与 24 kHz 干声参考由本机 **MiniMax H3-Base** AI 生成并受 **MiniMax H3 Community License Agreement**（含欧盟/英国/韩国/美国地域限制、禁止用于训练其他 AI 模型）约束，不按 Apache-2.0 再分发。完整声明见 [LICENSE](LICENSE)、[NOTICE](NOTICE)、[`assets/avatars/LICENSES.md`](assets/avatars/LICENSES.md) 与 [`assets/THIRD_PARTY_NOTICES.md`](assets/THIRD_PARTY_NOTICES.md)。
 - 欢迎提交 [Issue](https://github.com/Johnson-Durui/Companion-Space/issues) 与 Pull Request（详见 [贡献指南](CONTRIBUTING.md)；反馈问题时请勿附带真实 API Key、`vault.json` 或受版权保护的私人教材）。

@@ -955,3 +955,113 @@ def generate_review_sheets(
             "stills_sheet": str(stills_sheet_path),
         }
     return outputs
+
+
+def sync_builtin_licenses(avatars_root: Path | None = None) -> dict[str, Any]:
+    """Update the 6 built-in pack manifests' license/media fields and regenerate assets/avatars/LICENSES.md."""
+    assets = avatars_root or (REPO_ROOT / "assets" / "avatars")
+    tutors_map = {t["id"]: t for t in load_tutors_data()}
+    slug_name = {t["slug"]: t["name"] for t in load_tutors_data()}
+
+    # 1. Update each built-in pack manifest's license & media fields to real provenance
+    packs_updated = 0
+    for pack_dir in sorted((assets / "packs").glob("tutor-*")):
+        manifest_file = pack_dir / "manifest.json"
+        if not manifest_file.is_file():
+            continue
+        manifest = json.loads(manifest_file.read_text(encoding="utf-8-sig"))
+        has_clips = bool(manifest.get("clips"))
+        manifest["media"] = {
+            "generator": (
+                "OpenAI Images 2.6 + MiniMax H3-Base (FL2VA)" if has_clips else "OpenAI Images 2.6"
+            ),
+            "ai_generated": True,
+            "image_generator": "OpenAI Images 2.6",
+            "video_generator": "MiniMax H3-Base (FL2VA, local ComfyUI)" if has_clips else None,
+        }
+        manifest["license"] = {
+            "author": "Companion Space (AI-generated)",
+            "terms": (
+                "Images: OpenAI Images 2.6 (Apache-2.0); Video clips: MiniMax H3 Community License (regional restrictions apply)"
+                if has_clips
+                else "OpenAI Images 2.6 (Apache-2.0)"
+            ),
+            "license_url": (
+                "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE" if has_clips else None
+            ),
+            "allow_redistribution": not has_clips,
+        }
+        manifest_file.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        packs_updated += 1
+
+    # 2. Scan all active media files under assets/avatars and write LICENSES.md
+    asset_suffixes = {".png", ".jpg", ".jpeg", ".webp", ".webm", ".mp4", ".wav"}
+    all_files = sorted(
+        p.relative_to(assets).as_posix()
+        for p in assets.rglob("*")
+        if p.is_file() and p.suffix.lower() in asset_suffixes
+    )
+
+    lines = [
+        "# Avatar asset licenses",
+        "",
+        "This directory is outside the source-code Apache-2.0 license grant. Each",
+        "asset follows the generator and license terms recorded below. See [Third-party notices](../THIRD_PARTY_NOTICES.md)",
+        "for full provenance and regional restriction notes.",
+        "",
+        "3D VRM sample models were retired on 2026-11-19 and archived under",
+        "`assets-archive/retired-vrm/`. Legacy v0.x/v1 portraits were retired on",
+        "2026-11-20 and archived under `assets-archive/retired-portraits/`.",
+        "",
+        "| File | Generator | Source and author | License and redistribution |",
+        "| --- | --- | --- | --- |",
+    ]
+
+    for rel in all_files:
+        parts = rel.split("/")
+        if parts[0] == "portraits":
+            slug = Path(rel).stem
+            zh = slug_name.get(slug, slug)
+            lines.append(
+                f"| `{rel}` | OpenAI Images 2.6 (AI-generated) | Companion Space original anime anchor portrait ({zh}). | Apache-2.0 (`allow_redistribution: true`; disclose AI-generated). |"
+            )
+        elif parts[0] == "backgrounds":
+            lines.append(
+                f"| `{rel}` | OpenAI image generation (AI-generated) | Companion Space original observatory background. | Apache-2.0 (`allow_redistribution: true`; disclose AI-generated). |"
+            )
+        elif parts[0] == "voices":
+            slug = Path(rel).stem.replace("-ref-24k", "")
+            zh = slug_name.get(slug, slug)
+            lines.append(
+                f"| `{rel}` | MiniMax H3-Base (AI-generated, regional restrictions) | Companion Space 24kHz dry voice reference ({zh}); must not train/fine-tune AI models. | MiniMax H3 Community License (`allow_redistribution: false`; EU/UK/KR/US excluded). |"
+            )
+        elif parts[0] == "packs" and len(parts) >= 3:
+            tid = parts[1]
+            tinfo = tutors_map.get(tid)
+            zh = tinfo["name"] if tinfo else tid
+            if parts[2] == "anchor.webp":
+                lines.append(
+                    f"| `{rel}` | OpenAI Images 2.6 (AI-generated) | Companion Space original anchor portrait ({zh} / {tid}). | Apache-2.0 (`allow_redistribution: true`; disclose AI-generated). |"
+                )
+            elif parts[2] == "stills" and len(parts) == 4:
+                still_key = Path(parts[3]).stem
+                lines.append(
+                    f"| `{rel}` | OpenAI Images 2.6 (AI-generated) | Companion Space expression still ({zh} / `{still_key}`), registered to anchor. | Apache-2.0 (`allow_redistribution: true`; disclose AI-generated). |"
+                )
+            elif parts[2] == "clips" and len(parts) == 4:
+                slot = Path(parts[3]).stem
+                lines.append(
+                    f"| `{rel}` | MiniMax H3-Base FL2VA (AI-generated, regional restrictions) | Companion Space silent VP9 motion clip ({zh} / `{slot}`). | MiniMax H3 Community License (`allow_redistribution: false`; EU/UK/KR/US excluded). |"
+                )
+            else:
+                lines.append(
+                    f"| `{rel}` | Companion Space | Pack asset ({zh}). | See pack manifest (`allow_redistribution: false`). |"
+                )
+        else:
+            lines.append(
+                f"| `{rel}` | Companion Space | Avatar asset. | See THIRD_PARTY_NOTICES.md (`allow_redistribution: false`). |"
+            )
+
+    (assets / "LICENSES.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return {"packs_updated": packs_updated, "assets_registered": len(all_files)}
+

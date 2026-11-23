@@ -461,6 +461,8 @@ def main(argv: list[str] | None = None) -> int:
     p_sheet.add_argument("--packs-root", type=Path, default=None, help="Override packs directory")
     p_sheet.add_argument("--out", type=Path, default=None, help="Override output directory (default docs/rebuild/review/UM)")
 
+    sub.add_parser("sync-licenses", help="Sync real AI provenance & licenses to pack manifests and LICENSES.md")
+
     args = parser.parse_args(argv)
     try:
         if args.command == "scaffold":
@@ -511,6 +513,10 @@ def main(argv: list[str] | None = None) -> int:
                 output_root=args.out,
             )
             print(json.dumps({"ok": True, "sheets": res}, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "sync-licenses":
+            res = media_ops.sync_builtin_licenses()
+            print(json.dumps({"ok": True, **res}, ensure_ascii=False, indent=2))
             return 0
     except ValueError as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False), file=sys.stderr)

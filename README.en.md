@@ -52,12 +52,12 @@ Most AI study apps are just scrolling chat windows, while browser-based 3D VRM r
 
 ---
 
-## Six Built-In Anime Tutors (Apache-2.0, Animated Out of the Box)
+## Six Built-In Anime Tutors (AI-Generated Media, Animated Out of the Box)
 
-All six built-in tutors are original **Apache-2.0** creations bundled directly in the repository. Every tutor ships with:
+All six built-in tutors feature original personas with **AI-generated visual and motion media** (portraits & expression stills generated with **OpenAI Images 2.6**; motion clips & voice references generated locally with **MiniMax H3-Base**, subject to regional license restrictions — see [`assets/avatars/LICENSES.md`](assets/avatars/LICENSES.md) and [`assets/THIRD_PARTY_NOTICES.md`](assets/THIRD_PARTY_NOTICES.md)). Every tutor ships with:
 - **A dedicated WCAG-verified accent palette & distinct neural Chinese voice**;
-- **Complete 8/8 silent VP9 motion loop packs** (`idle_breathe`, `listen_nod`, `think_chin`, `speak_explain_a/b`, `board_point`, `react_praise`, `react_comfort` — 48 `.webm` clips total);
-- **Normalized 24 kHz studio-dry voice-clone reference WAVs** ([`assets/avatars/voices/`](assets/avatars/voices/voices_manifest.json)) ready for local GPT-SoVITS / CosyVoice / FishSpeech pipelines.
+- **Expanded silent VP9 motion packs & 7 expression stills** (idle rotation, preparing, greeting, farewell, waiting, multi-clip lecturing, and reduced-motion/static expression switching; portable builds also support `-ExcludeVideoClips` to run on static portraits + expression stills);
+- **Normalized 24 kHz dry voice reference WAVs** ([`assets/avatars/voices/`](assets/avatars/voices/voices_manifest.json); governed by MiniMax H3 Community License — must not be used to train or fine-tune other AI speech models).
 
 <p align="center">
   <img src="docs/images/six-anime-tutors.jpg" alt="Six original built-in anime tutors: Xuechuan, Shenyan, Lanyue, Chutang, Qingheng, Lanyin" width="920" />
@@ -243,5 +243,5 @@ Companion-Space/
 
 ## License & Community
 
-- All repository code plus the six built-in anime tutors (anchor portraits, 48 VP9 motion clips, and 6 dry voice-clone reference WAVs) are original works released under **Apache-2.0**. See [LICENSE](LICENSE), [NOTICE](NOTICE), [`assets/avatars/LICENSES.md`](assets/avatars/LICENSES.md), and [`assets/THIRD_PARTY_NOTICES.md`](assets/THIRD_PARTY_NOTICES.md).
+- All repository source code is licensed under **Apache-2.0**. Built-in tutor anchor portraits and expression stills are AI-generated with **OpenAI Images 2.6** (Apache-2.0); motion clips and 24 kHz voice reference WAVs are AI-generated locally with **MiniMax H3-Base** and remain governed by the **MiniMax H3 Community License Agreement** (including EU/UK/KR/US territory restrictions and a prohibition on training other AI models; `allow_redistribution: false`). See [LICENSE](LICENSE), [NOTICE](NOTICE), [`assets/avatars/LICENSES.md`](assets/avatars/LICENSES.md), and [`assets/THIRD_PARTY_NOTICES.md`](assets/THIRD_PARTY_NOTICES.md).
 - Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) (never attach real API keys, `vault.json`, or private copyrighted textbooks to reports).
