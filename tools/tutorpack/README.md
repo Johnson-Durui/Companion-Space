@@ -1,39 +1,45 @@
-# Companion Space `.tutorpack` 二次元角色包工具链（Apache-2.0）
+# Companion Space `.tutorpack` 素材工具链
 
-本目录提供一套零门槛、开源合规的命令行工具与 ComfyUI 模板，用于把**1 张二次元立绘**扩展为 **8 段首尾帧锚定的教学循环短片包（`.tutorpack`）**，导入 Companion Space 即可在微信视频通话框中零独显、零实时 API 费用实现 60fps 流畅一对一授课演出。
+本工具链用于生成老师视频/图片提示词、批量排队、校准并入库选中的素材，以及校验与打包 `.tutorpack`。
 
-## 快速开始
+- 片段与表情图目录单一来源：`libs/schemas/tutor_media_catalog.json`（27 个活跃片段 + 9 个预留三段式槽位 + 7 张表情图）
+- 六位内置老师外观锁定与几何数据：`tools/tutorpack/tutors-data.json`
+- 规格文档：`docs/rebuild/spec/tutor-media.md`
 
-### 1. 生成标准目录与提示词清单
+## 外部依赖（不随产品打包）
 
-```powershell
-python tools/tutorpack/cli.py scaffold "沐音" --anchor assets/avatars/portraits/echo.png -o ./echo-pack
-```
-
-执行后会在 `./echo-pack/` 下生成：
-- `anchor.webp`（自动清除 EXIF 并转为标准 WebP）
-- `manifest.json`（标准角色清单）
-- `clips/`（放置 8 段生成短片的目录）
-- `PROMPTS.md`（二次元 8 段标准提示词）
-
-### 2. 本地免费生成 8 段二次元短片（ComfyUI）
-
-- 打开 ComfyUI，加载 `tools/tutorpack/comfyui/anime_tutor_loop_workflow.json`；
-- 将 `anchor.webp` 同时绑定为首帧与尾帧；
-- 依次复制 `tools/tutorpack/prompts/anime-8-clips.zh-CN.md` 中的 8 段提示词生成短片，保存至 `./echo-pack/clips/`；
-- 推荐显存参考：
-  - **RTX 5060 8 GB**：使用 FP8/GGUF Q4 量化权重 + CPU Offload，分辨率 `576×1024`，每段 3–4 秒（24fps）。
-  - **RTX 5060Ti 16 GB**：使用 FP8 权重，分辨率 `720×1280`，每段 4–5 秒（24fps）。
-
-### 3. 校验与一键打包
+`ingest`、`legacy-fix`、`sheet` 及带媒体检查的 `validate` 需要本机 FFmpeg / ffprobe，请通过环境变量指定路径（也可放入系统 `PATH`）：
 
 ```powershell
-python tools/tutorpack/cli.py validate ./echo-pack
-python tools/tutorpack/cli.py pack ./echo-pack -o echo-anime.tutorpack
+$env:TUTORPACK_FFMPEG = "D:\path\to\ffmpeg.exe"
+$env:TUTORPACK_FFPROBE = "D:\path\to\ffprobe.exe"
 ```
 
-> 即使暂时只生成了其中 2–3 段（例如 `idle_breathe` 与 `speak_explain_a`），也可直接打包导入——Companion Space 会在缺失槽位自动平滑回退，后续补齐再重新导入即可。
+## 常用命令
 
-### 4. 导入到 Companion Space
+```powershell
+# 生成六位老师的图片与视频提示词及 jobs.json / image-jobs.json
+node tools/tutorpack/generate-prompts.mjs outputs/老师素材扩展-20261122
 
-打开应用进入 **「角色库」** 页面，直接把 `.tutorpack`（或单张二次元图片）拖入上传区，点击「试演教学动作」立即检验切换效果。
+# 批量提交至本机 ComfyUI (MiniMax H3-Base FL2VA)
+node tools/tutorpack/run-h3-batch.mjs --tutor chutang --batch P0
+
+# 旧 480x864 短片去黑边、统一至 576x1024 并按单关键帧 VP9 重新编码
+.venv\Scripts\python.exe tools/tutorpack/cli.py legacy-fix assets/avatars/packs --all
+
+# 入库选中视频（仅读取 02-视频提示词/回传/<编号-拼音>/选中/）
+.venv\Scripts\python.exe tools/tutorpack/cli.py ingest --pack outputs/老师素材扩展-20261122 --tutor all
+
+# 配准并导出选中表情图（仅读取 01-图片提示词/回传/<编号-拼音>/选中/）
+.venv\Scripts\python.exe tools/tutorpack/cli.py stills --pack outputs/老师素材扩展-20261122 --tutor all
+
+# 生成评审对照图（输出至 docs/rebuild/review/UM/）
+.venv\Scripts\python.exe tools/tutorpack/cli.py sheet --tutor all
+
+# 校验目录或压缩包（--strict 启用 §5 全部媒体阈值校验）
+.venv\Scripts\python.exe tools/tutorpack/cli.py validate assets/avatars/packs/tutor-chutang --strict
+
+# 脚手架与打包
+.venv\Scripts\python.exe tools/tutorpack/cli.py scaffold "新老师" --anchor anchor.png -o ./my-pack
+.venv\Scripts\python.exe tools/tutorpack/cli.py pack ./my-pack -o my-tutor.tutorpack
+```

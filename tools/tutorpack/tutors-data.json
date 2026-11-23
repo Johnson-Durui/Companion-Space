@@ -1,0 +1,431 @@
+[
+  {
+    "num": "01",
+    "slug": "xuechuan",
+    "id": "tutor-xuechuan",
+    "name": "雪川",
+    "role": "天文助教 · 清透耐心",
+    "subj": "he",
+    "obj": "him",
+    "poss": "his",
+    "self": "himself",
+    "handSide": "at the viewer's left",
+    "ownHand": "the character's own right hand (at the viewer's left)",
+    "who": "a young man with tousled snow-white hair and ice-blue eyes, wearing an ivory knit pullover with a wide navy-striped collar",
+    "style": "2D-animated, bright translucent watercolor anime illustration with fine lavender-grey line art",
+    "room": "a pale-blue reading room with a celestial globe at the left, a brass telescope at the right and a bright window behind him",
+    "locks": "His feathery white fringe keeps its exact shape, hanging in fine separate locks to lash level with both irises fully visible, the small silver four-point star brooch stays pinned on the knit collar at the viewer's right, the two navy stripes of the ivory collar stay crisp, and the picture keeps the same bright, soft exposure as Picture 1",
+    "manner": "All of his movements are gentle, small and unhurried, with a quiet, slightly shy warmth.",
+    "glance": "the telescope at the right edge of the frame",
+    "fidget": "He glances toward the telescope at the right edge of the frame, his eyes brighten with quiet interest, he smiles to himself and gives a tiny nod, then looks back at the viewer.",
+    "greet": "He raises one hand into the frame at the viewer's left, in front of his shoulder at collar height with the palm open toward the viewer, and gives a small, friendly wave from the wrist, tilting his head slightly with a warm, slightly shy smile, then lowers the hand out of the bottom of the frame.",
+    "greetHands": "one",
+    "farewell": "He raises one hand into the frame at the viewer's left, in front of his shoulder at collar height with the palm open toward the viewer, waves gently twice from the wrist and nods once with a soft smile, then lowers the hand out of the bottom of the frame.",
+    "farewellHands": "one",
+    "celebrate": "His eyes curve into a delighted smile; he raises both hands into the lower part of the frame and claps lightly a few times, gives a happy nod, then lowers his hands out of the bottom of the frame.",
+    "encourage": {
+      "text": "He raises one hand into the frame at the viewer's left at lower-chest height as a loosely closed fist and gives it one small, gentle shake with an encouraging smile and a nod, then lowers the hand out of the bottom of the frame.",
+      "hands": "fist"
+    },
+    "voice": "a young man in his early twenties with a clear, gentle, lightly smiling voice and an unhurried pace",
+    "introLine": "我是雪川，把难题连成一条星轨。",
+    "dna": "An adult astronomy teaching assistant in his early twenties with a gentle, open face and fair skin. Soft, tousled snow-white short hair in feathery separated locks; the fringe hangs in fine separate locks to lash level, with both irises fully visible. Clear glacial-blue eyes. Ivory cable-knit pullover with a wide square nautical knit collar edged with two navy-blue stripes, worn over a pale-blue buttoned shirt. One small silver four-point star brooch pinned on the collar at the viewer's right. Translucent watercolor anime illustration with fine lavender-grey line art.",
+    "light": "bright, high-key daylight from the window behind him",
+    "imgLocks": "the single small silver four-point star brooch on the collar at the viewer's right, the two navy stripes on the ivory nautical knit collar",
+    "ownSides": "The star brooch is on the character's own left collar.",
+    "closedSmile": false,
+    "skipTod": [],
+    "checklist": [
+      "白色短发蓬松，刘海细碎垂到睫毛附近，两只瞳孔完整露出",
+      "冰蓝色眼睛",
+      "银色四角星胸针只有一枚，在**画面右侧**的领子上",
+      "白色麻花针织衫，大翻领上两道藏蓝条纹清楚",
+      "里面是浅蓝色衬衫",
+      "画面左边的天球仪、右边的望远镜不动",
+      "画面明亮但不过曝发白（三张时段图除外）"
+    ],
+    "headBox": [
+      0.16,
+      0.14,
+      0.84,
+      0.55
+    ],
+    "landmarks": {
+      "crownY": 0.15,
+      "eyeY": 0.375,
+      "chinY": 0.525
+    },
+    "crops": {
+      "avatar_1x1": [
+        18,
+        282,
+        1062,
+        1326
+      ],
+      "card_3x4": [
+        0,
+        86,
+        1080,
+        1526
+      ]
+    }
+  },
+  {
+    "num": "02",
+    "slug": "shenyan",
+    "id": "tutor-shenyan",
+    "name": "沈砚",
+    "role": "逻辑与策略导师 · 沉稳果断",
+    "subj": "he",
+    "obj": "him",
+    "poss": "his",
+    "self": "himself",
+    "handSide": "at the viewer's left",
+    "ownHand": "the character's own right hand (at the viewer's left)",
+    "who": "a man in his thirties with swept-back black hair and amber-brown eyes, wearing a charcoal double-breasted suit and a dark teal tie",
+    "style": "2D-animated, rich dark-toned anime illustration with clean ink contours and painterly shading",
+    "room": "a walnut study, in a brown leather chair, with bookshelves at the left and a sunset window and a lamp at the right",
+    "locks": "The single curved forelock on his forehead, the dark teal tie with its slim silver tie bar and the peak lapels of the charcoal suit keep their exact shapes, and the warm rim light on his cheek at the viewer's right stays as in Picture 1",
+    "manner": "All of his movements are restrained, economical and deliberate, and his posture stays composed.",
+    "glance": "the sunset window at the right edge of the frame",
+    "fidget": "He lowers his gaze for a moment in quiet deliberation, draws one slow breath, lifts one eyebrow slightly and gives a faint decisive nod, then looks back at the viewer.",
+    "greet": "He inclines his head in a composed nod and raises one hand into the frame at the viewer's left, at lower-chest height with the palm open toward the viewer for a brief moment, with a small confident closed smile, then lowers the hand out of the bottom of the frame.",
+    "greetHands": "one",
+    "farewell": "He gives one slow approving nod and raises one hand into the frame at the viewer's left, at lower-chest height, in a short, calm open-palm sign of parting, then lowers the hand out of the bottom of the frame.",
+    "farewellHands": "one",
+    "celebrate": "A rare, clearly pleased closed smile appears and his eyes warm; he raises both hands into the lower part of the frame and gives three slow, firm claps, then one approving nod, and lowers his hands out of the bottom of the frame.",
+    "praise": "His eyes warm with approval and the corners of his mouth lift in a closed smile; he raises one hand into the frame at the viewer's left at lower-chest height in a firm thumbs-up, gives one decisive nod, then lowers the hand out of the bottom of the frame.",
+    "encourage": {
+      "text": "He holds the viewer's gaze with a steady, assured look and gives one firm, deliberate nod as the corners of his mouth lift slightly.",
+      "hands": "none"
+    },
+    "surprise": "His eyebrows lift slightly and his eyes open a little wider in quiet surprise; then the corners of his mouth lift in a small approving closed smile and he gives one slow nod.",
+    "clapFace": "His eyes warm with approval",
+    "voice": "a man in his thirties with a low, steady, composed voice and a measured pace",
+    "introLine": "我是沈砚。先看条件，再下结论。",
+    "dna": "An adult male mentor of about 33 with a strong, defined jaw, straight prominent eyebrows, deep amber-brown eyes and warm tan skin. Glossy black hair swept back with a side part and one short curved forelock above the brow at the viewer's left. Charcoal double-breasted suit with peak lapels, pearl-grey shirt, dark petrol-teal silk tie with one slim brushed-silver tie bar. Rich dark-toned anime illustration with clean ink contours and painterly shading.",
+    "light": "warm golden rim light from the viewer's right",
+    "imgLocks": "the single curved forelock on the forehead, the dark teal tie with its slim silver tie bar, the peak lapels of the charcoal double-breasted suit",
+    "ownSides": "The curved forelock is on the character's own right side of the forehead.",
+    "closedSmile": true,
+    "skipTod": [
+      "tod_evening"
+    ],
+    "checklist": [
+      "黑发后梳，额前一缕弯发在**画面左侧**",
+      "琥珀棕色眼睛，浓而直的眉毛",
+      "深灰黑双排扣西装，戗驳领形状不变",
+      "墨绿色领带，上面一枚银色领带夹",
+      "浅灰色衬衫",
+      "表情克制：笑不露齿、没有夸张手势",
+      "棕色皮椅、左侧书架、右侧窗与台灯不动（三张时段图里窗外的光会变）"
+    ],
+    "headBox": [
+      0.22,
+      0.16,
+      0.78,
+      0.52
+    ],
+    "landmarks": {
+      "crownY": 0.17,
+      "eyeY": 0.355,
+      "chinY": 0.505
+    },
+    "crops": {
+      "avatar_1x1": [
+        74,
+        290,
+        1007,
+        1223
+      ],
+      "card_3x4": [
+        0,
+        146,
+        1080,
+        1586
+      ]
+    }
+  },
+  {
+    "num": "03",
+    "slug": "lanyue",
+    "id": "tutor-lanyue",
+    "name": "岚玥",
+    "role": "文学与意象导师 · 典雅从容",
+    "subj": "she",
+    "obj": "her",
+    "poss": "her",
+    "self": "herself",
+    "handSide": "at the viewer's right",
+    "ownHand": "the character's own left hand (at the viewer's right)",
+    "who": "a graceful woman with very long pale silver hair, two small pearl-white horns, pointed ears and lilac eyes, wearing an ivory-and-lavender dress",
+    "style": "2D-animated, delicate fine-lined fantasy anime illustration in pearly gouache tones",
+    "room": "a study with a wisteria-draped arched window, in a carved chair",
+    "locks": "The two small ridged pearl-white horns that rise from the sides of her crown and curve upward and inward, both pointed ears, the lilac wisteria ornament at the viewer's left temple and the flower clasp with its teardrop pendant at her collar keep their exact shapes and stay fixed to her head and collar, and her head turns stay within a few degrees",
+    "manner": "All of her movements are slow, graceful and flowing.",
+    "glance": "the wisteria in the arched window at the right edge of the frame",
+    "fidget": "She closes her eyes for one slow breath with a look of quiet contentment, her shoulders ease, then she opens her eyes again with a serene smile.",
+    "greet": "She raises one hand into the frame at the viewer's right, in front of her shoulder at collar height with the fingers together and the palm toward the viewer, holds it still and inclines her head in a graceful greeting with a serene smile, then lowers the hand out of the bottom of the frame.",
+    "greetHands": "one",
+    "farewell": "She raises one hand into the frame at the viewer's right, in front of her shoulder at collar height, and waves slowly from the wrist with relaxed fingers, inclines her head once, then lowers the hand out of the bottom of the frame.",
+    "farewellHands": "one",
+    "celebrate": "Her eyes curve with delight; she raises both hands into the lower part of the frame and applauds softly with her fingertips, inclines her head with a warm closed smile, then lowers her hands out of the bottom of the frame.",
+    "praise": "Her eyes warm and her closed smile deepens; she raises one hand into the frame at the viewer's right at lower-chest height in a clear thumbs-up, inclines her head once in approval, then lowers the hand out of the bottom of the frame.",
+    "encourage": {
+      "text": "She holds the viewer's gaze with a calm, encouraging smile and gives one slow, assured nod.",
+      "hands": "none"
+    },
+    "voice": "a woman in her late twenties with a warm, elegant, soft-spoken voice and an unhurried pace",
+    "introLine": "我是岚玥，把难懂的画成一幅画。",
+    "dna": "An adult dragon-woman literature tutor with a calm, regal face and fair skin. Very long pale opal-silver hair with a centre part, flowing over both shoulders. Two small ridged pearl-white horns rising from the sides of the crown above the temples, each a short crescent curving upward and inward with its tip pointing toward the centre. Pointed ears. Lilac-violet eyes. One lilac wisteria-flower hair ornament with hanging blossoms at the viewer's left temple. Ivory-and-lavender dress with a standing collar, a small flower clasp with one lilac teardrop pendant at the collar centre, and translucent layered sleeves with wisteria embroidery on both shoulders. Delicate fine-lined fantasy anime painting in pearly gouache tones.",
+    "light": "luminous soft daylight from the arched window behind her",
+    "imgLocks": "the two small ridged pearl-white horns, both pointed ears, the single lilac wisteria hair ornament at the viewer's left temple, the flower clasp with its teardrop pendant at the collar",
+    "ownSides": "The wisteria hair ornament is on the character's own right temple; the two horns are symmetrical.",
+    "closedSmile": true,
+    "skipTod": [],
+    "checklist": [
+      "头顶两侧两只珍珠白小龙角：带环纹、向上向内弯成月牙形、左右对称",
+      "两只尖耳都在",
+      "紫藤花发饰只有一处，在**画面左侧**鬓边",
+      "领口花形扣，下面一颗淡紫色水滴吊坠",
+      "银紫色长发，中分",
+      "淡紫色眼睛",
+      "头部转动很小（龙角和尖耳不变形）",
+      "紫藤拱窗、雕花椅背不动"
+    ],
+    "headBox": [
+      0.18,
+      0.15,
+      0.82,
+      0.54
+    ],
+    "landmarks": {
+      "crownY": 0.16,
+      "eyeY": 0.38,
+      "chinY": 0.525
+    },
+    "crops": {
+      "avatar_1x1": [
+        32,
+        303,
+        1048,
+        1319
+      ],
+      "card_3x4": [
+        0,
+        111,
+        1080,
+        1551
+      ]
+    }
+  },
+  {
+    "num": "04",
+    "slug": "chutang",
+    "id": "tutor-chutang",
+    "name": "初棠",
+    "role": "日常伴学老师 · 清新温暖",
+    "subj": "she",
+    "obj": "her",
+    "poss": "her",
+    "self": "herself",
+    "handSide": "at the viewer's left",
+    "ownHand": "the character's own right hand (at the viewer's left)",
+    "who": "a young woman with long blush-pink hair and aqua-green eyes, wearing a mint-green knit cardigan over a white round-collar blouse",
+    "style": "2D-animated, luminous hand-painted anime illustration with delicate pink-lilac line art and soft shading",
+    "room": "a sunlit reading nook with a bookshelf at the left and a spring window with a cream curtain at the right",
+    "locks": "The two small white flower hairpins on the viewer's right side of her fringe, the mint-green ribbon bow behind her head at the viewer's right and the small green leaf button at her white collar keep their exact shapes and stay fixed in her hair and at her collar",
+    "manner": "All of her movements are lively but small and soft, with natural, steady proportions.",
+    "glance": "the blossoms in the window at the right edge of the frame",
+    "fidget": "She tilts her head a few degrees to one side with a small bright smile and sways very slightly from side to side in a light, cheerful rhythm, blinks, then straightens and looks at the viewer again.",
+    "greet": "She raises one hand into the frame at the viewer's left, in front of her shoulder at collar height with the palm open toward the viewer, and waves cheerfully from the wrist, tilting her head with a bright smile, then lowers the hand out of the bottom of the frame.",
+    "greetHands": "one",
+    "farewell": "She raises one hand into the frame at the viewer's left, in front of her shoulder at collar height with the palm open toward the viewer, waves quickly a few times from the wrist, smiles with her eyes closed for a moment, then lowers the hand out of the bottom of the frame.",
+    "farewellHands": "one",
+    "celebrate": "Her face lights up with joy; she raises both hands into the lower part of the frame and claps quickly and lightly several times with her eyes closed in a happy smile, then lowers her hands out of the bottom of the frame.",
+    "voice": "a woman in her early twenties with a sweet, warm, naturally smiling voice and a lively, even pace",
+    "introLine": "我是初棠，今天也往前走一小步。",
+    "dna": "An adult tutor in her early twenties with a fresh, friendly face and soft peach blush. Long, straight blush-pink hair with wispy full bangs and a small braid along each side of the head, falling over both shoulders. Clear aqua-green eyes. Two small white five-petal flower hairpins on the viewer's right side of the fringe. One mint-green ribbon bow behind the head at the viewer's right, with tails hanging down. White round-collar blouse with fine pleats, one small green leaf-shaped button at the collar centre, and a mint-green V-neck knit cardigan. Luminous hand-painted 2D anime illustration with delicate pink-lilac line art and soft shading.",
+    "light": "warm, soft spring daylight from the window at the viewer's right",
+    "imgLocks": "the two small white flower hairpins on the viewer's right side of the fringe, the single mint-green ribbon bow behind the head at the viewer's right, the small green leaf button at the collar",
+    "ownSides": "The two flower hairpins and the ribbon bow are on the character's own left side of the head.",
+    "closedSmile": false,
+    "skipTod": [],
+    "checklist": [
+      "两枚白色小花发卡在**画面右侧**的刘海上（数量是两枚）",
+      "薄荷绿丝带蝴蝶结在**画面右侧**脑后",
+      "领口一枚绿色叶形小扣",
+      "白色圆领衬衫 + 薄荷绿针织开衫",
+      "樱粉色长直发，齐刘海",
+      "水绿色眼睛",
+      "人物比例自然，没有 Q 版式的夸张变形",
+      "左侧书架、右侧窗帘与花窗不动"
+    ],
+    "headBox": [
+      0.16,
+      0.13,
+      0.86,
+      0.56
+    ],
+    "landmarks": {
+      "crownY": 0.14,
+      "eyeY": 0.39,
+      "chinY": 0.54
+    },
+    "crops": {
+      "avatar_1x1": [
+        0,
+        295,
+        1080,
+        1375
+      ],
+      "card_3x4": [
+        0,
+        54,
+        1080,
+        1494
+      ]
+    }
+  },
+  {
+    "num": "05",
+    "slug": "qingheng",
+    "id": "tutor-qingheng",
+    "name": "青衡",
+    "role": "文史与推演导师 · 儒雅博学",
+    "subj": "he",
+    "obj": "him",
+    "poss": "his",
+    "self": "himself",
+    "handSide": "at the viewer's left",
+    "ownHand": "the character's own right hand (at the viewer's left)",
+    "who": "a refined man with long black hair in a half-up topknot held by a green bamboo-jade hairpin, wearing a white cross-collar robe under a celadon outer robe",
+    "style": "2D-animated, modern Chinese ink-and-color anime illustration with precise line art and a muted jade palette",
+    "room": "a misty bamboo study with a wooden lattice window at the right",
+    "locks": "The green bamboo-jade hairpin stays straight and rigid, fixed crosswise through his topknot and moving only together with his head, the long black locks over both shoulders hang calmly, the pale bamboo-leaf embroidery on the celadon lapels keeps its shape, and his head turns stay within a few degrees",
+    "manner": "All of his movements are composed, slow and measured, with an upright scholarly bearing.",
+    "glance": "the bamboo in the lattice window at the right edge of the frame",
+    "fidget": "He lowers his gaze in thought, his lips press together, he nods faintly to himself, then lifts his eyes to the viewer with a gentle smile.",
+    "greet": "He raises both hands into the lower part of the frame, one hand folded over the other in front of his chest in a courteous cupped-hands salute, and inclines his head with a gentle smile, then lowers his hands out of the bottom of the frame.",
+    "greetHands": "two",
+    "farewell": "He inclines his head and shoulders in one slow, courteous bow with a gentle smile, then straightens again.",
+    "farewellHands": "none",
+    "celebrate": "A warm, clearly pleased closed smile appears; he raises both hands into the lower part of the frame and applauds with three unhurried claps, nods approvingly, then lowers his hands out of the bottom of the frame.",
+    "praise": "His eyes warm and his closed smile deepens; he raises one hand into the frame at the viewer's left at lower-chest height in a clear thumbs-up, inclines his head once in approval, then lowers the hand out of the bottom of the frame.",
+    "encourage": {
+      "text": "He holds the viewer's gaze with a gentle, encouraging smile and gives one slow, assured nod.",
+      "hands": "none"
+    },
+    "voice": "a young man in his late twenties with a mellow, refined, calm scholarly voice and an even pace",
+    "introLine": "我是青衡，把前因后果慢慢理顺。",
+    "dna": "An adult East Asian literature mentor in his late twenties with a refined, elongated face, straight eyebrows and muted green-brown eyes. Long black hair: the top gathered into a smooth half-up topknot pierced crosswise by one straight green bamboo-jade hairpin, the rest falling long over both shoulders. Stone-white cross-collar inner robe under a deep celadon outer robe whose lapel bands carry pale embroidered bamboo leaves. Modern Chinese ink-and-color anime illustration with precise line art and a restrained jade palette.",
+    "light": "soft, diffuse daylight from the lattice window at the viewer's right",
+    "imgLocks": "the single straight green bamboo-jade hairpin fixed crosswise through the topknot (it tilts together with the head), the long black locks over both shoulders, the pale bamboo-leaf embroidery on the celadon lapels",
+    "ownSides": "The hairpin passes crosswise through the topknot and is symmetrical; both lapel bands carry bamboo-leaf embroidery.",
+    "closedSmile": true,
+    "skipTod": [],
+    "checklist": [
+      "发髻上横穿一根绿色竹节玉簪：笔直、不弯、不消失，跟着头一起动（歪头时它跟着歪是对的）",
+      "黑色长发垂在两肩前面",
+      "白色交领中衣 + 青绿色外袍",
+      "外袍衣襟上的浅色竹叶纹",
+      "棕绿色眼睛",
+      "头部转动很小",
+      "右侧木格窗、左侧竹影不动；画面里没有任何文字或书法"
+    ],
+    "headBox": [
+      0.2,
+      0.15,
+      0.8,
+      0.54
+    ],
+    "landmarks": {
+      "crownY": 0.16,
+      "eyeY": 0.38,
+      "chinY": 0.525
+    },
+    "crops": {
+      "avatar_1x1": [
+        32,
+        303,
+        1048,
+        1319
+      ],
+      "card_3x4": [
+        0,
+        111,
+        1080,
+        1551
+      ]
+    }
+  },
+  {
+    "num": "06",
+    "slug": "lanyin",
+    "id": "tutor-lanyin",
+    "name": "澜音",
+    "role": "实战提分导师 · 敏锐干练",
+    "subj": "she",
+    "obj": "her",
+    "poss": "her",
+    "self": "herself",
+    "handSide": "at the viewer's left",
+    "ownHand": "the character's own right hand (at the viewer's left)",
+    "who": "a woman with deep golden-brown skin and a sleek chin-length indigo bob with one cobalt-blue streak, wearing a blue-black stand-collar jacket over a powder-blue top",
+    "style": "2D-animated, graphic contemporary anime illustration with clean shapes and cinematic blue-and-amber lighting",
+    "room": "a blue-hour sound studio with a warm amber lamp at the right and studio monitors behind her",
+    "locks": "Her deep golden-brown skin tone, the cobalt-blue streak in the front lock at the viewer's left, the round brushed-gold stud earring at the viewer's right and the silver wave embroidery on the jacket at the viewer's right keep their exact color and stay on the same side, and the warm amber light on her cheek stays as in Picture 1",
+    "manner": "All of her movements are crisp, confident and precise, brisk and controlled.",
+    "glance": "the mixing console at the right edge of the frame",
+    "fidget": "She nods her head twice in tiny, even beats with a look of quiet focus, the corner of her mouth lifts, then she stills and looks at the viewer.",
+    "greet": "She raises one hand into the frame at the viewer's left, in front of her shoulder at collar height with the palm open toward the viewer, in a quick, confident wave from the wrist with a bright closed smile, then lowers the hand out of the bottom of the frame.",
+    "greetHands": "one",
+    "farewell": "She raises one open hand into the frame at the viewer's left, in front of her shoulder at collar height, holds it up for a moment in a casual parting sign with a confident smile and one small nod, then lowers the hand out of the bottom of the frame.",
+    "farewellHands": "one",
+    "celebrate": "A wide, proud smile spreads; she raises both hands into the lower part of the frame and claps three crisp times, gives a firm nod, then lowers her hands out of the bottom of the frame.",
+    "voice": "a woman in her late twenties with a crisp, confident, slightly husky voice and a brisk, precise pace",
+    "introLine": "我是澜音，先抓最容易丢分的。",
+    "dna": "An adult sound designer in her late twenties with deep golden-brown skin and expressive dark garnet-brown eyes with fine winged eyeliner. Sleek chin-length indigo bob with an asymmetric side part; one narrow cobalt-blue streak in the front lock at the viewer's left; the hair is tucked behind the ear at the viewer's right. One round brushed-gold stud earring at the viewer's right. Blue-black structured jacket with a short stand-up band collar, worn open over a powder-blue round-neck top, with silver wave-line embroidery on the jacket's chest and shoulder at the viewer's right. Graphic contemporary anime illustration with clean shapes.",
+    "light": "ultramarine ambient light and a warm amber key light from the viewer's right",
+    "imgLocks": "the deep golden-brown skin tone, the single cobalt-blue streak in the front lock at the viewer's left, the single round brushed-gold stud earring at the viewer's right, the silver wave embroidery on the jacket at the viewer's right",
+    "ownSides": "The cobalt streak is in the character's own right front lock; the gold stud earring and the wave embroidery are on the character's own left side.",
+    "closedSmile": false,
+    "skipTod": [
+      "tod_night"
+    ],
+    "checklist": [
+      "深金棕色皮肤，不变浅、不发灰",
+      "靛蓝色齐颌短发，偏分",
+      "一缕钴蓝色挑染在**画面左侧**的前发上",
+      "一枚圆形金色耳钉，在**画面右侧**",
+      "银色波纹刺绣在**画面右侧**的胸肩位置",
+      "蓝黑色立领外套（敞开）+ 浅蓝色内搭",
+      "脸颊上的暖色台灯反光、蓝色夜景不变（三张时段图除外）"
+    ],
+    "headBox": [
+      0.18,
+      0.19,
+      0.82,
+      0.58
+    ],
+    "landmarks": {
+      "crownY": 0.2,
+      "eyeY": 0.415,
+      "chinY": 0.565
+    },
+    "crops": {
+      "avatar_1x1": [
+        32,
+        370,
+        1048,
+        1386
+      ],
+      "card_3x4": [
+        0,
+        188,
+        1080,
+        1628
+      ]
+    }
+  }
+]

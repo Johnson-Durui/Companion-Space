@@ -562,3 +562,75 @@ def test_builtin_packs_i22a_invariants():
             assert (pack_dir / rel).is_file(), f"Missing still {rel} in {pack_dir.name}"
 
 
+def test_tutorpack_cli_i17_catalog_validation_and_still_registration(tmp_path):
+    tools_dir = str(APP_ROOT / "tools" / "tutorpack")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import cli as tutorpack_cli
+    import media_ops
+    import numpy as np
+
+    catalog = json.loads((APP_ROOT / "libs" / "schemas" / "tutor_media_catalog.json").read_text(encoding="utf-8"))
+    all_clips = [entry["id"] for entry in catalog["clips"]]
+    all_stills = list(catalog["stills"])
+
+    pack_dir = tmp_path / "full-cli-pack"
+    (pack_dir / "clips").mkdir(parents=True)
+    (pack_dir / "stills").mkdir(parents=True)
+    (pack_dir / "anchor.webp").write_bytes(_make_png_bytes(1080, 1920))
+    clips_map = {}
+    for slot in all_clips:
+        rel = f"clips/{slot}.webm"
+        (pack_dir / rel).write_bytes(_MINIMAL_WEBM)
+        clips_map[slot] = rel
+    stills_map = {}
+    for still in all_stills:
+        rel = f"stills/{still}.webp"
+        (pack_dir / rel).write_bytes(_make_png_bytes(1080, 1920))
+        stills_map[still] = rel
+    (pack_dir / "manifest.json").write_text(
+        json.dumps({
+            "schema_version": 1,
+            "name": "CLI Full",
+            "anchor": "anchor.webp",
+            "clips": clips_map,
+            "stills": stills_map,
+        }),
+        encoding="utf-8",
+    )
+
+    report = tutorpack_cli.validate_directory(pack_dir, check_media=False)
+    assert set(report["present_slots"]) == set(all_clips)
+    assert set(report["present_stills"]) == set(all_stills)
+
+    # Pack archive with >32 files (up to 96) succeeds.
+    archive_out = tmp_path / "full.tutorpack"
+    tutorpack_cli.pack_directory(pack_dir, archive_out)
+    arc_report = tutorpack_cli.validate_archive(archive_out)
+    assert set(arc_report["present_slots"]) == set(all_clips)
+    assert set(arc_report["present_stills"]) == set(all_stills)
+
+    # Unknown clip slot outside catalog is rejected by CLI validate (I17).
+    (pack_dir / "manifest.json").write_text(
+        json.dumps({
+            "schema_version": 1,
+            "name": "CLI Bad",
+            "anchor": "anchor.webp",
+            "clips": {"unknown_extra_slot": "clips/idle_breathe.webm"},
+        }),
+        encoding="utf-8",
+    )
+    assert tutorpack_cli.main(["validate", str(pack_dir), "--no-media"]) == 1
+
+    # Synthetic phase-correlation registration test: detect a known (+5, -4) px head shift.
+    rng = np.random.default_rng(42)
+    base = np.zeros((480, 270, 3), dtype=np.float32)
+    # Draw structured synthetic features inside head box
+    base[100:220, 70:200] = rng.integers(40, 220, size=(120, 130, 3), dtype=np.int32).astype(np.float32)
+    shifted = np.roll(np.roll(base, shift=-4, axis=0), shift=5, axis=1)
+    dx, dy = media_ops.estimate_head_shift(base, shifted, [0.15, 0.15, 0.85, 0.55])
+    assert abs(dx - 5.0) <= 1.0
+    assert abs(dy - (-4.0)) <= 1.0
+
+
+
