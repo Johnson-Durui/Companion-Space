@@ -1,5 +1,16 @@
+import {
+  ACTIVE_CLIP_SLOTS,
+  CLIP_ENTRY_BY_ID,
+  isCatalogClipSlot,
+  isStillSlot,
+  resolveStillForLocation,
+  STILL_SLOTS,
+} from "@companion-space/avatar-engine/catalog";
 import type {
+  ClipMeta,
   ClipSlot,
+  StillLocation,
+  StillSlot,
   VideoAvatarRuntimeConfig,
   VideoAvatarTier,
 } from "@companion-space/avatar-engine/types";
@@ -10,16 +21,37 @@ import t from "../../locales/zh-CN.json";
 export function toVideoAvatarConfig(
   character: Pick<Character, "id" | "name" | "appearance" | "video_avatar">,
   reducedMotion = false,
+  options?: { disableIdleScheduler?: boolean },
 ): VideoAvatarRuntimeConfig {
   const video = character.video_avatar;
+  const loopPackRaw = video?.loop_pack;
   const clips: Partial<Record<ClipSlot, string>> = {};
-  if (video?.loop_pack?.clips) {
-    for (const [slot, url] of Object.entries(video.loop_pack.clips)) {
-      if (typeof url === "string" && url) {
-        clips[slot as ClipSlot] = url;
+  if (loopPackRaw?.clips) {
+    for (const [slot, url] of Object.entries(loopPackRaw.clips)) {
+      if (typeof url === "string" && url && isCatalogClipSlot(slot)) {
+        clips[slot] = url;
       }
     }
   }
+  const clipMeta: Partial<Record<ClipSlot, ClipMeta>> = {};
+  if (loopPackRaw?.clip_meta) {
+    for (const [slot, meta] of Object.entries(loopPackRaw.clip_meta)) {
+      if (!isCatalogClipSlot(slot) || !meta) continue;
+      clipMeta[slot] = {
+        settleMs: typeof meta.settle_ms === "number" ? meta.settle_ms : undefined,
+        durationMs: typeof meta.duration_ms === "number" ? meta.duration_ms : undefined,
+      };
+    }
+  }
+  const stills: Partial<Record<StillSlot, string>> = {};
+  if (loopPackRaw?.stills) {
+    for (const [stillKey, url] of Object.entries(loopPackRaw.stills)) {
+      if (typeof url === "string" && url && isStillSlot(stillKey)) {
+        stills[stillKey] = url;
+      }
+    }
+  }
+
   return {
     characterId: character.id,
     name: character.name,
@@ -27,8 +59,25 @@ export function toVideoAvatarConfig(
     preferredTier: (video?.preferred_tier ?? "static") as VideoAvatarTier,
     anchorImage: video?.anchor_image || character.appearance.src,
     loopPack: {
-      crossfadeMs: video?.loop_pack?.crossfade_ms ?? 180,
+      crossfadeMs: loopPackRaw?.crossfade_ms ?? 180,
+      canvas: loopPackRaw?.canvas
+        ? {
+            width: loopPackRaw.canvas.width,
+            height: loopPackRaw.canvas.height,
+            fps: loopPackRaw.canvas.fps,
+          }
+        : undefined,
       clips,
+      clipMeta,
+      stills,
+      media: loopPackRaw?.media
+        ? {
+            generator: loopPackRaw.media.generator,
+            aiGenerated: loopPackRaw.media.ai_generated,
+            imageGenerator: loopPackRaw.media.image_generator,
+            videoGenerator: loopPackRaw.media.video_generator,
+          }
+        : undefined,
     },
     localSidecar: video?.local_sidecar
       ? {
@@ -48,7 +97,26 @@ export function toVideoAvatarConfig(
         }
       : undefined,
     reducedMotion,
+    disableIdleScheduler: options?.disableIdleScheduler,
   };
+}
+
+export function resolveCharacterStill(
+  character: Pick<Character, "appearance" | "video_avatar"> | null | undefined,
+  location: StillLocation,
+): { still: StillSlot | "anchor"; url: string } {
+  if (!character) return { still: "anchor", url: "" };
+  const anchor = character.video_avatar?.anchor_image || character.appearance.src;
+  const rawStills = character.video_avatar?.loop_pack?.stills;
+  const stills: Partial<Record<StillSlot, string>> = {};
+  if (rawStills) {
+    for (const [key, url] of Object.entries(rawStills)) {
+      if (typeof url === "string" && url && isStillSlot(key)) {
+        stills[key] = url;
+      }
+    }
+  }
+  return resolveStillForLocation(location, stills, anchor);
 }
 
 export function videoBoxLabels(): TutorVideoBoxLabels {
@@ -63,110 +131,40 @@ export function videoBoxLabels(): TutorVideoBoxLabels {
   };
 }
 
-const BUILTIN_CHARACTER_VIDEO_LOCKS: Record<
-  string,
-  { styleLock: string; antiArtifact: string; toneNote: string; negativeExtra: string }
-> = {
-  "tutor-xuechuan": {
-    styleLock:
-      "Crisp Japanese shoujo watercolor key visual, pearl-morning study window light, snowy-white feathery hair, glacial-blue eyes, ivory/ice-blue sailor-knit pullover with silver four-point star brooch.",
-    antiArtifact:
-      "Lock bright morning exposure strictly (prevent overexposed whiteout), keep bangs away from eyes, keep silver star brooch and blurred armillary sphere/telescope completely static.",
-    toneNote: "Gentle, airy, encouraging astronomy TA poise with smooth slender hand gestures.",
-    negativeExtra: "overexposed whiteout, hair covering eyes, distorted star brooch, moving telescope",
-  },
-  "tutor-shenyan": {
-    styleLock:
-      "High-end dark-toned otome key art, walnut executive study with warm sunset highlight on cheek, black swept-back hair with curved forelock, midnight charcoal double-breasted suit, petrol tie and brushed-silver tie bar.",
-    antiArtifact:
-      "Keep suit lapels, silver tie bar, and leather armchair rigid; restrict facial reactions to restrained mature CEO poise (never goofy grin or frantic waving).",
-    toneNote: "Composed, authoritative, crisp measured gestures and subtle approving smile.",
-    negativeExtra: "wide toothy grin, goofy expression, frantic hand waving, warped tie bar",
-  },
-  "tutor-lanyue": {
-    styleLock:
-      "Fine-lined fantasy shoujo gouache and nacre tones, opal-silver long hair, twin swept-back pearlescent horns, pointed ears, wisteria temple ornament, ivory-lavender sheer sleeve dress, sunlit wisteria arched window.",
-    antiArtifact:
-      "CRITICAL: Keep twin pearlescent horns, pointed ears, wisteria ornament, and collar clasp strictly rigid; limit head yaw/tilt under 8 degrees so horns and ears never warp or melt.",
-    toneNote: "Regal, serene, lyrical literature mentor with graceful small head motions.",
-    negativeExtra: "melting horns, disappearing horns, deformed pointed ears, large head rotation",
-  },
-  "tutor-chutang": {
-    styleLock:
-      "Luminous Japanese shoujo anime card quality, sakura-pink silky long hair, two tiny ivory petal hairpins at right temple, sea-glass mint ribbon, aqua-green eyes, mint fine-knit cardigan over white rounded collar with translucent leaf button.",
-    antiArtifact:
-      "Lock both petal hairpins, mint ribbon, and translucent leaf collar button against flickering; avoid exaggerated chibi squash-stretch.",
-    toneNote: "Warm, cheerful, supportive daily companion tutor with lively natural smiles.",
-    negativeExtra: "flickering hairpins, disappearing mint ribbon, morphing leaf button, chibi distortion",
-  },
-  "tutor-qingheng": {
-    styleLock:
-      "Modern Chinese-donghua 2D key art, refined East Asian male scholar, black-jade half-up knot with horizontal green bamboo-jade hair clasp, warm green-brown eyes, stone-white crossed collar and celadon bamboo-leaf lapel, blurred wooden lattice window.",
-    antiArtifact:
-      "CRITICAL: Keep horizontal bamboo-jade hair clasp strictly straight and intact; limit head rotation under 8 degrees so the hairpin never bends or vanishes.",
-    toneNote: "Dignified, unhurried, scholarly poise with calm measured sleeve gestures.",
-    negativeExtra: "bending hair clasp, disappearing bamboo hairpin, calligraphy text artifacts, large head spin",
-  },
-  "tutor-lanyin": {
-    styleLock:
-      "Graphic contemporary josei anime illustration, deeper warm golden-brown skin with amber studio rim light, sleek asymmetric indigo bob with narrow cobalt streak, dark garnet-brown eyes, single brushed-gold round earring, blue-black structured jacket with silver wave embroidery.",
-    antiArtifact:
-      "Preserve exact warm brown skin tone, amber cheek light, cobalt streak, gold earring, and silver wave embroidery; keep studio monitor and lamp static.",
-    toneNote: "Crisp, perceptive, confident modern sound-designer mentor with sharp rhythmic cadence.",
-    negativeExtra: "skin tone lightening, disappearing cobalt streak, missing gold earring, warped embroidery",
-  },
-};
-
 export function buildAnimeLoopPromptSheet(character: Pick<Character, "id" | "name" | "persona">): string {
   const traits = character.persona.traits.join(", ");
-  const custom = BUILTIN_CHARACTER_VIDEO_LOCKS[character.id];
-  const styleAnchor =
-    custom?.styleLock ??
-    "2D / 2.5D high-detail anime tutor portrait, vertical 9:16 (720x1280 or 576x1024), medium close-up upper body, warm desk lamp lighting, clean uncluttered study background with NO bystanders.";
-  const negative = [
-    "blurry, deformed hands, extra fingers, flickering face, background characters, text watermark, sudden cut, camera zoom, camera pan",
-    custom?.negativeExtra ?? "",
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const clipLines = ACTIVE_CLIP_SLOTS.map((slot, idx) => {
+    const entry = CLIP_ENTRY_BY_ID.get(slot);
+    const label = (t.characters.clips as Record<string, string>)[slot] ?? slot;
+    const kind = entry?.kind === "one_shot" ? "one-shot" : entry?.kind === "loop_insert" ? "loop-insert" : "loop";
+    return `${String(idx + 1).padStart(2, " ")}. clips/${slot}.webm [${entry?.batch ?? "P1"} | ${kind}] — ${label}`;
+  });
+  const stillLines = STILL_SLOTS.map((still, idx) => {
+    const label = (t.characters.stills as Record<string, string>)[still] ?? still;
+    return `${String(idx + 1).padStart(2, " ")}. stills/${still}.webp — ${label}`;
+  });
 
   return [
-    `# Anime 8-Clip Tutor Loop Pack Prompts — ${character.name} (${character.id})`,
+    `# Tutor Media Pack Prompt & Manifest Spec — ${character.name} (${character.id})`,
     "",
-    `Style Anchor: ${styleAnchor}`,
     `Role: ${character.persona.relationship || "1-on-1 anime tutor"} | Traits: ${traits || "warm, patient, expressive"}`,
-    ...(custom
-      ? [
-          `Character Lock: ${custom.antiArtifact}`,
-          `Acting Direction: ${custom.toneNote}`,
-          `Full bilingual prompt sheet in repo: tools/tutorpack/prompts/characters/`,
-        ]
-      : []),
+    "Canvas: 576x1024 @ 24fps (exact 9:16; fallback 480x864), VP9 profile 0, yuv420p, single keyframe (-g 240).",
+    "Rules:",
+    "- Start and end every video clip on the exact hub anchor frame (FL2VA), static camera, single action per clip.",
+    "- Generate expression stills directly from anchor (1080x1920 WebP), changing only expression/hand pose.",
+    "- Full generator script & tutor data: tools/tutorpack/generate-prompts.mjs & tools/tutorpack/tutors-data.json",
+    "- Batch runner: tools/tutorpack/run-h3-batch.mjs",
     "",
-    "Common Rules (Start + End Frame Lock):",
-    "- Lock BOTH first frame and last frame to anchor.webp so every loop transitions smoothly with 180ms crossfade.",
-    "- Keep camera fixed (static tripod), avoid drastic zoom or background drift.",
-    `- Negative prompt: ${negative}.`,
+    "## Video Clips Catalog (27 slots)",
+    ...clipLines,
     "",
-    "1. clips/idle_breathe.webm (4s, loop)",
-    "   Gentle natural breathing, soft blink twice, relaxed shoulders, warm eye contact with camera, subtle closed-lip smile.",
-    "2. clips/listen_nod.webm (4s, loop)",
-    "   Leaning slightly forward attentively, soft encouraging eye contact, two gentle slow nods as if listening closely.",
-    "3. clips/think_chin.webm (3s, loop)",
-    "   Lightly resting one finger near chin, eyes glancing slightly aside while pondering, then returning to camera with a clear spark.",
-    "4. clips/speak_explain_a.webm (5s, loop)",
-    "   Speaking smoothly with natural mouth movement and expressive single-hand explanation gesture at lower chest height, 70% eye contact with viewer.",
-    "5. clips/speak_explain_b.webm (5s, loop)",
-    "   Speaking smoothly with alternating two-hand structuring gestures in lower frame, brief glance toward right whiteboard side then back to camera.",
-    "6. clips/board_point.webm (3s, one-shot)",
-    "   Turning gaze clearly toward the RIGHT edge of frame (whiteboard direction), raising one hand smoothly to indicate right, then smiling back at camera.",
-    "7. clips/react_praise.webm (3s, one-shot)",
-    "   Eyes brightening into a genuine approving smile, gentle nod and neat celebratory thumbs-up or soft applause fitting the character persona.",
-    "8. clips/react_comfort.webm (3s, one-shot)",
-    "   Warm reassuring smile, gentle forward nod with soft open-palm calming gesture conveying 'no worries, let us walk through it together'.",
+    "## Expression Stills (7 slots + anchor.webp)",
+    ...stillLines,
     "",
-    "Packaging command:",
-    `python tools/tutorpack/cli.py scaffold "${character.name}" --anchor anchor.webp -o ./my-pack --author "Companion Space" --terms "Apache-2.0"`,
+    "## Packaging & Validation Commands",
+    `python tools/tutorpack/cli.py scaffold "${character.name}" --anchor anchor.webp -o ./my-pack --author "User" --terms "Local personal use"`,
+    "python tools/tutorpack/cli.py ingest --pack <media-pack-dir> --tutor <slug>",
+    "python tools/tutorpack/cli.py stills --pack <media-pack-dir> --tutor <slug>",
     "python tools/tutorpack/cli.py validate ./my-pack",
     `python tools/tutorpack/cli.py pack ./my-pack -o ${character.id}.tutorpack`,
   ].join("\n");

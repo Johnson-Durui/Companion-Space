@@ -9,6 +9,7 @@ import { ErrorBoundary, Loading, Problem } from "./app/ui";
 import { AppShell } from "./shell/AppShell";
 import { UnlockSession } from "./features/settings/security";
 import { useActiveTutor } from "./features/tutors/use-active-tutor";
+import { resolveCharacterStill } from "./features/characters/video-config";
 import Welcome from "./features/onboarding/welcome";
 import TodayPage from "./features/today/today";
 import t from "./locales/zh-CN.json";
@@ -127,9 +128,12 @@ function RouteEffects() {
 
 function NotFound() {
   const { tutor } = useActiveTutor(true);
+  const notFoundStill = resolveCharacterStill(tutor, "not_found");
   return (
     <section className="mx-auto grid max-w-md justify-items-center gap-4 py-16 text-center">
-      {tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="xl" /> : null}
+      {tutor ? (
+        <TutorAvatar src={notFoundStill.url} still={notFoundStill.still} name={tutor.name} size="xl" />
+      ) : null}
       <h1 className="text-headline font-semibold text-fg-primary">{t.app.notFoundTitle}</h1>
       <p className="text-body text-fg-secondary">
         {tutor ? `${tutor.name}：${t.tutorsGallery.notFoundLine}` : t.app.notFoundHint}

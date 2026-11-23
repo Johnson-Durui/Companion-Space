@@ -16,6 +16,7 @@ import {
   useTransientSaved,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
+import { resolveCharacterStill } from "../characters/video-config";
 
 export function UnlockSession({ session }: { session: SessionStatus }) {
   const queryClient = useQueryClient();
@@ -50,9 +51,17 @@ export function UnlockSession({ session }: { session: SessionStatus }) {
       <div className="mx-auto grid max-w-md py-10" data-testid="unlock-screen">
         <Card padding="lg" className="grid gap-5">
           <div className="grid justify-items-center gap-3 text-center">
-            {cachedTeacher ? (
-              <TutorAvatar src={cachedTeacher.appearance.src} name={cachedTeacher.name} size="xl" />
-            ) : (
+            {cachedTeacher ? (() => {
+              const unlockStill = resolveCharacterStill(cachedTeacher, "unlock");
+              return (
+                <TutorAvatar
+                  src={unlockStill.url}
+                  still={unlockStill.still}
+                  name={cachedTeacher.name}
+                  size="xl"
+                />
+              );
+            })() : (
               <BrandMark size={48} />
             )}
             <div className="grid gap-1">

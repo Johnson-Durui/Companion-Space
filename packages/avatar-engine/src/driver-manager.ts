@@ -1,11 +1,16 @@
+import { oneShotToInstantAction, situationToTutorPose } from "./choreographer";
 import { LoopPackVideoDriver, resolveClipUrl } from "./loop-pack-driver";
 import { LocalSidecarVideoDriver } from "./sidecar-driver";
 import { StaticPortraitDriver } from "./static-driver";
 import type {
+  ClipSlot,
   DecodedSpeechChunk,
   InstantAction,
   ITutorVideoDriver,
+  OneShotKind,
   SidecarSessionConnector,
+  Situation,
+  StillSlot,
   TutorEmotion,
   TutorPose,
   VideoAvatarRuntimeConfig,
@@ -27,6 +32,8 @@ export class VideoDriverManager {
   private unsubscribe: (() => void) | null = null;
   private activeTier: VideoAvatarTier = "static";
   private lastPose: TutorPose = "idle_companion";
+  private lastSituation: Situation | null = null;
+  private lastSentenceSeq = 0;
   private lastEmotion: TutorEmotion = "neutral";
   private lastGen = 0;
   private mountVersion = 0;
@@ -45,7 +52,10 @@ export class VideoDriverManager {
     await this.activateTier(initialTier, version);
   }
 
-  async switchToFreeTier(reason = "Switched to local free tier.", code: VideoDriverDegradedCode = "switched_to_free"): Promise<void> {
+  async switchToFreeTier(
+    reason = "Switched to local free tier.",
+    code: VideoDriverDegradedCode = "switched_to_free",
+  ): Promise<void> {
     if (!this.config || !this.container) return;
     const target = this.hasPlayableClips(this.config) ? "loop_pack" : "static";
     const version = ++this.mountVersion;
@@ -79,6 +89,20 @@ export class VideoDriverManager {
     this.driver?.setPose(pose, this.lastGen);
   }
 
+  setSituation(situation: Situation, sentenceSeq: number, gen: number): void {
+    if (gen > 0 && gen < this.lastGen) return;
+    this.lastGen = Math.max(this.lastGen, gen);
+    this.lastSituation = situation;
+    this.lastSentenceSeq = sentenceSeq;
+    const legacyPose = situationToTutorPose(situation);
+    this.lastPose = legacyPose;
+    if (this.driver?.setSituation) {
+      this.driver.setSituation(situation, sentenceSeq, this.lastGen);
+    } else {
+      this.driver?.setPose(legacyPose, this.lastGen);
+    }
+  }
+
   setMood(emotion: TutorEmotion, intensity: number, gen: number): void {
     if (gen > 0 && gen < this.lastGen) return;
     this.lastGen = Math.max(this.lastGen, gen);
@@ -92,9 +116,33 @@ export class VideoDriverManager {
     this.driver?.triggerInstantAction(action, this.lastGen);
   }
 
+  triggerOneShot(kind: OneShotKind, gen: number): void {
+    if (gen > 0 && gen < this.lastGen) return;
+    this.lastGen = Math.max(this.lastGen, gen);
+    if (this.driver?.triggerOneShot) {
+      this.driver.triggerOneShot(kind, this.lastGen);
+      return;
+    }
+    const downgraded = oneShotToInstantAction(kind);
+    if (downgraded) {
+      this.driver?.triggerInstantAction(downgraded, this.lastGen);
+    }
+  }
+
+  playClip(slot: ClipSlot, gen: number): void {
+    if (gen > 0 && gen < this.lastGen) return;
+    this.lastGen = Math.max(this.lastGen, gen);
+    this.driver?.playClip?.(slot, this.lastGen);
+  }
+
+  showStill(still: StillSlot | "anchor"): void {
+    this.driver?.showStill?.(still);
+  }
+
   interrupt(gen: number): void {
     this.lastGen = Math.max(this.lastGen, gen);
     this.lastPose = "listening_empathy";
+    if (this.lastSituation !== null) this.lastSituation = "listening";
     this.driver?.interrupt(this.lastGen);
   }
 
@@ -188,6 +236,14 @@ export class VideoDriverManager {
     await driver.mount(this.container, this.config);
     if (version !== this.mountVersion || this.driver !== driver) return;
     driver.setMood(this.lastEmotion, 1, this.lastGen);
-    driver.setPose(this.lastPose, this.lastGen);
+    if (this.lastSituation !== null) {
+      if (driver.setSituation) {
+        driver.setSituation(this.lastSituation, this.lastSentenceSeq, this.lastGen);
+      } else {
+        driver.setPose(situationToTutorPose(this.lastSituation), this.lastGen);
+      }
+    } else {
+      driver.setPose(this.lastPose, this.lastGen);
+    }
   }
 }

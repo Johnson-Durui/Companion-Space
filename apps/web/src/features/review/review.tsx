@@ -16,6 +16,7 @@ import {
   TutorAvatar,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
+import { resolveCharacterStill } from "../characters/video-config";
 import { createPointPlanItem } from "../classroom/lesson-api";
 import { courseKeys } from "../courses/api";
 import { progressKeys } from "../progress/api";
@@ -157,7 +158,19 @@ export default function Review({ embedded = false }: { embedded?: boolean } = {}
           </div>
         ) : (
           <EmptyState
-            visual={tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="lg" /> : undefined}
+            visual={
+              tutor ? (() => {
+                const emptyStill = resolveCharacterStill(tutor, "empty_state");
+                return (
+                  <TutorAvatar
+                    src={emptyStill.url}
+                    still={emptyStill.still}
+                    name={tutor.name}
+                    size="lg"
+                  />
+                );
+              })() : undefined
+            }
             title={copy.empty}
             description={t.tutorsGallery.emptyReviewLine}
           />

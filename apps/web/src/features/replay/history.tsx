@@ -8,6 +8,7 @@ import { fetchLesson, fetchLessonEvents } from "../classroom/lesson-api";
 import { captionDelay, type LessonEvent } from "../classroom/timeline";
 import { useActiveTutor } from "../tutors/use-active-tutor";
 import t from "../../locales/zh-CN.json";
+import { resolveCharacterStill } from "../characters/video-config";
 import { ReplayStage } from "./replay-stage";
 
 const copy = t.history;
@@ -228,7 +229,19 @@ export function CourseHistoryPage({ embedded = false }: { embedded?: boolean } =
         ) : (
           <Card padding="lg">
             <EmptyState
-              visual={tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="lg" /> : undefined}
+              visual={
+                tutor ? (() => {
+                  const emptyStill = resolveCharacterStill(tutor, "empty_state");
+                  return (
+                    <TutorAvatar
+                      src={emptyStill.url}
+                      still={emptyStill.still}
+                      name={tutor.name}
+                      size="lg"
+                    />
+                  );
+                })() : undefined
+              }
               title={copy.emptyLessons}
               description={t.tutorsGallery.emptyHistoryLine}
             />

@@ -1,3 +1,21 @@
+import type { ClipSlot, StillSlot } from "./catalog";
+
+export {
+  ACTIVE_CLIP_SLOTS,
+  CLIP_CATALOG,
+  CLIP_SLOTS,
+  LEGACY_CLIP_SLOTS,
+  STILL_LOCATIONS,
+  STILL_SLOTS,
+  type ClipCatalogEntry,
+  type ClipGroup,
+  type ClipKind,
+  type ClipMissingBehavior,
+  type ClipSlot,
+  type StillLocation,
+  type StillSlot,
+} from "./catalog";
+
 export type VideoAvatarTier = "static" | "loop_pack" | "local_sidecar" | "cloud_live";
 
 export type TutorPose =
@@ -27,6 +45,33 @@ export type LessonPhase =
   | "ended"
   | "failed";
 
+export type Situation =
+  | "loading"
+  | "preparing"
+  | "idle"
+  | "thinking"
+  | "speaking"
+  | "speaking_board"
+  | "listening"
+  | "wait"
+  | "review"
+  | "paused"
+  | "frozen"
+  | "ended";
+
+export type OneShotKind =
+  | "greet"
+  | "praise"
+  | "surprise"
+  | "comfort"
+  | "encourage"
+  | "hint"
+  | "ack"
+  | "board_glance"
+  | "board_point"
+  | "farewell"
+  | "celebrate";
+
 export type InstantAction =
   | "greet"
   | "empathy_nod"
@@ -37,27 +82,6 @@ export type InstantAction =
   | "board_point"
   | "farewell";
 
-export type ClipSlot =
-  | "idle_breathe"
-  | "listen_nod"
-  | "think_chin"
-  | "speak_explain_a"
-  | "speak_explain_b"
-  | "board_point"
-  | "react_praise"
-  | "react_comfort";
-
-export const CLIP_SLOTS: readonly ClipSlot[] = [
-  "idle_breathe",
-  "listen_nod",
-  "think_chin",
-  "speak_explain_a",
-  "speak_explain_b",
-  "board_point",
-  "react_praise",
-  "react_comfort",
-] as const;
-
 export type TutorEmotion =
   | "neutral"
   | "warm"
@@ -67,9 +91,31 @@ export type TutorEmotion =
   | "playful"
   | "concerned";
 
+export interface PackCanvas {
+  width: number;
+  height: number;
+  fps: number;
+}
+
+export interface ClipMeta {
+  settleMs?: number;
+  durationMs?: number;
+}
+
+export interface PackMediaInfo {
+  generator?: string;
+  aiGenerated?: boolean;
+  imageGenerator?: string | null;
+  videoGenerator?: string | null;
+}
+
 export interface LoopPackConfig {
   crossfadeMs: number;
+  canvas?: PackCanvas;
   clips: Partial<Record<ClipSlot, string>>;
+  clipMeta?: Partial<Record<ClipSlot, ClipMeta>>;
+  stills?: Partial<Record<StillSlot, string>>;
+  media?: PackMediaInfo;
 }
 
 export interface LocalSidecarConfig {
@@ -98,6 +144,10 @@ export interface VideoAvatarRuntimeConfig {
   localSidecar?: LocalSidecarConfig;
   cloudLive?: CloudLiveConfig;
   reducedMotion?: boolean;
+  /** Injectable PRNG returning [0, 1) for deterministic testing of idle scheduler & speaking rotation. */
+  random?: () => number;
+  /** Disable idle insertion scheduler in compact / non-classroom surfaces (§4.2). */
+  disableIdleScheduler?: boolean;
 }
 
 export interface VideoDriverCapabilities {
@@ -172,6 +222,10 @@ export interface ITutorVideoDriver {
   setPose(pose: TutorPose, gen: number): void;
   setMood(emotion: TutorEmotion, intensity: number, gen: number): void;
   triggerInstantAction(action: InstantAction, gen: number): void;
+  setSituation?(situation: Situation, sentenceSeq: number, gen: number): void;
+  triggerOneShot?(kind: OneShotKind, gen: number): void;
+  playClip?(slot: ClipSlot, gen: number): void;
+  showStill?(still: StillSlot | "anchor"): void;
   interrupt(gen: number): void;
   suspend?(reason: string): Promise<void>;
   resume?(): Promise<void>;

@@ -5,6 +5,7 @@ import { Loading, Problem } from "../../app/ui";
 import { FocusShell } from "../../shell/FocusShell";
 import { Badge, Card, EmptyState, SegmentProgress, TutorAvatar } from "../../ui";
 import t from "../../locales/zh-CN.json";
+import { resolveCharacterStill } from "../characters/video-config";
 import { courseKeys } from "../courses/api";
 import { masteryLabel } from "../plan/why-sentence";
 import { progressKeys } from "../progress/api";
@@ -173,7 +174,19 @@ export default function ReviewSessionPage() {
         <Card padding="lg">
           <h1 className="sr-only">{t.app.titles.reviewSession}</h1>
           <EmptyState
-            visual={tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="lg" /> : undefined}
+            visual={
+              tutor ? (() => {
+                const emptyStill = resolveCharacterStill(tutor, "empty_state");
+                return (
+                  <TutorAvatar
+                    src={emptyStill.url}
+                    still={emptyStill.still}
+                    name={tutor.name}
+                    size="lg"
+                  />
+                );
+              })() : undefined
+            }
             title={t.review.empty}
             description={t.tutorsGallery.emptyReviewLine}
             action={

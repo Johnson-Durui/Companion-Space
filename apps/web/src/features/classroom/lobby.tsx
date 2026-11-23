@@ -309,6 +309,7 @@ export default function LessonLobby() {
                     <TutorVideoBox
                       config={teacherConfig}
                       pose={isPreparing ? "thinking" : "idle_companion"}
+                      situation={isPreparing ? "preparing" : isFailed ? "frozen" : "idle"}
                       phase={phase}
                       emotion={isPreparing ? "focused" : "warm"}
                       gen={0}

@@ -1,10 +1,14 @@
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from "react";
 import { VideoDriverManager } from "./driver-manager";
 import type {
+  ClipSlot,
   DecodedSpeechChunk,
   InstantAction,
   LessonPhase,
+  OneShotKind,
   SidecarSessionConnector,
+  Situation,
+  StillSlot,
   TutorEmotion,
   TutorPose,
   VideoAvatarRuntimeConfig,
@@ -28,6 +32,9 @@ export interface TutorVideoBoxHandle {
   pushSpeechLevel: (level: number) => void;
   pushSpeechChunk: (chunk: DecodedSpeechChunk) => void;
   triggerInstantAction: (action: InstantAction, gen: number) => void;
+  triggerOneShot: (kind: OneShotKind, gen: number) => void;
+  playClip: (slot: ClipSlot, gen: number) => void;
+  showStill: (still: StillSlot | "anchor") => void;
   interrupt: (gen: number) => void;
   switchToFreeTier: () => Promise<void>;
 }
@@ -36,6 +43,8 @@ export interface TutorVideoBoxProps {
   ref?: Ref<TutorVideoBoxHandle>;
   config: VideoAvatarRuntimeConfig;
   pose: TutorPose;
+  situation?: Situation;
+  sentenceSeq?: number;
   emotion: TutorEmotion;
   gen: number;
   statusLabel: string;
@@ -65,6 +74,8 @@ export function TutorVideoBox({
   ref,
   config,
   pose,
+  situation,
+  sentenceSeq = 0,
   emotion,
   gen,
   statusLabel,
@@ -117,6 +128,15 @@ export function TutorVideoBox({
       },
       triggerInstantAction(action: InstantAction, actionGen: number) {
         managerRef.current?.triggerInstantAction(action, actionGen);
+      },
+      triggerOneShot(kind: OneShotKind, actionGen: number) {
+        managerRef.current?.triggerOneShot(kind, actionGen);
+      },
+      playClip(slot: ClipSlot, clipGen: number) {
+        managerRef.current?.playClip(slot, clipGen);
+      },
+      showStill(still: StillSlot | "anchor") {
+        managerRef.current?.showStill(still);
       },
       interrupt(interruptGen: number) {
         managerRef.current?.interrupt(interruptGen);
@@ -175,8 +195,12 @@ export function TutorVideoBox({
   }, [emotion, gen]);
 
   useLayoutEffect(() => {
-    managerRef.current?.setPose(pose, gen);
-  }, [pose, gen]);
+    if (situation) {
+      managerRef.current?.setSituation(situation, sentenceSeq, gen);
+    } else {
+      managerRef.current?.setPose(pose, gen);
+    }
+  }, [situation, sentenceSeq, pose, gen]);
 
   const showFreeSwitch = !stageMode && (activeTier === "local_sidecar" || activeTier === "cloud_live");
   const isThinkingPhase = phase === "thinking" || phase === "buffering" || phase === "preparing";

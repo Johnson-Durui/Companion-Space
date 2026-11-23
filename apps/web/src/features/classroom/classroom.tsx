@@ -12,12 +12,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router";
 import {
   IDLE_COMPANION_MS,
+  oneShotToInstantAction,
+  phaseToSituation,
   quickActionToInstantAction,
+  quickActionToOneShot,
   verdictToInstantAction,
+  verdictToOneShot,
 } from "@companion-space/avatar-engine/choreographer";
 import type {
   DecodedSpeechChunk,
   InstantAction,
+  OneShotKind,
   VideoAvatarTier,
   VideoDriverDegradedCode,
 } from "@companion-space/avatar-engine/types";
@@ -178,6 +183,7 @@ function Lesson({ id }: { id: string }) {
   const { isMobile, isCompactTablet, isWideDesktop } = useViewportBuckets();
 
   const [quietCompanion, setQuietCompanion] = useState(false);
+  const [typingRecently, setTypingRecently] = useState(false);
   const [instantOverride, setInstantOverride] = useState<{ action: InstantAction; until: number } | null>(null);
   const [pendingSubmit, setPendingSubmit] = useState<PendingSubmit | null>(null);
   const [text, setText] = useState("");
@@ -214,6 +220,10 @@ function Lesson({ id }: { id: string }) {
     : (storedViewMode ?? "split");
 
   const lastActivityRef = useRef<number>(0);
+  const typingTimerRef = useRef<number | null>(null);
+  const consecutiveCorrectRef = useRef<number>(0);
+  const lastVerdictWasWrongRef = useRef<boolean>(false);
+  const lastBoardBlockCountRef = useRef<number>(0);
   const previewJudgeGenRef = useRef<number>(-1);
   const capture = useRef<MicrophoneCapture | null>(null);
   const vad = useRef<HandsFreeVad>(null);
@@ -258,13 +268,34 @@ function Lesson({ id }: { id: string }) {
     setInstantOverride({ action, until: Date.now() + 2600 });
     videoRef.current?.triggerInstantAction(action, gen);
   }, []);
+  const triggerFastOneShot = useCallback((kind: OneShotKind, gen: number) => {
+    lastActivityRef.current = Date.now();
+    setQuietCompanion(false);
+    const legacy = oneShotToInstantAction(kind);
+    if (legacy) {
+      setInstantOverride({ action: legacy, until: Date.now() + 2600 });
+    }
+    videoRef.current?.triggerOneShot(kind, gen);
+  }, []);
   const onJudgePreview = useCallback(
     (verdict: string, gen: number) => {
       previewJudgeGenRef.current = gen;
+      if (verdict === "correct") {
+        consecutiveCorrectRef.current += 1;
+        lastVerdictWasWrongRef.current = false;
+      } else {
+        consecutiveCorrectRef.current = 0;
+        lastVerdictWasWrongRef.current = true;
+      }
+      const oneShot = verdictToOneShot(verdict, consecutiveCorrectRef.current);
+      if (oneShot) {
+        triggerFastOneShot(oneShot, gen);
+        return;
+      }
       const action = verdictToInstantAction(verdict);
       if (action) triggerFastAction(action, gen);
     },
-    [triggerFastAction],
+    [triggerFastAction, triggerFastOneShot],
   );
 
   const live = useClassroom(id, onSpeechLevel, onSpeechChunk, onJudgePreview);
@@ -282,9 +313,28 @@ function Lesson({ id }: { id: string }) {
     setQuietCompanion(false);
   }, []);
 
+  const handleTextChange = useCallback((nextText: string) => {
+    setText(nextText);
+    lastActivityRef.current = Date.now();
+    setQuietCompanion(false);
+    setTypingRecently(true);
+    if (typingTimerRef.current !== null) window.clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = window.setTimeout(() => {
+      typingTimerRef.current = null;
+      setTypingRecently(false);
+    }, 2000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimerRef.current !== null) window.clearTimeout(typingTimerRef.current);
+    };
+  }, []);
+
   const startLesson = useCallback(
     (withAudio: boolean) => {
       soundCuesRef.current?.unlock();
+      videoRef.current?.triggerOneShot("greet", live.classroom.avatar.gen);
       return live.start(withAudio);
     },
     [live],
@@ -422,6 +472,14 @@ function Lesson({ id }: { id: string }) {
     classroom: live.classroom,
     audioSpeaking: live.audioSpeaking,
   });
+  const sentenceSeq = live.classroom.avatar.gen * 1000 + live.classroom.avatar.seg;
+  const resolvedSituation = phaseToSituation(phase, {
+    speaking: live.audioSpeaking,
+    hasBoardEvent: live.classroom.avatar.pose === "board_guiding",
+    quietCompanion,
+    typingRecently,
+    sentenceSeq,
+  });
 
   // Synthesized sound cues (design-system §9)
   useEffect(() => {
@@ -493,6 +551,38 @@ function Lesson({ id }: { id: string }) {
     const action = live.classroom.avatar.instantAction;
     if (!action) return;
     if (live.classroom.avatar.gen === previewJudgeGenRef.current && live.classroom.judge) return;
+    if (live.classroom.judge) {
+      if (live.classroom.judge === "correct") {
+        consecutiveCorrectRef.current += 1;
+        lastVerdictWasWrongRef.current = false;
+      } else {
+        consecutiveCorrectRef.current = 0;
+        lastVerdictWasWrongRef.current = true;
+      }
+      const oneShot = verdictToOneShot(live.classroom.judge, consecutiveCorrectRef.current);
+      if (oneShot) {
+        videoRef.current?.triggerOneShot(oneShot, live.classroom.avatar.gen);
+        return;
+      }
+    }
+    if (action === "board_point") {
+      if (!speakingRef.current) {
+        videoRef.current?.triggerOneShot("board_point", live.classroom.avatar.gen);
+      }
+      return;
+    }
+    if (action === "think_chin") {
+      videoRef.current?.triggerOneShot("hint", live.classroom.avatar.gen);
+      return;
+    }
+    if (action === "praise_thumbs_up" || action === "praise_clap") {
+      videoRef.current?.triggerOneShot("praise", live.classroom.avatar.gen);
+      return;
+    }
+    if (action === "gentle_encourage") {
+      videoRef.current?.triggerOneShot("comfort", live.classroom.avatar.gen);
+      return;
+    }
     videoRef.current?.triggerInstantAction(action, live.classroom.avatar.gen);
   }, [
     live.classroom.avatar.gestureSequence,
@@ -500,6 +590,16 @@ function Lesson({ id }: { id: string }) {
     live.classroom.avatar.gen,
     live.classroom.judge,
   ]);
+
+  // Trigger board_glance when board gains new content while teacher is silent (§4.1)
+  const totalBoardBlocks = live.classroom.boardPages.reduce((sum, page) => sum + page.blocks.length, 0);
+  useEffect(() => {
+    const prev = lastBoardBlockCountRef.current;
+    lastBoardBlockCountRef.current = totalBoardBlocks;
+    if (prev > 0 && totalBoardBlocks > prev && live.started && !speakingRef.current) {
+      videoRef.current?.triggerOneShot("board_glance", live.classroom.avatar.gen);
+    }
+  }, [totalBoardBlocks, live.started, live.classroom.avatar.gen]);
 
   // Release mic & warmed AudioContext cleanly when tab hides or unmounts
   useEffect(() => {
@@ -701,7 +801,12 @@ function Lesson({ id }: { id: string }) {
       markLearnerActivity();
       live.interrupt();
       const instant = quickActionToInstantAction(kind);
-      if (instant) {
+      const oneShot = quickActionToOneShot(kind);
+      if (oneShot) {
+        if (oneShot !== "board_point" || !speakingRef.current) {
+          triggerFastOneShot(oneShot, currentGen);
+        }
+      } else if (instant) {
         triggerFastAction(instant, currentGen);
       }
       const label = kind.startsWith("locate:")
@@ -712,7 +817,7 @@ function Lesson({ id }: { id: string }) {
       }
       live.send("student.quick", instant ? { kind, recent_avatar_action: instant } : { kind });
     },
-    [currentGen, live, markLearnerActivity, triggerFastAction],
+    [currentGen, live, markLearnerActivity, triggerFastAction, triggerFastOneShot],
   );
 
   const handleSubmitText = useCallback(
@@ -721,15 +826,21 @@ function Lesson({ id }: { id: string }) {
       const trimmed = text.trim();
       if (!trimmed) return;
       interruptAll();
+      setTypingRecently(false);
       live.appendStudentEntry(trimmed, "text");
       const ask = live.classroom.ask;
-      const sent =
-        ask && !ask.widget
-          ? live.send("student.reply", { purpose: ask.purpose, value: trimmed })
-          : live.send("student.text", { text: trimmed });
-      if (sent) setText("");
+      const isReplyToAsk = Boolean(ask && !ask.widget);
+      const sent = isReplyToAsk
+        ? live.send("student.reply", { purpose: ask!.purpose, value: trimmed })
+        : live.send("student.text", { text: trimmed });
+      if (sent) {
+        setText("");
+        if (!isReplyToAsk) {
+          videoRef.current?.triggerOneShot("ack", currentGen);
+        }
+      }
     },
-    [interruptAll, live, text],
+    [currentGen, interruptAll, live, text],
   );
 
   const handleMicPointerDown = useCallback(
@@ -761,9 +872,10 @@ function Lesson({ id }: { id: string }) {
     setEndOpen(false);
     finishMic();
     void stopVad();
-    interruptAll();
+    live.interrupt();
+    videoRef.current?.triggerOneShot("farewell", currentGen);
     live.send("lesson.control", { action: "end" });
-  }, [finishMic, interruptAll, live, stopVad]);
+  }, [currentGen, finishMic, live, stopVad]);
 
   const handleDegraded = useCallback(
     (notice: { code?: VideoDriverDegradedCode; message: string }) => {
@@ -924,6 +1036,7 @@ function Lesson({ id }: { id: string }) {
         title={room.title}
         summary={typeof recap?.summary === "string" ? recap.summary : undefined}
         board={allBlocks}
+        teacher={teacher}
       />
     );
   }
@@ -1353,6 +1466,8 @@ function Lesson({ id }: { id: string }) {
             ref={videoRef}
             config={teacherConfig}
             pose={resolvedPose}
+            situation={resolvedSituation}
+            sentenceSeq={sentenceSeq}
             phase={phase}
             emotion={classroom.avatar.emotion}
             gen={classroom.avatar.gen}
@@ -1571,7 +1686,11 @@ function Lesson({ id }: { id: string }) {
           onActivity={markLearnerActivity}
           onSubmit={(value, via, dont_know) => {
             markLearnerActivity();
-            if (dont_know) triggerFastAction("gentle_encourage", currentGen);
+            if (dont_know) {
+              consecutiveCorrectRef.current = 0;
+              lastVerdictWasWrongRef.current = true;
+              triggerFastOneShot("comfort", currentGen);
+            }
             const sent = live.send("student.answer", {
               item_id: ask.item_id,
               value,
@@ -1589,7 +1708,14 @@ function Lesson({ id }: { id: string }) {
           }}
           onAck={(value) => {
             markLearnerActivity();
-            if (value === "easier") triggerFastAction("gentle_encourage", currentGen);
+            if (value === "easier") {
+              triggerFastOneShot("comfort", currentGen);
+            } else if (value === "end") {
+              videoRef.current?.triggerOneShot("farewell", currentGen);
+            } else if (value === "continue" && lastVerdictWasWrongRef.current) {
+              lastVerdictWasWrongRef.current = false;
+              triggerFastOneShot("encourage", currentGen);
+            }
             live.send("student.reply", { purpose: ask.purpose, value });
           }}
           onQuick={(kind) => handleQuickAction(kind)}
@@ -1618,7 +1744,7 @@ function Lesson({ id }: { id: string }) {
       soundCuesEnabled={soundCuePrefs.enabled}
       soundCuesVolume={soundCuePrefs.volume}
       currentStyle={currentStyle}
-      onTextChange={setText}
+      onTextChange={handleTextChange}
       onSubmitText={handleSubmitText}
       onMicPointerDown={handleMicPointerDown}
       onMicPointerUp={finishMic}

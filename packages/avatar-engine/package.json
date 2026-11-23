@@ -8,6 +8,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./catalog": "./src/catalog.ts",
     "./types": "./src/types.ts",
     "./choreographer": "./src/choreographer.ts",
     "./static-driver": "./src/static-driver.ts",

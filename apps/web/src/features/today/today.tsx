@@ -33,6 +33,7 @@ import {
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { TeacherPreview } from "../characters/teacher-preview";
+import { resolveCharacterStill } from "../characters/video-config";
 import { courseKeys, listCourseDashboard, listCourses } from "../courses/api";
 import { resolveCoursePrimaryAction } from "../courses/journey-helpers";
 import type { Course, CourseDashboard } from "../courses/types";
@@ -258,13 +259,17 @@ export default function TodayPage() {
           {teacher ? (
             <div className="relative mx-auto sm:mx-0">
               <div aria-hidden="true" className="cs-stage-aura" />
-              <div className="relative aspect-[9/16] w-[96px] sm:w-[126px] overflow-hidden rounded-xl bg-surface-sunken shadow-2 ring-4 ring-surface-card">
+              <div
+                className="relative aspect-[9/16] w-[96px] sm:w-[126px] overflow-hidden rounded-xl bg-surface-sunken shadow-2 ring-4 ring-surface-card"
+                data-still={resolveCharacterStill(teacher, "today_greeting").still}
+              >
                 <TeacherPreview
                   key={teacher.id}
                   character={teacher}
-                  pose={speech.speaking ? "lecturing" : "idle_companion"}
-                  emotion="warm"
+                  pose={speech.speaking ? "lecturing" : "greeting"}
+                  emotion="cheerful"
                   gen={speech.speaking ? 2 : 1}
+                  disableIdleScheduler
                 />
               </div>
               <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full border border-line-subtle bg-surface-card/95 px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-fg-primary shadow-1">

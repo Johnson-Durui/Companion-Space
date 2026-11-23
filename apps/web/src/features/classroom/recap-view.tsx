@@ -1,6 +1,9 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
+import type { TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import { LessonText } from "@companion-space/board";
+import type { Character } from "../../app/api";
 import t from "../../locales/zh-CN.json";
 import {
   ArrowLeft,
@@ -11,7 +14,10 @@ import {
   Download,
   Play,
   RotateCcw,
+  TutorAvatar,
 } from "../../ui";
+import { TeacherPreview } from "../characters/teacher-preview";
+import { resolveCharacterStill } from "../characters/video-config";
 import { isLessonItem, isTimedPracticeItem, planItemDisplayTitle } from "../plan/item-kind";
 import { PlanDiffList, summarizePlanDiff } from "../plan/plan-diff";
 import { masteryLabel } from "../plan/why-sentence";
@@ -41,10 +47,13 @@ export interface RecapViewProps {
   title: string;
   summary?: string;
   board: Block[];
+  teacher?: Character | null;
 }
 
-export function RecapView({ lessonId, courseId, title, summary, board }: RecapViewProps) {
+export function RecapView({ lessonId, courseId, title, summary, board, teacher }: RecapViewProps) {
   const navigate = useNavigate();
+  const celebrateRef = useRef<TutorVideoBoxHandle>(null);
+  const celebratedRef = useRef(false);
   const detail = useQuery({
     queryKey: ["lesson-recap-summary", lessonId],
     queryFn: () => fetchLessonRecapSummary(lessonId),
@@ -58,6 +67,17 @@ export function RecapView({ lessonId, courseId, title, summary, board }: RecapVi
 
   const data = detail.data;
   const abandoned = Boolean(data?.abandoned);
+  const hasCelebrateClip = Boolean(teacher?.video_avatar?.loop_pack?.clips?.react_celebrate);
+  const recapStill = resolveCharacterStill(teacher, "recap");
+
+  useEffect(() => {
+    if (!teacher || abandoned || celebratedRef.current || !hasCelebrateClip) return;
+    celebratedRef.current = true;
+    const timer = window.setTimeout(() => {
+      celebrateRef.current?.triggerOneShot("celebrate", 1);
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [abandoned, hasCelebrateClip, teacher]);
   const minutes = data ? Math.max(1, Math.round((data.stats.active_ms || 0) / 60_000)) : null;
   const finishedDate = data?.finished_at ? dateFmt.format(new Date(data.finished_at)) : null;
   const displaySummary = (summary && summary.trim()) || data?.summary || "";
@@ -106,18 +126,39 @@ export function RecapView({ lessonId, courseId, title, summary, board }: RecapVi
       </header>
 
       <main id="main" className="mx-auto grid max-w-[880px] gap-5 px-4 py-8 sm:px-6">
-        <div className="grid gap-1.5">
-          <p className="text-caption font-medium text-accent-strong">
-            {abandoned ? recapCopy.abandonedTitle : copy.recap}
-          </p>
-          <h1 className="text-display font-semibold text-fg-primary">{title}</h1>
-          {finishedDate || minutes ? (
-            <p className="text-ui text-fg-secondary">
-              {[finishedDate, minutes ? recapCopy.duration.replace("{min}", String(minutes)) : null]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+        <div className="flex flex-wrap items-center gap-4">
+          {teacher ? (
+            !abandoned && hasCelebrateClip ? (
+              <div className="h-[140px] w-[79px] shrink-0 overflow-hidden rounded-lg bg-surface-sunken shadow-1">
+                <TeacherPreview
+                  character={teacher}
+                  situation="ended"
+                  emotion="cheerful"
+                  videoRef={celebrateRef}
+                />
+              </div>
+            ) : (
+              <TutorAvatar
+                src={recapStill.url}
+                still={recapStill.still}
+                name={teacher.name}
+                size="xl"
+              />
+            )
           ) : null}
+          <div className="grid min-w-0 flex-1 gap-1.5">
+            <p className="text-caption font-medium text-accent-strong">
+              {abandoned ? recapCopy.abandonedTitle : copy.recap}
+            </p>
+            <h1 className="text-display font-semibold text-fg-primary">{title}</h1>
+            {finishedDate || minutes ? (
+              <p className="text-ui text-fg-secondary">
+                {[finishedDate, minutes ? recapCopy.duration.replace("{min}", String(minutes)) : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         {abandoned ? (

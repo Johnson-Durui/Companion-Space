@@ -1,3 +1,4 @@
+export * from "./catalog";
 export * from "./types";
 export * from "./choreographer";
 export * from "./static-driver";

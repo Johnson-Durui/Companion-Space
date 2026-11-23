@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ACTIVE_CLIP_SLOTS,
+  CLIP_ENTRY_BY_ID,
+  CLIP_SLOTS,
+  resolveStillForLocation,
+} from "@companion-space/avatar-engine/catalog";
+import {
+  phaseToSituation,
   phaseToTutorPose,
   poseToClipSlot,
   quickActionToInstantAction,
@@ -8,9 +15,10 @@ import {
 import { LiveCostGuard } from "@companion-space/avatar-engine/cost-guard";
 import { VideoDriverManager } from "@companion-space/avatar-engine/driver-manager";
 import { LoopPackVideoDriver, resolveClipUrl } from "@companion-space/avatar-engine/loop-pack-driver";
+import { StaticPortraitDriver } from "@companion-space/avatar-engine/static-driver";
 import { tutorVideoCoordinator } from "@companion-space/avatar-engine/video-coordinator";
 import { decodeTsvfFrame, encodeTsvaFrame, TSVF_MAGIC } from "@companion-space/avatar-engine/sidecar-driver";
-import type { VideoAvatarRuntimeConfig, VideoDriverStatusEvent } from "@companion-space/avatar-engine/types";
+import type { ClipSlot, VideoAvatarRuntimeConfig, VideoDriverStatusEvent } from "@companion-space/avatar-engine/types";
 
 describe("AvatarChoreographer canonical phase-to-pose and action mapping", () => {
   it("maps explicit phases to poses and thinking/buffering never map to speaking clips", () => {
@@ -468,5 +476,388 @@ describe("LiveCostGuard and Sidecar Protocol + Fallback", () => {
 
     tutorVideoCoordinator.unregister(primary);
     expect(tutorVideoCoordinator.getActiveOwner()).toBeNull();
+  });
+});
+
+describe("Tutor Media Extension Invariants (I17–I20, I23 driver)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  function setupDomHarness(defaultDuration = 5) {
+    const videos: Array<{
+      src: string;
+      loop: boolean;
+      duration: number;
+      readyState: number;
+      currentTime: number;
+      style: Record<string, unknown>;
+      onended: (() => void) | null;
+      onerror: (() => void) | null;
+      emit: (event: string) => void;
+    }> = [];
+    const surfaceRef: { current: { dataset: Record<string, string> } | null } = { current: null };
+
+    const makeElement = (tag: string) => {
+      const attrs = new Map<string, string>();
+      const listeners = new Map<string, Set<() => void>>();
+      const style: Record<string, unknown> = {
+        setProperty(k: string, v: string) {
+          style[k] = v;
+        },
+      };
+      const el = {
+        tagName: tag.toUpperCase(),
+        className: "",
+        dataset: {} as Record<string, string>,
+        style,
+        children: [] as unknown[],
+        src: "",
+        loop: false,
+        muted: false,
+        playsInline: false,
+        preload: "",
+        readyState: 4,
+        duration: defaultDuration,
+        currentTime: 0,
+        onended: null as (() => void) | null,
+        onerror: null as (() => void) | null,
+        emit(event: string) {
+          for (const cb of [...(listeners.get(event) ?? [])]) {
+            listeners.get(event)?.delete(cb);
+            cb();
+          }
+        },
+        append(...items: unknown[]) {
+          this.children.push(...items);
+        },
+        replaceChildren(...items: unknown[]) {
+          this.children = [...items];
+          surfaceRef.current = (items[0] as { dataset: Record<string, string> }) ?? null;
+        },
+        remove() {},
+        getAttribute(name: string) {
+          return name === "src" ? (this.src || null) : (attrs.get(name) ?? null);
+        },
+        setAttribute(name: string, value: string) {
+          attrs.set(name, value);
+        },
+        removeAttribute(name: string) {
+          if (name === "src") this.src = "";
+          attrs.delete(name);
+        },
+        addEventListener(name: string, cb: () => void) {
+          const set = listeners.get(name) ?? new Set();
+          set.add(cb);
+          listeners.set(name, set);
+        },
+        removeEventListener(name: string, cb: () => void) {
+          listeners.get(name)?.delete(cb);
+        },
+        load: vi.fn(),
+        play: vi.fn(() => Promise.resolve()),
+        pause: vi.fn(),
+      };
+      if (tag === "video") videos.push(el);
+      return el;
+    };
+
+    vi.stubGlobal("document", { createElement: makeElement, hidden: false });
+    vi.stubGlobal("window", { setTimeout, clearTimeout, setInterval, clearInterval });
+    return {
+      container: makeElement("div") as unknown as HTMLElement,
+      videos,
+      getSurface: () => surfaceRef.current,
+    };
+  }
+
+  it("I17: single-source catalog defines all active & reserved slots and resolves every clip", () => {
+    expect(ACTIVE_CLIP_SLOTS.length).toBe(27);
+    expect(CLIP_SLOTS.length).toBeGreaterThanOrEqual(27);
+    const fullClips: Partial<Record<ClipSlot, string>> = {};
+    for (const slot of CLIP_SLOTS) {
+      expect(CLIP_ENTRY_BY_ID.has(slot)).toBe(true);
+      fullClips[slot] = `/clips/${slot}.webm`;
+    }
+    for (const slot of CLIP_SLOTS) {
+      expect(resolveClipUrl(fullClips, slot)).toEqual({ slot, url: `/clips/${slot}.webm` });
+    }
+    // Missing one-shot with no fallback returns null (never falls back to loop clip)
+    expect(resolveClipUrl({ idle_breathe: "/a.webm" }, "greet_wave")).toBeNull();
+    expect(resolveClipUrl({ idle_breathe: "/a.webm" }, "farewell_wave")).toBeNull();
+    expect(resolveClipUrl({ idle_breathe: "/a.webm" }, "board_glance")).toBeNull();
+  });
+
+  it("I18: legacy 8-clip pack reproduces exact baseline clip sequence", async () => {
+    vi.useFakeTimers();
+    const { container, videos, getSurface } = setupDomHarness(3.5);
+    const legacyClips: Partial<Record<ClipSlot, string>> = {
+      idle_breathe: "/clips/idle_breathe.webm",
+      listen_nod: "/clips/listen_nod.webm",
+      think_chin: "/clips/think_chin.webm",
+      speak_explain_a: "/clips/speak_explain_a.webm",
+      speak_explain_b: "/clips/speak_explain_b.webm",
+      board_point: "/clips/board_point.webm",
+      react_praise: "/clips/react_praise.webm",
+      react_comfort: "/clips/react_comfort.webm",
+    };
+
+    const driver = new LoopPackVideoDriver();
+    await driver.mount(container, {
+      characterId: "tutor-legacy",
+      name: "Legacy",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/anchor.webp",
+      loopPack: { crossfadeMs: 180, clips: legacyClips },
+    });
+
+    const seen: string[] = [];
+    const record = () => seen.push(getSurface()?.dataset.clip ?? "");
+    record(); // mount -> idle_breathe
+
+    driver.setSituation(phaseToSituation("preparing"), 0, 1);
+    record(); // think_chin
+    driver.setSituation(phaseToSituation("speaking"), 1, 2);
+    record(); // speak_explain_a
+    driver.setSituation(phaseToSituation("speaking"), 2, 2);
+    record(); // speak_explain_b
+    driver.setSituation(phaseToSituation("speaking"), 3, 2);
+    record(); // speak_explain_a
+    driver.setSituation(phaseToSituation("awaiting"), 3, 3);
+    record(); // listen_nod
+    driver.setSituation(phaseToSituation("awaiting", { quietCompanion: true }), 3, 3);
+    record(); // idle_breathe
+    driver.setSituation(phaseToSituation("judging"), 3, 4);
+    record(); // listen_nod
+    driver.triggerOneShot("praise", 5);
+    record(); // react_praise
+    const praiseVid = videos.find((v) => v.src === "/clips/react_praise.webm");
+    praiseVid?.onended?.();
+    driver.triggerOneShot("comfort", 6);
+    record(); // react_comfort
+    driver.setSituation(phaseToSituation("paused"), 6, 7);
+    record(); // idle_breathe
+
+    expect(seen).toEqual([
+      "idle_breathe",
+      "think_chin",
+      "speak_explain_a",
+      "speak_explain_b",
+      "speak_explain_a",
+      "listen_nod",
+      "idle_breathe",
+      "listen_nod",
+      "react_praise",
+      "react_comfort",
+      "idle_breathe",
+    ]);
+    await driver.unmount();
+  });
+
+  it("I19: 5-second one-shot clip plays past 4.2s and returns before 5.4s", async () => {
+    vi.useFakeTimers();
+    const { container } = setupDomHarness(5.0);
+    const driver = new LoopPackVideoDriver();
+    await driver.mount(container, {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/anchor.webp",
+      loopPack: {
+        crossfadeMs: 180,
+        clips: {
+          idle_breathe: "/clips/idle.webm",
+          greet_wave: "/clips/greet.webm",
+          speak_calm: "/clips/speak_calm.webm",
+        },
+      },
+    });
+
+    driver.setSituation("idle", 0, 1);
+    driver.triggerOneShot("greet", 1);
+    expect(driver.getActiveClipSlot()).toBe("greet_wave");
+
+    vi.advanceTimersByTime(4200);
+    expect(driver.getActiveClipSlot()).toBe("greet_wave");
+
+    vi.advanceTimersByTime(1250);
+    expect(driver.getActiveClipSlot()).toBe("idle_breathe");
+    await driver.unmount();
+  });
+
+  it("I19b: speaking starts 0.3s after praise and waits until min(settle_ms, +1.5s)", async () => {
+    vi.useFakeTimers();
+    const { container } = setupDomHarness(4.0);
+    const driver = new LoopPackVideoDriver();
+    await driver.mount(container, {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/anchor.webp",
+      loopPack: {
+        crossfadeMs: 180,
+        clips: {
+          idle_breathe: "/clips/idle.webm",
+          speak_calm: "/clips/speak_calm.webm",
+          react_praise: "/clips/react_praise.webm",
+          react_clap: "/clips/react_clap.webm",
+        },
+        clipMeta: {
+          react_praise: { settleMs: 1200, durationMs: 3200 },
+          react_clap: { settleMs: 2600, durationMs: 3500 },
+        },
+      },
+      random: () => 0,
+    });
+
+    // Case 1: settle_ms (1200ms) < 300ms + 1500ms (1800ms)
+    driver.triggerOneShot("praise", 1);
+    expect(driver.getActiveClipSlot()).toBe("react_praise");
+    vi.advanceTimersByTime(300);
+    driver.setSituation("speaking", 1, 1);
+    vi.advanceTimersByTime(800); // t=1100ms < 1200ms
+    expect(driver.getActiveClipSlot()).toBe("react_praise");
+    vi.advanceTimersByTime(150); // t=1250ms >= 1200ms
+    expect(driver.getActiveClipSlot()).toBe("speak_calm");
+
+    // Case 2: settle_ms (2600ms) > 300ms + 1500ms (1800ms), capped at 1.5s after speech start
+    driver.triggerOneShot("praise", 2);
+    expect(driver.getActiveClipSlot()).toBe("react_clap"); // non-repeating praise group
+    vi.advanceTimersByTime(300);
+    driver.setSituation("speaking", 2, 2);
+    vi.advanceTimersByTime(1400); // t=1700ms < 1800ms
+    expect(driver.getActiveClipSlot()).toBe("react_clap");
+    vi.advanceTimersByTime(150); // t=1850ms >= 1800ms
+    expect(driver.getActiveClipSlot()).toBe("speak_calm");
+    await driver.unmount();
+  });
+
+  it("I20: idle scheduler inserts idle_glance within 60s with full idle_breathe between inserts, and never inserts without variants", async () => {
+    vi.useFakeTimers();
+    const { container, videos } = setupDomHarness(6.0);
+
+    // Pack WITH idle_glance
+    const driver = new LoopPackVideoDriver();
+    await driver.mount(container, {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/anchor.webp",
+      loopPack: {
+        crossfadeMs: 180,
+        clips: {
+          idle_breathe: "/clips/idle_breathe.webm",
+          idle_glance: "/clips/idle_glance.webm",
+        },
+      },
+      random: () => 0, // fixed 12s interval
+    });
+
+    driver.setSituation("idle", 0, 1);
+    const seq: string[] = [driver.getActiveClipSlot() ?? ""];
+    for (let step = 0; step < 10; step += 1) {
+      vi.advanceTimersByTime(6000);
+      const currentSlot = driver.getActiveClipSlot();
+      const active = videos.find((v) => v.src.includes(currentSlot ?? "") && v.onended);
+      active?.onended?.();
+      seq.push(driver.getActiveClipSlot() ?? "");
+    }
+    expect(seq).toContain("idle_breathe");
+    expect(seq).toContain("idle_glance");
+    // Verify no two idle_glance clips appear back-to-back without idle_breathe in between
+    for (let i = 1; i < seq.length; i += 1) {
+      if (seq[i] === "idle_glance") {
+        expect(seq[i - 1]).toBe("idle_breathe");
+      }
+    }
+    await driver.unmount();
+
+    // Pack WITHOUT idle_glance / idle_fidget -> loops natively without insertion
+    const driverOnly = new LoopPackVideoDriver();
+    await driverOnly.mount(container, {
+      characterId: "tutor-min",
+      name: "Min",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/anchor.webp",
+      loopPack: {
+        crossfadeMs: 180,
+        clips: { idle_breathe: "/clips/idle_breathe.webm" },
+      },
+    });
+    driverOnly.setSituation("idle", 0, 1);
+    const activeOnly = videos[videos.length - 1];
+    expect(activeOnly.loop).toBe(true);
+    expect(driverOnly.getActiveClipSlot()).toBe("idle_breathe");
+    await driverOnly.unmount();
+  });
+
+  it("I23 (driver): static & reduced-motion modes swap expression stills and expose data-still", async () => {
+    vi.useFakeTimers();
+    const { container, getSurface } = setupDomHarness(5.0);
+    const stills = {
+      praise: "/stills/praise.webp",
+      cheerful: "/stills/cheerful.webp",
+      caring: "/stills/caring.webp",
+      curious: "/stills/curious.webp",
+      focused: "/stills/focused.webp",
+      thinking: "/stills/thinking.webp",
+      playful: "/stills/playful.webp",
+    };
+
+    const staticDriver = new StaticPortraitDriver();
+    await staticDriver.mount(container, {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "static",
+      anchorImage: "/anchor.webp",
+      loopPack: { crossfadeMs: 180, clips: {}, stills },
+    });
+
+    staticDriver.triggerOneShot("praise", 1);
+    expect(getSurface()?.dataset.still).toBe("praise");
+
+    staticDriver.triggerOneShot("comfort", 2);
+    expect(getSurface()?.dataset.still).toBe("caring");
+
+    staticDriver.setSituation("wait", 0, 3);
+    vi.advanceTimersByTime(2700);
+    expect(getSurface()?.dataset.still).toBe("curious");
+    await staticDriver.unmount();
+
+    // Reduced-motion loop_pack driver also switches stills and sets data-still
+    const reducedDriver = new LoopPackVideoDriver();
+    await reducedDriver.mount(container, {
+      characterId: "tutor-chutang",
+      name: "Chutang",
+      aspectRatio: "9:16",
+      preferredTier: "loop_pack",
+      anchorImage: "/anchor.webp",
+      reducedMotion: true,
+      loopPack: {
+        crossfadeMs: 180,
+        clips: { idle_breathe: "/clips/idle.webm" },
+        stills: { cheerful: "/stills/cheerful.webp", caring: "/stills/caring.webp" },
+      },
+    });
+    // Without praise still, falls back to cheerful (§4.6)
+    reducedDriver.triggerOneShot("praise", 1);
+    expect(getSurface()?.dataset.still).toBe("cheerful");
+    reducedDriver.triggerOneShot("comfort", 2);
+    expect(getSurface()?.dataset.still).toBe("caring");
+    await reducedDriver.unmount();
+
+    // Off-classroom location still mapping table
+    expect(resolveStillForLocation("today_greeting", stills, "/anchor.webp").still).toBe("cheerful");
+    expect(resolveStillForLocation("unlock", stills, "/anchor.webp").still).toBe("focused");
+    expect(resolveStillForLocation("not_found", stills, "/anchor.webp").still).toBe("curious");
+    expect(resolveStillForLocation("recap", { cheerful: "/stills/cheerful.webp" }, "/anchor.webp").still).toBe("cheerful");
+    expect(resolveStillForLocation("recap", {}, "/anchor.webp").still).toBe("anchor");
   });
 });

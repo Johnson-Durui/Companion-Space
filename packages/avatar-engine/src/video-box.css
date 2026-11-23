@@ -64,7 +64,10 @@
 
 .tvb-anchor {
   z-index: 1;
-  transition: transform var(--dur-slow) var(--ease-out), filter var(--dur-slow) var(--ease-out);
+  transition:
+    opacity 200ms ease,
+    transform var(--dur-slow) var(--ease-out),
+    filter var(--dur-slow) var(--ease-out);
 }
 
 .tvb-video {

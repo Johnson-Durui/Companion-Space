@@ -24,6 +24,7 @@ import {
   type MasteryGridPoint,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
+import { resolveCharacterStill } from "../characters/video-config";
 import { createPointPlanItem } from "../classroom/lesson-api";
 import { useActiveTutor } from "../tutors/use-active-tutor";
 import { fetchCourseProgress, fetchKpTimeline, progressKeys } from "./api";
@@ -185,7 +186,19 @@ export default function ProgressPage({ embedded = false }: { embedded?: boolean 
       {!hasAnyEvidence ? (
         <Card padding="lg" data-testid="progress-empty">
           <EmptyState
-            visual={tutor ? <TutorAvatar src={tutor.appearance.src} name={tutor.name} size="lg" /> : undefined}
+            visual={
+              tutor ? (() => {
+                const emptyStill = resolveCharacterStill(tutor, "empty_state");
+                return (
+                  <TutorAvatar
+                    src={emptyStill.url}
+                    still={emptyStill.still}
+                    name={tutor.name}
+                    size="lg"
+                  />
+                );
+              })() : undefined
+            }
             title={t.tutorsGallery.emptyProgressLine}
             description={copy.lead}
             action={

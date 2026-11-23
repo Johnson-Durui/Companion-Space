@@ -7,6 +7,7 @@ export interface TutorAvatarProps {
   name: string;
   size?: TutorAvatarSize;
   ring?: boolean;
+  still?: string;
   className?: string;
 }
 
@@ -23,12 +24,14 @@ export function TutorAvatar({
   name,
   size = "md",
   ring = false,
+  still,
   className,
 }: TutorAvatarProps) {
   const initial = name.trim().slice(0, 1) || "师";
 
   return (
     <span
+      data-still={still}
       className={clsx(
         "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-soft font-semibold text-accent-strong select-none",
         ring && "ring-2 ring-accent ring-offset-2 ring-offset-surface-card",

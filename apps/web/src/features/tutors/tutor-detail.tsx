@@ -1,8 +1,14 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import type { components } from "@companion-space/api-client/schema";
-import { CLIP_SLOTS, type VideoAvatarTier } from "@companion-space/avatar-engine/types";
+import {
+  ACTIVE_CLIP_SLOTS,
+  CLIP_ENTRY_BY_ID,
+  STILL_SLOTS,
+} from "@companion-space/avatar-engine/catalog";
+import type { ClipSlot, StillSlot, VideoAvatarTier } from "@companion-space/avatar-engine/types";
+import type { TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import {
   api,
   avatarDriversKey,
@@ -40,6 +46,7 @@ import {
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
 import { buildAnimeLoopPromptSheet } from "../characters/video-config";
+import { TeacherPreview } from "../characters/teacher-preview";
 import { useTutorSpeech } from "../voice/use-tutor-speech";
 import { TutorShowcase } from "./tutor-showcase";
 import { tutorGreeting } from "./use-active-tutor";
@@ -527,10 +534,33 @@ function AssetsAdvancedTab({ character }: { character: Character }) {
     },
   });
 
-  const clips = character.video_avatar?.loop_pack?.clips ?? {};
-  const clipCount = CLIP_SLOTS.filter((slot) => Boolean(clips[slot])).length;
+  const auditionRef = useRef<TutorVideoBoxHandle>(null);
+  const [auditionSeq, setAuditionSeq] = useState(1);
+  const [activeClip, setActiveClip] = useState<ClipSlot | null>(null);
+  const [activeStill, setActiveStill] = useState<StillSlot | "anchor" | null>(null);
+
+  const clips = (character.video_avatar?.loop_pack?.clips ?? {}) as Partial<Record<ClipSlot, string>>;
+  const stills = (character.video_avatar?.loop_pack?.stills ?? {}) as Partial<Record<StillSlot, string>>;
+  const mediaInfo = character.video_avatar?.loop_pack?.media;
+  const clipCount = ACTIVE_CLIP_SLOTS.filter((slot) => Boolean(clips[slot])).length;
+  const stillCount = STILL_SLOTS.filter((still) => Boolean(stills[still])).length;
   const sidecars = avatarDrivers.data?.local_sidecars ?? [];
   const meta = character.pack_metadata;
+  const clipLabels = charCopy.clips as Record<string, string>;
+  const stillLabels = charCopy.stills as Record<string, string>;
+
+  const describeMissing = (slot: ClipSlot): string => {
+    const entry = CLIP_ENTRY_BY_ID.get(slot);
+    if (!entry) return charCopy.missingKeep;
+    if (entry.missing_behavior === "skip") return charCopy.missingSkip;
+    if (entry.missing_behavior === "enter_think_group") return charCopy.missingThink;
+    if (entry.missing_behavior === "board_point_then_speak") return charCopy.missingBoardSpeak;
+    if (entry.fallback.length > 0) {
+      const target = entry.fallback.find((candidate) => Boolean(clips[candidate])) ?? entry.fallback[0];
+      return charCopy.missingFallback.replace("{target}", clipLabels[target] ?? target);
+    }
+    return charCopy.missingKeep;
+  };
 
   return (
     <div className="grid gap-5" data-testid="tutor-assets-tab">
@@ -578,29 +608,141 @@ function AssetsAdvancedTab({ character }: { character: Character }) {
         {saveTier.isError ? <Problem error={saveTier.error} /> : null}
       </Card>
 
-      <Card padding="lg" className="grid gap-3">
-        <div className="flex items-center justify-between gap-2">
+      <Card padding="lg" className="grid gap-4" data-testid="tutor-audition-card">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-title font-semibold text-fg-primary">{charCopy.clipCoverage}</h2>
-          <Badge tone={clipCount === CLIP_SLOTS.length ? "ok" : "neutral"}>
-            {clipCount} / {CLIP_SLOTS.length}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={clipCount > 0 ? "ok" : "neutral"}>
+              {charCopy.clipSection} {clipCount} / {ACTIVE_CLIP_SLOTS.length}
+            </Badge>
+            <Badge tone={stillCount > 0 ? "ok" : "neutral"}>
+              {charCopy.stillSection} {stillCount} / {STILL_SLOTS.length}
+            </Badge>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {CLIP_SLOTS.map((slot) => {
-            const present = Boolean(clips[slot]);
-            return (
-              <Badge key={slot} tone={present ? "ok" : "neutral"}>
-                {charCopy.clips[slot]} {present ? "✓" : "—"}
-              </Badge>
-            );
-          })}
+
+        <div className="grid items-start gap-5 md:grid-cols-[220px_minmax(0,1fr)]">
+          <div className="mx-auto w-[200px] sm:w-[220px]">
+            <TeacherPreview
+              key={character.id}
+              character={character}
+              videoRef={auditionRef}
+              disableIdleScheduler
+            />
+          </div>
+
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <h3 className="text-ui font-semibold text-fg-primary">{charCopy.clipSection}</h3>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {ACTIVE_CLIP_SLOTS.map((slot) => {
+                  const present = Boolean(clips[slot]);
+                  const isActive = activeClip === slot;
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      disabled={!present}
+                      data-testid={`audition-clip-${slot}`}
+                      onClick={() => {
+                        const nextSeq = auditionSeq + 1;
+                        setAuditionSeq(nextSeq);
+                        setActiveStill(null);
+                        setActiveClip(slot);
+                        auditionRef.current?.playClip(slot, nextSeq);
+                      }}
+                      className={`grid gap-0.5 rounded-md border px-3 py-2 text-left transition-colors ${
+                        present
+                          ? isActive
+                            ? "border-accent bg-accent-soft text-accent-strong"
+                            : "border-line-subtle bg-surface-page text-fg-primary hover:border-accent"
+                          : "cursor-not-allowed border-line-subtle/70 bg-surface-sunken/50 text-fg-tertiary"
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2 text-caption font-semibold">
+                        <span>{clipLabels[slot] ?? slot}</span>
+                        <span className="text-micro font-normal">
+                          {present ? "✓" : charCopy.missingLabel}
+                        </span>
+                      </span>
+                      {!present ? (
+                        <span className="text-micro text-fg-tertiary">{describeMissing(slot)}</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <h3 className="text-ui font-semibold text-fg-primary">{charCopy.stillSection}</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  data-testid="audition-still-anchor"
+                  onClick={() => {
+                    setActiveClip(null);
+                    setActiveStill("anchor");
+                    auditionRef.current?.showStill("anchor");
+                  }}
+                  className={`rounded-pill border px-3 py-1.5 text-caption font-medium transition-colors ${
+                    activeStill === "anchor"
+                      ? "border-accent bg-accent-soft text-accent-strong"
+                      : "border-line-subtle bg-surface-page text-fg-primary hover:border-accent"
+                  }`}
+                >
+                  {charCopy.stillAnchor} ✓
+                </button>
+                {STILL_SLOTS.map((still) => {
+                  const present = Boolean(stills[still]);
+                  const isActive = activeStill === still;
+                  return (
+                    <button
+                      key={still}
+                      type="button"
+                      disabled={!present}
+                      data-testid={`audition-still-${still}`}
+                      onClick={() => {
+                        setActiveClip(null);
+                        setActiveStill(still);
+                        auditionRef.current?.showStill(still);
+                      }}
+                      className={`rounded-pill border px-3 py-1.5 text-caption font-medium transition-colors ${
+                        present
+                          ? isActive
+                            ? "border-accent bg-accent-soft text-accent-strong"
+                            : "border-line-subtle bg-surface-page text-fg-primary hover:border-accent"
+                          : "cursor-not-allowed border-line-subtle/70 bg-surface-sunken/50 text-fg-tertiary"
+                      }`}
+                    >
+                      {stillLabels[still] ?? still} {present ? "✓" : `· ${charCopy.missingLabel}`}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 
-      <Card padding="lg" className="grid gap-2 text-ui text-fg-secondary">
-        <h2 className="text-title font-semibold text-fg-primary">{charCopy.license}</h2>
+      <Card padding="lg" className="grid gap-2 text-ui text-fg-secondary" data-testid="tutor-license-card">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-title font-semibold text-fg-primary">{charCopy.license}</h2>
+          {mediaInfo?.ai_generated ? (
+            <Badge tone="accent">{charCopy.aiGeneratedBadge}</Badge>
+          ) : null}
+        </div>
         <p>{charCopy.author}：{meta?.author || charCopy.unknown}</p>
         <p>{charCopy.license}：{character.license}</p>
+        {mediaInfo?.generator ? (
+          <p>{charCopy.mediaGenerator}：{mediaInfo.generator}</p>
+        ) : null}
+        {mediaInfo?.image_generator ? (
+          <p>{charCopy.mediaImageGen}：{mediaInfo.image_generator}</p>
+        ) : null}
+        {mediaInfo?.video_generator ? (
+          <p>{charCopy.mediaVideoGen}：{mediaInfo.video_generator}</p>
+        ) : null}
         {meta ? (
           <p>{meta.allow_redistribution ? charCopy.redistributionAllowed : charCopy.redistributionRestricted}</p>
         ) : null}

@@ -29,6 +29,7 @@ import {
   toast,
 } from "../../ui";
 import t from "../../locales/zh-CN.json";
+import { resolveCharacterStill } from "../characters/video-config";
 import { tutorLine } from "../tutors/use-active-tutor";
 import {
   courseKeys,
@@ -176,9 +177,17 @@ export default function Courses() {
       {courses.data?.length === 0 ? (
         <EmptyState
           visual={
-            teacher ? (
-              <TutorAvatar src={teacher.appearance.src} name={teacher.name} size="lg" />
-            ) : (
+            teacher ? (() => {
+              const emptyStill = resolveCharacterStill(teacher, "empty_state");
+              return (
+                <TutorAvatar
+                  src={emptyStill.url}
+                  still={emptyStill.still}
+                  name={teacher.name}
+                  size="lg"
+                />
+              );
+            })() : (
               <Plus size={36} strokeWidth={1.75} />
             )
           }
