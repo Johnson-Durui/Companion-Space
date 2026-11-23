@@ -11,30 +11,25 @@ from urllib.parse import urlsplit
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.core.config import APP_ROOT
 from app.core.errors import CodedValueError
 from app.services.character_modules.paths import CharacterPathMixin
 
+_CATALOG_PATH = APP_ROOT / "libs" / "schemas" / "tutor_media_catalog.json"
+
+
+def load_tutor_media_catalog() -> dict:
+    return json.loads(_CATALOG_PATH.read_text(encoding="utf-8-sig"))
+
+
+_CATALOG = load_tutor_media_catalog()
+
 VideoTier = Literal["static", "loop_pack", "local_sidecar", "cloud_live"]
-ClipSlot = Literal[
-    "idle_breathe",
-    "listen_nod",
-    "think_chin",
-    "speak_explain_a",
-    "speak_explain_b",
-    "board_point",
-    "react_praise",
-    "react_comfort",
-]
-CLIP_SLOTS: tuple[ClipSlot, ...] = (
-    "idle_breathe",
-    "listen_nod",
-    "think_chin",
-    "speak_explain_a",
-    "speak_explain_b",
-    "board_point",
-    "react_praise",
-    "react_comfort",
-)
+CLIP_SLOTS: tuple[str, ...] = tuple(entry["id"] for entry in _CATALOG["clips"])
+STILL_SLOTS: tuple[str, ...] = tuple(_CATALOG["stills"])
+ClipSlot = Literal[*CLIP_SLOTS]
+StillSlot = Literal[*STILL_SLOTS]
+
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
 VIDEO_SUFFIXES = {".webm", ".mp4"}
 ARCHIVE_SUFFIXES = {".tutorpack", ".zip"}
@@ -42,8 +37,8 @@ ARCHIVE_SUFFIXES = {".tutorpack", ".zip"}
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 100 * 1024 * 1024
 MAX_UNCOMPRESSED_BYTES = 150 * 1024 * 1024
-MAX_CLIP_BYTES = 15 * 1024 * 1024
-MAX_ARCHIVE_FILES = 32
+MAX_CLIP_BYTES = int(_CATALOG["limits"]["max_clip_bytes"])
+MAX_ARCHIVE_FILES = int(_CATALOG["limits"]["max_archive_files"])
 MIN_IMAGE_DIM = 256
 MAX_IMAGE_DIM = 4096
 MAX_IMAGE_PIXELS = 16_777_216
@@ -63,6 +58,24 @@ def safe_http_url(value: str | None) -> str | None:
     if parsed.username or parsed.password:
         return None
     return value.strip()
+
+
+class PackCanvas(BaseModel):
+    width: int = Field(ge=256, le=4096)
+    height: int = Field(ge=256, le=4096)
+    fps: int = Field(ge=12, le=60)
+
+
+class ClipMeta(BaseModel):
+    settle_ms: int | None = Field(default=None, ge=0, le=30_000)
+    duration_ms: int | None = Field(default=None, ge=0, le=60_000)
+
+
+class PackMediaInfo(BaseModel):
+    generator: str = Field(default="", max_length=240)
+    ai_generated: bool = False
+    image_generator: str | None = Field(default=None, max_length=240)
+    video_generator: str | None = Field(default=None, max_length=240)
 
 
 class PackLicenseInput(BaseModel):
@@ -91,8 +104,12 @@ class TutorPackManifest(BaseModel):
     name: ShortText
     aspect_ratio: Literal["9:16", "3:4"] = "9:16"
     crossfade_ms: int = Field(default=180, ge=0, le=600)
+    canvas: PackCanvas | None = None
     anchor: str = Field(default="anchor.webp", max_length=240)
     clips: dict[ClipSlot, str] = Field(default_factory=dict)
+    clip_meta: dict[ClipSlot, ClipMeta] = Field(default_factory=dict)
+    stills: dict[StillSlot, str] = Field(default_factory=dict)
+    media: PackMediaInfo | None = None
     persona: PackPersonaInput = Field(default_factory=PackPersonaInput)
     voice: PackVoiceInput = Field(default_factory=PackVoiceInput)
     default_style_id: Literal["guided", "direct", "analogy", "exam", "rigorous"] = "guided"
@@ -104,8 +121,12 @@ class ParsedTutorPack:
     name: str
     aspect_ratio: Literal["9:16", "3:4"]
     crossfade_ms: int
+    canvas: PackCanvas | None
     anchor_rel_path: str
     clip_rel_paths: dict[ClipSlot, str]
+    clip_meta: dict[ClipSlot, ClipMeta]
+    still_rel_paths: dict[StillSlot, str]
+    media: PackMediaInfo | None
     asset_files: dict[str, bytes]
     persona: PackPersonaInput
     voice: PackVoiceInput
@@ -115,6 +136,17 @@ class ParsedTutorPack:
     license_url: str | None
     allow_redistribution: bool
     source_kind: Literal["imported_image", "imported_pack"]
+
+
+@dataclass(frozen=True)
+class DiscoveredBuiltinPack:
+    crossfade_ms: int
+    canvas: PackCanvas | None
+    clips: dict[ClipSlot, str]
+    clip_meta: dict[ClipSlot, ClipMeta]
+    stills: dict[StillSlot, str]
+    media: PackMediaInfo | None
+    license_info: PackLicenseInput | None
 
 
 def sanitize_anchor_image(data: bytes) -> bytes:
@@ -177,8 +209,12 @@ def parse_single_image_upload(filename: str, data: bytes) -> ParsedTutorPack:
         name=safe_name,
         aspect_ratio="9:16",
         crossfade_ms=180,
+        canvas=None,
         anchor_rel_path="anchor.webp",
         clip_rel_paths={},
+        clip_meta={},
+        still_rel_paths={},
+        media=None,
         asset_files={"anchor.webp": clean_webp},
         persona=PackPersonaInput(),
         voice=PackVoiceInput(),
@@ -288,12 +324,33 @@ def parse_tutorpack_archive(filename: str, data: bytes) -> ParsedTutorPack:
         asset_files[target_rel] = clip_bytes
         clip_rel_paths[slot] = target_rel
 
+    still_rel_paths: dict[StillSlot, str] = {}
+    for still_key, raw_still_path in manifest.stills.items():
+        try:
+            still_path = CharacterPathMixin._normalize_relative_posix_path(
+                raw_still_path,
+                traversal_message=f"Invalid still path for {still_key} in manifest.json.",
+            )
+        except ValueError as exc:
+            raise CodedValueError("tutor_archive_invalid", str(exc)) from exc
+        still_bytes = entries.get(still_path)
+        if still_bytes is None:
+            raise CodedValueError("tutor_archive_invalid", f"Still image for {still_key} is missing from archive: {still_path}")
+        clean_still = sanitize_anchor_image(still_bytes)
+        target_rel = f"stills/{still_key}.webp"
+        asset_files[target_rel] = clean_still
+        still_rel_paths[still_key] = target_rel
+
     return ParsedTutorPack(
         name=manifest.name,
         aspect_ratio=manifest.aspect_ratio,
         crossfade_ms=manifest.crossfade_ms,
+        canvas=manifest.canvas,
         anchor_rel_path="anchor.webp",
         clip_rel_paths=clip_rel_paths,
+        clip_meta=dict(manifest.clip_meta),
+        still_rel_paths=still_rel_paths,
+        media=manifest.media,
         asset_files=asset_files,
         persona=manifest.persona,
         voice=manifest.voice,
@@ -306,8 +363,7 @@ def parse_tutorpack_archive(filename: str, data: bytes) -> ParsedTutorPack:
     )
 
 
-def discover_builtin_pack_clips(repo_root: Path, character_id: str) -> tuple[int, dict[ClipSlot, str]] | None:
-    pack_dir = repo_root / "assets" / "avatars" / "packs" / character_id
+def _discover_pack_from_dir(pack_dir: Path, url_prefix: str) -> DiscoveredBuiltinPack | None:
     manifest_file = pack_dir / "manifest.json"
     if not manifest_file.is_file():
         return None
@@ -318,7 +374,8 @@ def discover_builtin_pack_clips(repo_root: Path, character_id: str) -> tuple[int
         manifest = TutorPackManifest.model_validate(raw)
     except (OSError, ValueError, json.JSONDecodeError):
         return None
-    resolved: dict[ClipSlot, str] = {}
+    pack_root = pack_dir.resolve()
+    resolved_clips: dict[ClipSlot, str] = {}
     for slot, raw_rel in manifest.clips.items():
         try:
             rel = CharacterPathMixin._normalize_relative_posix_path(
@@ -328,8 +385,76 @@ def discover_builtin_pack_clips(repo_root: Path, character_id: str) -> tuple[int
         except ValueError:
             continue
         candidate = (pack_dir / rel).resolve()
-        if candidate.is_relative_to(pack_dir.resolve()) and candidate.is_file():
-            resolved[slot] = f"/static/avatars/packs/{character_id}/{rel}"
-    if not resolved:
+        if candidate.is_relative_to(pack_root) and candidate.is_file():
+            resolved_clips[slot] = f"{url_prefix}/{rel}"
+
+    resolved_stills: dict[StillSlot, str] = {}
+    for still_key, raw_rel in manifest.stills.items():
+        try:
+            rel = CharacterPathMixin._normalize_relative_posix_path(
+                raw_rel,
+                traversal_message="Invalid builtin still path.",
+            )
+        except ValueError:
+            continue
+        candidate = (pack_dir / rel).resolve()
+        if candidate.is_relative_to(pack_root) and candidate.is_file():
+            resolved_stills[still_key] = f"{url_prefix}/{rel}"
+
+    resolved_meta: dict[ClipSlot, ClipMeta] = {
+        slot: meta for slot, meta in manifest.clip_meta.items() if slot in resolved_clips
+    }
+    license_info = manifest.license if "license" in raw else None
+    return DiscoveredBuiltinPack(
+        crossfade_ms=manifest.crossfade_ms,
+        canvas=manifest.canvas,
+        clips=resolved_clips,
+        clip_meta=resolved_meta,
+        stills=resolved_stills,
+        media=manifest.media,
+        license_info=license_info,
+    )
+
+
+def discover_builtin_pack(
+    repo_root: Path,
+    character_id: str,
+    storage_root: Path | None = None,
+) -> DiscoveredBuiltinPack | None:
+    repo_pack = _discover_pack_from_dir(
+        repo_root / "assets" / "avatars" / "packs" / character_id,
+        f"/static/avatars/packs/{character_id}",
+    )
+    data_pack: DiscoveredBuiltinPack | None = None
+    if storage_root is not None:
+        data_pack = _discover_pack_from_dir(
+            storage_root / "avatar_packs" / character_id,
+            f"/api/v2/characters/{character_id}/assets",
+        )
+    if data_pack is None:
+        return repo_pack
+    if repo_pack is None:
+        return data_pack
+
+    merged_clips = dict(repo_pack.clips)
+    merged_clips.update(data_pack.clips)
+    merged_meta = dict(repo_pack.clip_meta)
+    merged_meta.update(data_pack.clip_meta)
+    merged_stills = dict(repo_pack.stills)
+    merged_stills.update(data_pack.stills)
+    return DiscoveredBuiltinPack(
+        crossfade_ms=data_pack.crossfade_ms,
+        canvas=data_pack.canvas or repo_pack.canvas,
+        clips=merged_clips,
+        clip_meta=merged_meta,
+        stills=merged_stills,
+        media=data_pack.media or repo_pack.media,
+        license_info=data_pack.license_info or repo_pack.license_info,
+    )
+
+
+def discover_builtin_pack_clips(repo_root: Path, character_id: str) -> tuple[int, dict[ClipSlot, str]] | None:
+    discovered = discover_builtin_pack(repo_root, character_id)
+    if discovered is None or not discovered.clips:
         return None
-    return manifest.crossfade_ms, resolved
+    return discovered.crossfade_ms, discovered.clips

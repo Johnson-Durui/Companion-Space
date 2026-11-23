@@ -19,10 +19,14 @@ from app.services.tutorpack import (
     ARCHIVE_SUFFIXES,
     IMAGE_SUFFIXES,
     VIDEO_SUFFIXES,
+    ClipMeta,
     ClipSlot,
+    PackCanvas,
+    PackMediaInfo,
     ParsedTutorPack,
+    StillSlot,
     VideoTier,
-    discover_builtin_pack_clips,
+    discover_builtin_pack,
     parse_single_image_upload,
     parse_tutorpack_archive,
     safe_http_url,
@@ -57,7 +61,11 @@ class PackMetadata(BaseModel):
 
 class LoopPackConfig(BaseModel):
     crossfade_ms: int = Field(default=180, ge=0, le=600)
+    canvas: PackCanvas | None = None
     clips: dict[ClipSlot, str] = Field(default_factory=dict)
+    clip_meta: dict[ClipSlot, ClipMeta] = Field(default_factory=dict)
+    stills: dict[StillSlot, str] = Field(default_factory=dict)
+    media: PackMediaInfo | None = None
 
 
 class LocalSidecarAvatarConfig(BaseModel):
@@ -218,15 +226,35 @@ class TutorCatalog:
             pack_meta_raw["license_url"] = safe_http_url(pack_meta_raw.get("license_url"))
 
         if pack_meta_raw.get("source_kind") == "builtin":
-            discovered = discover_builtin_pack_clips(self.repository.settings.repo_root, char_id)
+            discovered = discover_builtin_pack(
+                self.repository.settings.repo_root,
+                char_id,
+                self.repository.settings.storage_root,
+            )
             if discovered is not None:
-                crossfade_ms, clips = discovered
-                existing_loop = video_raw.get("loop_pack")
-                existing_clips = existing_loop.get("clips") if isinstance(existing_loop, dict) else None
-                if not existing_clips:
-                    video_raw["loop_pack"] = {"crossfade_ms": crossfade_ms, "clips": clips}
-                    if not normalized.get("_tier_explicit") and "idle_breathe" in clips and "speak_explain_a" in clips:
-                        video_raw["preferred_tier"] = "loop_pack"
+                video_raw["loop_pack"] = {
+                    "crossfade_ms": discovered.crossfade_ms,
+                    "canvas": discovered.canvas.model_dump() if discovered.canvas else None,
+                    "clips": discovered.clips,
+                    "clip_meta": {slot: meta.model_dump() for slot, meta in discovered.clip_meta.items()},
+                    "stills": discovered.stills,
+                    "media": discovered.media.model_dump() if discovered.media else None,
+                }
+                has_speak = any(slot in discovered.clips for slot in ("speak_calm", "speak_explain_a", "speak_explain_b"))
+                if not normalized.get("_tier_explicit"):
+                    video_raw["preferred_tier"] = (
+                        "loop_pack" if ("idle_breathe" in discovered.clips and has_speak) else "static"
+                    )
+                if discovered.license_info is not None:
+                    pack_meta_raw["author"] = discovered.license_info.author.strip() or pack_meta_raw.get("author") or "Companion Space"
+                    pack_meta_raw["terms"] = discovered.license_info.terms.strip() or pack_meta_raw.get("terms") or ""
+                    pack_meta_raw["license_url"] = safe_http_url(discovered.license_info.license_url)
+                    pack_meta_raw["allow_redistribution"] = bool(discovered.license_info.allow_redistribution)
+                    normalized["license"] = pack_meta_raw["terms"]
+            else:
+                video_raw["loop_pack"] = {"crossfade_ms": 180, "clips": {}, "clip_meta": {}, "stills": {}}
+                if not normalized.get("_tier_explicit"):
+                    video_raw["preferred_tier"] = "static"
 
         clips_dict = (video_raw.get("loop_pack") or {}).get("clips") if isinstance(video_raw.get("loop_pack"), dict) else {}
         appearance_kind: Literal["portrait", "video_pack"] = "video_pack" if clips_dict else "portrait"
@@ -345,7 +373,12 @@ class TutorCatalog:
             slot: f"/api/v2/characters/{identifier}/assets/{rel}"
             for slot, rel in parsed.clip_rel_paths.items()
         }
-        has_core_clips = "idle_breathe" in clip_urls and "speak_explain_a" in clip_urls
+        still_urls: dict[StillSlot, str] = {
+            still_key: f"/api/v2/characters/{identifier}/assets/{rel}"
+            for still_key, rel in parsed.still_rel_paths.items()
+        }
+        has_speak = any(slot in clip_urls for slot in ("speak_calm", "speak_explain_a", "speak_explain_b"))
+        has_core_clips = "idle_breathe" in clip_urls and has_speak
         preferred_tier: VideoTier = "loop_pack" if has_core_clips else "static"
         appearance_kind: Literal["portrait", "video_pack"] = "video_pack" if clip_urls else "portrait"
 
@@ -357,7 +390,14 @@ class TutorCatalog:
                 aspect_ratio=parsed.aspect_ratio,
                 preferred_tier=preferred_tier,
                 anchor_image=anchor_url,
-                loop_pack=LoopPackConfig(crossfade_ms=parsed.crossfade_ms, clips=clip_urls),
+                loop_pack=LoopPackConfig(
+                    crossfade_ms=parsed.crossfade_ms,
+                    canvas=parsed.canvas,
+                    clips=clip_urls,
+                    clip_meta=dict(parsed.clip_meta),
+                    stills=still_urls,
+                    media=parsed.media,
+                ),
             ),
             voice=Voice(**parsed.voice.model_dump()),
             persona=Persona(**parsed.persona.model_dump()),
@@ -523,7 +563,7 @@ class TutorCatalog:
 
     def asset_file(self, identifier: str, relative_path: str) -> tuple[Path, str] | None:
         character = self.get_character(identifier)
-        if character is None or character.pack_metadata.source_kind == "builtin":
+        if character is None:
             return None
         try:
             normalized = CharacterPathMixin._normalize_requested_asset_path(relative_path)
@@ -531,9 +571,13 @@ class TutorCatalog:
             return None
         if Path(normalized).suffix.lower() not in _ALLOWED_ASSET_SUFFIXES:
             return None
-        location = CharacterPathMixin._contained_child(
-            self.repository.settings.characters_root, f"{identifier}/{normalized}"
-        )
+        if character.pack_metadata.source_kind == "builtin":
+            packs_root = self.repository.settings.storage_root / "avatar_packs"
+            location = CharacterPathMixin._contained_child(packs_root, f"{identifier}/{normalized}")
+        else:
+            location = CharacterPathMixin._contained_child(
+                self.repository.settings.characters_root, f"{identifier}/{normalized}"
+            )
         existing = _existing_io_file(location)
         if existing is None:
             return None

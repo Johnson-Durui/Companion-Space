@@ -329,7 +329,7 @@ def test_builtin_six_teachers_auto_discover_full_loop_packs(client, owner_token)
         assert teacher["appearance"]["kind"] == "video_pack"
         assert teacher["video_avatar"]["preferred_tier"] == "loop_pack"
         clips = teacher["video_avatar"]["loop_pack"]["clips"]
-        assert len(clips) == 8
+        assert len(clips) >= 8
     sample_url = by_id["tutor-chutang"]["video_avatar"]["loop_pack"]["clips"]["idle_breathe"]
     resp = client.get(sample_url)
     assert resp.status_code == 200
@@ -400,3 +400,165 @@ def test_builtin_themes_default_merge_and_preserve_user_edits(client, owner_toke
     )
     assert updated2.status_code == 200
     assert updated2.json()["theme"] == "neutral"
+
+
+def test_extended_catalog_manifest_import_stills_and_rejects_unknown_slots(client, owner_token):
+    auth = {"Authorization": f"Bearer {owner_token}"}
+    catalog = json.loads((APP_ROOT / "libs" / "schemas" / "tutor_media_catalog.json").read_text(encoding="utf-8"))
+    all_clips = [entry["id"] for entry in catalog["clips"]]
+    all_stills = list(catalog["stills"])
+    assert len(all_clips) >= 27
+    assert len(all_stills) == 7
+
+    # Archive with all catalog clips (>32 files), all 7 stills, canvas, clip_meta, and media metadata.
+    entries: dict[str, bytes] = {"anchor.png": _make_png_bytes()}
+    clips_map: dict[str, str] = {}
+    for slot in all_clips:
+        rel = f"clips/{slot}.webm"
+        clips_map[slot] = rel
+        entries[rel] = _MINIMAL_WEBM
+    stills_map: dict[str, str] = {}
+    for still in all_stills:
+        rel = f"stills/{still}.png"
+        stills_map[still] = rel
+        entries[rel] = _make_png_bytes()
+
+    manifest = {
+        "schema_version": 1,
+        "name": "Full Catalog Tutor",
+        "aspect_ratio": "9:16",
+        "crossfade_ms": 180,
+        "canvas": {"width": 576, "height": 1024, "fps": 24},
+        "anchor": "anchor.png",
+        "clips": clips_map,
+        "clip_meta": {"greet_wave": {"settle_ms": 3200}, "react_praise": {"settle_ms": 2100}},
+        "stills": stills_map,
+        "media": {"generator": "MiniMax H3 + OpenAI Images 2.6", "ai_generated": True},
+        "license": {"author": "Tester", "terms": "Local personal use", "allow_redistribution": False},
+    }
+    entries["manifest.json"] = json.dumps(manifest).encode("utf-8")
+    archive = _make_tutorpack(entries)
+
+    imported = client.post(
+        "/api/v2/characters/import",
+        headers={**auth, "X-Filename": "full-catalog.tutorpack"},
+        content=archive,
+    )
+    assert imported.status_code == 201, imported.json()
+    char = imported.json()
+    lp = char["video_avatar"]["loop_pack"]
+    assert set(lp["clips"].keys()) == set(all_clips)
+    assert set(lp["stills"].keys()) == set(all_stills)
+    assert lp["canvas"] == {"width": 576, "height": 1024, "fps": 24}
+    assert lp["clip_meta"]["greet_wave"]["settle_ms"] == 3200
+    assert lp["media"]["ai_generated"] is True
+
+    still_res = client.get(lp["stills"]["cheerful"], headers=auth)
+    assert still_res.status_code == 200
+    assert still_res.headers["content-type"] == "image/webp"
+
+    # Unknown clip slot outside catalog is rejected (I17).
+    bad_clip_manifest = {
+        "schema_version": 1,
+        "name": "Bad Clip",
+        "anchor": "anchor.png",
+        "clips": {"not_in_catalog": "clips/not_in_catalog.webm"},
+    }
+    bad_clip_archive = _make_tutorpack({
+        "manifest.json": json.dumps(bad_clip_manifest).encode("utf-8"),
+        "anchor.png": _make_png_bytes(),
+        "clips/not_in_catalog.webm": _MINIMAL_WEBM,
+    })
+    assert client.post(
+        "/api/v2/characters/import",
+        headers={**auth, "X-Filename": "bad-clip.tutorpack"},
+        content=bad_clip_archive,
+    ).status_code == 400
+
+    # Unknown still slot outside catalog is rejected.
+    bad_still_manifest = {
+        "schema_version": 1,
+        "name": "Bad Still",
+        "anchor": "anchor.png",
+        "stills": {"angry_rage": "stills/angry_rage.png"},
+    }
+    bad_still_archive = _make_tutorpack({
+        "manifest.json": json.dumps(bad_still_manifest).encode("utf-8"),
+        "anchor.png": _make_png_bytes(),
+        "stills/angry_rage.png": _make_png_bytes(),
+    })
+    assert client.post(
+        "/api/v2/characters/import",
+        headers={**auth, "X-Filename": "bad-still.tutorpack"},
+        content=bad_still_archive,
+    ).status_code == 400
+
+
+def test_builtin_pack_discovery_from_data_dir(client, owner_token):
+    container = get_container()
+    auth = {"Authorization": f"Bearer {owner_token}"}
+
+    # Verify data-dir built-in pack discovery (split-pack support §7.3).
+    override_dir = container.settings.storage_root / "avatar_packs" / "tutor-chutang"
+    (override_dir / "clips").mkdir(parents=True, exist_ok=True)
+    (override_dir / "stills").mkdir(parents=True, exist_ok=True)
+    (override_dir / "clips" / "idle_breathe.webm").write_bytes(_MINIMAL_WEBM)
+    (override_dir / "clips" / "speak_calm.webm").write_bytes(_MINIMAL_WEBM)
+    (override_dir / "clips" / "greet_wave.webm").write_bytes(_MINIMAL_WEBM)
+    (override_dir / "stills" / "cheerful.webp").write_bytes(_make_png_bytes())
+    (override_dir / "manifest.json").write_text(
+        json.dumps({
+            "schema_version": 1,
+            "name": "初棠",
+            "anchor": "anchor.webp",
+            "clips": {
+                "idle_breathe": "clips/idle_breathe.webm",
+                "speak_calm": "clips/speak_calm.webm",
+                "greet_wave": "clips/greet_wave.webm",
+            },
+            "clip_meta": {"greet_wave": {"settle_ms": 2400}},
+            "stills": {"cheerful": "stills/cheerful.webp"},
+        }),
+        encoding="utf-8",
+    )
+
+    roster = client.get("/api/v2/characters", headers=auth).json()
+    chutang = next(c for c in roster if c["id"] == "tutor-chutang")
+    lp = chutang["video_avatar"]["loop_pack"]
+    assert "greet_wave" in lp["clips"]
+    assert lp["clips"]["greet_wave"].startswith("/api/v2/characters/tutor-chutang/assets/")
+    assert lp["clip_meta"]["greet_wave"]["settle_ms"] == 2400
+    assert "cheerful" in lp["stills"]
+    asset_resp = client.get(lp["clips"]["greet_wave"], headers=auth)
+    assert asset_resp.status_code == 200
+    assert asset_resp.content == _MINIMAL_WEBM
+
+
+def test_builtin_packs_i22a_invariants():
+    catalog = json.loads((APP_ROOT / "libs" / "schemas" / "tutor_media_catalog.json").read_text(encoding="utf-8"))
+    valid_clips = {entry["id"] for entry in catalog["clips"]}
+    valid_stills = set(catalog["stills"])
+    max_clip_bytes = catalog["limits"]["builtin_max_clip_bytes"]
+    max_total_bytes = catalog["limits"]["builtin_max_pack_clips_bytes"]
+
+    packs_root = APP_ROOT / "assets" / "avatars" / "packs"
+    pack_dirs = sorted(packs_root.glob("tutor-*"))
+    assert len(pack_dirs) == 6
+    for pack_dir in pack_dirs:
+        manifest = json.loads((pack_dir / "manifest.json").read_text(encoding="utf-8-sig"))
+        anchor = pack_dir / manifest.get("anchor", "anchor.webp")
+        assert anchor.is_file(), f"Missing anchor in {pack_dir.name}"
+        total_clip_bytes = 0
+        for slot, rel in (manifest.get("clips") or {}).items():
+            assert slot in valid_clips, f"Unknown clip slot {slot} in {pack_dir.name}"
+            clip_path = pack_dir / rel
+            assert clip_path.is_file(), f"Missing clip {rel} in {pack_dir.name}"
+            size = clip_path.stat().st_size
+            assert size <= max_clip_bytes, f"{pack_dir.name}/{rel} exceeds {max_clip_bytes} bytes ({size})"
+            total_clip_bytes += size
+        assert total_clip_bytes <= max_total_bytes, f"{pack_dir.name} total clips {total_clip_bytes} > {max_total_bytes}"
+        for still_key, rel in (manifest.get("stills") or {}).items():
+            assert still_key in valid_stills, f"Unknown still key {still_key} in {pack_dir.name}"
+            assert (pack_dir / rel).is_file(), f"Missing still {rel} in {pack_dir.name}"
+
+

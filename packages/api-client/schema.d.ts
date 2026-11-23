@@ -1517,6 +1517,13 @@ export interface components {
             video_avatar: components["schemas"]["VideoAvatarConfig"];
             voice: components["schemas"]["Voice"];
         };
+        /** ClipMeta */
+        ClipMeta: {
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /** Settle Ms */
+            settle_ms?: number | null;
+        };
         /** CloudLiveAvatarConfig */
         CloudLiveAvatarConfig: {
             /** Action Prompts */
@@ -2411,6 +2418,11 @@ export interface components {
         };
         /** LoopPackConfig */
         LoopPackConfig: {
+            canvas?: components["schemas"]["PackCanvas"] | null;
+            /** Clip Meta */
+            clip_meta?: {
+                [key: string]: components["schemas"]["ClipMeta"];
+            };
             /** Clips */
             clips?: {
                 [key: string]: string;
@@ -2420,6 +2432,11 @@ export interface components {
              * @default 180
              */
             crossfade_ms: number;
+            media?: components["schemas"]["PackMediaInfo"] | null;
+            /** Stills */
+            stills?: {
+                [key: string]: string;
+            };
         };
         /** MasteryChange */
         MasteryChange: {
@@ -2504,6 +2521,32 @@ export interface components {
             seg_idx: number;
             /** Text */
             text: string;
+        };
+        /** PackCanvas */
+        PackCanvas: {
+            /** Fps */
+            fps: number;
+            /** Height */
+            height: number;
+            /** Width */
+            width: number;
+        };
+        /** PackMediaInfo */
+        PackMediaInfo: {
+            /**
+             * Ai Generated
+             * @default false
+             */
+            ai_generated: boolean;
+            /**
+             * Generator
+             * @default
+             */
+            generator: string;
+            /** Image Generator */
+            image_generator?: string | null;
+            /** Video Generator */
+            video_generator?: string | null;
         };
         /** PackMetadata */
         PackMetadata: {

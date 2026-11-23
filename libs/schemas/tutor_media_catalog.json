@@ -1,0 +1,323 @@
+{
+  "version": 1,
+  "legacy_slots": [
+    "idle_breathe",
+    "listen_nod",
+    "think_chin",
+    "speak_explain_a",
+    "speak_explain_b",
+    "board_point",
+    "react_praise",
+    "react_comfort"
+  ],
+  "prefetch_tier1_groups": [
+    "idle",
+    "listen",
+    "wait",
+    "speak",
+    "think"
+  ],
+  "limits": {
+    "max_archive_files": 96,
+    "max_clip_bytes": 15728640,
+    "builtin_max_clip_bytes": 1200000,
+    "builtin_max_pack_clips_bytes": 14000000
+  },
+  "clips": [
+    {
+      "id": "idle_breathe",
+      "group": "idle",
+      "kind": "loop",
+      "fallback": ["listen_nod", "speak_explain_a"],
+      "batch": "P0"
+    },
+    {
+      "id": "idle_glance",
+      "group": "idle",
+      "kind": "loop_insert",
+      "fallback": [],
+      "missing_behavior": "skip",
+      "batch": "P0"
+    },
+    {
+      "id": "idle_fidget",
+      "group": "idle",
+      "kind": "loop_insert",
+      "fallback": [],
+      "missing_behavior": "skip",
+      "batch": "P1"
+    },
+    {
+      "id": "listen_nod",
+      "group": "listen",
+      "kind": "loop",
+      "fallback": ["idle_breathe"],
+      "batch": "P0"
+    },
+    {
+      "id": "listen_tilt",
+      "group": "listen",
+      "kind": "loop",
+      "fallback": ["listen_nod", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "wait_gentle",
+      "group": "wait",
+      "kind": "loop",
+      "fallback": ["listen_nod", "idle_breathe"],
+      "batch": "P0"
+    },
+    {
+      "id": "think_gaze",
+      "group": "think",
+      "kind": "loop",
+      "fallback": ["think_chin", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "think_chin",
+      "group": "think",
+      "kind": "loop",
+      "fallback": ["think_gaze", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "prepare_notes",
+      "group": "prepare",
+      "kind": "loop",
+      "fallback": ["think_gaze", "think_chin", "idle_breathe"],
+      "batch": "P0"
+    },
+    {
+      "id": "read_answer",
+      "group": "review",
+      "kind": "loop",
+      "fallback": ["listen_nod", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "speak_calm",
+      "group": "speak",
+      "kind": "loop",
+      "fallback": ["speak_explain_a", "speak_explain_b", "idle_breathe"],
+      "batch": "P0"
+    },
+    {
+      "id": "speak_explain_a",
+      "group": "speak",
+      "kind": "loop",
+      "fallback": ["speak_calm", "speak_explain_b", "idle_breathe"],
+      "batch": "P0"
+    },
+    {
+      "id": "speak_explain_b",
+      "group": "speak",
+      "kind": "loop",
+      "fallback": ["speak_explain_a", "speak_calm", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "speak_board",
+      "group": "speak",
+      "kind": "loop",
+      "fallback": ["speak_explain_a", "speak_calm", "idle_breathe"],
+      "missing_behavior": "board_point_then_speak",
+      "batch": "P1"
+    },
+    {
+      "id": "board_point",
+      "group": "board",
+      "kind": "one_shot",
+      "fallback": ["speak_explain_a", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "board_glance",
+      "group": "board",
+      "kind": "one_shot",
+      "fallback": [],
+      "missing_behavior": "keep",
+      "batch": "P1"
+    },
+    {
+      "id": "greet_wave",
+      "group": "greet",
+      "kind": "one_shot",
+      "fallback": [],
+      "missing_behavior": "keep",
+      "batch": "P0"
+    },
+    {
+      "id": "farewell_wave",
+      "group": "farewell",
+      "kind": "one_shot",
+      "fallback": [],
+      "missing_behavior": "keep",
+      "batch": "P0"
+    },
+    {
+      "id": "react_praise",
+      "group": "praise",
+      "kind": "one_shot",
+      "fallback": ["react_clap", "speak_explain_a", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "react_clap",
+      "group": "praise",
+      "kind": "one_shot",
+      "fallback": ["react_praise", "speak_explain_a", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "react_surprise",
+      "group": "praise",
+      "kind": "one_shot",
+      "fallback": ["react_praise", "react_clap", "speak_explain_a", "idle_breathe"],
+      "batch": "P2"
+    },
+    {
+      "id": "react_comfort",
+      "group": "comfort",
+      "kind": "one_shot",
+      "fallback": ["listen_nod", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "react_encourage",
+      "group": "comfort",
+      "kind": "one_shot",
+      "fallback": ["react_comfort", "listen_nod", "idle_breathe"],
+      "batch": "P1"
+    },
+    {
+      "id": "react_celebrate",
+      "group": "celebrate",
+      "kind": "one_shot",
+      "fallback": ["react_clap", "react_praise"],
+      "missing_behavior": "keep",
+      "batch": "P1"
+    },
+    {
+      "id": "hint_finger",
+      "group": "hint",
+      "kind": "one_shot",
+      "fallback": [],
+      "missing_behavior": "enter_think_group",
+      "batch": "P1"
+    },
+    {
+      "id": "nod_yes",
+      "group": "ack",
+      "kind": "one_shot",
+      "fallback": [],
+      "missing_behavior": "keep",
+      "batch": "P1"
+    },
+    {
+      "id": "intro_voice",
+      "group": "intro",
+      "kind": "one_shot",
+      "allow_audio": true,
+      "fallback": [],
+      "missing_behavior": "keep",
+      "batch": "P2"
+    },
+    {
+      "id": "think_hold_in",
+      "group": "think",
+      "kind": "one_shot",
+      "fallback": ["think_gaze", "think_chin", "idle_breathe"],
+      "reserved": true,
+      "batch": "P2"
+    },
+    {
+      "id": "think_hold_hold",
+      "group": "think",
+      "kind": "loop",
+      "fallback": ["think_gaze", "think_chin", "idle_breathe"],
+      "reserved": true,
+      "batch": "P2"
+    },
+    {
+      "id": "think_hold_out",
+      "group": "think",
+      "kind": "one_shot",
+      "fallback": [],
+      "missing_behavior": "keep",
+      "reserved": true,
+      "batch": "P2"
+    },
+    {
+      "id": "prepare_hold_in",
+      "group": "prepare",
+      "kind": "one_shot",
+      "fallback": ["prepare_notes", "think_gaze", "think_chin", "idle_breathe"],
+      "reserved": true,
+      "batch": "P2"
+    },
+    {
+      "id": "prepare_hold_hold",
+      "group": "prepare",
+      "kind": "loop",
+      "fallback": ["prepare_notes", "think_gaze", "think_chin", "idle_breathe"],
+      "reserved": true,
+      "batch": "P2"
+    },
+    {
+      "id": "prepare_hold_out",
+      "group": "prepare",
+      "kind": "one_shot",
+      "fallback": [],
+      "missing_behavior": "keep",
+      "reserved": true,
+      "batch": "P2"
+    },
+    {
+      "id": "board_hold_in",
+      "group": "board",
+      "kind": "one_shot",
+      "fallback": ["board_point"],
+      "missing_behavior": "keep",
+      "reserved": true,
+      "batch": "P2"
+    },
+    {
+      "id": "board_hold_hold",
+      "group": "board",
+      "kind": "loop",
+      "fallback": ["speak_board", "speak_explain_a", "idle_breathe"],
+      "reserved": true,
+      "batch": "P2"
+    },
+    {
+      "id": "board_hold_out",
+      "group": "board",
+      "kind": "one_shot",
+      "fallback": [],
+      "missing_behavior": "keep",
+      "reserved": true,
+      "batch": "P2"
+    }
+  ],
+  "stills": [
+    "cheerful",
+    "caring",
+    "curious",
+    "focused",
+    "playful",
+    "thinking",
+    "praise"
+  ],
+  "still_locations": {
+    "today_greeting": ["cheerful"],
+    "empty_state": ["curious"],
+    "error_state": ["caring"],
+    "unlock": ["focused"],
+    "not_found": ["curious"],
+    "recap": ["praise", "cheerful"],
+    "lobby_preparing": ["focused"],
+    "lobby_ready": ["cheerful"]
+  }
+}
