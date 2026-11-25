@@ -161,8 +161,10 @@ const SLOTS = [
     action: (t) => `${t.celebrate} ${HANDS.two}` },
   { id: "hint_finger", zh: "给个提示", kind: "oneshot", frames: 124, batch: "P1", mouth: "smile",
     when: "学生点\"给点提示\"。",
-    check: "食指向上；歪头；会意的笑；手指正常。",
-    action: (t) => `${t.Subj} raises one hand into the frame ${t.handSide}, in front of ${t.poss} shoulder at collar height, with the index finger pointing upward in a gesture that offers a hint, and tilts ${t.poss} head a few degrees with a knowing smile; ${t.subj} holds the gesture for a moment, then lowers the hand out of the bottom of the frame. ${HANDS.one}` },
+    check: "食指轻点太阳穴/眉梢外侧（灵光一闪），轻微歪头、眼神看着你、会意闭嘴微笑；手指正常。",
+    action: (t) => (t.handSide.endsWith("right")
+      ? `She raises her own left hand gently into the frame on the screen-right arched-window side, well inside the right border of the picture, and touches her index fingertip lightly beside her temple below her horn, giving one gentle tap in a knowing hint gesture as she tilts her head a few degrees with a warm closed-lip smile while keeping her eyes warmly on the viewer; her right arm on the purple-hair-ornament side stays relaxed at her side, and both pearl-white horns and the collar teardrop pendant remain clearly visible; she holds the knowing smile for a moment, then lowers her left hand smoothly out of the bottom of the frame. ${HANDS.one}`
+      : `${t.Subj} raises one hand into the frame at the viewer's left and touches the index fingertip lightly beside ${t.poss} temple, giving one gentle tap in a knowing hint gesture as ${t.subj} tilts ${t.poss} head a few degrees with a warm closed-lip smile while keeping ${t.poss} eyes warmly on the viewer; ${t.subj} holds the knowing smile for a moment, then lowers the hand smoothly out of the bottom of the frame. ${HANDS.one}`) },
   { id: "nod_yes", zh: "嗯，收到", kind: "oneshot", frames: 124, batch: "P1", mouth: "closed",
     when: "学生发来一句话、或做了确认的时候。",
     check: "一次干脆的点头；点头前后是安静的呼吸，没有别的动作。",
@@ -190,13 +192,38 @@ const MOUTH = {
 
 const lineOf = (t, s) => (typeof s.line === "function" ? s.line(t) : s.line);
 
+// 针对单角色局部补拍的精准覆写（确保仅改动对应槽位哈希，零影响其余已过审槽位）。
+const SLOT_OVERRIDES = {
+  "lanyue:speak_explain_b": {
+    action: (t, s) =>
+      `She speaks to the viewer while sitting front-facing. Her own left forearm, on the screen-right arched-window side, rises gently into the right half of the frame at lower-chest height, near two-thirds of the picture width with an open strip of space between the hand and the right frame edge. Only her left hand appears; her right arm on the purple-hair-ornament side stays relaxed at her side. With her left hand held low at chest height and the five relaxed fingers angled gently downward and inward toward the center, she makes three small, measured downward wrist beats in a row to mark three steps side by side. The collar teardrop pendant stays clearly visible above and to the left of her hand. ${say(t, s.line)} As the last word ends, her lips close softly and her left hand lowers smoothly out of the bottom of the frame. ${HANDS.one}`,
+  },
+  "lanyue:react_comfort": {
+    action: () =>
+      `Her expression softens into a caring, reassuring look; she leans forward very slightly and nods slowly once. Her own left arm, on the screen-right arched-window side, bends gently inward so her left wrist rises into the right half of the frame at lower-chest height, near two-thirds of the picture width with an open strip of space separating the entire hand from the right frame edge. Only her left hand appears, opening softly palm-up with five gently curved fingers angled slightly inward toward the center in a calm, offering gesture. Her elbow stays close to her body, her right arm on the purple-hair-ornament side stays relaxed at her side, and the collar teardrop pendant stays clearly visible above and to the left of her hand. She holds the comforting gesture for a moment, then smoothly lowers her left hand out of the bottom of the frame. ${HANDS.one}`,
+  },
+  "lanyue:react_surprise": {
+    action: (t) =>
+      `Her lilac eyes brighten and widen softly and her eyebrows lift in quiet, delighted wonder while her lips stay gently and firmly closed together in a serene closed-lip smile; her head draws back by a tiny amount, then her eyes curve warmly in the same closed-lip smile and she gives one small nod. ${arms(t)}`,
+    music: "Soft, quiet solo harp melody.",
+  },
+  "lanyin:think_gaze": {
+    action: (t) =>
+      `She glances thoughtfully up toward the upper left of the frame with a calm, composed expression: her eyebrows stay smooth, relaxed and level and her head tilts a few degrees; her lips stay gently and firmly closed in a serene resting line for the entire clip; she blinks calmly once, then brings her eyes smoothly back to the viewer with a crisp, knowing closed-lip smile as the answer clicks. ${arms(t)}`,
+    music: "Soft, quiet solo electric piano chords.",
+  },
+};
+
 function videoPrompt(t, s) {
+  const override = SLOT_OVERRIDES[`${t.slug}:${s.id}`];
   const align = `How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) aligns with the ${seconds(s.frames)}-second mark of the target video.`;
   const opening = `[Shot 1] ${t.style}, a vertical half-length medium shot of ${t.who}, seated facing the camera in ${t.room}, exactly as established by Picture 1. The camera holds a static shot at eye level for the whole clip, and the room behind ${t.obj} stays perfectly still. ${t.locks}.`;
-  const parts = [opening, s.action(t, s), t.manner, MOUTH[s.mouth](t),
+  const actionText = override?.action ? override.action(t, s) : s.action(t, s);
+  const parts = [opening, actionText, t.manner, MOUTH[s.mouth](t),
     `Well before the end ${t.subj} is still again, and the clip finishes in the exact pose, expression, framing and lighting established by Picture 2.`];
   const sound = SOUND[s.sound ?? "silent"];
-  return `${align}\n\nintegrated_multimodal_description: ${parts.filter(Boolean).join(" ")}\n\noverall_soundscape: ${sound}\n\nnon_diegetic_music: N/A`;
+  const music = override?.music ?? "N/A";
+  return `${align}\n\nintegrated_multimodal_description: ${parts.filter(Boolean).join(" ")}\n\noverall_soundscape: ${sound}\n\nnon_diegetic_music: ${music}`;
 }
 
 // ───────────────────────────── 图片：任务目录 ─────────────────────────────

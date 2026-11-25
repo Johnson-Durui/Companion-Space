@@ -132,6 +132,7 @@ try {
     { name: "向量检索", re: /向量检索/ },
     { name: "Mock exam", re: /\bMock\s*exam\b/i },
     { name: "考点权重约 X%", re: /考点权重约\s*\d+%/ },
+    { name: "Trace Forest / L1/L2/L3", re: /Trace\s*Forest|\bL[123]\b/ },
   ];
   const VOCAB_EXEMPT_SHOTS = new Set([
     "tutor-detail-assets",
@@ -364,14 +365,18 @@ try {
     await shot(page, "course-materials");
   });
 
-  // ---------- C. seeded "today", loop (U5), empty, and stress content scenarios ----------
+  // ---------- C. seeded "today", loop (U5), Phase 1-4, empty, and stress content scenarios ----------
   for (const [name, path] of [
     ["loop-plan-diff", "/courses/browser-loop-course/plan"],
     ["loop-map", "/courses/browser-loop-course/map"],
+    ["loop-solve", "/courses/browser-loop-course/solve"],
+    ["loop-solve-detail", "/courses/browser-loop-course/solve?session=loop-solve-1"],
+    ["loop-notes", "/courses/browser-loop-course/notes"],
     ["loop-progress", "/courses/browser-loop-course/progress"],
     ["loop-review", "/courses/browser-loop-course/review"],
     ["loop-history", "/courses/browser-loop-course/history"],
     ["loop-practice", "/plan-items/browser-loop-practice-item/practice"],
+    ["unprepared-reader", "/courses/browser-unprepared-course/materials/unprepared-material/read"],
     ["today-course", "/courses/browser-today-course"],
     ["empty-course", "/courses/browser-empty-course"],
     ["stress-course-map", "/courses/browser-stress-course/map"],
@@ -604,6 +609,9 @@ try {
     ["m-welcome", "/welcome"],
     ["m-courses", "/courses"],
     ["m-course", courseId ? `/courses/${courseId}` : "/courses/browser-today-course"],
+    ["m-loop-solve", "/courses/browser-loop-course/solve"],
+    ["m-loop-notes", "/courses/browser-loop-course/notes"],
+    ["m-reader", "/courses/browser-unprepared-course/materials/unprepared-material/read"],
     ["m-stress-course", "/courses/browser-stress-course/map"],
     ["m-settings-me", "/settings/me"],
     ["m-settings-ai", "/settings/ai"],

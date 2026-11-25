@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Link } from "react-router";
 import clsx from "clsx";
-import type { InstantAction, TutorEmotion, TutorPose } from "@companion-space/avatar-engine/types";
+import { ACTIVE_CLIP_SLOTS } from "@companion-space/avatar-engine/catalog";
+import type { ClipSlot, InstantAction, TutorEmotion, TutorPose } from "@companion-space/avatar-engine/types";
 import type { TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import { tutorVideoCoordinator, type VideoPlaybackOwner } from "@companion-space/avatar-engine/video-coordinator";
 import type { Character } from "../../app/api";
@@ -79,7 +80,15 @@ export function TutorShowcase({
   const styleDesc =
     copy.styleNotes[character.default_style_id as keyof typeof copy.styleNotes] ??
     styleLabel;
-  const hasLoopPack = Boolean(character.video_avatar?.loop_pack?.clips?.idle_breathe);
+  const clips = (character.video_avatar?.loop_pack?.clips ?? {}) as Partial<Record<ClipSlot, string>>;
+  const clipCount = ACTIVE_CLIP_SLOTS.filter((slot) => Boolean(clips[slot])).length;
+  const totalClipSlots = ACTIVE_CLIP_SLOTS.length;
+  const motionBadgeLabel =
+    clipCount > 0
+      ? t.richUi.tutorMotionReady
+          .replace("{ready}", String(clipCount))
+          .replace("{total}", String(totalClipSlots))
+      : t.richUi.tutorCustomAvatar;
   const traits = (character.persona.traits ?? []).slice(0, 5);
 
   // Choreographed showcase on tutor selection:
@@ -297,9 +306,12 @@ export function TutorShowcase({
             gen={gen}
             videoRef={videoRef}
           />
-          <span className="pointer-events-none absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-scrim px-2.5 py-1 text-[11px] font-medium text-on-accent backdrop-blur-sm">
+          <span
+            data-testid="tutor-motion-badge"
+            className="pointer-events-none absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-scrim px-2.5 py-1 text-[11px] font-medium text-on-accent backdrop-blur-sm"
+          >
             <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent-on-dark" />
-            <span>{hasLoopPack ? t.richUi.tutorMotionReady : t.richUi.tutorCustomAvatar}</span>
+            <span>{motionBadgeLabel}</span>
           </span>
           {isSpeaking ? (
             <span
@@ -380,8 +392,12 @@ export function TutorShowcase({
               </span>
             </div>
             {speech.unavailable ? (
-              <p role="status" className="text-caption text-fg-tertiary">
+              <p role="status" data-testid="tutor-speech-status" className="text-caption text-fg-tertiary">
                 {t.speech.unavailable}
+              </p>
+            ) : speech.browserFallback ? (
+              <p role="status" data-testid="tutor-speech-status" className="text-caption text-fg-tertiary">
+                {t.speech.browserFallback}
               </p>
             ) : null}
           </div>

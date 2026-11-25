@@ -15,7 +15,23 @@
     "react_comfort": "clips/react_comfort.webm",
     "idle_glance": "clips/idle_glance.webm",
     "prepare_notes": "clips/prepare_notes.webm",
-    "wait_gentle": "clips/wait_gentle.webm"
+    "wait_gentle": "clips/wait_gentle.webm",
+    "board_glance": "clips/board_glance.webm",
+    "farewell_wave": "clips/farewell_wave.webm",
+    "greet_wave": "clips/greet_wave.webm",
+    "idle_fidget": "clips/idle_fidget.webm",
+    "intro_voice": "clips/intro_voice.webm",
+    "listen_tilt": "clips/listen_tilt.webm",
+    "nod_yes": "clips/nod_yes.webm",
+    "react_celebrate": "clips/react_celebrate.webm",
+    "react_clap": "clips/react_clap.webm",
+    "react_encourage": "clips/react_encourage.webm",
+    "react_surprise": "clips/react_surprise.webm",
+    "read_answer": "clips/read_answer.webm",
+    "speak_board": "clips/speak_board.webm",
+    "speak_calm": "clips/speak_calm.webm",
+    "hint_finger": "clips/hint_finger.webm",
+    "think_gaze": "clips/think_gaze.webm"
   },
   "persona": {
     "relationship": "敏锐干练的声学与实战提分导师，专注高频考点与精准复盘",
@@ -63,17 +79,96 @@
     "fps": 24
   },
   "clip_meta": {
+    "board_glance": {
+      "duration_ms": 3583,
+      "settle_ms": 3417
+    },
+    "board_point": {
+      "duration_ms": 3417,
+      "settle_ms": 3250
+    },
+    "farewell_wave": {
+      "duration_ms": 3125,
+      "settle_ms": 2958
+    },
+    "greet_wave": {
+      "duration_ms": 2917,
+      "settle_ms": 2750
+    },
+    "hint_finger": {
+      "duration_ms": 3708,
+      "settle_ms": 3542
+    },
     "idle_breathe": {
+      "duration_ms": 6583
+    },
+    "idle_fidget": {
       "duration_ms": 6583
     },
     "idle_glance": {
       "duration_ms": 6583
     },
+    "intro_voice": {
+      "duration_ms": 4083,
+      "settle_ms": 3917
+    },
     "listen_nod": {
       "duration_ms": 5167
     },
+    "listen_tilt": {
+      "duration_ms": 5167
+    },
+    "nod_yes": {
+      "duration_ms": 2208,
+      "settle_ms": 2042
+    },
     "prepare_notes": {
       "duration_ms": 8000
+    },
+    "react_celebrate": {
+      "duration_ms": 3958,
+      "settle_ms": 3792
+    },
+    "react_clap": {
+      "duration_ms": 3208,
+      "settle_ms": 3042
+    },
+    "react_comfort": {
+      "duration_ms": 3125,
+      "settle_ms": 2958
+    },
+    "react_encourage": {
+      "duration_ms": 3167,
+      "settle_ms": 3000
+    },
+    "react_praise": {
+      "duration_ms": 3167,
+      "settle_ms": 3000
+    },
+    "react_surprise": {
+      "duration_ms": 2625,
+      "settle_ms": 2458
+    },
+    "read_answer": {
+      "duration_ms": 5167
+    },
+    "speak_board": {
+      "duration_ms": 5875
+    },
+    "speak_calm": {
+      "duration_ms": 5167
+    },
+    "speak_explain_a": {
+      "duration_ms": 5167
+    },
+    "speak_explain_b": {
+      "duration_ms": 5875
+    },
+    "think_chin": {
+      "duration_ms": 5875
+    },
+    "think_gaze": {
+      "duration_ms": 5167
     },
     "wait_gentle": {
       "duration_ms": 6583

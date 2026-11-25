@@ -12,6 +12,9 @@ const ALL_ROUTES = [
   "/courses/browser-today-course/setup",
   "/courses/browser-today-course/plan",
   "/courses/browser-today-course/map",
+  "/courses/browser-loop-course/solve",
+  "/courses/browser-loop-course/notes",
+  "/courses/browser-unprepared-course/materials/unprepared-material/read",
   "/courses/browser-today-course/materials",
   "/courses/browser-today-course/history",
   "/courses/browser-today-course/review",
@@ -62,7 +65,9 @@ async function readSeenClips(page: Page): Promise<string[]> {
   });
 }
 
-test("I1: every route has exactly one h1, distinct document titles, and resets scroll on navigation", async ({ page }) => {
+test("I1: every route has exactly one h1, distinct document titles, zero page errors, and resets scroll on navigation", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
   const titles = new Map<string, string>();
   for (const route of ALL_ROUTES) {
     await page.goto(route);
@@ -74,6 +79,7 @@ test("I1: every route has exactly one h1, distinct document titles, and resets s
     titles.set(route, title);
   }
   expect(new Set(titles.values()).size).toBe(ALL_ROUTES.length);
+  expect(pageErrors).toEqual([]);
 
   // Verify 404 route renders the dedicated not-found page with a link back to Today (/).
   await page.goto("/this-route-does-not-exist-404");
@@ -94,8 +100,13 @@ test("I1: every route has exactly one h1, distinct document titles, and resets s
   // Verify SPA route switch resets scroll position to top and moves focus to h1.
   await page.goto("/courses/browser-stress-course/map");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, 600));
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await expect(page.getByRole("heading", { name: t.courses.mapHeading })).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(async () => {
+      await page.evaluate(() => window.scrollTo(0, 600));
+      return page.evaluate(() => window.scrollY);
+    }, { timeout: 15_000 })
+    .toBeGreaterThan(0);
   await page.getByRole("navigation", { name: t.app.name }).getByRole("link", { name: t.app.courses }).click();
   await expect(page.getByRole("heading", { level: 1, name: t.courses.heading })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
@@ -144,7 +155,7 @@ test("I9 (U0): wrong answer, dont-know, confused, and hint map to non-praise cli
   await expect(page.getByRole("button", { name: t.classroom.quick.hint })).toBeEnabled({ timeout: 15_000 });
   await startClipObserver(page);
   await page.getByRole("button", { name: t.classroom.quick.hint }).click();
-  await expect.poll(() => readSeenClips(page)).toContain("think_chin");
+  await expect.poll(() => readSeenClips(page)).toContain("hint_finger");
   await page.waitForTimeout(400);
   expect(await readSeenClips(page)).not.toContain("react_praise");
 
@@ -749,6 +760,7 @@ test("U6 classroom depth: marks, line pointer, plot legend & lightbox, transcrip
   await page.getByRole("button", { name: t.classroom.startText }).click();
 
   await expect(page.locator('[data-kind="plot"] svg')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("plot-controls")).toBeVisible();
   await expect(page.getByTestId("plot-legend")).toBeVisible();
 
   // Multi-step lines, 3 mark styles, and line-level pointer on line 2
@@ -972,17 +984,123 @@ test("I23 (UM-1 & UM-2): reduced-motion classroom switches data-still on correct
   await expect(page.getByRole("status").filter({ hasText: t.classroom.verdicts.incorrect })).toBeVisible({ timeout: 15_000 });
   await expect.poll(() => readSeenStills(page)).toContain("caring");
 
-  // 3. Audition tab (/tutors/tutor-xuechuan?tab=assets): AI disclosure + still & clip preview
+  // 3. Audition tab (/tutors/tutor-xuechuan?tab=assets): still & clip preview (license card intentionally omitted)
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/tutors/tutor-xuechuan?tab=assets");
   const auditionCard = page.getByTestId("tutor-audition-card");
   await expect(auditionCard).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId("tutor-license-card")).toContainText(t.characters.aiGeneratedBadge);
-  await expect(page.getByTestId("tutor-license-card")).toContainText("MiniMax H3");
+  await expect(page.getByTestId("tutor-license-card")).toHaveCount(0);
 
   await page.getByTestId("audition-clip-greet_wave").click();
   await expect(auditionCard.locator("[data-clip]")).toHaveAttribute("data-clip", "greet_wave");
 
   await page.getByTestId("audition-still-praise").click();
   await expect(auditionCard.locator("[data-still]")).toHaveAttribute("data-still", "praise");
+});
+
+const STUDENT_FORBIDDEN_VOCAB: ReadonlyArray<{ name: string; re: RegExp }> = [
+  { name: "课程工作台", re: /课程工作台/ },
+  { name: "估算并开始分析", re: /估算并开始分析/ },
+  { name: "token", re: /\btoken\b/i },
+  { name: "学习设置", re: /学习设置/ },
+  { name: "起点诊断", re: /起点诊断/ },
+  { name: "连接模型/模型连接", re: /连接模型|模型连接/ },
+  { name: "模型角色", re: /模型角色/ },
+  { name: "API Key", re: /\bAPI\s*Key\b/i },
+  { name: "试聊", re: /试聊/ },
+  { name: "二次元视频包/立绘/默认视频档位", re: /二次元视频包|二次元立绘|默认视频档位/ },
+  { name: "切免费档/已自动切回基础档", re: /切免费档|已自动切回基础档/ },
+  { name: "Sidecar/本地GPU实时驱动/Tier 3/WebRTC", re: /\bSidecar\b|本地\s*GPU\s*实时驱动|Tier\s*3|\bWebRTC\b/i },
+  { name: "Render failed", re: /Render\s*failed/i },
+  { name: "向量检索", re: /向量检索/ },
+  { name: "Mock exam", re: /\bMock\s*exam\b/i },
+  { name: "考点权重约 X%", re: /考点权重约\s*\d+%/ },
+  { name: "Trace Forest / L1/L2/L3", re: /Trace\s*Forest|\bL[123]\b/ },
+];
+
+async function assertCleanStudentVocabulary(page: Page, label: string) {
+  const visibleText = await page.evaluate(() => {
+    const clone = document.body.cloneNode(true) as HTMLElement;
+    clone
+      .querySelectorAll("[data-advanced], details, [data-key-guide], script, style, noscript")
+      .forEach((node) => node.remove());
+    return clone.textContent ?? "";
+  });
+  const violations = STUDENT_FORBIDDEN_VOCAB.filter((rule) => rule.re.test(visibleText)).map((rule) => rule.name);
+  expect(violations, `${label} should contain zero forbidden §6.2 student vocabulary`).toEqual([]);
+}
+
+test("Phase 1-4: solve, notes (with parameterized plot), reader, and memory cards pass console, h1, overflow, and §6.2 vocab invariants", async ({ page }) => {
+  const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (msg) => {
+    if (msg.type() === "error") consoleErrors.push(msg.text());
+  });
+
+  // 1. Phase 2: /solve list + seeded verified solve session detail
+  await page.goto("/courses/browser-loop-course/solve");
+  await expect(page.getByTestId("solve-page")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(page.getByTestId("solve-history-loop-solve-1")).toBeVisible();
+  await assertCleanStudentVocabulary(page, "/courses/browser-loop-course/solve");
+
+  await page.getByTestId("solve-history-loop-solve-1").click();
+  await expect(page.getByTestId("solve-verify-badge")).toContainText(t.solve.verifiedBadge);
+  await expect(page.getByTestId("solve-steps-section")).toBeVisible();
+  const solveHints = page.getByTestId("solve-hints");
+  await expect(solveHints).toBeVisible();
+  await expect(solveHints.locator(".katex-html")).toHaveCount(2);
+  expect(await solveHints.innerText()).not.toContain("\\sqrt");
+  // Verify right warm-paper card children never overflow past the card border
+  const paperCard = page.locator('[data-testid="solve-page"] [data-surface="paper"]').first();
+  const cardBounds = await paperCard.boundingBox();
+  const hintsBounds = await solveHints.boundingBox();
+  const stepsBounds = await page.getByTestId("solve-steps-section").boundingBox();
+  expect(cardBounds).not.toBeNull();
+  expect(hintsBounds).not.toBeNull();
+  expect(stepsBounds).not.toBeNull();
+  expect(hintsBounds!.x + hintsBounds!.width).toBeLessThanOrEqual(cardBounds!.x + cardBounds!.width + 1);
+  expect(stepsBounds!.x + stepsBounds!.width).toBeLessThanOrEqual(cardBounds!.x + cardBounds!.width + 1);
+  await assertCleanStudentVocabulary(page, "/courses/browser-loop-course/solve?session=loop-solve-1");
+
+  // 2. Phase 1 & 4: /notes block notebook + interactive parameterized plot keyframes & reset
+  await page.goto("/courses/browser-loop-course/notes");
+  await expect(page.getByTestId("notes-page")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(page.getByTestId("note-block-loop-nb-1")).toBeVisible();
+  await expect(page.getByTestId("note-block-loop-nb-2")).toBeVisible();
+  const plotBlock = page.getByTestId("note-block-loop-nb-3");
+  await expect(plotBlock).toBeVisible();
+  await expect(plotBlock.locator("svg").first()).toBeVisible({ timeout: 15_000 });
+  await expect(plotBlock.getByTestId("plot-controls")).toBeVisible();
+  await expect(plotBlock.getByTestId("plot-param-value-a")).toContainText("a = 1");
+  await plotBlock.getByTestId("plot-keyframe-1").click();
+  await expect(plotBlock.getByTestId("plot-param-value-a")).toContainText("a = 0.5");
+  await plotBlock.getByTestId("plot-reset").click();
+  await expect(plotBlock.getByTestId("plot-param-value-a")).toContainText("a = 1");
+  await assertCleanStudentVocabulary(page, "/courses/browser-loop-course/notes");
+
+  // 3. Phase 4: /materials/:materialId/read with sections, KP strip, markdown content, and quick quiz
+  await page.goto("/courses/browser-unprepared-course/materials/unprepared-material/read");
+  await expect(page.getByTestId("reader-page")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(page.getByTestId("reader-page-content")).toContainText("函数极限");
+  await expect(page.getByTestId("reader-kp-unprepared-kp")).toBeVisible();
+  await expect(page.getByTestId("reader-quick-quiz")).toBeVisible();
+  await assertCleanStudentVocabulary(page, "/courses/browser-unprepared-course/materials/unprepared-material/read");
+
+  // 4. Phase 3: CourseMemoryCard on /progress & GlobalMemoryArchiveCard on /settings/me
+  await page.goto("/courses/browser-loop-course/progress");
+  await expect(page.getByTestId("course-memory-card")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("memory-fact-loop-mem-1")).toBeVisible();
+  await assertCleanStudentVocabulary(page, "/courses/browser-loop-course/progress");
+
+  await page.goto("/settings/me");
+  await expect(page.getByTestId("global-memory-archive-card")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("memory-fact-loop-mem-1")).toBeVisible();
+  await assertCleanStudentVocabulary(page, "/settings/me");
+
+  expect(pageErrors, "Phase 1-4 routes should produce zero pageerrors").toEqual([]);
+  expect(consoleErrors, "Phase 1-4 routes should produce zero console.error logs").toEqual([]);
 });

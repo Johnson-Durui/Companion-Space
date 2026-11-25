@@ -226,6 +226,8 @@ def validate_directory(pack_dir: Path, *, check_media: bool = True, strict_limit
                 if strict_limits:
                     if probe["codec"] != "vp9":
                         media_failures.append(f"{slot}: codec={probe['codec']} (expected vp9)")
+                    if "0" not in probe["profile"]:
+                        media_failures.append(f"{slot}: profile={probe['profile']} (expected Profile 0)")
                     if probe["pix_fmt"] != "yuv420p":
                         media_failures.append(f"{slot}: pix_fmt={probe['pix_fmt']} (expected yuv420p)")
                     if (probe["width"], probe["height"]) not in {(576, 1024), (480, 864)}:
@@ -238,14 +240,25 @@ def validate_directory(pack_dir: Path, *, check_media: bool = True, strict_limit
                     allow_audio = bool(entry.get("allow_audio"))
                     if not allow_audio and probe["audio_streams"]:
                         media_failures.append(f"{slot}: unexpected audio stream")
-                    if probe["keyframes"] > 1:
+                    elif allow_audio and probe["audio_streams"]:
+                        if len(probe["audio_streams"]) != 1:
+                            media_failures.append(
+                                f"{slot}: expected at most 1 audio stream, got {len(probe['audio_streams'])}"
+                            )
+                        else:
+                            astream = probe["audio_streams"][0]
+                            if astream.get("codec_name") != "opus" or int(astream.get("channels") or 0) != 1:
+                                media_failures.append(
+                                    f"{slot}: audio must be opus mono, got codec={astream.get('codec_name')} channels={astream.get('channels')}"
+                                )
+                    if probe["keyframes"] != 1:
                         media_failures.append(f"{slot}: keyframes={probe['keyframes']} (expected 1)")
 
                 if ffmpeg_bin and probe["width"] > 0 and probe["height"] > 0:
                     dim = (probe["width"], probe["height"])
                     if dim not in hub_cache:
                         hub_cache[dim] = media_ops.load_hub_frame(anchor_file, dim[0], dim[1])
-                    frames = media_ops.decode_video_frames(
+                    frames = media_ops.decode_edge_frames(
                         clip_file, width=dim[0], height=dim[1], fps=24, ffmpeg=ffmpeg_bin
                     )
                     fm = media_ops.measure_frame_metrics(frames, hub_cache[dim])
@@ -449,6 +462,35 @@ def main(argv: list[str] | None = None) -> int:
     p_ingest.add_argument("--tutor", default="all", help="Tutor slug(s) comma-separated, or 'all'")
     p_ingest.add_argument("--packs-root", type=Path, default=None, help="Override target packs directory")
     p_ingest.add_argument("--allow-marginal", action="store_true", help="Record warnings instead of rejecting marginal clips")
+    p_ingest.add_argument(
+        "--pack-budget",
+        type=int,
+        default=media_ops.MAX_PACK_CLIPS_BYTES_BUILTIN,
+        help="Max total clip bytes per tutor pack (0 disables pack-level adaptive CRF fitting)",
+    )
+    p_ingest.add_argument(
+        "--start-crf",
+        type=int,
+        default=media_ops.DEFAULT_START_CRF,
+        help="Initial VP9 CRF for pass 1 (default 32)",
+    )
+    p_ingest.add_argument(
+        "--max-crf",
+        type=int,
+        default=media_ops.MAX_ENCODE_CRF,
+        help="Upper VP9 CRF ceiling during pack budget fitting (default 54)",
+    )
+    p_ingest.add_argument(
+        "--workers",
+        type=int,
+        default=0,
+        help="Parallel clip encoding workers (0 = auto)",
+    )
+    p_ingest.add_argument(
+        "--sync-licenses",
+        action="store_true",
+        help="Also sync built-in manifests and assets/avatars/LICENSES.md (ignored if --packs-root is set)",
+    )
 
     p_stills = sub.add_parser("stills", help="Register, composite background, and export selected expression stills")
     p_stills.add_argument("--pack", required=True, type=Path, help="Media expansion pack folder")
@@ -494,7 +536,13 @@ def main(argv: list[str] | None = None) -> int:
                 _resolve_tutors_arg(args.tutor),
                 packs_root=args.packs_root,
                 allow_marginal=args.allow_marginal,
+                pack_budget=args.pack_budget,
+                start_crf=args.start_crf,
+                max_crf=args.max_crf,
+                workers=args.workers,
             )
+            if args.sync_licenses and args.packs_root is None:
+                res["licenses"] = media_ops.sync_builtin_licenses()
             print(json.dumps({"ok": True, **res}, ensure_ascii=False, indent=2))
             return 0
         if args.command == "stills":

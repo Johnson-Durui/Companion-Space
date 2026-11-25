@@ -18,7 +18,20 @@
     "idle_glance": "clips/idle_glance.webm",
     "prepare_notes": "clips/prepare_notes.webm",
     "speak_calm": "clips/speak_calm.webm",
-    "wait_gentle": "clips/wait_gentle.webm"
+    "wait_gentle": "clips/wait_gentle.webm",
+    "board_glance": "clips/board_glance.webm",
+    "idle_fidget": "clips/idle_fidget.webm",
+    "intro_voice": "clips/intro_voice.webm",
+    "listen_tilt": "clips/listen_tilt.webm",
+    "nod_yes": "clips/nod_yes.webm",
+    "react_celebrate": "clips/react_celebrate.webm",
+    "react_clap": "clips/react_clap.webm",
+    "react_encourage": "clips/react_encourage.webm",
+    "read_answer": "clips/read_answer.webm",
+    "speak_board": "clips/speak_board.webm",
+    "think_gaze": "clips/think_gaze.webm",
+    "hint_finger": "clips/hint_finger.webm",
+    "react_surprise": "clips/react_surprise.webm"
   },
   "persona": {
     "relationship": "典雅从容的文学与意象导师，善于用画面与类比化繁为简",
@@ -66,6 +79,14 @@
     "fps": 24
   },
   "clip_meta": {
+    "board_glance": {
+      "duration_ms": 3958,
+      "settle_ms": 3792
+    },
+    "board_point": {
+      "duration_ms": 4250,
+      "settle_ms": 4083
+    },
     "farewell_wave": {
       "duration_ms": 4333,
       "settle_ms": 4167
@@ -74,22 +95,79 @@
       "duration_ms": 4000,
       "settle_ms": 3833
     },
+    "hint_finger": {
+      "duration_ms": 4583,
+      "settle_ms": 4417
+    },
     "idle_breathe": {
+      "duration_ms": 6583
+    },
+    "idle_fidget": {
       "duration_ms": 6583
     },
     "idle_glance": {
       "duration_ms": 6583
     },
+    "intro_voice": {
+      "duration_ms": 6375,
+      "settle_ms": 6208
+    },
     "listen_nod": {
       "duration_ms": 5167
     },
+    "listen_tilt": {
+      "duration_ms": 5167
+    },
+    "nod_yes": {
+      "duration_ms": 3542,
+      "settle_ms": 3375
+    },
     "prepare_notes": {
       "duration_ms": 8000
+    },
+    "react_celebrate": {
+      "duration_ms": 4583,
+      "settle_ms": 4417
+    },
+    "react_clap": {
+      "duration_ms": 3583,
+      "settle_ms": 3417
+    },
+    "react_comfort": {
+      "duration_ms": 4000,
+      "settle_ms": 3833
+    },
+    "react_encourage": {
+      "duration_ms": 4167,
+      "settle_ms": 4000
+    },
+    "react_praise": {
+      "duration_ms": 3667,
+      "settle_ms": 3500
+    },
+    "react_surprise": {
+      "duration_ms": 3750,
+      "settle_ms": 3583
+    },
+    "read_answer": {
+      "duration_ms": 5167
+    },
+    "speak_board": {
+      "duration_ms": 5875
     },
     "speak_calm": {
       "duration_ms": 5167
     },
     "speak_explain_a": {
+      "duration_ms": 5167
+    },
+    "speak_explain_b": {
+      "duration_ms": 5875
+    },
+    "think_chin": {
+      "duration_ms": 5875
+    },
+    "think_gaze": {
       "duration_ms": 5167
     },
     "wait_gentle": {

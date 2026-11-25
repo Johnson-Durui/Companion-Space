@@ -18,7 +18,20 @@
     "idle_glance": "clips/idle_glance.webm",
     "prepare_notes": "clips/prepare_notes.webm",
     "speak_calm": "clips/speak_calm.webm",
-    "wait_gentle": "clips/wait_gentle.webm"
+    "wait_gentle": "clips/wait_gentle.webm",
+    "board_glance": "clips/board_glance.webm",
+    "idle_fidget": "clips/idle_fidget.webm",
+    "intro_voice": "clips/intro_voice.webm",
+    "listen_tilt": "clips/listen_tilt.webm",
+    "nod_yes": "clips/nod_yes.webm",
+    "react_celebrate": "clips/react_celebrate.webm",
+    "react_clap": "clips/react_clap.webm",
+    "react_encourage": "clips/react_encourage.webm",
+    "react_surprise": "clips/react_surprise.webm",
+    "read_answer": "clips/read_answer.webm",
+    "speak_board": "clips/speak_board.webm",
+    "think_gaze": "clips/think_gaze.webm",
+    "hint_finger": "clips/hint_finger.webm"
   },
   "persona": {
     "relationship": "儒雅博学的文史与推演导师，重视脉络梳理与证据闭环",
@@ -66,6 +79,14 @@
     "fps": 24
   },
   "clip_meta": {
+    "board_glance": {
+      "duration_ms": 3875,
+      "settle_ms": 3708
+    },
+    "board_point": {
+      "duration_ms": 3792,
+      "settle_ms": 3625
+    },
     "farewell_wave": {
       "duration_ms": 3792,
       "settle_ms": 3625
@@ -74,22 +95,79 @@
       "duration_ms": 3875,
       "settle_ms": 3708
     },
+    "hint_finger": {
+      "duration_ms": 3833,
+      "settle_ms": 3667
+    },
     "idle_breathe": {
+      "duration_ms": 6583
+    },
+    "idle_fidget": {
       "duration_ms": 6583
     },
     "idle_glance": {
       "duration_ms": 6583
     },
+    "intro_voice": {
+      "duration_ms": 6042,
+      "settle_ms": 5875
+    },
     "listen_nod": {
       "duration_ms": 5167
     },
+    "listen_tilt": {
+      "duration_ms": 5167
+    },
+    "nod_yes": {
+      "duration_ms": 2750,
+      "settle_ms": 2583
+    },
     "prepare_notes": {
       "duration_ms": 8000
+    },
+    "react_celebrate": {
+      "duration_ms": 4708,
+      "settle_ms": 4542
+    },
+    "react_clap": {
+      "duration_ms": 3625,
+      "settle_ms": 3458
+    },
+    "react_comfort": {
+      "duration_ms": 3708,
+      "settle_ms": 3542
+    },
+    "react_encourage": {
+      "duration_ms": 3500,
+      "settle_ms": 3333
+    },
+    "react_praise": {
+      "duration_ms": 3583,
+      "settle_ms": 3417
+    },
+    "react_surprise": {
+      "duration_ms": 3375,
+      "settle_ms": 3208
+    },
+    "read_answer": {
+      "duration_ms": 5167
+    },
+    "speak_board": {
+      "duration_ms": 5875
     },
     "speak_calm": {
       "duration_ms": 5167
     },
     "speak_explain_a": {
+      "duration_ms": 5167
+    },
+    "speak_explain_b": {
+      "duration_ms": 5875
+    },
+    "think_chin": {
+      "duration_ms": 5875
+    },
+    "think_gaze": {
       "duration_ms": 5167
     },
     "wait_gentle": {

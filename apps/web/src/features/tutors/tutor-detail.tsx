@@ -63,7 +63,7 @@ function downloadPromptSheet(character: Character) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${character.id}-anime-8-clips-prompts.md`;
+  link.download = `${character.id}-video-prompts.md`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -99,33 +99,39 @@ function PersonaTab({
   const [resetOpen, setResetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // Sync character.voice AND clear stale per-character voice_settings override if any so classroom & B13 stay identical
+  // Sync per-character voice_settings override when voice fields change, preserving any custom TTS engine
   async function syncVoiceOverrideIfPresent(nextVoiceId: string, nextRate: number) {
     const current = await api.GET("/api/v2/voice/settings").then(bodyOf).catch(() => null);
     if (!current) return;
     const overrides = current.characters ?? {};
-    if (character.id in overrides) {
-      const updatedOverrides = {
-        ...overrides,
-        [character.id]: {
-          ...overrides[character.id],
-          engine: "edge" as const,
-          voice_id: nextVoiceId,
-          rate: nextRate,
+    const existing = overrides[character.id];
+    if (!existing) return;
+    const updatedOverrides = {
+      ...overrides,
+      [character.id]: {
+        ...existing,
+        voice_id: existing.engine === "edge" ? nextVoiceId : existing.voice_id,
+        rate: nextRate,
+      },
+    };
+    const saved = await api
+      .PUT("/api/v2/voice/settings", {
+        body: {
+          default: (current.default ?? null) as unknown as (typeof current)["default"],
+          characters: updatedOverrides,
         },
-      };
-      const saved = await api
-        .PUT("/api/v2/voice/settings", {
-          body: { default: current.default, characters: updatedOverrides },
-        })
-        .then(bodyOf);
-      queries.setQueryData(voiceSettingsKey, saved);
-    }
+      })
+      .then(bodyOf);
+    queries.setQueryData(voiceSettingsKey, saved);
   }
 
   // Partial update: NEVER submits preferred_tier from Persona tab (preserves _tier_explicit!)
   const save = useMutation({
     mutationFn: async () => {
+      const nextVoiceId = voiceId.trim() || character.voice.voice_id;
+      const voiceChanged =
+        nextVoiceId !== character.voice.voice_id ||
+        Math.abs(rate - (character.voice.rate ?? 1.0)) > 1e-6;
       const body: TutorUpdate = {
         name: name.trim(),
         tagline: tagline.trim(),
@@ -137,7 +143,7 @@ function PersonaTab({
         default_style_id: styleId,
         voice: {
           engine: character.voice.engine || "edge",
-          voice_id: voiceId.trim() || character.voice.voice_id,
+          voice_id: nextVoiceId,
           rate,
           pitch: character.voice.pitch ?? 0,
         },
@@ -149,7 +155,9 @@ function PersonaTab({
           body,
         }),
       );
-      await syncVoiceOverrideIfPresent(updated.voice.voice_id, updated.voice.rate);
+      if (voiceChanged) {
+        await syncVoiceOverrideIfPresent(updated.voice.voice_id, updated.voice.rate);
+      }
       return updated;
     },
     onSuccess: (result) => {
@@ -162,20 +170,26 @@ function PersonaTab({
 
   const previewVoice = useMutation({
     mutationFn: async () => {
+      const nextVoiceId = voiceId.trim() || character.voice.voice_id;
+      const voiceChanged =
+        nextVoiceId !== character.voice.voice_id ||
+        Math.abs(rate - (character.voice.rate ?? 1.0)) > 1e-6;
       const updated = bodyOf(
         await api.PUT("/api/v2/characters/{character_id}", {
           params: { path: { character_id: character.id } },
           body: {
             voice: {
               engine: character.voice.engine || "edge",
-              voice_id: voiceId.trim() || character.voice.voice_id,
+              voice_id: nextVoiceId,
               rate,
               pitch: character.voice.pitch ?? 0,
             },
           },
         }),
       );
-      await syncVoiceOverrideIfPresent(updated.voice.voice_id, updated.voice.rate);
+      if (voiceChanged) {
+        await syncVoiceOverrideIfPresent(updated.voice.voice_id, updated.voice.rate);
+      }
       queries.setQueryData<Character[]>(charactersKey, (items) =>
         items?.map((entry) => (entry.id === updated.id ? updated : entry)),
       );
@@ -443,7 +457,13 @@ function PersonaTab({
         </div>
 
         {speech.unavailable ? (
-          <p role="status" className="text-caption text-fg-tertiary">{t.speech.unavailable}</p>
+          <p role="status" data-testid="tutor-speech-status" className="text-caption text-fg-tertiary">
+            {t.speech.unavailable}
+          </p>
+        ) : speech.browserFallback ? (
+          <p role="status" data-testid="tutor-speech-status" className="text-caption text-fg-tertiary">
+            {t.speech.browserFallback}
+          </p>
         ) : null}
       </Card>
 
@@ -541,11 +561,9 @@ function AssetsAdvancedTab({ character }: { character: Character }) {
 
   const clips = (character.video_avatar?.loop_pack?.clips ?? {}) as Partial<Record<ClipSlot, string>>;
   const stills = (character.video_avatar?.loop_pack?.stills ?? {}) as Partial<Record<StillSlot, string>>;
-  const mediaInfo = character.video_avatar?.loop_pack?.media;
   const clipCount = ACTIVE_CLIP_SLOTS.filter((slot) => Boolean(clips[slot])).length;
   const stillCount = STILL_SLOTS.filter((still) => Boolean(stills[still])).length;
   const sidecars = avatarDrivers.data?.local_sidecars ?? [];
-  const meta = character.pack_metadata;
   const clipLabels = charCopy.clips as Record<string, string>;
   const stillLabels = charCopy.stills as Record<string, string>;
 
@@ -723,36 +741,6 @@ function AssetsAdvancedTab({ character }: { character: Character }) {
             </div>
           </div>
         </div>
-      </Card>
-
-      <Card padding="lg" className="grid gap-2 text-ui text-fg-secondary" data-testid="tutor-license-card">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-title font-semibold text-fg-primary">{charCopy.license}</h2>
-          {mediaInfo?.ai_generated ? (
-            <Badge tone="accent">{charCopy.aiGeneratedBadge}</Badge>
-          ) : null}
-        </div>
-        <p>{charCopy.author}：{meta?.author || charCopy.unknown}</p>
-        <p>{charCopy.license}：{character.license}</p>
-        {mediaInfo?.generator ? (
-          <p>{charCopy.mediaGenerator}：{mediaInfo.generator}</p>
-        ) : null}
-        {mediaInfo?.image_generator ? (
-          <p>{charCopy.mediaImageGen}：{mediaInfo.image_generator}</p>
-        ) : null}
-        {mediaInfo?.video_generator ? (
-          <p>{charCopy.mediaVideoGen}：{mediaInfo.video_generator}</p>
-        ) : null}
-        {meta ? (
-          <p>{meta.allow_redistribution ? charCopy.redistributionAllowed : charCopy.redistributionRestricted}</p>
-        ) : null}
-        {meta?.license_url ? (
-          <div>
-            <a className="text-link" href={meta.license_url} target="_blank" rel="noreferrer">
-              {meta.license_url}
-            </a>
-          </div>
-        ) : null}
       </Card>
     </div>
   );

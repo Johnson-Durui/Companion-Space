@@ -27,8 +27,8 @@ node tools/tutorpack/run-h3-batch.mjs --tutor chutang --batch P0
 # 旧 480x864 短片去黑边、统一至 576x1024 并按单关键帧 VP9 重新编码
 .venv\Scripts\python.exe tools/tutorpack/cli.py legacy-fix assets/avatars/packs --all
 
-# 入库选中视频（仅读取 02-视频提示词/回传/<编号-拼音>/选中/）
-.venv\Scripts\python.exe tools/tutorpack/cli.py ingest --pack outputs/老师素材扩展-20261122 --tutor all
+# 入库选中视频（仅读取 02-视频提示词/回传/<编号-拼音>/选中/；超 14 MB 自动按频次分层自适应重编码）
+.venv\Scripts\python.exe tools/tutorpack/cli.py ingest --pack outputs/老师素材扩展-20261122 --tutor all --pack-budget 14000000 --sync-licenses
 
 # 配准并导出选中表情图（仅读取 01-图片提示词/回传/<编号-拼音>/选中/）
 .venv\Scripts\python.exe tools/tutorpack/cli.py stills --pack outputs/老师素材扩展-20261122 --tutor all
