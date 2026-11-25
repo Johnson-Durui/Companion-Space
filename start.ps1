@@ -43,7 +43,8 @@ if ($LASTEXITCODE -ne 0) { throw '.venv requires Python 3.12 or later. Recreate 
 
 $requirementsFile = Join-Path $PSScriptRoot 'services/api/requirements.txt'
 $requirementsStamp = Join-Path $PSScriptRoot '.venv\.requirements.sha256'
-$requirementsHash = (Get-FileHash -LiteralPath $requirementsFile -Algorithm SHA256).Hash.ToLowerInvariant()
+$requirementsHash = (& $python -c 'import hashlib, pathlib, sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())' $requirementsFile).Trim().ToLowerInvariant()
+if ($LASTEXITCODE -ne 0 -or -not $requirementsHash) { throw 'Failed to hash services/api/requirements.txt.' }
 $importCheck = @'
 import sys
 try:
