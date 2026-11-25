@@ -403,3 +403,206 @@ def test_more_items_generates_verifies_and_excludes_other_course_context(
             (items[0]["bank_id"],),
         ).fetchone()
     assert tuple(stored) == ("course", "generated", "verified")
+
+
+def test_canonicalize_objective_normalizes_dict_options_latex_numeric_and_variants() -> None:
+    from app.teaching.understanding import grade_objective
+
+    # Dict options + punctuated choice answer -> canonical list options & key
+    choice_item = {
+        "type": "Choice",
+        "stem": "Pick 1/6.",
+        "options": {"A": "1/2", "B": "1/6", "C": "1/3"},
+        "answer": "B.",
+        "verify": {"status": "verified"},
+    }
+    assert LessonPlanner._canonicalize_objective(choice_item) is True
+    assert choice_item["type"] == "choice"
+    assert choice_item["options"] == [
+        {"key": "A", "text": "1/2"},
+        {"key": "B", "text": "1/6"},
+        {"key": "C", "text": "1/3"},
+    ]
+    assert choice_item["answer"] == "B"
+    assert grade_objective(choice_item, "B")["verdict"] == "correct"
+
+    # Dict options + LaTeX numeric answer matching option text
+    choice_from_latex = {
+        "type": "single_choice",
+        "stem": "Pick 1/6.",
+        "options": {"A": "1/2", "B": "1/6"},
+        "answer": r"$\frac{1}{6}$",
+        "verify": {"status": "verified"},
+    }
+    assert LessonPlanner._canonicalize_objective(choice_from_latex) is True
+    assert choice_from_latex["answer"] == "B"
+
+    # Numeric answers: LaTeX fraction, percent, thousands separator, fullwidth, integer zero
+    for raw_answer, student_input in (
+        ("$1/6$", "1/6"),
+        (r"$$-\frac{1}{6}$$", "-1/6"),
+        ("50%", "0.5"),
+        (r"$25\%$", "1/4"),
+        ("1,250", "1250"),
+        ("３ ／ ４", "0.75"),
+        (0, "0"),
+        (0.25, "1/4"),
+    ):
+        num_item = {
+            "type": "numeric",
+            "stem": "Compute.",
+            "answer": raw_answer,
+            "tolerance": None,
+            "verify": {"status": "verified"},
+        }
+        assert LessonPlanner._canonicalize_objective(num_item) is True, raw_answer
+        assert grade_objective(num_item, student_input)["verdict"] == "correct"
+
+    # Multi-select & true_false normalization
+    multi_item = {
+        "type": "multi_select",
+        "stem": "Select all.",
+        "options": {"A": "first", "B": "second", "C": "third"},
+        "answer": "CA",
+        "verify": {"status": "verified"},
+    }
+    assert LessonPlanner._canonicalize_objective(multi_item) is True
+    assert multi_item["type"] == "multi"
+    assert multi_item["answer"] == "A,C"
+    assert grade_objective(multi_item, ["C", "A"])["verdict"] == "correct"
+
+    tf_item = {
+        "type": "true_false",
+        "stem": "Is it true?",
+        "answer": "正确",
+        "verify": {"status": "verified"},
+    }
+    assert LessonPlanner._canonicalize_objective(tf_item) is True
+    assert tf_item["type"] == "choice"
+    assert tf_item["answer"] == "T"
+    assert grade_objective(tf_item, "T")["verdict"] == "correct"
+
+    # Truly ungradeable items MUST still be rejected
+    for bad in (
+        {"type": "numeric", "answer": "not a number"},
+        {"type": "numeric", "answer": "1/0"},
+        {"type": "numeric", "answer": "1 2"},
+        {"type": "choice", "options": [{"key": "A", "text": "1"}, {"key": "B", "text": "2"}], "answer": ["A", "B"]},
+        {"type": "choice", "options": [{"key": "A", "text": "only one"}], "answer": "A"},
+        {"type": "matching", "answer": "A-1"},
+    ):
+        assert LessonPlanner._canonicalize_objective(dict(bad)) is False, bad
+
+
+def test_prepare_prunes_ungradeable_extra_item_and_normalizes_generated_items(
+    isolated_settings, monkeypatch,
+) -> None:
+    repository = SQLiteRepository(isolated_settings)
+    _seed(repository)
+    plan = _valid_plan()
+    # Replace c3 with a LaTeX numeric answer + add an extra ungradeable item c4
+    plan["items"]["c3"] = {
+        **_question("kp-course"),
+        "answer": r"$\frac{1}{6}$",
+        "solution": "P = 1/6.",
+        "fallback_hints": {"1": "Multiply the probabilities.", "2": "Compute half of one third."},
+    }
+    plan["items"]["c4"] = {
+        "kp_id": "kp-course",
+        "type": "numeric",
+        "difficulty": 2,
+        "variant_of": None,
+        "keypoints": [1],
+        "stem": "Malformed numeric question.",
+        "answer": "depends on x",
+        "solution": "No single number.",
+        "fallback_hints": {"1": "Hint one.", "2": "Hint two."},
+    }
+    plan["segments"][0]["checks"].append("c4")
+    plan["practice"] = []
+
+    # Also add a dict-option choice item c5 as practice
+    plan["items"]["c5"] = {
+        "kp_id": "kp-course",
+        "type": "choice",
+        "difficulty": 1,
+        "variant_of": None,
+        "keypoints": [0, 1],
+        "stem": "Which is 1/6?",
+        "options": {"A": "1/2", "B": "1/6"},
+        "answer": "B.",
+        "solution": "Equals 1/6.",
+        "fallback_hints": {"1": "Compute the product.", "2": "Check the denominator."},
+    }
+    plan["practice"] = ["c5"]
+
+    gateway = QueuedGateway(plan)
+    RecordingVerifier.seen = []
+    RecordingVerifier.results = [{"status": "verified"} for _ in range(4)]
+    monkeypatch.setattr("app.teaching.planner.ItemVerifier", RecordingVerifier)
+
+    saved = asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
+    saved_plan = saved["plan"]
+
+    # Bad c4 was pruned cleanly without aborting the plan; c3 and c5 were normalized and verified
+    assert "c4" not in saved_plan["items"]
+    assert "c4" not in saved_plan["segments"][0]["checks"]
+    assert saved_plan["items"]["c3"]["answer"] == "1/6"
+    assert saved_plan["items"]["c5"]["answer"] == "B"
+    assert saved_plan["items"]["c5"]["options"] == [{"key": "A", "text": "1/2"}, {"key": "B", "text": "1/6"}]
+    assert saved_plan["practice"] == ["c5"]
+
+
+def test_prepare_supplements_when_required_generated_item_is_ungradeable(
+    isolated_settings, monkeypatch,
+) -> None:
+    repository = SQLiteRepository(isolated_settings)
+    _seed(repository)
+    plan = _valid_plan()
+    # Make c1 cover [0], c2 cover [0] (so only c3 covers keypoint 1), and make c3 ungradeable
+    plan["items"]["c2"]["keypoints"] = [0]
+    plan["items"]["c3"] = {
+        **_question("kp-course"),
+        "variant_of": None,
+        "answer": "unparseable expression",
+    }
+    # Add another valid variant c4 covering [0] so variant count >= 2 stays satisfied
+    plan["items"]["c4"] = {
+        **_question("kp-course"),
+        "keypoints": [0],
+        "answer": 0,
+        "solution": "The result is 0.",
+        "fallback_hints": {"1": "Check disjoint events.", "2": "Intersection is empty."},
+    }
+    plan["segments"][0]["checks"].append("c4")
+
+    supplement = {
+        "slot": "s1:1",
+        "kp_id": "kp-course",
+        "type": "Choice",
+        "difficulty": 1,
+        "variant_of": None,
+        "keypoints": [1],
+        "stem": "Select the value of 1/2 * 1/3.",
+        "options": {"A": "1/2", "B": "1/6"},
+        "answer": "B",
+        "solution": "Product is 1/6.",
+        "fallback_hints": {"1": "Multiply numerators and denominators.", "2": "2 times 3 is 6."},
+    }
+    gateway = QueuedGateway(
+        plan,
+        [supplement],
+        {"requires_target": True, "uses_later": False},
+    )
+    RecordingVerifier.seen = []
+    RecordingVerifier.results = [{"status": "verified"} for _ in range(4)]
+    monkeypatch.setattr("app.teaching.planner.ItemVerifier", RecordingVerifier)
+
+    saved = asyncio.run(LessonPlanner(repository, gateway).prepare("course", "plan-item-course"))
+    saved_plan = saved["plan"]
+    assert "c3" not in saved_plan["items"]
+    assert saved_plan["items"]["c4"]["answer"] == "0"
+    assert any(
+        item["keypoints"] == [1] and item["type"] == "choice" and item["answer"] == "B"
+        for item in saved_plan["items"].values()
+    )

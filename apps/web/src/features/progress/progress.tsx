@@ -27,6 +27,7 @@ import t from "../../locales/zh-CN.json";
 import { resolveCharacterStill } from "../characters/video-config";
 import { createPointPlanItem } from "../classroom/lesson-api";
 import { useActiveTutor } from "../tutors/use-active-tutor";
+import { CourseMemoryCard } from "../memory/memory-cards";
 import { fetchCourseProgress, fetchKpTimeline, progressKeys } from "./api";
 
 const copy = t.progress;
@@ -324,6 +325,8 @@ export default function ProgressPage({ embedded = false }: { embedded?: boolean 
           </div>
         </>
       )}
+
+      {courseId ? <CourseMemoryCard courseId={courseId} /> : null}
 
       <KpTimelineDialog
         courseId={courseId}

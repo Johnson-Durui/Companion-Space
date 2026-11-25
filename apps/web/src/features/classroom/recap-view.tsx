@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useLocation, useNavigate } from "react-router";
 import type { TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import { LessonText } from "@companion-space/board";
-import type { Character } from "../../app/api";
+import { classroomErrorMessage, type Character } from "../../app/api";
 import t from "../../locales/zh-CN.json";
 import {
   ArrowLeft,
@@ -24,7 +24,7 @@ import { masteryLabel } from "../plan/why-sentence";
 import type { PlanDiff } from "../learner/api";
 import { boardMarkdown, type Block } from "./board";
 import { BoardBlock } from "./board-block";
-import { createPointPlanItem, fetchLessonRecapSummary } from "./lesson-api";
+import { createPointPlanItem, fetchLessonRecapSummary, resumeLesson } from "./lesson-api";
 
 const copy = t.classroom;
 const recapCopy = t.recapView;
@@ -48,10 +48,13 @@ export interface RecapViewProps {
   summary?: string;
   board: Block[];
   teacher?: Character | null;
+  onResumed?: () => void;
 }
 
-export function RecapView({ lessonId, courseId, title, summary, board, teacher }: RecapViewProps) {
+export function RecapView({ lessonId, courseId, title, summary, board, teacher, onResumed }: RecapViewProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queries = useQueryClient();
   const celebrateRef = useRef<TutorVideoBoxHandle>(null);
   const celebratedRef = useRef(false);
   const detail = useQuery({
@@ -63,6 +66,23 @@ export function RecapView({ lessonId, courseId, title, summary, board, teacher }
   const reteach = useMutation({
     mutationFn: (kpId: string) => createPointPlanItem(courseId, kpId),
     onSuccess: (created) => navigate(`/plan-items/${created.plan_item_id}/lesson`),
+  });
+
+  const resume = useMutation({
+    mutationFn: () => resumeLesson(lessonId),
+    onSuccess: () => {
+      void queries.invalidateQueries({ queryKey: ["lesson-recap-summary", lessonId] });
+      if (onResumed) {
+        onResumed();
+        return;
+      }
+      const target = `/lessons/${encodeURIComponent(lessonId)}`;
+      if (location.pathname === target || location.pathname === `/lessons/${lessonId}`) {
+        window.location.reload();
+      } else {
+        void navigate(target, { replace: true });
+      }
+    },
   });
 
   const data = detail.data;
@@ -165,13 +185,18 @@ export function RecapView({ lessonId, courseId, title, summary, board, teacher }
           <Card padding="lg" className="grid gap-4">
             <p className="text-body text-fg-secondary">{recapCopy.abandonedHint}</p>
             <div className="flex flex-wrap items-center gap-3">
-              <Button variant="primary" onClick={() => window.location.reload()}>
+              <Button variant="primary" pending={resume.isPending} onClick={() => resume.mutate()}>
                 {recapCopy.resumeThis}
               </Button>
               <Link className="button quiet" to={`/courses/${courseId}`}>
                 {copy.back}
               </Link>
             </div>
+            {resume.isError ? (
+              <p role="alert" className="text-ui text-danger-text">
+                {classroomErrorMessage(resume.error, copy.actionError)}
+              </p>
+            ) : null}
           </Card>
         ) : (
           <>

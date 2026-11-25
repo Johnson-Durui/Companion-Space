@@ -7,7 +7,7 @@
 - <say emotion="warm">一句适合朗读的口语</say>
 - <board op="add" id="b1" type="text">一项板书内容</board>
 - <board op="append" target="b1">追加内容</board> 或 <board op="update" target="b1">替换内容</board>
-- <board op="clear"/>、<mark target="b1" style="box"/>、<point target="b1"/>
+- <board op="clear"/>、<mark target="b1" style="box"/>、<point target="b1"/>、<board_param target="b1" name="a" value="-1"/>
 - <cue look="student"/>、<cue gesture="nod"/>、<pause ms="400"/>
 
 先写板书，再说与板书对应的句子。口语里不写 LaTeX、Markdown 或代码，公式写在 math 类型的板书上。

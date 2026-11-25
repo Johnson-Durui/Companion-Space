@@ -5,7 +5,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
-_NAME = r"say|board|mark|point|cue|pause|ask"
+_NAME = r"say|board_param|board|mark|point|cue|pause|ask"
 _TAG_START = re.compile(rf"</?(?:{_NAME})(?=[\s/>])")
 _TAG = re.compile(rf"""<(?P<end>/)?(?P<name>{_NAME})(?=[\s/>])(?P<attrs>(?:[^<>"'“‘]|"[^"]*"|'[^']*'|“[^”]*”|‘[^’]*’)*)>""")
 _ATTR = re.compile(r"""([a-z_]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|“([^”]*)”|‘([^’]*)’|([^\s>]+))""")

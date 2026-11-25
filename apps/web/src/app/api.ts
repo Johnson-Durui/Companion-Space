@@ -9,6 +9,7 @@ export const charactersKey = ["characters"] as const;
 export const rolesKey = ["model-roles"] as const;
 export const connectionsKey = ["connections"] as const;
 export const avatarDriversKey = ["avatar-drivers"] as const;
+export const voiceStatusKey = ["voice-status"] as const;
 
 export class ApiError extends Error {
   status?: number;

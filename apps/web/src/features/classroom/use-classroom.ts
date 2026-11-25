@@ -351,7 +351,7 @@ export function useClassroom(
       if (event.type === "ask") {
         setPreviewVerdict(null);
       }
-      if (event.type === "board" || event.type === "mark") {
+      if (event.type === "board" || event.type === "mark" || event.type === "board_param") {
         const pending = previewVisuals.get(event.gen);
         const index = pending?.indexOf(JSON.stringify([event.type, event.data])) ?? -1;
         if (pending && index >= 0) {
@@ -400,7 +400,7 @@ export function useClassroom(
         case "board.preview": {
           if (!audio || cancelled.has(event.gen)) return;
           const type = String(event.data.type);
-          if (type !== "board" && type !== "mark") return;
+          if (type !== "board" && type !== "mark" && type !== "board_param") return;
           const data = event.data.event as Record<string, unknown>;
           const signature = JSON.stringify([type, data]);
           const pending = previewVisuals.get(event.gen) ?? [];

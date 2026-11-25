@@ -205,6 +205,36 @@ class TeachingMixin:
             ).fetchone()
         return _decode(row) if row is not None else None
 
+    def reopen_abandoned_lesson(self, space_id: str, lesson_id: str) -> dict | None:
+        """Transition an abandoned lesson back to paused so the classroom can resume."""
+        with self.connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            current = conn.execute(
+                f"SELECT *, {_PROGRESS_COLUMNS} FROM lessons WHERE space_id = ? AND id = ?",
+                (space_id, lesson_id),
+            ).fetchone()
+            if current is None:
+                return None
+            if current["status"] in {"paused", "active"}:
+                return _decode(current)
+            if current["status"] != "abandoned":
+                raise ValueError("Only abandoned or paused lessons can be resumed")
+            conn.execute(
+                "UPDATE lessons SET status = 'paused', ended_at = NULL WHERE space_id = ? AND id = ?",
+                (space_id, lesson_id),
+            )
+            if current["plan_item_id"]:
+                conn.execute(
+                    """UPDATE plan_items SET status = 'active'
+                       WHERE space_id = ? AND id = ? AND (lesson_id = ? OR lesson_id IS NULL)""",
+                    (space_id, current["plan_item_id"], lesson_id),
+                )
+            updated = conn.execute(
+                f"SELECT *, {_PROGRESS_COLUMNS} FROM lessons WHERE space_id = ? AND id = ?",
+                (space_id, lesson_id),
+            ).fetchone()
+        return _decode(updated) if updated is not None else None
+
     def append_lesson_events(
         self, space_id: str, lesson_id: str, *, gen: int, events: Sequence[dict], state: dict,
         board: dict | None, status: str, expected_seq: int | None = None,

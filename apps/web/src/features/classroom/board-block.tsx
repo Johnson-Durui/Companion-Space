@@ -11,6 +11,7 @@ export interface ClassroomBoardBlockProps {
   reducedMotion?: boolean;
   showTools?: boolean;
   onZoom?: (block: Block) => void;
+  onSaveToNote?: (block: Block) => void;
 }
 
 export function BoardBlock({
@@ -22,6 +23,7 @@ export function BoardBlock({
   reducedMotion,
   showTools,
   onZoom,
+  onSaveToNote,
 }: ClassroomBoardBlockProps) {
   return (
     <SharedBoardBlock
@@ -33,6 +35,7 @@ export function BoardBlock({
       reducedMotion={reducedMotion}
       showTools={showTools}
       onZoom={onZoom}
+      onSaveToNote={onSaveToNote}
       labels={{
         locate: t.classroom.locate,
         renderError: t.classroom.boardRenderError,
@@ -40,7 +43,12 @@ export function BoardBlock({
         imageAlt: t.classroom.boardImageAlt,
         copy: t.classroom.boardCopy,
         copied: t.classroom.boardCopied,
+        saveToNote: t.classroom.boardSaveToNote,
+        savedToNote: t.classroom.boardSavedToNote,
         zoom: t.classroom.boardZoom,
+        plotReset: t.classroom.boardPlotReset,
+        plotPlay: t.classroom.boardPlotPlay,
+        plotPause: t.classroom.boardPlotPause,
       }}
     />
   );

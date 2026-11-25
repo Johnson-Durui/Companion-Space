@@ -28,7 +28,7 @@ import type {
 } from "@companion-space/avatar-engine/types";
 import { TutorVideoBox, type TutorVideoBoxHandle } from "@companion-space/avatar-engine/video-box";
 import "@companion-space/avatar-engine/video-box.css";
-import { api, bodyOf, sessionKey } from "../../app/api";
+import { api, bodyOf, sessionKey, voiceStatusKey } from "../../app/api";
 import { Loading } from "../../app/ui";
 import {
   StageShell,
@@ -72,6 +72,7 @@ import { toVideoAvatarConfig, videoBoxLabels } from "../characters/video-config"
 import { createSidecarConnector } from "../characters/sidecar-connector";
 import { courseKeys } from "../courses/api";
 import { learnerKeys } from "../learner/api";
+import { addNoteBlock, notesKeys } from "../notes/api";
 import { AnswerTray } from "./answer-tray";
 import { BoardPanel, formatDividerText } from "./board-panel";
 import { ControlDock } from "./control-dock";
@@ -169,7 +170,7 @@ function formatClock(totalMs: number): string {
   return `${String(mins).padStart(2, "0")}:${String(rem).padStart(2, "0")}`;
 }
 
-function Lesson({ id }: { id: string }) {
+function Lesson({ id, onResumed }: { id: string; onResumed?: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const queries = useQueryClient();
@@ -300,8 +301,10 @@ function Lesson({ id }: { id: string }) {
 
   const live = useClassroom(id, onSpeechLevel, onSpeechChunk, onJudgePreview);
   const voice = useQuery({
-    queryKey: ["voice-status"],
+    queryKey: voiceStatusKey,
     queryFn: async () => bodyOf(await api.GET("/api/v2/voice/status")),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
@@ -1037,6 +1040,7 @@ function Lesson({ id }: { id: string }) {
         summary={typeof recap?.summary === "string" ? recap.summary : undefined}
         board={allBlocks}
         teacher={teacher}
+        onResumed={onResumed}
       />
     );
   }
@@ -1669,6 +1673,22 @@ function Lesson({ id }: { id: string }) {
         onLocate={(target) => {
           if (ready) handleQuickAction(`locate:${target}`);
         }}
+        onSaveToNote={(block) => {
+          void addNoteBlock(room.course_id, "quick", {
+            block_type: block.type,
+            title: block.title ?? room.title,
+            content: block.content,
+            source_ref: { kind: "lesson", lesson_id: id },
+            default_title: t.notes.defaultQuickTitle,
+          })
+            .then(() => {
+              void queries.invalidateQueries({ queryKey: notesKeys.list(room.course_id), exact: true });
+              toast.success(copy.boardSavedToNote);
+            })
+            .catch(() => {
+              toast.error(t.common.error);
+            });
+        }}
       />
 
       {showTray && ask ? (
@@ -1868,5 +1888,12 @@ function Lesson({ id }: { id: string }) {
 
 export default function Classroom() {
   const { lessonId = "" } = useParams();
-  return <Lesson key={lessonId} id={lessonId} />;
+  const [resumeCount, setResumeCount] = useState(0);
+  return (
+    <Lesson
+      key={`${lessonId}:${resumeCount}`}
+      id={lessonId}
+      onResumed={() => setResumeCount((count) => count + 1)}
+    />
+  );
 }

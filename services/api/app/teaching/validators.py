@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import unicodedata
 from collections.abc import Mapping
@@ -15,6 +16,7 @@ from app.teaching.speech_text import speech_terms
 _NUMBER = re.compile(r"(?<![\d.])[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:/[+-]?\d+|%)?(?!\d|\.\d)")
 _WORD_EDGES = r"(?<![a-z0-9_]){}(?![a-z0-9_])"
 _BLOCK_ID = re.compile(r"[A-Za-z0-9_-]{1,80}")
+_PARAM_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,15}")
 _BLOCK_TYPES = {
     "title", "text", "math", "list", "table", "code", "callout", "steps", "diagram", "plot", "image",
 }
@@ -95,7 +97,48 @@ def answer_leaks(text: str, forbidden: dict, *, visible_text: str = "") -> bool:
 def validate_board(event: LspEvent, blocks: dict[str, dict[str, Any]]) -> bool:
     """Validate against and advance a copy of the visible board for this generation."""
     data = event.data
-    if event.type not in {"board", "mark", "point"}:
+    if event.type not in {"board", "mark", "point", "board_param"}:
+        return True
+    if event.type == "board_param":
+        target = data.get("target")
+        name = data.get("name")
+        raw_value = data.get("value")
+        if not isinstance(target, str) or not isinstance(name, str) or not _PARAM_NAME.fullmatch(name):
+            return False
+        block = blocks.get(target)
+        if block is None or block.get("type") != "plot":
+            return False
+        try:
+            numeric = float(raw_value)
+        except (TypeError, ValueError):
+            return False
+        if not math.isfinite(numeric):
+            return False
+        try:
+            spec = json.loads(block.get("content", ""))
+        except (TypeError, ValueError):
+            return False
+        params = spec.get("params") if isinstance(spec, dict) else None
+        if not isinstance(params, list):
+            return False
+        matched = next(
+            (entry for entry in params if isinstance(entry, dict) and entry.get("name") == name),
+            None,
+        )
+        if matched is None:
+            return False
+        low, high = matched.get("min"), matched.get("max")
+        if (
+            type(low) not in (int, float)
+            or type(high) not in (int, float)
+            or not (math.isfinite(low) and math.isfinite(high) and low < high)
+            or not (low <= numeric <= high)
+        ):
+            return False
+        data["value"] = numeric
+        param_values = block.setdefault("param_values", {})
+        if isinstance(param_values, dict):
+            param_values[name] = numeric
         return True
     if event.type == "board":
         op = data["op"]

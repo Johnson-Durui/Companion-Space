@@ -39,7 +39,10 @@ _INSTRUCTIONS = {
     "SHOW_SOLUTION": "Walk through the supplied verified solution in order. Do not change it.",
     "PROBE": "Ask for the learner's reasoning without revealing the expected reasoning.",
     "BACKFILL": "Review the supplied prerequisite outline. Do not create questions or solutions.",
-    "ANSWER_QUESTION": "Answer the learner's question using the supplied excerpts.",
+    "ANSWER_QUESTION": (
+        "Answer the learner's question using the supplied excerpts and question_sources. "
+        "When a relevant page has has_image=true and clarifies the answer, you may display it with an image block."
+    ),
     "RESUME": "Reconnect to the current activity in one sentence without giving away the answer.",
     "ADJUST": "Confirm the requested adjustment briefly.",
     "STUDENT_SUMMARY": "Invite the learner to summarize the segment in their own words.",

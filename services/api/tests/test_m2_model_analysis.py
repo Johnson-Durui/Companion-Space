@@ -396,3 +396,72 @@ def test_rubric_items_require_every_required_point():
     }))
     assert result["status"] == "unverified"
     assert len(result["rewritten_rubric"]) == 2
+
+
+def test_verifier_verifies_choice_with_prose_solution_using_options_not_bare_key():
+    options = {"A": "1/2", "B": "1/6", "C": "1/3", "D": "2/3"}
+    item = {
+        "type": "choice",
+        "stem": "Compute P(A and B) when P(A)=1/2 and P(B|A)=1/3.",
+        "options": options,
+        "answer": "B",
+        "solution": "By the multiplication rule, P(A and B) = (1/2) * (1/3) = 1/6.",
+    }
+    gateway = QueuedGateway(
+        _solve("The probability equals 1/6"),
+        "<mapping><choice>B</choice></mapping>",
+        "<mapping><choice>B</choice></mapping>",
+    )
+    result = asyncio.run(ItemVerifier(gateway).verify(item))
+    assert result["status"] == "verified"
+    assert result["solved_answer"] == "B"
+    assert [call[1] for call in gateway.calls] == [
+        "analysis/item_solve",
+        "analysis/item_choice_map",
+        "analysis/item_choice_map",
+    ]
+
+    # Contradictory solution supporting option A while reference is B must be rejected
+    bad_solution_gateway = QueuedGateway(
+        _solve("1/6"),
+        "<mapping><choice>A</choice></mapping>",
+    )
+    bad = asyncio.run(ItemVerifier(bad_solution_gateway).verify({
+        **item,
+        "solution": "Thus the result is 1/2.",
+    }))
+    assert bad["status"] == "unverified"
+    assert "solution" in bad["reason"].lower()
+
+
+def test_verifier_rejects_wrong_choice_and_handles_multi_select():
+    options = {"A": "1/2", "B": "1/6", "C": "1/3"}
+    wrong_gateway = QueuedGateway(
+        _solve("1/3"),
+        _solve("1/3"),
+    )
+    disputed = asyncio.run(ItemVerifier(wrong_gateway).verify({
+        "type": "choice",
+        "stem": "Compute P(A|B).",
+        "options": options,
+        "answer": "B",
+        "solution": "The result is 1/6.",
+    }))
+    assert disputed["status"] == "disputed"
+    assert disputed["solved_answer"] == "C"
+    assert all(call[1] != "analysis/item_equiv" for call in wrong_gateway.calls)
+
+    multi_gateway = QueuedGateway(
+        _solve("First and third"),
+        "<mapping><choice>A,C</choice></mapping>",
+        "<mapping><choice>A,C</choice></mapping>",
+    )
+    verified_multi = asyncio.run(ItemVerifier(multi_gateway).verify({
+        "type": "multi",
+        "stem": "Select all true properties.",
+        "options": {"A": "First", "B": "Second", "C": "Third"},
+        "answer": "C, A",
+        "solution": "Both First and Third hold.",
+    }))
+    assert verified_multi["status"] == "verified"
+    assert verified_multi["solved_answer"] == "A,C"

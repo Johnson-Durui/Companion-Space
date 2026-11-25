@@ -71,7 +71,7 @@ def preview_run(repository, plan_item_id: str) -> dict | None:
                 if refs
                 else []
             )
-            item_count = len(refs)
+            item_count = len(rows)
         else:
             rows = _select_items(conn, plan)
             item_count = len(rows)
@@ -133,10 +133,14 @@ def get_run(repository, run_id: str, *, reveal: bool = False) -> dict | None:
         run = conn.execute("SELECT * FROM practice_runs WHERE id = ?", (run_id,)).fetchone()
         if run is None:
             return None
-        refs = json.loads(run["item_refs_json"])
-        rows = conn.execute(
-            "SELECT * FROM item_bank WHERE id IN (%s)" % ",".join("?" for _ in refs), refs,
-        ).fetchall()
+        refs = json.loads(run["item_refs_json"] or "[]")
+        rows = (
+            conn.execute(
+                "SELECT * FROM item_bank WHERE id IN (%s)" % ",".join("?" for _ in refs), refs,
+            ).fetchall()
+            if refs
+            else []
+        )
         by_id = {row["id"]: _item(row) for row in rows}
         saved = {row["item_ref"]: dict(row) for row in conn.execute(
             "SELECT * FROM practice_answers WHERE run_id = ?", (run_id,),
@@ -148,8 +152,9 @@ def get_run(repository, run_id: str, *, reveal: bool = False) -> dict | None:
                 (run["space_id"],),
             )
         }
+    present_refs = [ref for ref in refs if ref in by_id]
     items = []
-    for ref in refs:
+    for ref in present_refs:
         item = by_id[ref]
         saved_row = saved.get(ref)
         saved_val = json.loads(saved_row["answer_json"]) if saved_row and saved_row.get("answer_json") else None
@@ -164,22 +169,30 @@ def get_run(repository, run_id: str, *, reveal: bool = False) -> dict | None:
     result.pop("item_refs_json")
     result["items"] = items
     if reveal:
-        result["debrief"] = [{
-            "item_id": ref,
-            "kp_id": by_id[ref].get("kp_id"),
-            "kp_name": kp_names.get(by_id[ref].get("kp_id"), ""),
-            "type": by_id[ref].get("type"),
-            "stem": by_id[ref].get("stem", ""),
-            "options": by_id[ref].get("options"),
-            "learner_answer": json.loads(saved[ref]["answer_json"]) if ref in saved and saved[ref].get("answer_json") else None,
-            "verdict": saved[ref]["verdict"],
-            "score": saved[ref]["score"],
-            "max_score": saved[ref]["max_score"],
-            "answer": by_id[ref].get("answer"),
-            "solution": by_id[ref].get("solution") or str(by_id[ref].get("answer", "")),
-            "moves": ["SHOW_SOLUTION", "REEXPLAIN", "CHECK"]
-            if saved[ref]["verdict"] != "correct" else ["CHECK"],
-        } for ref in refs]
+        debrief = []
+        for ref in present_refs:
+            item = by_id[ref]
+            saved_row = saved.get(ref) or {}
+            verdict = saved_row.get("verdict") or "dont_know"
+            score = saved_row.get("score")
+            max_score = saved_row.get("max_score")
+            debrief.append({
+                "item_id": ref,
+                "kp_id": item.get("kp_id"),
+                "kp_name": kp_names.get(item.get("kp_id"), ""),
+                "type": item.get("type"),
+                "stem": item.get("stem", ""),
+                "options": item.get("options"),
+                "learner_answer": json.loads(saved_row["answer_json"]) if saved_row.get("answer_json") else None,
+                "verdict": verdict,
+                "score": float(score) if score is not None else 0.0,
+                "max_score": float(max_score) if max_score is not None else 1.0,
+                "answer": item.get("answer"),
+                "solution": item.get("solution") or str(item.get("answer", "")),
+                "moves": ["SHOW_SOLUTION", "REEXPLAIN", "CHECK"]
+                if verdict != "correct" else ["CHECK"],
+            })
+        result["debrief"] = debrief
     return result
 
 
@@ -234,10 +247,14 @@ def submit_run(repository, run_id: str, *, now: datetime | None = None) -> dict 
             return None
         if run["status"] == "submitted":
             return get_run(repository, run_id, reveal=True)
-        refs = json.loads(run["item_refs_json"])
-        rows = conn.execute(
-            "SELECT * FROM item_bank WHERE id IN (%s)" % ",".join("?" for _ in refs), refs,
-        ).fetchall()
+        refs = json.loads(run["item_refs_json"] or "[]")
+        rows = (
+            conn.execute(
+                "SELECT * FROM item_bank WHERE id IN (%s)" % ",".join("?" for _ in refs), refs,
+            ).fetchall()
+            if refs
+            else []
+        )
         answers = {row["item_ref"]: json.loads(row["answer_json"]) if row["answer_json"] else None for row in conn.execute(
             "SELECT item_ref, answer_json FROM practice_answers WHERE run_id = ?", (run_id,),
         )}

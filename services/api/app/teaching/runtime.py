@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from datetime import date
 from time import time_ns
 
-from app.analysis.retrieval import retrieve_for_kp
+from app.analysis.retrieval import retrieve_for_kp, retrieve_with_structure
+from app.learning.memory import build_compact_memory_summary
 from app.llm.gateway import LLMGateway
 from app.learning.replanning import rebuild_course_plan
 from app.services.repository import SQLiteRepository
@@ -114,7 +115,7 @@ class LessonRuntime:
             heard[lesson["gen"]] = event["heard_seq"]
             board = {}
             for row in history:
-                if row["type"] == "board" and row["seq"] <= heard.get(row["gen"], lesson["seq"]):
+                if row["type"] in {"board", "board_param"} and row["seq"] <= heard.get(row["gen"], lesson["seq"]):
                     validate_board(LspEvent(row["type"], row["data"]), board)
         ask = state.get("active_ask")
         item = _item_for_ask(ask, plan)
@@ -193,6 +194,40 @@ class LessonRuntime:
             context = await asyncio.to_thread(
                 self._context, lesson, plan, next_state, decision.args, recent_avatar_action=recent_action,
             )
+            if decision.move == "ANSWER_QUESTION":
+                question_text = str(decision.args.get("question") or "").strip()
+                if question_text:
+                    segments = plan.get("segments") or []
+                    seg_idx = next_state.get("seg_idx", 0)
+                    active_kp_id = segments[seg_idx]["kp_id"] if seg_idx < len(segments) else None
+                    pages = await retrieve_with_structure(
+                        self.repository,
+                        self.gateway,
+                        space_id=self.space_id,
+                        query=question_text,
+                        active_kp_id=active_kp_id,
+                        max_pages=3,
+                    )
+                    if pages:
+                        structured_entries = [
+                            {
+                                "material_id": page.material_id,
+                                "page": page.page_no,
+                                "section": page.section_title,
+                                "has_image": page.has_image,
+                                "source": page.source,
+                                "text": page.markdown[:3500],
+                            }
+                            for page in pages
+                        ]
+                        context["question_sources"] = structured_entries
+                        existing_excerpts = list(context.get("source_excerpts") or [])
+                        seen_pages = {(item["material_id"], item["page"]) for item in structured_entries}
+                        merged_excerpts = list(structured_entries)
+                        for entry in existing_excerpts:
+                            if (entry.get("material_id"), entry.get("page")) not in seen_pages:
+                                merged_excerpts.append(entry)
+                        context["source_excerpts"] = merged_excerpts[:6]
             cached = prepared is not None and (
                 prepared.expected_seq == lesson["seq"]
                 and prepared.move == decision.move
@@ -207,7 +242,7 @@ class LessonRuntime:
                     await say(generated.data)
                 elif validate_board(generated, board):
                     add(generated.type, generated.data)
-                    if on_visual is not None and generated.type in {"board", "mark"}:
+                    if on_visual is not None and generated.type in {"board", "mark", "board_param"}:
                         await on_visual(generated)
             if not spoken:
                 raise ValueError("The live model returned no usable classroom explanation")
@@ -396,6 +431,12 @@ class LessonRuntime:
                     {"material_id": part.material_id, "page": part.page_no, "text": part.content[:3000]}
                     for part in excerpts
                 ]
+        active_kp_id = segments[idx]["kp_id"] if idx < len(segments) else None
+        memories = build_compact_memory_summary(
+            self.repository, space_id=self.space_id, kp_id=active_kp_id, max_chars=150,
+        )
+        if memories:
+            context["learner_memories"] = memories
         return context
 
 

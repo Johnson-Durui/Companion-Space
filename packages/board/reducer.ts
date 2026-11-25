@@ -41,6 +41,19 @@ export function applyVisibleBoardEvent(blocks: readonly Block[], event: BoardEve
       ? { ...block, mark: true, marks: [...(block.marks ?? []), mark] }
       : block);
   }
+  if (event.type === "board_param") {
+    const { blockId } = target(data.target);
+    const name = typeof data.name === "string" ? data.name : "";
+    const numeric = typeof data.value === "number" ? data.value : Number(data.value);
+    if (!blockId || !name || !Number.isFinite(numeric)) return blocks;
+    return blocks.map((block) => block.id === blockId
+      ? {
+          ...block,
+          paramValues: { ...(block.paramValues ?? {}), [name]: numeric },
+          paramSeq: event.seq ?? (block.paramSeq ?? 0) + 1,
+        }
+      : block);
+  }
   if (event.type !== "board") return blocks;
   if (data.op === "clear") return [];
   const content = typeof data.content === "string" ? data.content : "";

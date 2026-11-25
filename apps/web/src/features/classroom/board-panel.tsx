@@ -72,6 +72,7 @@ export interface BoardPanelProps {
   showTools?: boolean;
   topBanner?: ReactNode;
   onLocate: (target: string) => void;
+  onSaveToNote?: (block: Block) => void;
 }
 
 export function BoardPanel({
@@ -94,6 +95,7 @@ export function BoardPanel({
   showTools = true,
   topBanner,
   onLocate,
+  onSaveToNote,
 }: BoardPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -380,6 +382,7 @@ export function BoardPanel({
                     reducedMotion={reducedMotion}
                     showTools={showTools}
                     onZoom={setZoomBlock}
+                    onSaveToNote={onSaveToNote}
                   />
                 </div>
                 {dividersAt(index + 1).map((divider) => (

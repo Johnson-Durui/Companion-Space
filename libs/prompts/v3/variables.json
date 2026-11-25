@@ -21,5 +21,11 @@
   "lesson_feedback": "The previous preparation failure supplied as an untrusted diagnostic data block.",
   "page_content": "Source pages supplied as an untrusted data block.",
   "reference_answer": "A reference answer supplied as an untrusted data block.",
-  "solve_attempt": "Independent solver attempt identifier used to keep cached calls separate."
+  "solve_attempt": "Independent solver attempt identifier used to keep cached calls separate.",
+  "solve_step": "One step from a verified solution with its surrounding steps, supplied as an untrusted data block.",
+  "learner_attempt": "A learner's idea or attempt on a problem, supplied as an untrusted data block.",
+  "memory_evidence": "Real grading evidence, misconceptions, and learning traces supplied as an untrusted data block.",
+  "selected_passage": "A text passage highlighted by the learner from a course material page, supplied as an untrusted data block.",
+  "note_blocks": "Existing course note blocks authored by the learner, supplied as an untrusted data block.",
+  "student_question": "A learner's classroom question supplied as an untrusted data block."
 }

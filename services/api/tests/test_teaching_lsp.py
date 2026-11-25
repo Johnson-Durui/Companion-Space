@@ -65,3 +65,38 @@ def test_speech_is_clean_and_board_only_addresses_existing_lines():
     events, _, _ = parse(['<board id=b type=steps>one\ntwo</board><mark target=b.2/><point target=b.3/>'])
     board = {}
     assert [validate_board(event, board) for event in events] == [True, True, False]
+
+
+def test_board_param_parses_resolves_alias_and_validates_plot_bounds():
+    plot_json = (
+        '{"fn":["a*x^2+b"],"x":[-4,4],'
+        '"params":['
+        '{"name":"a","label":"a","min":-3,"max":3,"step":0.5,"default":1},'
+        '{"name":"b","label":"b","min":-2,"max":2,"step":0.5,"default":0}'
+        ']}'
+    )
+    source = (
+        f'<board op=add id=txt type=text>hello</board>'
+        f'<board op=add id=g type=plot>{plot_json}</board>'
+        f'<board_param target=g name=a value=-1.5/>'
+        f'<board_param target=g name=a value=99/>'
+        f'<board_param target=g name=c value=1/>'
+        f'<board_param target=txt name=a value=1/>'
+        f'<board op=add id=g type=plot>{plot_json}</board>'
+        f'<board_param target=g name=b value=1.5/>'
+    )
+    events, stray, _ = parse([source])
+    assert stray == 0
+    assert parse(list(source))[0] == events
+    assert [event.type for event in events] == [
+        'board', 'board', 'board_param', 'board_param', 'board_param', 'board_param', 'board', 'board_param',
+    ]
+    remapped_id = events[6].data['id']
+    assert remapped_id != 'g' and events[7].data['target'] == remapped_id
+
+    board = {}
+    results = [validate_board(event, board) for event in events]
+    assert results == [True, True, True, False, False, False, True, True]
+    assert board['g']['param_values'] == {'a': -1.5}
+    assert events[2].data['value'] == -1.5
+    assert board[remapped_id]['param_values'] == {'b': 1.5}

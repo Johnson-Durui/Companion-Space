@@ -36,6 +36,9 @@ const Review = lazy(() => import("./features/review/review"));
 const ReviewSession = lazy(() => import("./features/review/review-session"));
 const Practice = lazy(() => import("./features/practice/practice"));
 const ProgressPage = lazy(() => import("./features/progress/progress"));
+const SolvePage = lazy(() => import("./features/solve/solve-page"));
+const NotesPage = lazy(() => import("./features/notes/notes-page"));
+const ReaderPage = lazy(() => import("./features/notes/reader-page"));
 const TutorsGallery = lazy(() => import("./features/tutors/tutors-gallery"));
 const TutorDetail = lazy(() => import("./features/tutors/tutor-detail"));
 const CourseHistory = lazy(() => import("./features/replay/history").then((module) => ({ default: module.CourseHistoryPage })));
@@ -65,6 +68,9 @@ function pageTitleFor(pathname: string, search: string): string {
   if (matchPath("/courses/:courseId/setup", pathname)) return titles.courseSetup;
   if (matchPath("/courses/:courseId/plan", pathname)) return titles.coursePlan;
   if (matchPath("/courses/:courseId/map", pathname)) return titles.courseMap;
+  if (matchPath("/courses/:courseId/solve", pathname)) return titles.courseSolve;
+  if (matchPath("/courses/:courseId/notes", pathname)) return titles.courseNotes;
+  if (matchPath("/courses/:courseId/materials/:materialId/read", pathname)) return titles.materialReader;
   if (matchPath("/courses/:courseId/materials", pathname)) return titles.courseMaterials;
   if (matchPath("/courses/:courseId/history", pathname)) return titles.courseHistory;
   if (matchPath("/courses/:courseId/review/session", pathname)) return titles.reviewSession;
@@ -222,6 +228,9 @@ function App() {
                 <Route path="/courses/:courseId" element={<CourseHub><CourseTodayTab /></CourseHub>} />
                 <Route path="/courses/:courseId/plan" element={<CourseHub><PlanPage /></CourseHub>} />
                 <Route path="/courses/:courseId/map" element={<CourseHub><CourseMapTab /></CourseHub>} />
+                <Route path="/courses/:courseId/solve" element={<CourseHub><SolvePage /></CourseHub>} />
+                <Route path="/courses/:courseId/notes" element={<CourseHub><NotesPage /></CourseHub>} />
+                <Route path="/courses/:courseId/materials/:materialId/read" element={<CourseHub><ReaderPage /></CourseHub>} />
                 <Route path="/courses/:courseId/materials" element={<CourseHub><CourseMaterialsTab /></CourseHub>} />
                 <Route path="/courses/:courseId/history" element={<CourseHub><CourseHistory embedded /></CourseHub>} />
                 <Route path="/courses/:courseId/review" element={<CourseHub><Review embedded /></CourseHub>} />

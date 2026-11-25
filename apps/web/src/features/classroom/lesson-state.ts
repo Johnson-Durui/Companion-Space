@@ -155,7 +155,8 @@ export function advanceClassroom(state: ClassroomState, event: LessonEvent): Cla
 
   switch (event.type) {
     case "board":
-    case "mark": {
+    case "mark":
+    case "board_param": {
       const nextPages = applyBoardPagesEvent(state.boardPages, event);
       const nextBoard = nextPages[nextPages.length - 1]?.blocks ?? [];
       const parsedTarget = parseTarget(data.target);

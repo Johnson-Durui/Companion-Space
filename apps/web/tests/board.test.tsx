@@ -41,5 +41,84 @@ describe("board package", () => {
     expect(cleared.pages).toHaveLength(2);
     expect(cleared.pages[0].blocks[0].content).toBe("first");
   });
+
+  it("accepts parameterized plot specs with keyframes and rejects unsafe or out-of-range params", async () => {
+    const valid = JSON.stringify({
+      fn: ["a * x^2 + b"],
+      x: [-5, 5],
+      y: [-4, 4],
+      params: [
+        { name: "a", label: "开口系数 a", min: -3, max: 3, step: 0.5, default: 1 },
+        { name: "b", label: "截距 b", min: -2, max: 2, step: 0.5, default: 0 },
+      ],
+      keyframes: [
+        { label: "标准抛物线", values: { a: 1, b: 0 } },
+        { label: "开口向下", values: { a: -1, b: 1 } },
+      ],
+    });
+    await expect(parsePlotSpec(valid)).resolves.toMatchObject({
+      params: [
+        { name: "a", default: 1 },
+        { name: "b", default: 0 },
+      ],
+      keyframes: [
+        { label: "标准抛物线", values: { a: 1, b: 0 } },
+        { label: "开口向下", values: { a: -1, b: 1 } },
+      ],
+    });
+
+    // Undeclared parameter in expression must fail
+    await expect(parsePlotSpec(JSON.stringify({
+      fn: ["c * x"],
+      x: [-5, 5],
+      params: [{ name: "a", label: "a", min: -2, max: 2, step: 0.5, default: 1 }],
+    }))).resolves.toBeNull();
+
+    // Reserved symbol name ("x" or "sin") as parameter must fail
+    await expect(parsePlotSpec(JSON.stringify({
+      fn: ["x^2"],
+      x: [-5, 5],
+      params: [{ name: "x", label: "x", min: -2, max: 2, step: 0.5, default: 0 }],
+    }))).resolves.toBeNull();
+    await expect(parsePlotSpec(JSON.stringify({
+      fn: ["sin(x)"],
+      x: [-5, 5],
+      params: [{ name: "sin", label: "sin", min: -2, max: 2, step: 0.5, default: 0 }],
+    }))).resolves.toBeNull();
+
+    // Out-of-range default or keyframe value must fail
+    await expect(parsePlotSpec(JSON.stringify({
+      fn: ["a * x"],
+      x: [-5, 5],
+      params: [{ name: "a", label: "a", min: -2, max: 2, step: 0.5, default: 5 }],
+    }))).resolves.toBeNull();
+    await expect(parsePlotSpec(JSON.stringify({
+      fn: ["a * x"],
+      x: [-5, 5],
+      params: [{ name: "a", label: "a", min: -2, max: 2, step: 0.5, default: 1 }],
+      keyframes: [{ label: "越界", values: { a: 9 } }],
+    }))).resolves.toBeNull();
+  });
+
+  it("applies board_param events in board reducer and updates block paramValues", () => {
+    const plotContent = JSON.stringify({
+      fn: ["a * x^2"],
+      x: [-4, 4],
+      params: [{ name: "a", label: "a", min: -3, max: 3, step: 0.5, default: 1 }],
+    });
+    const initial: Board = { pages: [{ id: "page-1", blocks: [] }] };
+    const added = applyBoardEvent(initial, {
+      type: "board",
+      seq: 1,
+      data: { op: "add", id: "b1", type: "plot", content: plotContent },
+    });
+    const updated = applyBoardEvent(added, {
+      type: "board_param",
+      seq: 4,
+      data: { target: "b1", name: "a", value: -1.5 },
+    });
+    expect(updated.pages[0].blocks[0].paramValues).toEqual({ a: -1.5 });
+    expect(updated.pages[0].blocks[0].paramSeq).toBe(4);
+  });
 });
 

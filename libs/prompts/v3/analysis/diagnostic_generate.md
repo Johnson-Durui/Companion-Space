@@ -1,4 +1,4 @@
-Create {{generation_count}} objective diagnostic question for each supplied knowledge point that lacks a suitable existing item. Use only facts in the supplied point. Prefer difficulty 2. Do not repeat an existing question.
+Create {{generation_count}} objective diagnostic question for each supplied knowledge point that lacks a suitable existing item. Use only facts in the supplied point. Prefer difficulty 2. Do not repeat an existing question. Write every stem so it can be solved without seeing its answer, solution, options, or other questions; prefer numeric questions when the source makes that appropriate.
 
 Each `<kp>` must contain the exact id field from the supplied points, including every character. For choice questions the answer is exactly one displayed option key, for multi it is a comma-separated list of keys, and for numeric it is a number or reduced fraction. Copy no verbatim XML or comparison operators as markup. Return `<none></none>` if the supplied facts do not justify a question.
 

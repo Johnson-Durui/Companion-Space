@@ -337,4 +337,63 @@ describe("U6 synthesized sound cues and microphone capture", () => {
     await mic.dispose();
     expect(close).toHaveBeenCalledTimes(1);
   });
+
+  it("renders interactive plot sliders, syncs teacher board_param updates, and respects reduced motion", async () => {
+    const plotContent = JSON.stringify({
+      fn: ["a * x^2 + b"],
+      x: [-5, 5],
+      y: [-4, 4],
+      params: [
+        { name: "a", label: "开口系数 a", min: -3, max: 3, step: 0.5, default: 1 },
+        { name: "b", label: "截距 b", min: -2, max: 2, step: 0.5, default: 0 },
+      ],
+      keyframes: [
+        { label: "标准抛物线", values: { a: 1, b: 0 } },
+        { label: "开口向下", values: { a: -2, b: 1 } },
+      ],
+    });
+
+    let state = advanceClassroom(
+      initialClassroom,
+      event(1, "board", { op: "add", id: "plot-1", type: "plot", content: plotContent }),
+    );
+    state = advanceClassroom(
+      state,
+      event(2, "board_param", { target: "plot-1", name: "a", value: -1.5 }),
+    );
+    expect(state.board[0]?.paramValues).toEqual({ a: -1.5 });
+    expect(state.avatar.pose).toBe("board_guiding");
+
+    const host = mount(<BoardBlock block={state.board[0]!} reducedMotion={false} />);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    });
+
+    expect(host.querySelector('[data-testid="plot-controls"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="plot-param-value-a"]')?.textContent).toContain("-1.5");
+    expect(host.querySelector('[data-testid="plot-play-toggle"]')).not.toBeNull();
+
+    const secondKeyframe = host.querySelector<HTMLButtonElement>('[data-testid="plot-keyframe-1"]');
+    expect(secondKeyframe).not.toBeNull();
+    act(() => {
+      secondKeyframe!.click();
+    });
+    expect(host.querySelector('[data-testid="plot-param-value-a"]')?.textContent).toContain("-2");
+    expect(host.querySelector('[data-testid="plot-param-value-b"]')?.textContent).toContain("1");
+
+    const resetBtn = host.querySelector<HTMLButtonElement>('[data-testid="plot-reset"]');
+    expect(resetBtn).not.toBeNull();
+    act(() => {
+      resetBtn!.click();
+    });
+    expect(host.querySelector('[data-testid="plot-param-value-a"]')?.textContent).toContain("1");
+    expect(host.querySelector('[data-testid="plot-param-value-b"]')?.textContent).toContain("0");
+
+    // Reduced motion hides auto-play toggle while keeping manual keyframes and sliders usable
+    act(() => {
+      root!.render(<BoardBlock block={state.board[0]!} reducedMotion />);
+    });
+    expect(host.querySelector('[data-testid="plot-play-toggle"]')).toBeNull();
+    expect(host.querySelector('[data-testid="plot-param-slider-a"]')).not.toBeNull();
+  });
 });

@@ -19,6 +19,7 @@ import {
   saveLearnerProfile,
   type LearnerProfile,
 } from "../learner/api";
+import { GlobalMemoryArchiveCard } from "../memory/memory-cards";
 
 function parseInterests(raw: string): string[] {
   return raw
@@ -195,5 +196,10 @@ export function LearnerProfileSettings() {
   const profile = useQuery({ queryKey: learnerKeys.profile, queryFn: getLearnerProfile });
   if (profile.isPending) return <Loading />;
   if (profile.isError) return <Problem error={profile.error} onRetry={() => void profile.refetch()} />;
-  return <ProfileForm key={JSON.stringify(profile.data)} data={profile.data} />;
+  return (
+    <div className="grid gap-5">
+      <ProfileForm key={JSON.stringify(profile.data)} data={profile.data} />
+      <GlobalMemoryArchiveCard />
+    </div>
+  );
 }

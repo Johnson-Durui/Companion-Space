@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import type { LessonPhase } from "@companion-space/avatar-engine/types";
 import { TutorVideoBox } from "@companion-space/avatar-engine/video-box";
 import "@companion-space/avatar-engine/video-box.css";
-import { api, bodyOf, classroomErrorMessage, errorCodeOf } from "../../app/api";
+import { api, bodyOf, classroomErrorMessage, errorCodeOf, voiceStatusKey } from "../../app/api";
 import { Loading } from "../../app/ui";
 import {
   ArrowLeft,
@@ -151,8 +151,10 @@ export default function LessonLobby() {
   });
 
   const voice = useQuery({
-    queryKey: ["voice-status"],
+    queryKey: voiceStatusKey,
     queryFn: async () => bodyOf(await api.GET("/api/v2/voice/status")),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const data = statusQuery.data;

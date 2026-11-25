@@ -279,6 +279,39 @@ def seed_unprepared_lesson(container):
                VALUES (?, ?, '极限教材', 'markdown', 'limit.md', ?, 1, ?, ?, 'textbook', 'parsed')""",
             (material_id, course_id, f"spaces/{course_id}/limit.md", now, now),
         )
+        connection.executemany(
+            """INSERT INTO material_sections
+               (id, material_id, space_id, parent_id, level, title, page_start, page_end, ord)
+               VALUES (?, ?, ?, NULL, 1, ?, ?, ?, ?)""",
+            [
+                ("unprepared-sec-1", material_id, course_id, "1.1 函数极限的定义", 1, 1, 1),
+                ("unprepared-sec-2", material_id, course_id, "1.2 左右极限与连续性", 2, 2, 2),
+            ],
+        )
+        connection.executemany(
+            """INSERT INTO material_pages
+               (material_id, page_no, space_id, markdown, source, quality, image_path)
+               VALUES (?, ?, ?, ?, 'text', 1.0, NULL)""",
+            [
+                (
+                    material_id,
+                    1,
+                    course_id,
+                    "### 1.1 函数极限的定义\n\n"
+                    "设函数 $f(x)$ 在点 $x_0$ 的某一去心邻域内有定义。当 $x$ 无限趋近于 $x_0$ 时，若 $f(x)$ 无限趋近于常数 $A$，"
+                    "则称 $A$ 为函数 $f(x)$ 当 $x \\to x_0$ 时的极限。\n\n"
+                    "重要判定：函数在一点极限存在的充要条件是左极限与右极限均存在且相等，与该点本身是否有定义无关。",
+                ),
+                (
+                    material_id,
+                    2,
+                    course_id,
+                    "### 1.2 左右极限与连续性\n\n"
+                    "若 $\\lim_{x \\to x_0^-} f(x) = \\lim_{x \\to x_0^+} f(x) = f(x_0)$，则称函数 $f(x)$ 在点 $x_0$ 处连续。\n\n"
+                    "常见易错点：分段函数在分界点处必须分别检验左极限、右极限与该点函数值。",
+                ),
+            ],
+        )
         connection.execute(
             """INSERT INTO knowledge_points
                (id, space_id, name, norm_name, kind, summary, pitfalls_json, question_types_json,
@@ -526,6 +559,154 @@ def seed_u5_loop_course(container):
             ],
         )
 
+        # Phase 2: seeded verified solve session for /solve
+        solve_blueprint = {
+            "approach_prompt": "先核对函数在闭区间上的连续性、开区间可导性与端点值，再对 f(x) 求导找驻点。",
+            "key_formula": r"f'(\xi) = 3\xi^2 - 3 = 0",
+            "hints": {
+                "1": r"先验证 $f(0)$ 与 $f(\sqrt{3})$ 是否相等，确认满足罗尔定理前提。",
+                "2": r"求出导函数 $f'(x) = 3x^2 - 3$，并筛选落在开区间 $(0, \sqrt{3})$ 内的根。",
+            },
+            "steps": [
+                r"\text{核对前提：}f(x)=x^3-3x\text{ 在 }[0,\sqrt{3}]\text{ 连续，且 }f(0)=f(\sqrt{3})=0",
+                r"\text{求导得 }f'(x)=3x^2-3",
+                r"\text{令 }f'(\xi)=0\text{ 得 }\xi=\pm 1\text{，结合 }\xi\in(0,\sqrt{3})\text{ 取 }\xi=1",
+            ],
+            "pitfalls": [r"容易忘记检验端点 $f(a)=f(b)$ 或忘记舍去区间外的负根 $\xi=-1$。"],
+            "verified_answer": "1",
+            "verify_reason": "Two independent solutions agree.",
+        }
+        solve_state = {
+            "hint_level": 1,
+            "revealed": True,
+            "solved": False,
+            "step_explanations": {},
+            "turns": [],
+            "mimic_results": {},
+        }
+        conn.execute(
+            """INSERT INTO solve_sessions(
+                   id, space_id, source_kind, stem, image_path, mapped_kp_ids_json,
+                   verify_status, blueprint_json, state_json, mimic_item_refs_json,
+                   status, created_at, updated_at
+               ) VALUES ('loop-solve-1', ?, 'text', ?, NULL, ?, 'verified', ?, ?, '[]', 'active', ?, ?)""",
+            (
+                course_id,
+                r"设函数 $f(x) = x^3 - 3x$ 在闭区间 $[0, \sqrt{3}]$ 上满足罗尔定理条件，求满足 $f'(\xi) = 0$ 的中值点 $\xi$。",
+                json.dumps(["loop-kp-3"]),
+                json.dumps(solve_blueprint, ensure_ascii=False),
+                json.dumps(solve_state, ensure_ascii=False),
+                day_3,
+                now,
+            ),
+        )
+
+        # Phase 3: seeded L1 trace & grounded L2 memory facts for CourseMemoryCard / GlobalMemoryArchiveCard
+        conn.execute(
+            """INSERT INTO learning_traces(id, space_id, surface, kp_id, event_type, summary, source_ref_json, created_at)
+               VALUES ('loop-trace-1', ?, 'lesson', 'loop-kp-3', 'recap', ?, ?, ?)""",
+            (
+                course_id,
+                "应用罗尔定理前容易跳过闭区间连续与端点相等核对。",
+                json.dumps({"kind": "lesson", "id": "loop-lesson-done"}),
+                day_3,
+            ),
+        )
+        conn.executemany(
+            """INSERT INTO memory_facts(
+                   id, space_id, kp_id, kind, statement, evidence_refs_json,
+                   status, user_edited, embedding, created_at, updated_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)""",
+            [
+                (
+                    "loop-mem-1",
+                    course_id,
+                    "loop-kp-3",
+                    "mistake_habit",
+                    "应用罗尔定理前容易跳过闭区间连续与端点相等的核对步骤。",
+                    json.dumps([{"kind": "evidence", "id": "loop-ev-4"}, {"kind": "solve", "id": "loop-solve-1"}]),
+                    "pinned",
+                    day_3,
+                    now,
+                ),
+                (
+                    "loop-mem-2",
+                    course_id,
+                    "loop-kp-2",
+                    "explanation_pref",
+                    "先看图像直观变化再进公式推导时，理解速度更快。",
+                    json.dumps([{"kind": "lesson", "id": "loop-lesson-done"}]),
+                    "active",
+                    day_3,
+                    now,
+                ),
+            ],
+        )
+
+        # Phase 4: seeded block notebook with parameterized interactive plot for /notes
+        conn.execute(
+            """INSERT INTO course_notes(id, space_id, title, kp_id, created_at, updated_at)
+               VALUES ('loop-note-1', ?, '第一章 极限与函数图像精要', 'loop-kp-1', ?, ?)""",
+            (course_id, day_3, now),
+        )
+        plot_note_spec = json.dumps(
+            {
+                "fn": ["a*x^2+b"],
+                "x": [-3, 3],
+                "y": [-3, 6],
+                "params": [
+                    {"name": "a", "label": "开口系数 a", "min": -2, "max": 2, "step": 0.5, "default": 1},
+                    {"name": "b", "label": "纵向平移 b", "min": -2, "max": 2, "step": 0.5, "default": 0},
+                ],
+                "keyframes": [
+                    {"label": "默认抛物线", "values": {"a": 1, "b": 0}},
+                    {"label": "开口变宽上移", "values": {"a": 0.5, "b": 1}},
+                    {"label": "开口向下", "values": {"a": -1, "b": 2}},
+                ],
+            },
+            ensure_ascii=False,
+        )
+        conn.executemany(
+            """INSERT INTO note_blocks(
+                   id, note_id, space_id, ord, block_type, title, content, source_ref_json, created_at, updated_at
+               ) VALUES (?, 'loop-note-1', ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [
+                (
+                    "loop-nb-1",
+                    course_id,
+                    0,
+                    "callout",
+                    "极限存在判定",
+                    "函数在一点处极限存在，要求左极限与右极限均存在且相等，与该点函数值无关。",
+                    json.dumps({"kind": "lesson", "lesson_id": "loop-lesson-done", "kp_id": "loop-kp-1"}),
+                    day_3,
+                    now,
+                ),
+                (
+                    "loop-nb-2",
+                    course_id,
+                    1,
+                    "steps",
+                    "罗尔定理三步核对",
+                    "f(x)\\text{ 在 }[a,b]\\text{ 连续}\nf(x)\\text{ 在 }(a,b)\\text{ 可导且 }f(a)=f(b)\n\\exists\\,\\xi\\in(a,b)\\text{ 使 }f'(\\xi)=0",
+                    json.dumps({"kind": "solve", "solve_session_id": "loop-solve-1", "kp_id": "loop-kp-3"}),
+                    day_3,
+                    now,
+                ),
+                (
+                    "loop-nb-3",
+                    course_id,
+                    2,
+                    "plot",
+                    "二次函数参数探索",
+                    plot_note_spec,
+                    None,
+                    day_3,
+                    now,
+                ),
+            ],
+        )
+
 
 class BrowserHarnessGateway(LLMGateway):
     async def complete_tagged(self, role, prompt_name, variables, *, parse, **options):
@@ -625,6 +806,94 @@ class BrowserHarnessGateway(LLMGateway):
                 },
             }
             raw = f"<lesson_plan>{json.dumps(plan_obj, ensure_ascii=False)}</lesson_plan>"
+        elif prompt_name == "analysis/toc_route":
+            blob = variables.get("course_context", "")
+            pairs = re.findall(r'"material_id":"([^"]+)"[^}]*"page_no":(\d+)', blob)
+            routed = [{"material_id": mid, "page_no": int(pno)} for mid, pno in pairs[:2]]
+            raw = f"<pages>{json.dumps(routed, ensure_ascii=False)}</pages>"
+        elif prompt_name == "analysis/solve_blueprint":
+            bp = {
+                "approach_prompt": "先确认题目给出的条件与适用定理，再逐步列出关键关系式。",
+                "key_formula": r"f'(\xi) = 0",
+                "hints": {
+                    "1": "先把已知条件写清楚，检查定理的前提是否满足。",
+                    "2": "对核心关系式求导或代入已知量，观察端点与区间范围。",
+                },
+                "steps": [
+                    "第一步：整理已知条件并确认定理前提",
+                    "第二步：建立核心方程并化简求解",
+                    "第三步：检验结果是否落在题目要求范围内",
+                ],
+                "pitfalls": ["容易漏掉检验前提条件或忘记排除区间外的解。"],
+            }
+            raw = f"<blueprint>{json.dumps(bp, ensure_ascii=False)}</blueprint>"
+        elif prompt_name == "analysis/solve_feedback":
+            fb = {"verdict": "partial", "reply": "方向是对的，再结合前提条件把关键一步补全。"}
+            raw = f"<feedback>{json.dumps(fb, ensure_ascii=False)}</feedback>"
+        elif prompt_name == "analysis/solve_step_detail":
+            detail = {
+                "summary": "这一步的核心是先把前提条件逐项核对，再代入公式化简。",
+                "substeps": ["先列出题目给出的边界条件。", "把已知量代入核心式子完成化简。"],
+            }
+            raw = f"<detail>{json.dumps(detail, ensure_ascii=False)}</detail>"
+        elif prompt_name == "analysis/mimic_items":
+            items = [{
+                "type": "choice",
+                "stem": "若函数在闭区间连续、开区间可导且端点值相等，则区间内必存在导数为零的点，这一结论是否成立？",
+                "options": [{"key": "A", "text": "不成立"}, {"key": "B", "text": "成立"}],
+                "answer": "B",
+                "solution": "满足罗尔定理全部三个条件，结论必然成立。",
+                "difficulty": 2,
+            }]
+            raw = f"<items>{json.dumps(items, ensure_ascii=False)}</items>"
+        elif prompt_name == "analysis/memory_distill":
+            blob = variables.get("memory_evidence", "")
+            ev_ids = re.findall(r'"evidence":\[\{"id":"([^"]+)"', blob)
+            lesson_ids = re.findall(r'"lessons":\[\{"id":"([^"]+)"', blob)
+            refs = (
+                [{"kind": "evidence", "id": ev_ids[0]}]
+                if ev_ids
+                else ([{"kind": "lesson", "id": lesson_ids[0]}] if lesson_ids else [])
+            )
+            memories = (
+                [{
+                    "kind": "mistake_habit",
+                    "kp_id": None,
+                    "statement": "解题时需要注意先核对定理前提条件再代入计算。",
+                    "evidence_refs": refs,
+                }]
+                if refs
+                else []
+            )
+            raw = f"<memories>{json.dumps(memories, ensure_ascii=False)}</memories>"
+        elif prompt_name == "analysis/memory_synthesize":
+            blob = variables.get("memory_evidence", "")
+            mem_ids = re.findall(r'"id":"([^"]+)"', blob)
+            notes = (
+                [{
+                    "statement": "先核对前提条件并借助图像直观理解，做题更稳。",
+                    "source_memory_ids": mem_ids[:2],
+                }]
+                if mem_ids
+                else []
+            )
+            raw = f"<synthesis>{json.dumps(notes, ensure_ascii=False)}</synthesis>"
+        elif prompt_name == "analysis/reader_ask":
+            ans = {
+                "explanation": "这段原文强调：函数在一点的极限只取决于该点左右两侧的变化趋势，不要求函数在该点本身有定义。",
+                "key_takeaway": "极限看左右趋近，不看该点取值",
+                "block_type": "callout",
+                "block_content": "判定一点处极限是否存在，只需检查左极限与右极限是否同时存在且相等。",
+            }
+            raw = f"<answer>{json.dumps(ans, ensure_ascii=False)}</answer>"
+        elif prompt_name == "analysis/note_suggest":
+            sugs = [{
+                "reason": "补充极限存在与函数连续性的易混边界",
+                "block_type": "callout",
+                "title": "易错对比：极限存在 vs 连续",
+                "content": "极限存在只要求左右极限相等；连续还额外要求该点有定义且极限等于函数值。",
+            }]
+            raw = f"<suggestions>{json.dumps(sugs, ensure_ascii=False)}</suggestions>"
         else:
             raise AssertionError(f"Unexpected tagged prompt: {prompt_name}")
         return parse(raw)
@@ -683,7 +952,7 @@ class BrowserHarnessGateway(LLMGateway):
                 "<point target=b-steps.2/>"
                 "<board id=b-math type=math>x^2+1</board>"
                 "<board id=b-table type=table>| x | y |\n|---|---|\n| 1 | 2 |</board>"
-                '<board id=b-plot type=plot>{"fn":["x^2","x+1"],"x":[-2,2],"points":[[1,1]],"holes":[[0,0]],"labels":[{"at":[1,1],"text":"交点"}]}</board>'
+                '<board id=b-plot type=plot>{"fn":["a*x^2","x+1"],"x":[-2,2],"points":[[1,1]],"holes":[[0,0]],"labels":[{"at":[1,1],"text":"交点"}],"params":[{"name":"a","label":"系数 a","min":0.5,"max":2,"step":0.5,"default":1}],"keyframes":[{"label":"默认抛物线","values":{"a":1}},{"label":"陡峭抛物线","values":{"a":2}}]}</board>'
                 "<board id=b-diagram type=diagram>flowchart TD\nA --&gt;</board>"
                 "<say>开始吧。</say>"
             )

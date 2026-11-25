@@ -48,7 +48,7 @@ def _schema(path: Path) -> list[tuple]:
         ).fetchall()
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 4, 5, 6, 7])
+@pytest.mark.parametrize("version", [1, 2, 3, 4, 5, 6, 7, 10, 11, 12])
 def test_can_upgrade_from_each_published_schema_and_reopen(tmp_path: Path, version: int) -> None:
     settings = _settings(tmp_path)
     _build_old_database(settings.metadata_db_path, version=version)

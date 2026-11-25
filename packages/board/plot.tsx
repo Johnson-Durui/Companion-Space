@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { parsePlotSpec, type PlotSpec } from "./validation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { parsePlotSpec, type PlotParam, type PlotSpec } from "./validation";
 import styles from "./board.module.css";
 
 const PALETTE_TOKENS = [
@@ -32,14 +32,50 @@ function resolvePlotPalette(el: HTMLElement): string[] {
   return PALETTE_TOKENS.map((token, idx) => readToken(el, token, fallbacks[idx] ?? fallbacks[0]));
 }
 
+function clampParam(param: PlotParam, value: number): number {
+  if (!Number.isFinite(value)) return param.default;
+  return Math.min(param.max, Math.max(param.min, value));
+}
+
+function buildInitialParams(
+  params: readonly PlotParam[] | undefined,
+  external?: Record<string, number>,
+): Record<string, number> {
+  if (!params?.length) return {};
+  const result: Record<string, number> = {};
+  for (const param of params) {
+    const override = external?.[param.name];
+    result[param.name] = typeof override === "number" ? clampParam(param, override) : param.default;
+  }
+  return result;
+}
+
+function formatParamNumber(value: number, step: number): string {
+  const stepText = String(step);
+  const decimals = stepText.includes(".") ? Math.min(4, stepText.split(".")[1]?.length ?? 0) : 0;
+  return Number(value.toFixed(Math.max(decimals, 2))).toString();
+}
+
 export function PlotBlock({
   source,
   errorLabel,
   viewSourceLabel = "查看原始内容",
+  resetLabel = "恢复默认",
+  playLabel = "演示变化",
+  pauseLabel = "暂停演示",
+  externalParams,
+  paramSeq,
+  reducedMotion = false,
 }: {
   source: string;
   errorLabel: string;
   viewSourceLabel?: string;
+  resetLabel?: string;
+  playLabel?: string;
+  pauseLabel?: string;
+  externalParams?: Record<string, number>;
+  paramSeq?: number;
+  reducedMotion?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
@@ -47,14 +83,76 @@ export function PlotBlock({
   const [failed, setFailed] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
   const [palette, setPalette] = useState<string[]>([]);
+  const [paramValues, setParamValues] = useState<Record<string, number>>({});
+  const [playing, setPlaying] = useState(false);
+  const [activeKeyframe, setActiveKeyframe] = useState<number>(-1);
+  const externalParamsRef = useRef(externalParams);
+  externalParamsRef.current = externalParams;
 
   useEffect(() => {
     let active = true;
     setSpec(undefined);
     setFailed(false);
-    void parsePlotSpec(source).then((value) => { if (active) setSpec(value); });
+    setPlaying(false);
+    setActiveKeyframe(-1);
+    void parsePlotSpec(source).then((value) => {
+      if (!active) return;
+      setSpec(value);
+      setParamValues(buildInitialParams(value?.params, externalParamsRef.current));
+    });
     return () => { active = false; };
   }, [source]);
+
+  // Sync teacher-driven <board_param> updates immediately into interactive controls
+  useEffect(() => {
+    if (!spec?.params?.length || !externalParams) return;
+    setPlaying(false);
+    setActiveKeyframe(-1);
+    setParamValues((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const param of spec.params ?? []) {
+        const incoming = externalParams[param.name];
+        if (typeof incoming === "number" && Number.isFinite(incoming)) {
+          const clamped = clampParam(param, incoming);
+          if (next[param.name] !== clamped) {
+            next[param.name] = clamped;
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [spec, externalParams, paramSeq]);
+
+  // Keyframe demo animation (disabled under prefers-reduced-motion)
+  useEffect(() => {
+    if (!playing || reducedMotion || !spec?.keyframes?.length || !spec.params?.length) return;
+    const frames = spec.keyframes;
+    const params = spec.params;
+    let index = activeKeyframe >= 0 ? activeKeyframe : 0;
+    const applyFrame = (idx: number) => {
+      const frame = frames[idx];
+      if (!frame) return;
+      setActiveKeyframe(idx);
+      setParamValues((prev) => {
+        const next = { ...prev };
+        for (const param of params) {
+          const val = frame.values[param.name];
+          if (typeof val === "number") next[param.name] = clampParam(param, val);
+        }
+        return next;
+      });
+    };
+    const timer = window.setInterval(() => {
+      index = (index + 1) % frames.length;
+      applyFrame(index);
+    }, 1200);
+    return () => window.clearInterval(timer);
+  }, [playing, reducedMotion, spec, activeKeyframe]);
+
+  const hasParams = Boolean(spec?.params?.length);
+  const scopeKey = useMemo(() => JSON.stringify(paramValues), [paramValues]);
 
   // Redraw when container resizes (e.g. toggling view mode or opening lightbox)
   useEffect(() => {
@@ -79,6 +177,7 @@ export function PlotBlock({
   useEffect(() => {
     if (!spec || !host.current) return;
     let active = true;
+    const currentScope = hasParams ? { ...paramValues } : undefined;
     void import("function-plot").then((module) => {
       if (!active || !host.current) return;
       const exported: unknown = module.default;
@@ -108,6 +207,7 @@ export function PlotBlock({
             fn,
             graphType: "polyline" as const,
             color: resolvedPalette[idx % resolvedPalette.length],
+            ...(currentScope ? { scope: currentScope } : {}),
           })),
           ...(spec.points.length
             ? [{
@@ -193,7 +293,7 @@ export function PlotBlock({
       setFailed(false);
     }).catch(() => setFailed(true));
     return () => { active = false; };
-  }, [spec, containerWidth]);
+  }, [spec, containerWidth, hasParams, scopeKey]);
 
   if (spec === null || failed) {
     return (
@@ -208,9 +308,116 @@ export function PlotBlock({
   }
   if (!spec) return <div className={styles.pending} aria-busy="true" />;
 
+  const params = spec.params ?? [];
+  const keyframes = spec.keyframes ?? [];
+  const isModified = params.some((param) => paramValues[param.name] !== param.default);
+
+  function handleSliderChange(param: PlotParam, raw: string) {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return;
+    setPlaying(false);
+    setActiveKeyframe(-1);
+    setParamValues((prev) => ({ ...prev, [param.name]: clampParam(param, parsed) }));
+  }
+
+  function handleApplyKeyframe(index: number) {
+    const frame = keyframes[index];
+    if (!frame) return;
+    setPlaying(false);
+    setActiveKeyframe(index);
+    setParamValues((prev) => {
+      const next = { ...prev };
+      for (const param of params) {
+        const val = frame.values[param.name];
+        if (typeof val === "number") next[param.name] = clampParam(param, val);
+      }
+      return next;
+    });
+  }
+
+  function handleReset() {
+    setPlaying(false);
+    setActiveKeyframe(-1);
+    setParamValues(buildInitialParams(params));
+  }
+
   return (
     <div ref={containerRef} className={styles.plot} data-testid="board-plot">
       <div ref={host} />
+      {params.length > 0 ? (
+        <div className={styles.plotControls} data-testid="plot-controls">
+          <div className={styles.plotParamList}>
+            {params.map((param) => {
+              const current = paramValues[param.name] ?? param.default;
+              return (
+                <label key={param.name} className={styles.plotParamRow}>
+                  <span className={styles.plotParamHeader}>
+                    <span className={styles.plotParamLabel}>{param.label}</span>
+                    <code
+                      className={styles.plotParamValue}
+                      data-testid={`plot-param-value-${param.name}`}
+                    >
+                      {param.name} = {formatParamNumber(current, param.step)}
+                    </code>
+                  </span>
+                  <input
+                    type="range"
+                    className={styles.plotSlider}
+                    aria-label={param.label}
+                    data-testid={`plot-param-slider-${param.name}`}
+                    min={param.min}
+                    max={param.max}
+                    step={param.step}
+                    value={current}
+                    onChange={(event) => handleSliderChange(param, event.target.value)}
+                  />
+                </label>
+              );
+            })}
+          </div>
+          {keyframes.length > 0 || isModified ? (
+            <div className={styles.plotActions}>
+              {keyframes.length > 0 ? (
+                <div className={styles.plotKeyframes} data-testid="plot-keyframes">
+                  {keyframes.map((frame, index) => (
+                    <button
+                      key={`${frame.label}-${index}`}
+                      type="button"
+                      className={styles.plotChip}
+                      data-active={activeKeyframe === index ? "true" : undefined}
+                      data-testid={`plot-keyframe-${index}`}
+                      onClick={() => handleApplyKeyframe(index)}
+                    >
+                      {frame.label}
+                    </button>
+                  ))}
+                  {!reducedMotion && keyframes.length > 1 ? (
+                    <button
+                      type="button"
+                      className={styles.plotChip}
+                      data-testid="plot-play-toggle"
+                      aria-pressed={playing}
+                      onClick={() => setPlaying((prev) => !prev)}
+                    >
+                      {playing ? pauseLabel : playLabel}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              {isModified ? (
+                <button
+                  type="button"
+                  className={styles.plotResetBtn}
+                  data-testid="plot-reset"
+                  onClick={handleReset}
+                >
+                  {resetLabel}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {spec.fn.length > 0 ? (
         <ul className={styles.plotLegend} data-testid="plot-legend">
           {spec.fn.map((fn, idx) => (

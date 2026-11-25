@@ -170,3 +170,84 @@ def test_lesson_create_resume_replay_and_commit_are_course_scoped(isolated_setti
     assert reopened.delete_space("course")
     assert reopened.list_lesson_events("course", lesson_id) == []
     assert reopened.get_plan_item("other", "other-item") is not None
+
+
+def test_reopen_abandoned_lesson_and_resume_endpoint(client, owner_token, isolated_settings) -> None:
+    repository = SQLiteRepository(isolated_settings)
+    with repository.connection() as conn:
+        _seed_plan(conn, "course", "item")
+    plan = repository.save_lesson_plan("course", "item", plan={"segments": [], "items": {}})
+    lesson = repository.create_or_resume_lesson(
+        "course", "item", state={"stage": "teaching", "seg_idx": 0, "kp_cursor": 0}, lesson_plan_id=plan["id"],
+    )
+    assert lesson is not None
+    lesson_id = lesson["id"]
+
+    # Abandon the lesson
+    repository.append_lesson_events(
+        "course",
+        lesson_id,
+        gen=1,
+        events=[{"type": "state", "data": {"paused": False}, "t_ms": 10}],
+        state={"stage": "teaching", "seg_idx": 0, "kp_cursor": 0},
+        board={},
+        status="abandoned",
+        expected_seq=0,
+    )
+    abandoned = repository.get_lesson("course", lesson_id)
+    assert abandoned["status"] == "abandoned"
+    assert abandoned["ended_at"] is not None
+    assert repository.get_plan_item("course", "item")["status"] == "abandoned"
+    assert repository.reopen_abandoned_lesson("other", lesson_id) is None
+
+    headers = {"Authorization": f"Bearer {owner_token}"}
+
+    # Missing lesson returns 404 lesson_not_found
+    missing = client.post("/api/v2/lessons/no-such-lesson/resume", headers=headers)
+    assert missing.status_code == 404
+    assert missing.json()["code"] == "lesson_not_found"
+
+    # Resume transitions abandoned -> paused, clears ended_at, restores plan_items.status='active'
+    resumed = client.post(f"/api/v2/lessons/{lesson_id}/resume", headers=headers)
+    assert resumed.status_code == 200
+    assert resumed.json()["id"] == lesson_id
+    assert resumed.json()["status"] == "paused"
+    after = repository.get_lesson("course", lesson_id)
+    assert after["status"] == "paused"
+    assert after["ended_at"] is None
+    assert repository.get_plan_item("course", "item")["status"] == "active"
+
+    # Idempotent when already paused
+    resumed_again = client.post(f"/api/v2/lessons/{lesson_id}/resume", headers=headers)
+    assert resumed_again.status_code == 200
+    assert resumed_again.json()["status"] == "paused"
+
+    # Lesson can now append new events and transition to active
+    repository.append_lesson_events(
+        "course",
+        lesson_id,
+        gen=2,
+        events=[{"type": "state", "data": {"paused": False}, "t_ms": 20}],
+        state={"stage": "teaching", "seg_idx": 0, "kp_cursor": 1},
+        board={},
+        status="active",
+        expected_seq=1,
+    )
+    resumed_active = client.post(f"/api/v2/lessons/{lesson_id}/resume", headers=headers)
+    assert resumed_active.status_code == 200
+    assert resumed_active.json()["status"] == "active"
+
+    # Completed lesson returns 409 lesson_not_resumable
+    repository.append_lesson_events(
+        "course",
+        lesson_id,
+        gen=3,
+        events=[{"type": "state", "data": {"paused": False}, "t_ms": 30}],
+        state={"stage": "done"},
+        board={},
+        status="done",
+        expected_seq=2,
+    )
+    done_resp = client.post(f"/api/v2/lessons/{lesson_id}/resume", headers=headers)
+    assert done_resp.status_code == 409
+    assert done_resp.json()["code"] == "lesson_not_resumable"

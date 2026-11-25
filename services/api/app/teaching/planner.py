@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
+import re
+import unicodedata
 from dataclasses import dataclass
+from decimal import Decimal
+from fractions import Fraction
 from typing import Any
 from uuid import uuid4
 
 from app.analysis.item_verifier import ItemVerifier, numeric_value
 from app.analysis.retrieval import RetrievedChunk, retrieve_for_kp
+from app.learning.memory import recall_course_memories
 from app.llm.errors import LLMOutputError
 from app.llm.prompts import data_block
 from app.llm.tagged import parse_blocks
@@ -18,6 +24,224 @@ from app.teaching.validators import answer_leaks, build_forbidden
 
 _OBJECTIVE_TYPES = {"choice", "multi", "numeric", "short"}
 _APPROACH_KINDS = {"intuition", "example", "visual", "formal", "analogy", "contrast"}
+_TYPE_ALIASES = {
+    "single_choice": "choice",
+    "single-choice": "choice",
+    "mcq": "choice",
+    "multiple_choice": "choice",
+    "multiple-choice": "choice",
+    "multi_choice": "multi",
+    "multi-choice": "multi",
+    "multi_select": "multi",
+    "multi-select": "multi",
+    "multiple_select": "multi",
+    "multiple-select": "multi",
+    "number": "numeric",
+    "numerical": "numeric",
+    "calculation": "numeric",
+    "calc": "numeric",
+    "fill_blank": "short",
+    "fill-blank": "short",
+    "fill_in_blank": "short",
+    "fill-in-the-blank": "short",
+    "short-answer": "short",
+}
+_TRUE_FALSE_TYPES = {"true_false", "true-false", "boolean", "judge", "tf"}
+_TRUE_VALUES = {"true", "t", "yes", "y", "1", "对", "正确", "是"}
+_FALSE_VALUES = {"false", "f", "no", "n", "0", "错", "错误", "否"}
+_NUMBER_GLYPHS = str.maketrans("０１２３４５６７８９＋－．／−⁄％", "0123456789+-./-/%")
+_LATEX_FRAC = re.compile(
+    r"^([+-]?)\s*\\(?:d|t)?frac\s*\{\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*\}\s*\{\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*\}$"
+)
+_THOUSANDS_NUM = re.compile(r"^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?%?$")
+_STR_OPTION = re.compile(r"^\s*[\(（]?([A-Za-z])[\)）\.\)、:：]\s*(.+?)\s*$")
+
+
+def _has_answer(value: object) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return True
+    if isinstance(value, (int, float)):
+        return math.isfinite(value)
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, list):
+        return bool(value)
+    return False
+
+
+def _format_fraction(value: Fraction) -> str:
+    if value.denominator == 1:
+        return str(value.numerator)
+    denom = value.denominator
+    twos = 0
+    while denom % 2 == 0:
+        denom //= 2
+        twos += 1
+    fives = 0
+    while denom % 5 == 0:
+        denom //= 5
+        fives += 1
+    if denom == 1 and max(twos, fives) <= 6:
+        power = max(twos, fives)
+        scaled = value.numerator * (5 ** (power - fives)) * (2 ** (power - twos))
+        sign = "-" if scaled < 0 else ""
+        digits = str(abs(scaled)).zfill(power + 1)
+        whole, frac_part = digits[:-power], digits[-power:].rstrip("0")
+        return f"{sign}{whole}.{frac_part}" if frac_part else f"{sign}{whole}"
+    return f"{value.numerator}/{value.denominator}"
+
+
+def _canonicalize_numeric(raw: object) -> str | None:
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return str(raw)
+    if isinstance(raw, float):
+        if not math.isfinite(raw):
+            return None
+        text = format(Decimal(str(raw)), "f")
+        if "." in text:
+            text = text.rstrip("0").rstrip(".") or "0"
+        return text if numeric_value(text) is not None else None
+    if not isinstance(raw, str):
+        return None
+    text = raw.translate(_NUMBER_GLYPHS).strip()
+    if not text:
+        return None
+    while True:
+        if len(text) >= 4 and text.startswith("$$") and text.endswith("$$"):
+            text = text[2:-2].strip()
+        elif len(text) >= 2 and text.startswith("$") and text.endswith("$") and text.count("$") == 2:
+            text = text[1:-1].strip()
+        elif len(text) >= 4 and text.startswith(r"\(") and text.endswith(r"\)"):
+            text = text[2:-2].strip()
+        elif len(text) >= 4 and text.startswith(r"\[") and text.endswith(r"\]"):
+            text = text[2:-2].strip()
+        else:
+            break
+    text = text.replace(r"\left", "").replace(r"\right", "").replace(r"\displaystyle", "").strip()
+    text = text.replace(r"\%", "%")
+    if _THOUSANDS_NUM.fullmatch(text):
+        text = text.replace(",", "")
+    is_percent = text.endswith("%")
+    if is_percent:
+        text = text[:-1].strip()
+    if not text:
+        return None
+    frac_match = _LATEX_FRAC.fullmatch(text)
+    if frac_match:
+        sign, num_s, den_s = frac_match.groups()
+        num, den = numeric_value(num_s), numeric_value(den_s)
+        if num is None or den is None or den == 0:
+            return None
+        value = num / den
+        if sign == "-":
+            value = -value
+        if is_percent:
+            return _format_fraction(value / 100)
+        return str(value.numerator) if value.denominator == 1 else f"{value.numerator}/{value.denominator}"
+    compact = re.sub(r"\s*/\s*", "/", text)
+    if any(ch.isspace() for ch in compact):
+        return None
+    value = numeric_value(compact)
+    if value is None:
+        return None
+    if is_percent:
+        return _format_fraction(value / 100)
+    return compact
+
+
+def _normalize_options(raw: object) -> list[dict[str, str]] | None:
+    if isinstance(raw, dict):
+        result: list[dict[str, str]] = []
+        for key, value in raw.items():
+            k = str(key).strip()
+            if not k or value is None or isinstance(value, (dict, list)):
+                return None
+            t = str(value).strip()
+            if not t:
+                return None
+            result.append({"key": k, "text": t})
+        return result if len(result) >= 2 else None
+    if isinstance(raw, list):
+        if len(raw) < 2:
+            return None
+        if all(isinstance(entry, dict) for entry in raw):
+            result = []
+            for entry in raw:
+                k = str(entry.get("key", "")).strip()
+                raw_text = entry.get("text")
+                if not k or raw_text is None or isinstance(raw_text, (dict, list)):
+                    return None
+                t = str(raw_text).strip()
+                if not t:
+                    return None
+                result.append({"key": k, "text": t})
+            return result
+        if all(isinstance(entry, str) for entry in raw):
+            result = []
+            for entry in raw:
+                match = _STR_OPTION.match(entry)
+                if not match:
+                    return None
+                result.append({"key": match.group(1).upper(), "text": match.group(2).strip()})
+            return result
+    return None
+
+
+def _match_single_option(raw: object, options: list[dict[str, str]], by_key: dict[str, str]) -> str | None:
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, list):
+        if len(raw) != 1:
+            return None
+        raw = raw[0]
+        if raw is None or isinstance(raw, (bool, list, dict)):
+            return None
+    if isinstance(raw, dict):
+        return None
+    text = unicodedata.normalize("NFKC", str(raw)).strip()
+    if not text:
+        return None
+    folded = text.casefold()
+    if folded in by_key:
+        return by_key[folded]
+    stripped = re.sub(r"^[\(（\s]+|[\)）\.\)、:：\s]+$", "", text).casefold()
+    if stripped in by_key:
+        return by_key[stripped]
+    matches = [opt["key"] for opt in options if opt["text"].strip().casefold() == folded]
+    if len(matches) == 1:
+        return matches[0]
+    ans_canonical = _canonicalize_numeric(text)
+    if ans_canonical is not None:
+        ans_num = numeric_value(ans_canonical)
+        if ans_num is not None:
+            num_matches = [
+                opt["key"]
+                for opt in options
+                if (opt_c := _canonicalize_numeric(opt["text"])) is not None
+                and numeric_value(opt_c) == ans_num
+            ]
+            if len(num_matches) == 1:
+                return num_matches[0]
+    prefix = _STR_OPTION.match(text)
+    if prefix:
+        cand_key = by_key.get(prefix.group(1).casefold())
+        if cand_key is not None:
+            opt_text = next((opt["text"] for opt in options if opt["key"] == cand_key), "")
+            if opt_text.strip().casefold() == prefix.group(2).strip().casefold():
+                return cand_key
+    return None
+
+
+def _format_rejected(rejected_ids: set[str], reasons: dict[str, str]) -> str:
+    parts = [
+        f"{local_id} ({reasons[local_id]})" if local_id in reasons else local_id
+        for local_id in sorted(rejected_ids)
+    ]
+    return f"Rejected items: {', '.join(parts)}."
 
 
 class LessonPlanError(ValueError):
@@ -139,11 +363,23 @@ class LessonPlanner:
                 (space_id, *point_ids),
             ).fetchall()
             approaches = conn.execute("SELECT kind, n, success FROM approach_stats ORDER BY kind").fetchall()
-        return {
+        active_memories = recall_course_memories(
+            self.repository,
+            space_id=space_id,
+            kp_id=point_ids[0] if point_ids else None,
+            limit=4,
+        )
+        history = {
             "recent_recaps": [json.loads(row["recap_json"]).get("summary", "")[:360] for row in recaps],
             "unresolved_misconceptions": [dict(row) for row in gaps],
             "approach_success": [{"kind": row["kind"], "checks": row["n"], "correct": row["success"]} for row in approaches],
         }
+        if active_memories:
+            history["audited_memories"] = [
+                {"kind": item["kind"], "kp_id": item["kp_id"], "statement": item["statement"]}
+                for item in active_memories
+            ]
+        return history
 
     async def more_items(self, space_id: str, kp_id: str, n: int) -> list[dict[str, Any]]:
         if n < 1:
@@ -271,7 +507,7 @@ class LessonPlanner:
                 item.get("kp_id") != kp_id
                 or not item.get("type")
                 or not item.get("stem")
-                or not item.get("answer")
+                or not _has_answer(item.get("answer"))
                 or not item.get("solution")
                 or item.get("variant_of") not in {None, *existing_ids}
             ):
@@ -339,6 +575,7 @@ class LessonPlanner:
         new_items: list[dict[str, Any]] = []
         hydrated: dict[str, dict[str, Any]] = {}
         rejected_ids: set[str] = set()
+        rejected_reasons: dict[str, str] = {}
         for local_id, definition in plan["items"].items():
             if not isinstance(local_id, str) or not isinstance(definition, dict):
                 raise LessonPlanError("Every lesson item must have an identifier and object definition.")
@@ -355,34 +592,50 @@ class LessonPlanner:
                         if key in definition
                     },
                 }
+                item["forbidden"] = build_forbidden(item)
+                hints = item.get("fallback_hints") or {}
+                if not all(isinstance(hints.get(level), str) and hints[level].strip() for level in ("1", "2")):
+                    raise LessonPlanError(f"Item {local_id} needs two fallback hints.")
+                if any(answer_leaks(str(hints.get(level, "")), item["forbidden"]) for level in ("1", "2")):
+                    raise LessonPlanError(f"An answer leaks through fallback hints for {local_id}.")
             else:
                 item = dict(definition)
                 kp_id = item.get("kp_id")
                 if kp_id not in requested:
                     raise LessonPlanError(f"Generated item {local_id} has an invalid knowledge point.")
-                if not item.get("type") or not item.get("stem") or not item.get("answer") or not item.get("solution"):
-                    raise LessonPlanError(f"Generated item {local_id} is incomplete.")
+                if not item.get("type") or not item.get("stem") or not _has_answer(item.get("answer")) or not item.get("solution"):
+                    rejected_ids.add(local_id)
+                    rejected_reasons[local_id] = "incomplete"
+                    continue
                 if not self._canonicalize_objective(item):
-                    raise LessonPlanError(f"Generated item {local_id} cannot be graded deterministically.")
+                    rejected_ids.add(local_id)
+                    rejected_reasons[local_id] = "cannot be graded deterministically"
+                    continue
+                item["forbidden"] = build_forbidden(item)
+                hints = item.get("fallback_hints") or {}
+                if not all(isinstance(hints.get(level), str) and hints[level].strip() for level in ("1", "2")):
+                    rejected_ids.add(local_id)
+                    rejected_reasons[local_id] = "needs two fallback hints"
+                    continue
+                if any(answer_leaks(str(hints.get(level, "")), item["forbidden"]) for level in ("1", "2")):
+                    rejected_ids.add(local_id)
+                    rejected_reasons[local_id] = "answer leaks through fallback hints"
+                    continue
                 try:
                     result = await verifier.verify(self._verification_item(item))
                 except LLMOutputError:
                     rejected_ids.add(local_id)
+                    rejected_reasons[local_id] = "checker output invalid"
                     continue
                 if result.get("status") != "verified":
                     rejected_ids.add(local_id)
+                    rejected_reasons[local_id] = "unverified"
                     continue
                 item["bank_id"] = str(uuid4())
                 item["origin"] = {"kind": "generated"}
                 item["_local_id"] = local_id
                 item["verify"] = result
                 new_items.append(item)
-            item["forbidden"] = build_forbidden(item)
-            hints = item.get("fallback_hints") or {}
-            if not all(isinstance(hints.get(level), str) and hints[level].strip() for level in ("1", "2")):
-                raise LessonPlanError(f"Item {local_id} needs two fallback hints.")
-            if any(answer_leaks(str(hints.get(level, "")), item["forbidden"]) for level in ("1", "2")):
-                raise LessonPlanError(f"An answer leaks through fallback hints for {local_id}.")
             hydrated[local_id] = item
         if rejected_ids:
             while True:
@@ -407,7 +660,8 @@ class LessonPlanner:
                 item["variant_of"] = local_by_bank.get(item.get("variant_of"))
         for item in new_items:
             variant = item.get("variant_of")
-            if variant is None:
+            if not variant:
+                item["variant_of"] = None
                 continue
             local_id = variant if variant in hydrated else local_by_bank.get(variant)
             base = hydrated.get(local_id)
@@ -421,7 +675,7 @@ class LessonPlanner:
             await self._supplement_missing_checks(plan, hydrated, new_items, inputs, verifier)
         except LessonPlanError as error:
             if rejected_ids:
-                raise LessonPlanError(f"{error} Rejected unverified items: {', '.join(sorted(rejected_ids))}.") from error
+                raise LessonPlanError(f"{error} {_format_rejected(rejected_ids, rejected_reasons)}") from error
             raise
 
         check_refs: set[str] = set()
@@ -430,7 +684,7 @@ class LessonPlanner:
                 self._validate_segment(segment, hydrated, inputs)
             except LessonPlanError as error:
                 if rejected_ids:
-                    raise LessonPlanError(f"{error} Rejected unverified items: {', '.join(sorted(rejected_ids))}.") from error
+                    raise LessonPlanError(f"{error} {_format_rejected(rejected_ids, rejected_reasons)}") from error
                 raise
             check_refs.update(segment["checks"])
             verified_examples = []
@@ -444,7 +698,7 @@ class LessonPlanner:
                         raise LessonPlanError(f"Example references an unavailable item: {bank_id}")
                     example = source
                 else:
-                    if not example.get("type") or not example.get("stem") or not example.get("answer") or not example.get("solution"):
+                    if not example.get("type") or not example.get("stem") or not _has_answer(example.get("answer")) or not example.get("solution"):
                         raise LessonPlanError("A generated worked example is incomplete.")
                     result = await verifier.verify(self._verification_item(example))
                     if result.get("status") != "verified":
@@ -609,9 +863,9 @@ class LessonPlanner:
             index = slot["target_index"]
             if item.get("kp_id") != slot["kp_id"] or not self._covers_keypoint(item, index):
                 raise LessonPlanError(f'Generated check for {slot["slot"]} exceeds taught content.')
-            if item.get("type") not in _OBJECTIVE_TYPES or not item.get("stem") or not item.get("answer") or not item.get("solution"):
+            if not item.get("type") or not item.get("stem") or not _has_answer(item.get("answer")) or not item.get("solution"):
                 raise LessonPlanError(f'Generated check for {slot["slot"]} is incomplete.')
-            if not self._canonicalize_objective(item):
+            if not self._canonicalize_objective(item) or item.get("type") not in _OBJECTIVE_TYPES:
                 raise LessonPlanError(f'Generated check for {slot["slot"]} cannot be graded deterministically.')
             hints = item.get("fallback_hints") or {}
             if not all(isinstance(hints.get(level), str) and hints[level].strip() for level in ("1", "2")):
@@ -789,48 +1043,111 @@ class LessonPlanner:
 
     @staticmethod
     def _canonicalize_objective(item: dict[str, Any]) -> bool:
-        kind = canonical_item_type(str(item.get("type", "")))
-        item["type"] = kind
+        raw_kind = str(item.get("type", "")).strip().casefold()
+        if raw_kind in _TRUE_FALSE_TYPES:
+            options = _normalize_options(item.get("options"))
+            if options is not None:
+                item["type"] = "choice"
+                item["options"] = options
+                kind = "choice"
+            else:
+                answer = item.get("answer")
+                if isinstance(answer, bool):
+                    bool_val: bool | None = answer
+                elif isinstance(answer, (int, float)) and answer in (0, 1):
+                    bool_val = bool(answer)
+                elif isinstance(answer, str):
+                    token = unicodedata.normalize("NFKC", answer).strip().casefold()
+                    bool_val = True if token in _TRUE_VALUES else False if token in _FALSE_VALUES else None
+                else:
+                    bool_val = None
+                if bool_val is None:
+                    return False
+                item["type"] = "choice"
+                item["options"] = [{"key": "T", "text": "True"}, {"key": "F", "text": "False"}]
+                item["answer"] = "T" if bool_val else "F"
+                return True
+        else:
+            kind = canonical_item_type(_TYPE_ALIASES.get(raw_kind, raw_kind))
+            item["type"] = kind
         if kind not in _OBJECTIVE_TYPES:
             return kind in {"explain", "steps"}
         answer = item.get("answer")
         if kind == "numeric":
-            return numeric_value(str(answer)) is not None
+            canonical = _canonicalize_numeric(answer)
+            if canonical is None:
+                return False
+            if "tolerance" in item:
+                if item["tolerance"] is None:
+                    item.pop("tolerance", None)
+                else:
+                    tol_canonical = _canonicalize_numeric(item["tolerance"])
+                    if tol_canonical is None:
+                        return False
+                    tol_num = numeric_value(tol_canonical)
+                    if tol_num is None or tol_num < 0:
+                        return False
+                    item["tolerance"] = tol_canonical
+            item["answer"] = canonical
+            return True
         if kind == "short":
-            accepted = item.get("accepted") or [answer]
-            return isinstance(accepted, list) and bool(accepted) and all(
-                isinstance(value, str) and value.strip() for value in accepted
-            )
-        options = item.get("options")
-        if not isinstance(options, list) or len(options) < 2:
+            if "accepted" in item and item["accepted"] is not None:
+                raw_accepted = item["accepted"]
+                if not isinstance(raw_accepted, list) or not raw_accepted:
+                    return False
+                cleaned_accepted: list[str] = []
+                for entry in raw_accepted:
+                    if isinstance(entry, bool) or not isinstance(entry, (str, int, float)):
+                        return False
+                    text = str(entry).strip()
+                    if not text:
+                        return False
+                    cleaned_accepted.append(text)
+                item["accepted"] = cleaned_accepted
+                if isinstance(answer, bool) or not isinstance(answer, (str, int, float)) or not str(answer).strip():
+                    item["answer"] = cleaned_accepted[0]
+                else:
+                    item["answer"] = str(answer).strip()
+                return True
+            if isinstance(answer, bool) or not isinstance(answer, (str, int, float)):
+                return False
+            text = str(answer).strip()
+            if not text:
+                return False
+            item["answer"] = text
+            return True
+        options = _normalize_options(item.get("options"))
+        if options is None:
             return False
-        by_key = {
-            str(option.get("key", "")).strip().casefold(): str(option.get("key", "")).strip()
-            for option in options
-            if isinstance(option, dict)
-        }
+        by_key = {option["key"].casefold(): option["key"] for option in options}
         if len(by_key) != len(options) or "" in by_key:
             return False
-        if kind == "choice" and isinstance(answer, str):
-            normalized = answer.strip().casefold()
-            if normalized in by_key:
-                item["answer"] = by_key[normalized]
-                return True
-            matches = [
-                option["key"]
-                for option in options
-                if isinstance(option.get("text"), str)
-                and option["text"].strip().casefold() == normalized
-            ]
-            if len(matches) == 1:
-                item["answer"] = matches[0]
-                return True
+        item["options"] = options
+        if kind == "choice":
+            matched = _match_single_option(answer, options, by_key)
+            if matched is None:
+                return False
+            item["answer"] = matched
+            return True
+        if isinstance(answer, list):
+            raw_values: list[object] = answer
+        elif isinstance(answer, str):
+            normalized = unicodedata.normalize("NFKC", answer).strip()
+            parts = [part.strip() for part in re.split(r"[,，、;\s]+", normalized) if part.strip()]
+            if (
+                len(parts) == 1
+                and parts[0].casefold() not in by_key
+                and all(len(key) == 1 for key in by_key)
+                and len(parts[0]) >= 2
+                and all(ch.casefold() in by_key for ch in parts[0])
+            ):
+                raw_values = list(parts[0])
+            else:
+                raw_values = parts
+        else:
             return False
-        values = answer if isinstance(answer, list) else str(answer).translate(
-            str.maketrans({"，": ",", "、": ","})
-        ).split(",")
-        selected = [by_key.get(str(value).strip().casefold()) for value in values]
+        selected = [_match_single_option(value, options, by_key) for value in raw_values]
         if not selected or any(value is None for value in selected) or len(set(selected)) != len(selected):
             return False
-        item["answer"] = ",".join(sorted(selected))
+        item["answer"] = ",".join(sorted(value for value in selected if value is not None))
         return True

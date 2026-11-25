@@ -27,7 +27,12 @@ export type BoardLabels = {
   imageAlt?: string;
   copy?: string;
   copied?: string;
+  saveToNote?: string;
+  savedToNote?: string;
   zoom?: string;
+  plotReset?: string;
+  plotPlay?: string;
+  plotPause?: string;
 };
 
 const defaults: Required<BoardLabels> = {
@@ -37,7 +42,12 @@ const defaults: Required<BoardLabels> = {
   imageAlt: "课程资料原页",
   copy: "复制",
   copied: "已复制",
+  saveToNote: "收进笔记",
+  savedToNote: "已收进笔记",
   zoom: "放大查看",
+  plotReset: "恢复默认",
+  plotPlay: "演示变化",
+  plotPause: "暂停演示",
 };
 
 export type NormalizedMarkStyle = "underline" | "box" | "color";
@@ -196,6 +206,7 @@ export interface BoardBlockProps {
   reducedMotion?: boolean;
   showTools?: boolean;
   onZoom?: (block: Block) => void;
+  onSaveToNote?: (block: Block) => void;
 }
 
 export function BoardBlock({
@@ -208,9 +219,11 @@ export function BoardBlock({
   reducedMotion = false,
   showTools = false,
   onZoom,
+  onSaveToNote,
 }: BoardBlockProps) {
   const labels: Required<BoardLabels> = { ...defaults, ...provided };
   const [copied, setCopied] = useState(false);
+  const [savedToNote, setSavedToNote] = useState(false);
 
   const lines = useMemo(
     () => block.content.split("\n").filter((line) => line.length > 0),
@@ -263,6 +276,13 @@ export function BoardBlock({
     window.setTimeout(() => setCopied(false), 1600);
   };
 
+  const handleSaveToNote = () => {
+    if (!onSaveToNote) return;
+    onSaveToNote(block);
+    setSavedToNote(true);
+    window.setTimeout(() => setSavedToNote(false), 1800);
+  };
+
   const blockClasses = [
     styles.block,
     blockLevelMark ? markToneClass(blockLevelMark.color) : "",
@@ -294,6 +314,17 @@ export function BoardBlock({
           >
             {copied ? labels.copied : labels.copy}
           </button>
+          {onSaveToNote ? (
+            <button
+              type="button"
+              className={styles.toolBtn}
+              aria-label={savedToNote ? labels.savedToNote : labels.saveToNote}
+              data-testid={`save-note-block-${block.id}`}
+              onClick={handleSaveToNote}
+            >
+              {savedToNote ? labels.savedToNote : labels.saveToNote}
+            </button>
+          ) : null}
           {zoomable && onZoom ? (
             <button
               type="button"
@@ -385,6 +416,12 @@ export function BoardBlock({
           source={block.content}
           errorLabel={labels.renderError}
           viewSourceLabel={labels.viewSource}
+          resetLabel={labels.plotReset}
+          playLabel={labels.plotPlay}
+          pauseLabel={labels.plotPause}
+          externalParams={block.paramValues}
+          paramSeq={block.paramSeq}
+          reducedMotion={reducedMotion}
         />
       ) : null}
 

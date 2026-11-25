@@ -422,6 +422,21 @@ def get_lesson(lesson_id: str, container: Container, _: Owner) -> LessonView:
     return _view(container, space_id, lesson)
 
 
+@router.post("/lessons/{lesson_id}/resume")
+def resume_lesson(lesson_id: str, container: Container, _: Owner) -> LessonView:
+    space_id, _ = _lesson(container, lesson_id)
+    try:
+        reopened = container.repository.reopen_abandoned_lesson(space_id, lesson_id)
+    except ValueError:
+        raise HTTPException(
+            409,
+            detail={"code": "lesson_not_resumable", "message": "This lesson cannot be resumed."},
+        ) from None
+    if reopened is None:
+        raise ResourceNotFoundError("Classroom not found", code="lesson_not_found")
+    return _view(container, space_id, reopened)
+
+
 @router.get("/lessons/{lesson_id}/recap-summary")
 def get_lesson_recap_summary(lesson_id: str, container: Container, _: Owner) -> LessonRecapSummary:
     space_id, lesson = _lesson(container, lesson_id)

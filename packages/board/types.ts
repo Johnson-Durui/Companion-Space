@@ -22,6 +22,8 @@ export type Block = {
   point?: number | string;
   pointLine?: number;
   pointSeq?: number;
+  paramValues?: Record<string, number>;
+  paramSeq?: number;
 };
 export type Page = { id: string; blocks: readonly Block[] };
 export type Board = { pages: readonly Page[] };

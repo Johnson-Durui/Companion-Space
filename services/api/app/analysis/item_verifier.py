@@ -61,10 +61,81 @@ def _parse_choice(raw: str, valid_keys: set[str], *, multiple: bool) -> str | No
     value = _text(_one(raw, "mapping"), "choice")
     if value == "INVALID":
         return None
+    by_folded = {key.strip().casefold(): key.strip() for key in valid_keys if key.strip()}
     choices = [part.strip() for part in value.split(",") if part.strip()]
-    if not choices or (not multiple and len(choices) != 1) or any(choice not in valid_keys for choice in choices):
+    if not choices or (not multiple and len(choices) != 1):
         return None
-    return ",".join(sorted(set(choices)))
+    resolved: list[str] = []
+    for choice in choices:
+        key = by_folded.get(choice.casefold())
+        if key is None:
+            return None
+        resolved.append(key)
+    return ",".join(sorted(set(resolved)))
+
+
+def _options_map(raw: object) -> dict[str, str]:
+    if isinstance(raw, dict):
+        return {
+            str(key).strip(): str(value).strip()
+            for key, value in raw.items()
+            if str(key).strip()
+        }
+    if isinstance(raw, list):
+        return {
+            str(entry.get("key", "")).strip(): str(entry.get("text", "")).strip()
+            for entry in raw
+            if isinstance(entry, dict) and str(entry.get("key", "")).strip()
+        }
+    return {}
+
+
+def _match_option_value(answer: str, options: dict[str, str]) -> str | None:
+    folded = answer.strip().casefold()
+    direct = [key for key, value in options.items() if value.strip().casefold() == folded]
+    if len(direct) == 1:
+        return direct[0]
+    answer_num = numeric_value(answer)
+    if answer_num is not None:
+        numeric_matches = [
+            key
+            for key, value in options.items()
+            if (opt_num := numeric_value(value)) is not None and opt_num == answer_num
+        ]
+        if len(numeric_matches) == 1:
+            return numeric_matches[0]
+    return None
+
+
+def _canonical_choice_keys(raw: str, options: dict[str, str], *, multiple: bool) -> str | None:
+    if not options:
+        return None
+    by_folded = {key.strip().casefold(): key.strip() for key in options if key.strip()}
+    text = raw.strip()
+    if not text:
+        return None
+    if not multiple:
+        cleaned = re.sub(r"^[\(（\s]+|[\)）\.\)、:：\s]+$", "", text).casefold()
+        if cleaned in by_folded:
+            return by_folded[cleaned]
+        return _match_option_value(text, options)
+    parts = [part.strip() for part in re.split(r"[,，、;\s]+", text) if part.strip()]
+    if (
+        len(parts) == 1
+        and parts[0].casefold() not in by_folded
+        and all(len(key) == 1 for key in by_folded)
+        and len(parts[0]) >= 2
+        and all(ch.casefold() in by_folded for ch in parts[0])
+    ):
+        parts = list(parts[0])
+    mapped: list[str] = []
+    for part in parts:
+        cleaned = re.sub(r"^[\(（\s]+|[\)）\.\)、:：\s]+$", "", part).casefold()
+        key = by_folded.get(cleaned) or _match_option_value(part, options)
+        if key is None:
+            return None
+        mapped.append(key)
+    return ",".join(sorted(set(mapped))) if mapped else None
 
 
 def _parse_rubric(raw: str, required: set[str]) -> bool:
@@ -126,12 +197,12 @@ class ItemVerifier:
         )
 
     async def _choice_key(self, answer: str, options: dict[str, str], *, multiple: bool) -> str | None:
-        direct = [
-            key for key, value in options.items()
-            if value.strip().casefold() == answer.strip().casefold()
-        ]
-        if len(direct) == 1 and not multiple:
-            return direct[0]
+        if not options:
+            return None
+        if not multiple:
+            matched = _match_option_value(answer, options)
+            if matched is not None:
+                return matched
         return await self.gateway.complete_tagged(
             "checker",
             "analysis/item_choice_map",
@@ -168,12 +239,29 @@ class ItemVerifier:
             return {**solved, "valid": False}
         if item.get("type") in {"choice", "multi"}:
             key = await self._choice_key(
-                solved["answer"], item.get("options") or {}, multiple=item.get("type") == "multi",
+                solved["answer"], _options_map(item.get("options")), multiple=item.get("type") == "multi",
             )
             if key is None:
                 return {**solved, "valid": False, "reason": "The solution did not map to one choice."}
             return {**solved, "answer": key}
         return solved
+
+    async def _solution_supports(
+        self,
+        reference: str,
+        solution: str,
+        options: dict[str, str],
+        *,
+        is_choice: bool,
+        is_multi: bool,
+    ) -> bool:
+        if is_choice:
+            direct = _canonical_choice_keys(solution, options, multiple=is_multi)
+            if direct is not None:
+                return direct.casefold() == reference.casefold()
+            mapped = await self._choice_key(solution, options, multiple=is_multi)
+            return mapped is not None and mapped.casefold() == reference.casefold()
+        return await self._equivalent(reference, solution)
 
     async def _verify_rubric(self, item: dict, solved: dict) -> dict:
         rubric = item.get("rubric") or []
@@ -264,12 +352,30 @@ class ItemVerifier:
         if candidate.get("type") in {"steps", "explain", "proof", "essay"}:
             return await self._verify_rubric(candidate, first)
 
+        is_choice = candidate.get("type") in {"choice", "multi"}
+        is_multi = candidate.get("type") == "multi"
+        options = _options_map(candidate.get("options")) if is_choice else {}
+
         reference = candidate.get("answer")
-        if reference:
-            agrees = await self._equivalent(first["answer"], str(reference))
+        has_reference = reference is not None and (not isinstance(reference, str) or bool(reference.strip()))
+        if has_reference:
+            if is_choice:
+                normalized_ref = _canonical_choice_keys(str(reference), options, multiple=is_multi)
+                if normalized_ref is None and options:
+                    normalized_ref = await self._choice_key(str(reference), options, multiple=is_multi)
+                agrees = normalized_ref is not None and first["answer"].casefold() == normalized_ref.casefold()
+            else:
+                normalized_ref = str(reference)
+                agrees = await self._equivalent(first["answer"], normalized_ref)
             if agrees:
                 solution = candidate.get("solution")
-                if solution and not await self._equivalent(str(reference), str(solution)):
+                if solution and not await self._solution_supports(
+                    normalized_ref or str(reference),
+                    str(solution),
+                    options,
+                    is_choice=is_choice,
+                    is_multi=is_multi,
+                ):
                     return {
                         "status": "unverified",
                         "solved_answer": first["answer"],
@@ -287,13 +393,36 @@ class ItemVerifier:
                     "solved_answer": first["answer"],
                     "reason": "The second independent solution was invalid.",
                 }
-            if await self._equivalent(second["answer"], str(reference)):
+            second_agrees = (
+                (normalized_ref is not None and second["answer"].casefold() == normalized_ref.casefold())
+                if is_choice
+                else await self._equivalent(second["answer"], normalized_ref or str(reference))
+            )
+            if second_agrees:
+                solution = candidate.get("solution")
+                if solution and not await self._solution_supports(
+                    normalized_ref or str(reference),
+                    str(solution),
+                    options,
+                    is_choice=is_choice,
+                    is_multi=is_multi,
+                ):
+                    return {
+                        "status": "unverified",
+                        "solved_answer": second["answer"],
+                        "reason": "The supplied solution does not support the reference answer.",
+                    }
                 return {
                     "status": "verified",
                     "solved_answer": second["answer"],
                     "reason": "The second independent solution supports the reference answer.",
                 }
-            if await self._equivalent(second["answer"], first["answer"]):
+            solves_agree = (
+                second["answer"].casefold() == first["answer"].casefold()
+                if is_choice
+                else await self._equivalent(second["answer"], first["answer"])
+            )
+            if solves_agree:
                 return {
                     "status": "disputed",
                     "solved_answer": first["answer"],
@@ -306,7 +435,12 @@ class ItemVerifier:
             }
 
         second = await self._normalized_solve(candidate, 2)
-        if second["valid"] and await self._equivalent(first["answer"], second["answer"]):
+        both_agree = (
+            second["answer"].casefold() == first["answer"].casefold()
+            if second["valid"] and is_choice
+            else (second["valid"] and await self._equivalent(first["answer"], second["answer"]))
+        )
+        if both_agree:
             return {
                 "status": "verified",
                 "solved_answer": first["answer"],

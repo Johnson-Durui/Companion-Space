@@ -4,7 +4,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 
-CURRENT_SCHEMA_VERSION = 10
+CURRENT_SCHEMA_VERSION = 13
 
 
 @dataclass(frozen=True)
@@ -397,6 +397,88 @@ def migrate_v9_to_v10(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA user_version = 10")
 
 
+def migrate_v10_to_v11(conn: sqlite3.Connection) -> None:
+    _execute(conn, (
+        """CREATE TABLE solve_sessions (
+            id TEXT PRIMARY KEY,
+            space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            source_kind TEXT NOT NULL CHECK (source_kind IN ('text', 'image', 'exam_item')),
+            stem TEXT NOT NULL,
+            image_path TEXT,
+            mapped_kp_ids_json TEXT NOT NULL DEFAULT '[]',
+            verify_status TEXT NOT NULL DEFAULT 'pending'
+                CHECK (verify_status IN ('pending', 'verified', 'disputed', 'unverified')),
+            blueprint_json TEXT,
+            state_json TEXT NOT NULL,
+            mimic_item_refs_json TEXT NOT NULL DEFAULT '[]',
+            status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'done', 'failed')),
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX idx_solve_sessions_space ON solve_sessions(space_id, updated_at)",
+    ))
+    conn.execute("PRAGMA user_version = 11")
+
+
+def migrate_v11_to_v12(conn: sqlite3.Connection) -> None:
+    _execute(conn, (
+        """CREATE TABLE learning_traces (
+            id TEXT PRIMARY KEY,
+            space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            surface TEXT NOT NULL CHECK (surface IN ('lesson', 'solve', 'read', 'practice', 'review')),
+            kp_id TEXT,
+            event_type TEXT NOT NULL,
+            summary TEXT NOT NULL,
+            source_ref_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX idx_learning_traces_space_kp ON learning_traces(space_id, kp_id, created_at)",
+        """CREATE TABLE memory_facts (
+            id TEXT PRIMARY KEY,
+            space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            kp_id TEXT,
+            kind TEXT NOT NULL CHECK (kind IN ('mistake_habit', 'explanation_pref', 'bottleneck_kp', 'exam_focus')),
+            statement TEXT NOT NULL,
+            evidence_refs_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'pinned', 'dismissed')),
+            user_edited INTEGER NOT NULL DEFAULT 0,
+            embedding BLOB,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX idx_memory_facts_space_status ON memory_facts(space_id, status, kp_id)",
+    ))
+    conn.execute("PRAGMA user_version = 12")
+
+
+def migrate_v12_to_v13(conn: sqlite3.Connection) -> None:
+    _execute(conn, (
+        """CREATE TABLE course_notes (
+            id TEXT PRIMARY KEY,
+            space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            kp_id TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX idx_course_notes_space ON course_notes(space_id, updated_at)",
+        """CREATE TABLE note_blocks (
+            id TEXT PRIMARY KEY,
+            note_id TEXT NOT NULL REFERENCES course_notes(id) ON DELETE CASCADE,
+            space_id TEXT NOT NULL REFERENCES study_spaces(id) ON DELETE CASCADE,
+            ord INTEGER NOT NULL,
+            block_type TEXT NOT NULL,
+            title TEXT,
+            content TEXT NOT NULL,
+            source_ref_json TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )""",
+        "CREATE INDEX idx_note_blocks_note_ord ON note_blocks(note_id, ord)",
+    ))
+    conn.execute("PRAGMA user_version = 13")
+
+
 MIGRATIONS = (
     Migration(1, 2, migrate_v1_to_v2),
     Migration(2, 3, migrate_v2_to_v3),
@@ -407,6 +489,9 @@ MIGRATIONS = (
     Migration(7, 8, migrate_v7_to_v8),
     Migration(8, 9, migrate_v8_to_v9),
     Migration(9, 10, migrate_v9_to_v10),
+    Migration(10, 11, migrate_v10_to_v11),
+    Migration(11, 12, migrate_v11_to_v12),
+    Migration(12, 13, migrate_v12_to_v13),
 )
 
 

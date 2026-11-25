@@ -1,7 +1,19 @@
-import { api, bodyOf } from "../../app/api";
+import { browserApiFetch } from "@companion-space/api-client";
+import { api, bodyOf, ensureOK } from "../../app/api";
 
 export function fetchLesson(lesson_id: string) {
   return api.GET("/api/v2/lessons/{lesson_id}", { params: { path: { lesson_id } } }).then(bodyOf);
+}
+
+export type LessonView = Awaited<ReturnType<typeof fetchLesson>>;
+
+export async function resumeLesson(lesson_id: string): Promise<LessonView> {
+  const response = await browserApiFetch(`/api/v2/lessons/${encodeURIComponent(lesson_id)}/resume`, {
+    method: "POST",
+  });
+  const body = await response.json().catch(() => undefined);
+  ensureOK(response, body);
+  return body as LessonView;
 }
 
 export function fetchLessonRecapSummary(lesson_id: string) {

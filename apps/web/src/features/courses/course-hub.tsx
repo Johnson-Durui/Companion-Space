@@ -18,9 +18,11 @@ import {
   DifficultyDots,
   Field,
   FileDropzone,
+  FileText,
   FolderOpen,
   History,
   Home,
+  Lightbulb,
   MasteryBar,
   MasteryShapeGlyph,
   Menu,
@@ -171,6 +173,18 @@ export function CourseHubLayout({ children }: { children: ReactNode }) {
       active: location.pathname === `${base}/map`,
     },
     {
+      to: `${base}/solve`,
+      label: t.courseHub.tabs.solve,
+      icon: <Lightbulb size={15} aria-hidden="true" />,
+      active: location.pathname === `${base}/solve`,
+    },
+    {
+      to: `${base}/notes`,
+      label: t.courseHub.tabs.notes,
+      icon: <FileText size={15} aria-hidden="true" />,
+      active: location.pathname === `${base}/notes`,
+    },
+    {
       to: `${base}/review`,
       label: t.courseHub.tabs.review,
       icon: <RotateCcw size={15} aria-hidden="true" />,
@@ -193,7 +207,7 @@ export function CourseHubLayout({ children }: { children: ReactNode }) {
       to: `${base}/materials`,
       label: t.courseHub.tabs.materials,
       icon: <FolderOpen size={15} aria-hidden="true" />,
-      active: location.pathname === `${base}/materials`,
+      active: location.pathname.startsWith(`${base}/materials`),
     },
   ];
 
@@ -1515,6 +1529,16 @@ export function CourseMaterialsTab() {
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  {material.page_count > 0 ? (
+                    <Link
+                      to={`/courses/${courseId}/materials/${material.id}/read`}
+                      data-testid={`open-reader-${material.id}`}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-line-control bg-surface-card px-2.5 text-caption font-medium text-fg-primary hover:bg-surface-sunken"
+                    >
+                      <BookOpen size={14} aria-hidden="true" />
+                      <span>{t.courseHub.openReader}</span>
+                    </Link>
+                  ) : null}
                   <Select
                     aria-label={t.courses.role}
                     value={material.role}

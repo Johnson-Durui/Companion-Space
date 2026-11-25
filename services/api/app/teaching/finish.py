@@ -5,6 +5,7 @@ import json
 from collections import defaultdict
 from datetime import timedelta
 
+from app.learning.memory import record_trace
 from app.llm.gateway import LLMGateway
 from app.llm.prompts import data_block
 from app.llm.tagged import parse_blocks
@@ -75,4 +76,15 @@ async def finish_lesson(
         if needs_confirmation:
             clean[point].clear()
     recap["review_cards_created"] = len(cards)
+    primary_kp = plan["segments"][0]["kp_id"] if plan.get("segments") else None
+    await asyncio.to_thread(
+        record_trace,
+        repository,
+        space_id=space_id,
+        surface="lesson",
+        event_type="lesson_recap",
+        summary=recap["summary"][:280],
+        source_ref={"kind": "lesson", "id": lesson_id},
+        kp_id=primary_kp,
+    )
     return recap, cards
