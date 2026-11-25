@@ -183,6 +183,18 @@ class TutorCatalog:
     def _builtin_ids(self) -> set[str]:
         return set(self._builtin_manifests().keys())
 
+    def _static_avatar_exists(self, url: str) -> bool:
+        if not url.startswith("/static/avatars/"):
+            return True
+        rel = url.removeprefix("/static/avatars/")
+        try:
+            normalized = CharacterPathMixin._normalize_requested_asset_path(rel)
+        except ValueError:
+            return False
+        avatars_root = self.repository.settings.repo_root / "assets" / "avatars"
+        location = CharacterPathMixin._contained_child(avatars_root, normalized)
+        return _existing_io_file(location) is not None
+
     def _normalize_recipe(self, raw: dict) -> Character | None:
         version = raw.get("schema_version")
         if version not in (2, 3):
@@ -225,7 +237,11 @@ class TutorCatalog:
             pack_meta_raw = dict(pack_meta_raw)
             pack_meta_raw["license_url"] = safe_http_url(pack_meta_raw.get("license_url"))
 
+        builtin_manifests = self._builtin_manifests()
         if pack_meta_raw.get("source_kind") == "builtin":
+            anchor_src = str(video_raw.get("anchor_image") or src)
+            if char_id not in builtin_manifests and not self._static_avatar_exists(anchor_src):
+                return None
             discovered = discover_builtin_pack(
                 self.repository.settings.repo_root,
                 char_id,
@@ -266,7 +282,7 @@ class TutorCatalog:
         normalized["video_avatar"] = video_raw
         normalized["pack_metadata"] = pack_meta_raw
 
-        builtin_manifest = self._builtin_manifests().get(char_id)
+        builtin_manifest = builtin_manifests.get(char_id)
         edited_fields = {
             str(item) for item in normalized.get("_edited_fields", [])
             if isinstance(item, str)

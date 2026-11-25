@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, bodyOf, fetchRoles, rolesKey } from "../../app/api";
+import { api, bodyOf, fetchRoles, rolesKey, voiceStatusKey } from "../../app/api";
 import { deriveReadiness, type ReadinessState } from "./readiness-logic";
 
-export const voiceStatusKey = ["voice", "status"] as const;
+export { voiceStatusKey };
 
 export async function fetchVoiceStatus() {
   return bodyOf(await api.GET("/api/v2/voice/status"));

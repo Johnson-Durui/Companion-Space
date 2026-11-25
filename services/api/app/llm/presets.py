@@ -61,6 +61,7 @@ class ProviderPreset(BaseModel):
     notes: str = ""
     manual_live: str | None = None
     requires_api_key: bool = True
+    requires_base_url: bool = True
     key_guide: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
 

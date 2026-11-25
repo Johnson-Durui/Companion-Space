@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import aclosing
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 import httpx
@@ -197,7 +198,8 @@ async def resolve_tts(container: ServiceContainer, character_id: str | None) -> 
     if isinstance(override, dict) and override:
         voice_data.update(override)
     elif isinstance(configured_default, dict) and configured_default:
-        voice_data.update(configured_default)
+        if not voice_data.get("voice_id") or configured_default.get("engine") != voice_data.get("engine"):
+            voice_data.update(configured_default)
     voice = _voice_spec(voice_data)
     if voice is None:
         raise ValueError("Character voice is incomplete")
@@ -227,6 +229,9 @@ async def resolve_tts(container: ServiceContainer, character_id: str | None) -> 
     default_voice = _voice_spec(configured_default) if isinstance(configured_default, dict) else None
     if default_voice is not None:
         default_engine = default_voice.engine
+        existing_default = defaults.get(default_engine)
+        if not default_voice.model and existing_default is not None and existing_default.model:
+            default_voice = replace(default_voice, model=existing_default.model)
         defaults[default_engine] = default_voice
     else:
         default_engine = provider_default or "edge"
@@ -250,7 +255,7 @@ def _voice_spec(data: dict[str, object]) -> VoiceSpec | None:
     return VoiceSpec(
         engine=engine,
         voice_id=voice_id if isinstance(voice_id, str) else "",
-        model=str(data.get("model", "")),
+        model=str(data.get("model", "")).strip(),
         rate=float(data.get("rate", 1)),
         pitch=int(data.get("pitch", 0)),
         options=options if isinstance(options, dict) else {},

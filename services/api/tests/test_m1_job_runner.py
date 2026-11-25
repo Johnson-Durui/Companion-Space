@@ -8,7 +8,7 @@ from fastapi import HTTPException
 
 from app.api.job_events import job_progress_response
 from app.core.config import Settings
-from app.services.jobs import JobProgress, JobRunner, get_job
+from app.services.jobs import JobFailure, JobProgress, JobRunner, get_job
 from app.services.repository import SQLiteRepository
 
 
@@ -103,3 +103,44 @@ def test_runner_restarts_incomplete_jobs_from_durable_state(tmp_path: Path) -> N
             await recovered.aclose()
 
     asyncio.run(scenario())
+
+
+def test_runner_logs_failure_kind_and_cause_detail(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    repository = SQLiteRepository(Settings(object_storage_path=str(tmp_path)))
+
+    async def scenario() -> str:
+        runner = JobRunner(repository)
+        done = asyncio.Event()
+
+        async def failing(job, report):
+            try:
+                raise RuntimeError("Generated item c4 cannot be graded deterministically.")
+            except RuntimeError as exc:
+                done.set()
+                raise JobFailure("lesson_prepare_failed") from exc
+
+        runner.register("lesson_prepare", failing)
+        await runner.start()
+        try:
+            job = await runner.submit("lesson_prepare", payload={"plan_item_id": "p1"})
+            await asyncio.wait_for(done.wait(), timeout=5)
+            for _ in range(50):
+                stored = get_job(repository, job.id)
+                if stored and stored.status == "failed":
+                    break
+                await asyncio.sleep(0.02)
+            return job.id
+        finally:
+            await runner.aclose()
+
+    with caplog.at_level("WARNING", logger="app.services.jobs"):
+        job_id = asyncio.run(scenario())
+
+    stored = get_job(repository, job_id)
+    assert stored is not None and stored.status == "failed" and stored.error == "lesson_prepare_failed"
+    assert any(
+        "kind=lesson_prepare" in rec.message
+        and "cause_type=RuntimeError" in rec.message
+        and "Generated item c4 cannot be graded deterministically." in rec.message
+        for rec in caplog.records
+    )

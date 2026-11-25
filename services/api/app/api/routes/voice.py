@@ -17,7 +17,6 @@ from app.services.settings_store import get_setting, put_setting
 from app.voice.sherpa import ENGINE, MODEL_DOWNLOAD_BYTES, MODEL_LICENSE_URL
 from app.voice.stt import MAX_PCM_BYTES, STT_SETTING_KEY, SttEngine, VoiceTranscriber, get_stt_engine
 from app.voice.tts.engines import resolve_tts
-from app.voice.tts.edge import DEFAULT_VOICE
 
 router = APIRouter(prefix="/voice", dependencies=[Depends(require_owner)])
 Container = Annotated[ServiceContainer, Depends(get_container)]
@@ -47,7 +46,7 @@ class VoiceSetting(BaseModel):
 
 
 class VoiceSettings(BaseModel):
-    default: VoiceSetting = Field(default_factory=lambda: VoiceSetting(voice_id=DEFAULT_VOICE))
+    default: VoiceSetting | None = None
     characters: dict[str, VoiceSetting] = Field(default_factory=dict, max_length=100)
 
 
@@ -95,7 +94,7 @@ class VoicePreviewResult(BaseModel):
 class VoiceSpeakRequest(BaseModel):
     character_id: str | None = Field(default=None, min_length=1, max_length=120)
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=240)] | None = None
-    voice_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9-]{5,60}$")
+    voice_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{2,60}$")
 
 
 class VoiceSpeakResult(BaseModel):
@@ -219,7 +218,7 @@ async def synthesize_tutor_speech(
     service, voice = await resolve_tts(container, character.id)
     if voice_id:
         voice = voice.__class__(
-            engine="edge",
+            engine="edge" if voice.engine == "browser" else voice.engine,
             voice_id=voice_id,
             model=voice.model,
             rate=voice.rate,

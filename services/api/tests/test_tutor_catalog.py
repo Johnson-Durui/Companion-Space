@@ -218,6 +218,95 @@ def test_legacy_v2_portrait_upgrade_and_retired_vrm_fallback(client, owner_token
     assert legacy_echo is not None and legacy_echo.id == "tutor-chutang"
 
 
+def test_retired_builtin_tutors_with_missing_portraits_are_hidden_and_fallback(client, owner_token):
+    container = get_container()
+    auth = {"Authorization": f"Bearer {owner_token}"}
+
+    # Import a user custom tutor to confirm non-builtin user imports stay visible.
+    imported = client.post(
+        "/api/v2/characters/import",
+        headers={**auth, "X-Filename": "custom-buddy.png"},
+        content=_make_png_bytes(),
+    )
+    assert imported.status_code == 201, imported.json()
+    custom_id = imported.json()["id"]
+
+    # Seed retired legacy built-in rows (v2 without pack_metadata + v3 with source_kind='builtin')
+    # whose archived /static/avatars/portraits/{echo,nova}.png no longer exist on disk.
+    retired_v2_echo = {
+        "id": "tutor-echo",
+        "name": "沐音",
+        "schema_version": 2,
+        "appearance": {"kind": "portrait", "src": "/static/avatars/portraits/echo.png", "framing": {}},
+        "voice": {"engine": "edge", "voice_id": "zh-CN-XiaoxiaoNeural", "rate": 1, "pitch": 0},
+        "persona": {"relationship": "Tutor", "traits": ["Calm"], "catchphrases": [], "address_user_as": "你"},
+        "default_style_id": "guided",
+        "license": "Apache-2.0",
+    }
+    retired_v3_nova = {
+        **retired_v2_echo,
+        "id": "tutor-nova",
+        "name": "星澜",
+        "schema_version": 3,
+        "appearance": {"kind": "portrait", "src": "/static/avatars/portraits/nova.png", "framing": {}},
+        "video_avatar": {
+            "aspect_ratio": "9:16",
+            "preferred_tier": "static",
+            "anchor_image": "/static/avatars/portraits/nova.png",
+        },
+        "pack_metadata": {
+            "author": "Companion Space",
+            "terms": "Apache-2.0",
+            "allow_redistribution": True,
+            "source_kind": "builtin",
+        },
+    }
+    with container.repository.connection() as conn:
+        for row in (retired_v2_echo, retired_v3_nova):
+            conn.execute(
+                """INSERT INTO character_packs
+                   (id, name, description, recipe_json, asset_manifest_json, created_at, updated_at)
+                   VALUES (?, ?, '', ?, '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')""",
+                (row["id"], row["name"], json.dumps(row)),
+            )
+
+    put_setting(container.repository, "default_character_id", "tutor-echo")
+
+    roster = client.get("/api/v2/characters", headers=auth).json()
+    ids = {entry["id"] for entry in roster}
+    # Retired built-ins are filtered out while all 6 active built-ins and custom imports remain.
+    assert "tutor-echo" not in ids
+    assert "tutor-nova" not in ids
+    assert custom_id in ids
+    assert {
+        "tutor-xuechuan",
+        "tutor-shenyan",
+        "tutor-lanyue",
+        "tutor-chutang",
+        "tutor-qingheng",
+        "tutor-lanyin",
+    } <= ids
+
+    assert container.tutors.get_character("tutor-echo") is None
+    assert container.tutors.get_character("tutor-nova") is None
+
+    # Historical SQLite rows are preserved non-destructively.
+    with container.repository.connection() as conn:
+        kept_ids = {
+            r["id"]
+            for r in conn.execute(
+                "SELECT id FROM character_packs WHERE id IN ('tutor-echo', 'tutor-nova')"
+            ).fetchall()
+        }
+    assert kept_ids == {"tutor-echo", "tutor-nova"}
+
+    # Default character setting and resolver deterministically fall back to _FALLBACK_ORDER ('tutor-chutang').
+    settings = client.get("/api/v2/settings", headers=auth).json()
+    assert settings["default_character_id"] == "tutor-chutang"
+    resolved = container.tutors.resolve_active_character("tutor-echo")
+    assert resolved is not None and resolved.id == "tutor-chutang"
+
+
 def test_tutorpack_cli_roundtrip_into_backend_import(tmp_path, client, owner_token):
     tools_dir = str(APP_ROOT / "tools" / "tutorpack")
     if tools_dir not in sys.path:

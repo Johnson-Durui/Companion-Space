@@ -42,13 +42,27 @@ async function fetchPresets() {
   return bodyOf(await api.GET("/api/v2/providers/presets"));
 }
 
-type Preset = Awaited<ReturnType<typeof fetchPresets>>[number];
+type Preset = Awaited<ReturnType<typeof fetchPresets>>[number] & {
+  requires_base_url?: boolean;
+};
 type Role = keyof typeof t.roles;
 const roles = Object.keys(t.roles) as Role[];
 const recommendations = {
   free: ["https://open.bigmodel.cn/", "https://api.siliconflow.cn/"],
   paid: ["https://api.deepseek.com"],
 };
+const NO_URL_ADAPTERS = new Set(["antigravity-acp", "codex-app-server"]);
+const NO_KEY_ADAPTERS = new Set(["local-neural", "antigravity-acp", "codex-app-server"]);
+const voiceStatusKey = ["voice-status"] as const;
+
+function isLocalSubscriptionPreset(preset: Preset): boolean {
+  return !preset.requires_api_key && Boolean(preset.models.live);
+}
+
+function presetRequiresBaseUrl(preset: Preset): boolean {
+  if (typeof preset.requires_base_url === "boolean") return preset.requires_base_url;
+  return !NO_URL_ADAPTERS.has(preset.adapter);
+}
 
 function roleLabel(role: string) {
   return t.roles[role as Role] ?? role;
@@ -66,8 +80,10 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
   const suggested =
     cost === "all"
       ? presets
-      : presets.filter((entry) =>
-          recommendations[cost].some((base) => entry.base_url?.startsWith(base)),
+      : presets.filter(
+          (entry) =>
+            (cost === "free" && isLocalSubscriptionPreset(entry)) ||
+            recommendations[cost].some((base) => entry.base_url?.startsWith(base)),
         );
   const visible = suggested.length ? suggested : presets;
   const preset = visible.find((entry) => entry.id === presetId) ?? visible[0];
@@ -85,12 +101,14 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
   const create = useMutation({
     mutationFn: async () => {
       if (!preset) throw new Error("No preset");
+      const needsUrl = presetRequiresBaseUrl(preset);
+      const acceptsKey = !NO_KEY_ADAPTERS.has(preset.adapter);
       return bodyOf(
         await api.POST("/api/v2/providers/connections", {
           body: {
             label: (label || preset.label).trim() || null,
-            base_url: (baseUrl || preset.base_url || "").trim() || null,
-            api_key: apiKey.trim(),
+            base_url: needsUrl ? (baseUrl || preset.base_url || "").trim() || null : null,
+            api_key: acceptsKey ? apiKey.trim() : "",
             preset_id: preset.id,
           },
         }),
@@ -101,6 +119,7 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: connectionsKey }),
         queryClient.invalidateQueries({ queryKey: rolesKey }),
+        queryClient.invalidateQueries({ queryKey: voiceStatusKey }),
       ]);
       notifySaved();
     },
@@ -165,32 +184,36 @@ function ConnectForm({ presets }: { presets: Preset[] }) {
             }}
           />
         </Field>
-        <Field label={t.settings.baseUrl} required={!preset.base_url}>
-          <TextInput
-            name="base_url"
-            type="url"
-            value={effectiveBaseUrl}
-            placeholder={t.settings.customUrl}
-            required={!preset.base_url}
-            onChange={(event) => {
-              if (presetId !== preset.id) {
-                setPresetId(preset.id);
-                setLabel(preset.label);
-              }
-              setBaseUrl(event.target.value);
-            }}
-          />
-        </Field>
+        {presetRequiresBaseUrl(preset) ? (
+          <Field label={t.settings.baseUrl} required={!preset.base_url}>
+            <TextInput
+              name="base_url"
+              type="url"
+              value={effectiveBaseUrl}
+              placeholder={t.settings.customUrl}
+              required={!preset.base_url}
+              onChange={(event) => {
+                if (presetId !== preset.id) {
+                  setPresetId(preset.id);
+                  setLabel(preset.label);
+                }
+                setBaseUrl(event.target.value);
+              }}
+            />
+          </Field>
+        ) : null}
       </div>
 
-      <Field label={t.settings.apiKey} required={preset.requires_api_key}>
-        <SecretInput
-          name="api_key"
-          value={apiKey}
-          required={preset.requires_api_key}
-          onChange={(event) => setApiKey(event.target.value)}
-        />
-      </Field>
+      {!NO_KEY_ADAPTERS.has(preset.adapter) ? (
+        <Field label={t.settings.apiKey} required={preset.requires_api_key}>
+          <SecretInput
+            name="api_key"
+            value={apiKey}
+            required={preset.requires_api_key}
+            onChange={(event) => setApiKey(event.target.value)}
+          />
+        </Field>
+      ) : null}
 
       {preset.free_tier_note ? (
         <p className="text-caption text-fg-secondary">{preset.free_tier_note}</p>
@@ -241,10 +264,14 @@ function ConnectionRow({
   const { saved, notifySaved } = useTransientSaved(t.common.saved);
   const params = { path: { connection_id: connection.id } };
 
+  const acceptsUrl = !NO_URL_ADAPTERS.has(connection.provider);
+  const acceptsKey = !NO_KEY_ADAPTERS.has(connection.provider);
+
   const refresh = async () => {
     await Promise.all([
       queries.invalidateQueries({ queryKey: connectionsKey }),
       queries.invalidateQueries({ queryKey: rolesKey }),
+      queries.invalidateQueries({ queryKey: voiceStatusKey }),
     ]);
   };
   const test = useMutation({
@@ -263,8 +290,8 @@ function ConnectionRow({
           params,
           body: {
             label: editLabel.trim(),
-            base_url: editUrl.trim() || null,
-            ...(editKey.trim() ? { api_key: editKey.trim() } : {}),
+            base_url: acceptsUrl ? editUrl.trim() || null : null,
+            ...(acceptsKey && editKey.trim() ? { api_key: editKey.trim() } : {}),
           },
         }),
       ),
@@ -384,22 +411,26 @@ function ConnectionRow({
                 onChange={(event) => setEditLabel(event.target.value)}
               />
             </Field>
-            <Field label={t.settings.baseUrl}>
-              <TextInput
-                name="base_url"
-                type="url"
-                value={editUrl}
-                onChange={(event) => setEditUrl(event.target.value)}
+            {acceptsUrl ? (
+              <Field label={t.settings.baseUrl}>
+                <TextInput
+                  name="base_url"
+                  type="url"
+                  value={editUrl}
+                  onChange={(event) => setEditUrl(event.target.value)}
+                />
+              </Field>
+            ) : null}
+          </div>
+          {acceptsKey ? (
+            <Field label={t.settings.rotate}>
+              <SecretInput
+                name="api_key"
+                value={editKey}
+                onChange={(event) => setEditKey(event.target.value)}
               />
             </Field>
-          </div>
-          <Field label={t.settings.rotate}>
-            <SecretInput
-              name="api_key"
-              value={editKey}
-              onChange={(event) => setEditKey(event.target.value)}
-            />
-          </Field>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <Button type="submit" variant="primary" size="sm" disabled={remove.isPending} pending={edit.isPending}>
               {t.common.save}
@@ -625,6 +656,7 @@ export function ModelSettings() {
       bodyOf(await api.PUT("/api/v2/settings/model-roles", { body })),
     onSuccess: (values) => {
       queryClient.setQueryData(rolesKey, values);
+      void queryClient.invalidateQueries({ queryKey: voiceStatusKey });
       readiness.refetch();
       notifySaved();
     },

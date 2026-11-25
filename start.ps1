@@ -2,7 +2,8 @@
 param(
     [ValidateSet('default', 'cn')][string]$Mirror = 'default',
     [ValidateRange(1, 65535)][int]$Port = 8000,
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$Reinstall
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,11 +41,41 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
 & $python -c $versionCheck
 if ($LASTEXITCODE -ne 0) { throw '.venv requires Python 3.12 or later. Recreate the environment before starting.' }
 
-$installOptions = @('-r', 'services/api/requirements.txt')
-if ($Mirror -eq 'cn') { $installOptions += @('--index-url', 'https://pypi.tuna.tsinghua.edu.cn/simple') }
-if ($uv) { & $uv.Source pip install --python $python @installOptions }
-else { & $python -m pip install @installOptions }
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$requirementsFile = Join-Path $PSScriptRoot 'services/api/requirements.txt'
+$requirementsStamp = Join-Path $PSScriptRoot '.venv\.requirements.sha256'
+$requirementsHash = (Get-FileHash -LiteralPath $requirementsFile -Algorithm SHA256).Hash.ToLowerInvariant()
+$importCheck = @'
+import sys
+try:
+    import fastapi
+    import uvicorn
+except Exception:
+    sys.exit(1)
+'@
+$needsInstall = $Reinstall.IsPresent
+if (-not $needsInstall) {
+    $savedHash = ''
+    if (Test-Path -LiteralPath $requirementsStamp -PathType Leaf) {
+        $rawHash = Get-Content -LiteralPath $requirementsStamp -Raw
+        if ($null -ne $rawHash) { $savedHash = $rawHash.Trim().ToLowerInvariant() }
+    }
+    if ($savedHash -ne $requirementsHash) {
+        $needsInstall = $true
+    } else {
+        & $python -c $importCheck
+        if ($LASTEXITCODE -ne 0) {
+            $needsInstall = $true
+        }
+    }
+}
+if ($needsInstall) {
+    $installOptions = @('-r', $requirementsFile)
+    if ($Mirror -eq 'cn') { $installOptions += @('--index-url', 'https://pypi.tuna.tsinghua.edu.cn/simple') }
+    if ($uv) { & $uv.Source pip install --python $python @installOptions }
+    else { & $python -m pip install @installOptions }
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Set-Content -LiteralPath $requirementsStamp -Value $requirementsHash -NoNewline -Encoding ASCII
+}
 
 if (-not (Test-Path -LiteralPath 'apps/web/dist/index.html' -PathType Leaf)) {
     if (-not (Get-Command npx.cmd -ErrorAction SilentlyContinue)) {
@@ -78,20 +109,35 @@ if ($LASTEXITCODE -ne 0) {
 
 $env:PYTHONPATH = Join-Path $PSScriptRoot 'services/api'
 $url = "http://127.0.0.1:$Port"
+$healthPoll = @'
+import json
+import sys
+import time
+from urllib.error import URLError
+from urllib.request import ProxyHandler, build_opener
+
+address = sys.argv[1]
+opener = build_opener(ProxyHandler({}))
+deadline = time.monotonic() + 30
+while time.monotonic() < deadline:
+    try:
+        with opener.open(f'{address}/healthz', timeout=1) as response:
+            if response.status == 200:
+                payload = json.loads(response.read().decode('utf-8'))
+                if isinstance(payload, dict) and payload.get('ok'):
+                    raise SystemExit(0)
+    except (URLError, OSError, ValueError):
+        pass
+    time.sleep(0.25)
+raise SystemExit(1)
+'@
 $browserJob = $null
 if (-not $NoBrowser) {
-    $browserJob = Start-Job -ArgumentList $url -ScriptBlock {
-        param($address)
-        for ($attempt = 0; $attempt -lt 60; $attempt++) {
-            try {
-                $status = Invoke-RestMethod -Uri "$address/healthz" -TimeoutSec 1 -ErrorAction Stop
-                if ($status.ok) {
-                    Start-Process $address
-                    return
-                }
-            } catch {
-                Start-Sleep -Milliseconds 250
-            }
+    $browserJob = Start-Job -ArgumentList $url, $python, $healthPoll -ScriptBlock {
+        param($address, $py, $script)
+        & $py -c $script $address
+        if ($LASTEXITCODE -eq 0) {
+            Start-Process $address
         }
     }
 }

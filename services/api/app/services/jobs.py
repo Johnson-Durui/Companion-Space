@@ -204,9 +204,15 @@ class JobRunner:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
+                cause = exc.__cause__ or exc
                 logger.warning(
-                    "Background job failed",
-                    extra={"job_id": job.id, "error_type": type(exc).__name__},
+                    "Background job failed (kind=%s job_id=%s error_type=%s cause_type=%s detail=%s)",
+                    job.kind,
+                    job.id,
+                    type(exc).__name__,
+                    type(cause).__name__,
+                    str(cause)[:400],
+                    extra={"job_id": job.id, "job_kind": job.kind, "error_type": type(exc).__name__},
                 )
                 error = str(exc) if isinstance(exc, JobFailure) else "Job processing failed"
                 await asyncio.to_thread(self._finish, job.id, "failed", error)

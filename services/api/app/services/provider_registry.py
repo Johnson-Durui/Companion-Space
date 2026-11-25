@@ -48,10 +48,14 @@ _CAPABILITIES = {
     "lm-studio": (*_TEXT_CAPABILITIES, ProviderCapability.embedding),
     "anthropic": _TEXT_CAPABILITIES,
     "gemini": (*_TEXT_CAPABILITIES, ProviderCapability.embedding),
+    "antigravity-acp": _TEXT_CAPABILITIES,
+    "codex-app-server": _TEXT_CAPABILITIES,
     "elevenlabs": (ProviderCapability.tts,),
     "local-neural": (ProviderCapability.tts,),
 }
-_OPTIONAL_KEY = {"ollama", "lm-studio", "local-neural"}
+_NO_KEY_PROVIDERS = {"local-neural", "antigravity-acp", "codex-app-server"}
+_NO_URL_PROVIDERS = {"antigravity-acp", "codex-app-server"}
+_OPTIONAL_KEY = {"ollama", "lm-studio", *_NO_KEY_PROVIDERS}
 _NATIVE_BASES = {"gemini": GEMINI_DEFAULT_BASE_URL, "elevenlabs": ELEVENLABS_DEFAULT_BASE_URL}
 _ROLE_CAPABILITIES: dict[Role, ProviderCapability] = {
     "live": ProviderCapability.chat_llm,
@@ -115,6 +119,12 @@ def _requires_key(provider: str, base_url: str | None) -> bool:
 def _base_url(base_url: str | None, provider: str) -> str | None:
     if base_url is None:
         return None
+    if provider in _NO_URL_PROVIDERS:
+        if not base_url.strip():
+            return None
+        raise ProviderConfigurationError(
+            provider=provider, public_detail="This local CLI connection does not use a base URL.",
+        )
     result = validate_url(base_url, provider=provider)
     native = _NATIVE_BASES.get(provider)
     if native is not None and result != native:
@@ -122,6 +132,13 @@ def _base_url(base_url: str | None, provider: str) -> str | None:
             provider=provider, public_detail="Use this provider's native endpoint.",
         )
     return result
+
+
+def _probe_timeout_s(params: dict[str, object], *, default: float = 12.0) -> float:
+    raw = params.get("probe_timeout_s")
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        return float(max(5.0, min(60.0, raw)))
+    return default
 
 
 class ProviderRegistryService:
@@ -169,8 +186,8 @@ class ProviderRegistryService:
         api_key = api_key.strip()
         if _requires_key(provider, base_url) and not api_key:
             raise CodedValueError("provider_api_key_required", "Enter an API key for this connection.")
-        if provider == "local-neural" and api_key:
-            raise CodedValueError("provider_api_key_not_supported", "The local TTS sidecar does not accept an API key.")
+        if provider in _NO_KEY_PROVIDERS and api_key:
+            raise CodedValueError("provider_api_key_not_supported", "This local connection does not accept an API key.")
         now = datetime.now(timezone.utc)
         connection = ProviderConnection(
             id=str(uuid4()), provider=provider, label=label.strip(),
@@ -225,7 +242,7 @@ class ProviderRegistryService:
                     raise CodedValueError("provider_api_key_required", "Enter an API key for this connection.")
             if api_key is not None:
                 api_key = api_key.strip()
-                if not api_key or existing.provider == "local-neural":
+                if not api_key or existing.provider in _NO_KEY_PROVIDERS:
                     raise CodedValueError("provider_api_key_not_supported", "Enter a key for a connection that accepts API keys.")
                 old_secret = self.vault.get_provider_secret(connection_id)
                 self.vault.put_provider_secret(connection_id, api_key)
@@ -313,8 +330,9 @@ class ProviderRegistryService:
 
         async def probe(role: Role, assignment: RoleAssignment) -> RoleTestResult:
             started = monotonic()
+            outer_timeout = max(20.0, _probe_timeout_s(assignment.params, default=12.0) + 8.0)
             try:
-                async with asyncio.timeout(20):
+                async with asyncio.timeout(outer_timeout):
                     adapter = await asyncio.to_thread(self._build_adapter, connection)
                     message = await _probe_role(adapter, role, assignment)
             except ProviderError as error:
@@ -388,7 +406,7 @@ class ProviderRegistryService:
         ), None)
 
     def _build_adapter(self, connection: ProviderConnection) -> ProviderAdapter:
-        secret = None if connection.provider == "local-neural" else self.vault.get_provider_secret(connection.id)
+        secret = None if connection.provider in _NO_KEY_PROVIDERS else self.vault.get_provider_secret(connection.id)
         return build_provider_adapter(connection, api_key=secret)
 
     def _require_connection(self, connection_id: str) -> ProviderConnection:
@@ -469,12 +487,16 @@ async def _probe_role(adapter: ProviderAdapter, role: Role, assignment: RoleAssi
         params = assignment.params
         budget = params.get("probe_max_tokens", 96)
         limit = budget if isinstance(budget, int) and not isinstance(budget, bool) and budget > 0 else 96
-        controlled = {"max_tokens", "probe_max_tokens", "temperature", "timeout_s", "json_object", "stop"}
+        probe_timeout = _probe_timeout_s(params, default=12.0)
+        controlled = {
+            "max_tokens", "probe_max_tokens", "probe_timeout_s",
+            "temperature", "timeout_s", "json_object", "stop",
+        }
         try:
             request = LLMRequest(
                 model=model, system="This is a connection check.",
                 messages=[Message(role="user", content=content)],
-                max_tokens=limit, timeout_s=12,
+                max_tokens=limit, timeout_s=probe_timeout,
                 temperature=params.get("temperature"),
                 stop=params.get("stop"),
                 json_object=params.get("json_object", False),

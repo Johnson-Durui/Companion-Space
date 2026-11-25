@@ -1,5 +1,88 @@
 [
   {
+    "id": "antigravity",
+    "label": "Antigravity 本机订阅",
+    "adapter": "antigravity-acp",
+    "base_url": null,
+    "key_url": null,
+    "cn_reachable": true,
+    "free_tier_note": "免密钥，复用本机 Antigravity 订阅",
+    "models": {
+      "live": "gemini-4-hydrogen-low",
+      "analysis": "gemini-4-hydrogen-medium",
+      "vision": "gemini-4-hydrogen-low"
+    },
+    "params": {
+      "live": {
+        "probe_timeout_s": 25
+      },
+      "analysis": {
+        "probe_timeout_s": 25
+      },
+      "vision": {
+        "probe_timeout_s": 25
+      }
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "requires_api_key": false,
+    "requires_base_url": false,
+    "notes": "通过本机 agy acp 复用已登录的 Antigravity 订阅，支持对话、分析与识图。",
+    "key_guide": [
+      "确保本机已安装 Antigravity CLI（agy）",
+      "如尚未登录，先在终端运行 agy 完成账号登录",
+      "无需 API 密钥，直接点击下方「保存并测试」"
+    ],
+    "sources": [
+      "https://antigravity.google/docs/cli/reference.md",
+      "https://antigravity.google/docs/ide/extensions/acp.md"
+    ]
+  },
+  {
+    "id": "codex",
+    "label": "ChatGPT / Codex 本机订阅",
+    "adapter": "codex-app-server",
+    "base_url": null,
+    "key_url": null,
+    "cn_reachable": false,
+    "free_tier_note": "免密钥，复用本机 ChatGPT 订阅",
+    "models": {
+      "live": "gpt-6.2-astra",
+      "analysis": "gpt-6.2-astra",
+      "vision": "gpt-6.2-astra"
+    },
+    "params": {
+      "live": {
+        "probe_timeout_s": 45
+      },
+      "analysis": {
+        "probe_timeout_s": 45
+      },
+      "vision": {
+        "probe_timeout_s": 45
+      }
+    },
+    "supports": {
+      "json_object": true,
+      "vision": true,
+      "list_models": true
+    },
+    "requires_api_key": false,
+    "requires_base_url": false,
+    "notes": "通过本机 codex app-server 复用已登录的 ChatGPT 订阅，支持对话、分析与识图。",
+    "key_guide": [
+      "确保本机已安装 OpenAI Codex 应用或 CLI",
+      "如尚未登录，请先在 Codex 应用或终端运行 codex login",
+      "无需 API 密钥，直接点击下方「保存并测试」"
+    ],
+    "sources": [
+      "https://developers.openai.com/codex/cli"
+    ]
+  },
+  {
     "id": "bigmodel",
     "label": "智谱 BigModel",
     "adapter": "openai-compatible",

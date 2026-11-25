@@ -135,6 +135,65 @@ export function playEncodedSpeech(
   };
 }
 
+export function playBrowserSpeech(
+  text: string,
+  callbacks?: {
+    onStart?: () => void;
+    onEnd?: () => void;
+    onError?: () => void;
+  },
+): () => void {
+  const cleaned = text.trim();
+  const synth = typeof window !== "undefined" ? window.speechSynthesis : undefined;
+  if (!cleaned || !synth || typeof SpeechSynthesisUtterance === "undefined") {
+    callbacks?.onError?.();
+    return () => {};
+  }
+
+  let stopped = false;
+  let started = false;
+  const utterance = new SpeechSynthesisUtterance(cleaned);
+  utterance.lang = "zh-CN";
+  utterance.onstart = () => {
+    if (stopped || started) return;
+    started = true;
+    callbacks?.onStart?.();
+  };
+  utterance.onend = () => {
+    if (!stopped) callbacks?.onEnd?.();
+  };
+  utterance.onerror = (event) => {
+    if (stopped) return;
+    if (started && event && (event.error === "canceled" || event.error === "interrupted")) {
+      callbacks?.onEnd?.();
+      return;
+    }
+    callbacks?.onError?.();
+  };
+
+  try {
+    synth.cancel();
+    synth.speak(utterance);
+  } catch {
+    if (!stopped) callbacks?.onError?.();
+    return () => {
+      stopped = true;
+    };
+  }
+
+  return () => {
+    stopped = true;
+    utterance.onstart = null;
+    utterance.onend = null;
+    utterance.onerror = null;
+    try {
+      synth.cancel();
+    } catch {
+      // ignore cancel failure during cleanup
+    }
+  };
+}
+
 export interface UseTutorSpeechReturn {
   speak: (
     params: { characterId?: string; text?: string; voiceId?: string },
@@ -144,6 +203,7 @@ export interface UseTutorSpeechReturn {
   loading: boolean;
   speaking: boolean;
   unavailable: boolean;
+  browserFallback: boolean;
   warning: string | null;
 }
 
@@ -156,6 +216,7 @@ export function useTutorSpeech(): UseTutorSpeechReturn {
   const [loading, setLoading] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  const [browserFallback, setBrowserFallback] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
   const seqRef = useRef(0);
@@ -179,60 +240,85 @@ export function useTutorSpeech(): UseTutorSpeechReturn {
       const mySeq = seqRef.current;
       setLoading(true);
       setUnavailable(false);
+      setBrowserFallback(false);
       setWarning(null);
       try {
         const result = await requestTutorSpeech(params);
         if (seqRef.current !== mySeq) return false;
         if (result.warning) setWarning(result.warning);
-        if (result.kind !== "audio" || !result.audio_b64) {
-          setLoading(false);
-          setUnavailable(true);
-          return false;
-        }
-        return await new Promise<boolean>((resolve) => {
-          let settled = false;
-          const settle = (ok: boolean) => {
-            if (settled) return;
-            settled = true;
-            resolve(ok);
-          };
-          const cleanup = playEncodedSpeech(result, {
-            onStart: () => {
-              if (seqRef.current !== mySeq) {
+
+        const runPlayback = (
+          startPlayback: (handlers: {
+            onStart: () => void;
+            onEnd: () => void;
+            onError: () => void;
+          }) => () => void,
+          isDegradedBrowserFallback = false,
+        ) =>
+          new Promise<boolean>((resolve) => {
+            let settled = false;
+            const settle = (ok: boolean) => {
+              if (settled) return;
+              settled = true;
+              resolve(ok);
+            };
+            const cleanup = startPlayback({
+              onStart: () => {
+                if (seqRef.current !== mySeq) {
+                  settle(false);
+                  return;
+                }
+                setLoading(false);
+                setSpeaking(true);
+                setBrowserFallback(isDegradedBrowserFallback);
+                callbacks?.onStart?.();
+                settle(true);
+              },
+              onEnd: () => {
+                if (seqRef.current === mySeq) {
+                  setLoading(false);
+                  setSpeaking(false);
+                  callbacks?.onEnd?.();
+                }
+                settle(true);
+              },
+              onError: () => {
+                if (seqRef.current === mySeq) {
+                  setLoading(false);
+                  setSpeaking(false);
+                  setBrowserFallback(false);
+                  setUnavailable(true);
+                }
                 settle(false);
-                return;
-              }
-              setLoading(false);
-              setSpeaking(true);
-              callbacks?.onStart?.();
-              settle(true);
-            },
-            onEnd: () => {
-              if (seqRef.current === mySeq) {
-                setLoading(false);
-                setSpeaking(false);
-                callbacks?.onEnd?.();
-              }
-              settle(true);
-            },
-            onError: () => {
-              if (seqRef.current === mySeq) {
-                setLoading(false);
-                setSpeaking(false);
-                setUnavailable(true);
-              }
+              },
+            });
+            stopRef.current = () => {
+              cleanup();
               settle(false);
-            },
+            };
           });
-          stopRef.current = () => {
-            cleanup();
-            settle(false);
-          };
-        });
+
+        if (result.kind !== "audio" || !result.audio_b64) {
+          const fallbackText = result.text?.trim();
+          if (!fallbackText) {
+            setLoading(false);
+            setBrowserFallback(false);
+            setUnavailable(true);
+            return false;
+          }
+          const isDegradedFallback = result.reason_code !== "browser_engine";
+          return await runPlayback(
+            (handlers) => playBrowserSpeech(fallbackText, handlers),
+            isDegradedFallback,
+          );
+        }
+
+        return await runPlayback((handlers) => playEncodedSpeech(result, handlers), false);
       } catch {
         if (seqRef.current !== mySeq) return false;
         setLoading(false);
         setSpeaking(false);
+        setBrowserFallback(false);
         setUnavailable(true);
         return false;
       }
@@ -240,5 +326,5 @@ export function useTutorSpeech(): UseTutorSpeechReturn {
     [stop],
   );
 
-  return { speak, stop, loading, speaking, unavailable, warning };
+  return { speak, stop, loading, speaking, unavailable, browserFallback, warning };
 }

@@ -50,7 +50,11 @@ test("welcome, connection roles, and diagnostics use the same local session", as
   await expect(page.getByTestId("current-tutor-badge")).toBeVisible();
 
   await page.getByRole("button", { name: t.voice.preview }).click();
-  await expect(page.getByText(t.speech.unavailable)).toBeVisible();
+  const speechStatus = page.getByTestId("tutor-speech-status");
+  await expect(speechStatus).toBeVisible();
+  await expect(speechStatus).toHaveText(
+    new RegExp(`^(${t.speech.browserFallback}|${t.speech.unavailable})$`),
+  );
 
   // /settings/diagnostics redirects to /settings/ai?tab=test with embedded test chat
   await page.goto("/settings/diagnostics");

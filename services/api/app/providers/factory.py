@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from app.models.domain import ProviderConnection
 from app.providers.anthropic_provider import DEFAULT_ANTHROPIC_BASE_URL, AnthropicLLMProvider
+from app.providers.antigravity_acp import AntigravityACPProvider
 from app.providers.base import LLMProvider, ProviderAdapter
+from app.providers.codex_app_server import CodexAppServerProvider
 from app.providers.elevenlabs_provider import ElevenLabsProviderAdapter
 from app.providers.errors import ProviderConfigurationError
 from app.providers.gemini_provider import GeminiLLMProvider
@@ -21,6 +23,10 @@ def build_provider_adapter(
     connection: ProviderConnection, *, api_key: str | None,
 ) -> ProviderAdapter:
     provider = connection.provider
+    if provider == "antigravity-acp":
+        return AntigravityACPProvider()
+    if provider == "codex-app-server":
+        return CodexAppServerProvider()
     if provider == "local-neural":
         return LocalNeuralTTSProvider(base_url=connection.base_url or LOCAL_NEURAL_TTS_DEFAULT_BASE_URL)
     roots = {

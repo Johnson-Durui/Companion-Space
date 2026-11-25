@@ -39,7 +39,9 @@ async function fetchPresets() {
   return bodyOf(await api.GET("/api/v2/providers/presets"));
 }
 
-type Preset = Awaited<ReturnType<typeof fetchPresets>>[number];
+type Preset = Awaited<ReturnType<typeof fetchPresets>>[number] & {
+  requires_base_url?: boolean;
+};
 type RoleTestEntry = {
   role: string;
   ok: boolean;
@@ -49,14 +51,26 @@ type RoleTestEntry = {
 
 const FREE_BASES = ["https://open.bigmodel.cn/", "https://api.siliconflow.cn/"];
 const FAST_BASES = ["https://api.deepseek.com", "https://dashscope.aliyuncs.com/"];
+const NO_URL_ADAPTERS = new Set(["antigravity-acp", "codex-app-server"]);
+const voiceStatusKey = ["voice-status"] as const;
 
 function presetHasCap(preset: Preset, cap: (typeof CAP_KEYS)[number]): boolean {
   if (cap === "checker") return Boolean(preset.models.checker || preset.models.analysis);
   return Boolean(preset.models[cap]);
 }
 
+function isLocalSubscriptionPreset(preset: Preset): boolean {
+  return !preset.requires_api_key && Boolean(preset.models.live);
+}
+
+function presetRequiresBaseUrl(preset: Preset): boolean {
+  if (typeof preset.requires_base_url === "boolean") return preset.requires_base_url;
+  return !NO_URL_ADAPTERS.has(preset.adapter);
+}
+
 function isFreePreset(preset: Preset): boolean {
   return (
+    isLocalSubscriptionPreset(preset) ||
     FREE_BASES.some((prefix) => preset.base_url?.startsWith(prefix)) ||
     preset.free_tier_note.includes("免费")
   );
@@ -103,19 +117,21 @@ export function ConnectWizard({
   const saveAndTest = useMutation({
     mutationFn: async () => {
       if (!chosenPreset) throw new Error("No provider selected");
+      const needsUrl = presetRequiresBaseUrl(chosenPreset);
       const created = bodyOf(
         await api.POST("/api/v2/providers/connections", {
           body: {
             preset_id: chosenPreset.id,
             label: label.trim() || chosenPreset.label,
-            base_url: baseUrl.trim() || chosenPreset.base_url || null,
-            api_key: apiKey.trim(),
+            base_url: needsUrl ? baseUrl.trim() || chosenPreset.base_url || null : null,
+            api_key: chosenPreset.requires_api_key || needsUrl ? apiKey.trim() : "",
           },
         }),
       );
       await Promise.all([
         queries.invalidateQueries({ queryKey: connectionsKey }),
         queries.invalidateQueries({ queryKey: rolesKey }),
+        queries.invalidateQueries({ queryKey: voiceStatusKey }),
       ]);
 
       setStep(3);
@@ -225,7 +241,11 @@ export function ConnectWizard({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <strong className="text-body font-semibold text-fg-primary">{preset.label}</strong>
                   <div className="flex flex-wrap gap-1.5">
-                    {isFreePreset(preset) ? <Badge tone="ok">{copy.freeBadge}</Badge> : null}
+                    {isLocalSubscriptionPreset(preset) ? (
+                      <Badge tone="ok">{copy.localSubBadge}</Badge>
+                    ) : isFreePreset(preset) ? (
+                      <Badge tone="ok">{copy.freeBadge}</Badge>
+                    ) : null}
                     {preset.cn_reachable ? <Badge tone="neutral">{copy.cnBadge}</Badge> : null}
                   </div>
                 </div>
@@ -269,7 +289,11 @@ export function ConnectWizard({
           </div>
 
           <Card padding="md" data-key-guide="true" className="grid gap-3 bg-surface-sunken/50">
-            <p className="text-ui font-semibold text-fg-primary">{copy.guideTitle}</p>
+            <p className="text-ui font-semibold text-fg-primary">
+              {chosenPreset.requires_api_key || presetRequiresBaseUrl(chosenPreset)
+                ? copy.guideTitle
+                : copy.localGuideTitle}
+            </p>
             <ol className="grid gap-1.5 pl-5 text-ui text-fg-secondary list-decimal">
               {(chosenPreset.key_guide?.length
                 ? chosenPreset.key_guide
@@ -293,17 +317,21 @@ export function ConnectWizard({
             ) : null}
           </Card>
 
-          <Field label={copy.keyLabel} required={chosenPreset.requires_api_key}>
-            <SecretInput
-              name="api_key"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-              placeholder={copy.keyPlaceholder}
-              showLabel={copy.showKey}
-              hideLabel={copy.hideKey}
-              required={chosenPreset.requires_api_key}
-            />
-          </Field>
+          {chosenPreset.requires_api_key || presetRequiresBaseUrl(chosenPreset) ? (
+            <Field label={copy.keyLabel} required={chosenPreset.requires_api_key}>
+              <SecretInput
+                name="api_key"
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder={copy.keyPlaceholder}
+                showLabel={copy.showKey}
+                hideLabel={copy.hideKey}
+                required={chosenPreset.requires_api_key}
+              />
+            </Field>
+          ) : (
+            <p className="text-ui text-fg-secondary">{copy.noKeyNeeded}</p>
+          )}
 
           <details className="rounded-md border border-line-subtle bg-surface-card px-4 py-3">
             <summary className="cursor-pointer text-ui font-medium text-fg-secondary select-none">
@@ -317,15 +345,17 @@ export function ConnectWizard({
                   maxLength={120}
                 />
               </Field>
-              <Field label={t.settings.baseUrl}>
-                <TextInput
-                  type="url"
-                  value={baseUrl}
-                  onChange={(event) => setBaseUrl(event.target.value)}
-                  placeholder={t.settings.customUrl}
-                  required={!chosenPreset.base_url}
-                />
-              </Field>
+              {presetRequiresBaseUrl(chosenPreset) ? (
+                <Field label={t.settings.baseUrl}>
+                  <TextInput
+                    type="url"
+                    value={baseUrl}
+                    onChange={(event) => setBaseUrl(event.target.value)}
+                    placeholder={t.settings.customUrl}
+                    required={!chosenPreset.base_url}
+                  />
+                </Field>
+              ) : null}
             </div>
           </details>
 
@@ -406,7 +436,7 @@ export function ConnectWizard({
             ) : (
               <>
                 <Button variant="secondary" onClick={() => setStep(2)}>
-                  {copy.checkKey}
+                  {chosenPreset.requires_api_key ? copy.checkKey : copy.checkSetup}
                 </Button>
                 <Button variant="primary" onClick={() => setStep(4)}>
                   {t.onboarding.continue}

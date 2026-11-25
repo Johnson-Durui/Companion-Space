@@ -8,7 +8,9 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 
-from app.voice.tts.engines import gpt_sovits_engine
+from app.api.deps import get_container
+from app.providers.base import ProviderAdapter
+from app.voice.tts.engines import gpt_sovits_engine, resolve_tts
 from app.voice.tts.pipeline import (
     SpeechChunk,
     SpeechEngine,
@@ -343,3 +345,183 @@ def test_dynamic_queue_emits_segment_end_before_the_next_segment() -> None:
     assert asyncio.run(scenario()) == [
         (1, "audio"), (1, "end"), (2, "audio"), (2, "end"),
     ]
+
+
+def test_voice_settings_default_is_optional_and_preserves_builtin_edge_voices(client, owner_token) -> None:
+    headers = {"Authorization": f"Bearer {owner_token}"}
+    container = get_container()
+
+    initial = client.get("/api/v2/voice/settings", headers=headers)
+    assert initial.status_code == 200
+    assert initial.json() == {"default": None, "characters": {}}
+
+    builtins = [
+        c for c in client.get("/api/v2/characters", headers=headers).json()
+        if c.get("pack_metadata", {}).get("source_kind") == "builtin"
+    ]
+    assert len(builtins) == 6
+    target = builtins[0]
+    others = builtins[1:]
+
+    # Saving a single character override without setting default keeps default=None
+    saved = client.put(
+        "/api/v2/voice/settings",
+        headers=headers,
+        json={
+            "default": None,
+            "characters": {
+                target["id"]: {"engine": "edge", "voice_id": "zh-CN-XiaoyiNeural", "rate": 1.15, "pitch": 0},
+            },
+        },
+    )
+    assert saved.status_code == 200
+    assert saved.json()["default"] is None
+
+    # Even if a global Edge default is explicitly configured, other built-in tutors keep their distinct Edge voices
+    legacy = client.put(
+        "/api/v2/voice/settings",
+        headers=headers,
+        json={
+            "default": {"engine": "edge", "voice_id": "zh-CN-XiaoxiaoNeural", "rate": 1.0, "pitch": 0},
+            "characters": {
+                target["id"]: {"engine": "edge", "voice_id": "zh-CN-XiaoyiNeural", "rate": 1.15, "pitch": 0},
+            },
+        },
+    )
+    assert legacy.status_code == 200
+
+    async def collect_voices() -> dict[str, tuple[str, str]]:
+        resolved: dict[str, tuple[str, str]] = {}
+        for char in builtins:
+            _, spec = await resolve_tts(container, char["id"])
+            resolved[char["id"]] = (spec.engine, spec.voice_id)
+        return resolved
+
+    resolved_map = asyncio.run(collect_voices())
+    assert resolved_map[target["id"]] == ("edge", "zh-CN-XiaoyiNeural")
+    for char in others:
+        assert resolved_map[char["id"]] == ("edge", char["voice"]["voice_id"])
+    assert len({resolved_map[char["id"]][1] for char in others}) == len(others)
+
+    # Switching global default to a different engine ("browser") applies to non-overridden tutors
+    browser_default = client.put(
+        "/api/v2/voice/settings",
+        headers=headers,
+        json={
+            "default": {"engine": "browser", "voice_id": ""},
+            "characters": {
+                target["id"]: {"engine": "edge", "voice_id": "zh-CN-XiaoyiNeural"},
+            },
+        },
+    )
+    assert browser_default.status_code == 200
+    resolved_browser = asyncio.run(collect_voices())
+    assert resolved_browser[target["id"]] == ("edge", "zh-CN-XiaoyiNeural")
+    for char in others:
+        assert resolved_browser[char["id"]][0] == "browser"
+
+
+def test_resolve_tts_preserves_role_model_and_speak_accepts_short_voice_ids(client, owner_token, monkeypatch) -> None:
+    headers = {"Authorization": f"Bearer {owner_token}"}
+    container = get_container()
+
+    class _StubSpeechAdapter(ProviderAdapter):
+        name = "openai-compatible"
+
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str, str, float]] = []
+
+        async def discover_models(self, capability=None) -> list[str]:
+            return ["gpt-4o-mini-tts"]
+
+        async def synthesize_speech_stream(
+            self, *, model: str, text: str, voice_id: str, speed: float = 1.0,
+        ) -> AsyncIterator[bytes]:
+            self.calls.append((model, text, voice_id, speed))
+            yield b"\x01\x02\x03\x04"
+
+    from app.services.provider_registry import RoleAssignment
+
+    stub = _StubSpeechAdapter()
+    conn_id = container.providers.save_connection(
+        label="Speech",
+        provider="openai-compatible",
+        base_url="https://api.openai.com/v1",
+        api_key="sk-test-tts-key",
+    )["id"]
+    container.providers.set_roles(
+        {"tts": RoleAssignment(connection_id=conn_id, model="gpt-4o-mini-tts")},
+    )
+    monkeypatch.setattr("app.services.provider_registry.build_provider_adapter", lambda *a, **kw: stub)
+
+    # Global default set to openai_compat with blank model must inherit role model ("gpt-4o-mini-tts")
+    saved = client.put(
+        "/api/v2/voice/settings",
+        headers=headers,
+        json={
+            "default": {"engine": "openai_compat", "voice_id": "nova", "model": ""},
+            "characters": {
+                "tutor-xuechuan": {"engine": "browser", "voice_id": ""},
+            },
+        },
+    )
+    assert saved.status_code == 200
+
+    async def inspect_resolution() -> tuple[str, VoiceSpec, list[SpeechChunk]]:
+        service, voice = await resolve_tts(container, "tutor-chutang")
+        chunks = [chunk async for chunk in service.stream("hello", voice)]
+        return service.engine_defaults["openai_compat"].model, voice, chunks
+
+    default_model, resolved_voice, chunks = asyncio.run(inspect_resolution())
+    assert default_model == "gpt-4o-mini-tts"
+    assert resolved_voice.engine == "openai_compat"
+    assert resolved_voice.voice_id == "nova"
+    assert [c.kind for c in chunks] == ["audio"]
+    assert stub.calls[-1][:3] == ("gpt-4o-mini-tts", "hello", "nova")
+
+    # /voice/speak accepts 3-4 char OpenAI voice_ids (ash, nova, echo, onyx, sage) and underscores,
+    # and preserves openai_compat engine instead of forcing edge
+    for short_voice in ("ash", "nova", "echo", "onyx", "sage", "voice_1"):
+        resp = client.post(
+            "/api/v2/voice/speak",
+            headers=headers,
+            json={"character_id": "tutor-chutang", "text": "test", "voice_id": short_voice},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["kind"] == "audio"
+        assert body["engine"] == "openai_compat"
+        assert stub.calls[-1][:3] == ("gpt-4o-mini-tts", "test", short_voice)
+
+    # /tts/preview also accepts 4-char OpenAI voice_id and preserves openai_compat
+    preview = client.post(
+        "/api/v2/tts/preview",
+        headers=headers,
+        json={"character_id": "tutor-chutang", "text": "preview", "voice_id": "sage"},
+    )
+    assert preview.status_code == 200
+    assert preview.json()["kind"] == "audio"
+    assert stub.calls[-1][:3] == ("gpt-4o-mini-tts", "preview", "sage")
+
+    # Explicit voice_id on a browser-overridden tutor coerces browser -> edge (does not stay browser)
+    async def ok_edge(text: str, voice: str, rate: float = 1, pitch: int = 0) -> bytes:
+        return b"ID3-edge-bytes"
+
+    monkeypatch.setattr(container.gateway, "preview_voice", ok_edge)
+    coerced = client.post(
+        "/api/v2/voice/speak",
+        headers=headers,
+        json={"character_id": "tutor-xuechuan", "text": "edge preview", "voice_id": "zh-CN-XiaoxiaoNeural"},
+    )
+    assert coerced.status_code == 200
+    assert coerced.json()["kind"] == "audio"
+    assert coerced.json()["engine"] == "edge"
+
+    # Invalid voice_id values still rejected with 422
+    for invalid_voice in ("a", "bad/voice"):
+        bad = client.post(
+            "/api/v2/voice/speak",
+            headers=headers,
+            json={"character_id": "tutor-chutang", "text": "test", "voice_id": invalid_voice},
+        )
+        assert bad.status_code == 422

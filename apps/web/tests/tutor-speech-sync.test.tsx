@@ -3,11 +3,12 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ACTIVE_CLIP_SLOTS } from "@companion-space/avatar-engine/catalog";
 import { api, type Character } from "../src/app/api";
 import type { LessonEvent } from "../src/features/classroom/timeline";
 import { ReplayStage } from "../src/features/replay/replay-stage";
 import { TutorShowcase } from "../src/features/tutors/tutor-showcase";
-import type { SpeakResult } from "../src/features/voice/use-tutor-speech";
+import { playBrowserSpeech, type SpeakResult } from "../src/features/voice/use-tutor-speech";
 import t from "../src/locales/zh-CN.json";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -349,5 +350,331 @@ describe("Tutor lip-sync vs audible speech synchronization", () => {
 
     expect(videoBox?.getAttribute("data-phase")).toBe("speaking");
     expect(videoBox?.getAttribute("data-pose")).toBe("lecturing");
+  });
+
+  it("TutorShowcase falls back to browser speechSynthesis when /voice/speak returns unavailable with text, keeping mouth closed until onstart", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("IntersectionObserver", undefined);
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true } as Response)));
+
+    class ControlledUtterance {
+      text: string;
+      lang = "";
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      constructor(text: string) {
+        this.text = text;
+      }
+    }
+
+    const spoken: ControlledUtterance[] = [];
+    const cancel = vi.fn();
+    const speak = vi.fn((u: ControlledUtterance) => {
+      spoken.push(u);
+    });
+    vi.stubGlobal("SpeechSynthesisUtterance", ControlledUtterance);
+    vi.stubGlobal("speechSynthesis", { speak, cancel });
+
+    let resolveSpeechHttp!: (res: SpeakResult) => void;
+    vi.spyOn(api, "POST").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSpeechHttp = (data) =>
+            resolve({ data, response: { ok: true, status: 200 } } as never);
+        }) as never,
+    );
+
+    const host = mount(
+      <MemoryRouter>
+        <TutorShowcase
+          character={sampleCharacter}
+          isCurrent={false}
+          introSeq={1}
+          onChoose={() => {}}
+        />
+      </MemoryRouter>,
+    );
+
+    const videoBox = () => host.querySelector<HTMLElement>('[data-testid="tutor-video-box"]');
+    const surface = () => host.querySelector<HTMLElement>(".tvb-surface");
+
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+    });
+
+    await act(async () => {
+      resolveSpeechHttp({
+        kind: "unavailable",
+        text: "先听清主旋律，再拆伴奏细节。",
+        engine: "browser",
+        reason_code: "browser_engine",
+      });
+      await Promise.resolve();
+    });
+
+    // Browser utterance queued, but utterance.onstart has NOT fired yet:
+    // B13 lip-sync invariant: mouth MUST stay closed until onstart!
+    expect(spoken).toHaveLength(1);
+    expect(spoken[0]!.lang).toBe("zh-CN");
+    expect(spoken[0]!.text).toBe("先听清主旋律，再拆伴奏细节。");
+    expect(videoBox()?.getAttribute("data-pose")).not.toBe("lecturing");
+    expect(host.textContent).not.toContain(t.speech.unavailable);
+
+    // Audible browser speech starts -> switches to lecturing (explicit browser_engine is not a degraded fallback)
+    await act(async () => {
+      spoken[0]!.onstart?.();
+      await Promise.resolve();
+    });
+    expect(videoBox()?.getAttribute("data-pose")).toBe("lecturing");
+    expect(surface()?.getAttribute("data-clip")).toBe("speak_explain_a");
+    expect(host.textContent).not.toContain(t.speech.unavailable);
+    expect(host.textContent).not.toContain(t.speech.browserFallback);
+
+    // Browser speech finishes -> exits lecturing and returns to idle_companion
+    await act(async () => {
+      spoken[0]!.onend?.();
+      await Promise.resolve();
+    });
+    expect(videoBox()?.getAttribute("data-pose")).not.toBe("lecturing");
+
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(videoBox()?.getAttribute("data-pose")).toBe("idle_companion");
+  });
+
+  it("TutorShowcase shows visible browserFallback notice when server TTS degrades to browser speechSynthesis", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("IntersectionObserver", undefined);
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true } as Response)));
+
+    class ControlledUtterance {
+      text: string;
+      lang = "";
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      constructor(text: string) {
+        this.text = text;
+      }
+    }
+
+    const spoken: ControlledUtterance[] = [];
+    vi.stubGlobal("SpeechSynthesisUtterance", ControlledUtterance);
+    vi.stubGlobal("speechSynthesis", {
+      speak: vi.fn((u: ControlledUtterance) => {
+        spoken.push(u);
+      }),
+      cancel: vi.fn(),
+    });
+
+    vi.spyOn(api, "POST").mockResolvedValue({
+      data: {
+        kind: "unavailable",
+        text: "先听清主旋律，再拆伴奏细节。",
+        engine: "browser",
+        warning: "Fixture online voice unavailable",
+        reason_code: "tts_unavailable",
+      },
+      response: { ok: true, status: 200 },
+    } as never);
+
+    const host = mount(
+      <MemoryRouter>
+        <TutorShowcase
+          character={sampleCharacter}
+          isCurrent={false}
+          introSeq={0}
+          onChoose={() => {}}
+        />
+      </MemoryRouter>,
+    );
+
+    const previewBtn = host.querySelector<HTMLButtonElement>(`button[aria-label="${t.voice.preview}"]`);
+    await act(async () => {
+      previewBtn!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(spoken).toHaveLength(1);
+    expect(host.querySelector('[data-testid="tutor-speech-status"]')).toBeNull();
+
+    // Audible fallback begins -> honest degradation status is shown
+    await act(async () => {
+      spoken[0]!.onstart?.();
+      await Promise.resolve();
+    });
+    const status = host.querySelector<HTMLElement>('[data-testid="tutor-speech-status"]');
+    expect(status?.textContent).toBe(t.speech.browserFallback);
+    expect(host.textContent).not.toContain(t.speech.unavailable);
+
+    // Status remains visible after utterance completes so learner sees degradation honestly
+    await act(async () => {
+      spoken[0]!.onend?.();
+      await Promise.resolve();
+    });
+    expect(host.querySelector('[data-testid="tutor-speech-status"]')?.textContent).toBe(t.speech.browserFallback);
+  });
+
+  it("TutorShowcase renders dynamic clip readiness from ACTIVE_CLIP_SLOTS without hardcoded 8/8", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("IntersectionObserver", undefined);
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true } as Response)));
+
+    const total = ACTIVE_CLIP_SLOTS.length;
+    const partialHost = mount(
+      <MemoryRouter>
+        <TutorShowcase character={sampleCharacter} isCurrent={false} onChoose={() => {}} />
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const partialBadge = partialHost.querySelector('[data-testid="tutor-motion-badge"]')?.textContent;
+    expect(partialBadge).toBe(
+      t.richUi.tutorMotionReady.replace("{ready}", "8").replace("{total}", String(total)),
+    );
+    expect(partialBadge).not.toContain("8/8");
+
+    const allClips: Record<string, string> = Object.fromEntries(
+      ACTIVE_CLIP_SLOTS.map((slot) => [slot, `/clips/${slot}.webm`]),
+    );
+    const fullCharacter: Character = {
+      ...sampleCharacter,
+      video_avatar: {
+        ...sampleCharacter.video_avatar!,
+        loop_pack: {
+          ...sampleCharacter.video_avatar!.loop_pack!,
+          clips: allClips,
+        },
+      },
+    };
+    await act(async () => {
+      root!.render(
+        <MemoryRouter>
+          <TutorShowcase character={fullCharacter} isCurrent={false} onChoose={() => {}} />
+        </MemoryRouter>,
+      );
+      await Promise.resolve();
+    });
+    expect(partialHost.querySelector('[data-testid="tutor-motion-badge"]')?.textContent).toBe(
+      t.richUi.tutorMotionReady.replace("{ready}", String(total)).replace("{total}", String(total)),
+    );
+
+    const customCharacter: Character = {
+      ...sampleCharacter,
+      video_avatar: {
+        ...sampleCharacter.video_avatar!,
+        loop_pack: {
+          ...sampleCharacter.video_avatar!.loop_pack!,
+          clips: {},
+        },
+      },
+    };
+    await act(async () => {
+      root!.render(
+        <MemoryRouter>
+          <TutorShowcase character={customCharacter} isCurrent={false} onChoose={() => {}} />
+        </MemoryRouter>,
+      );
+      await Promise.resolve();
+    });
+    expect(partialHost.querySelector('[data-testid="tutor-motion-badge"]')?.textContent).toBe(
+      t.richUi.tutorCustomAvatar,
+    );
+  });
+
+  it("TutorShowcase shows unavailable when browser speechSynthesis is missing or errors, and cleans up on cancel/unmount", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("IntersectionObserver", undefined);
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true } as Response)));
+
+    class ControlledUtterance {
+      text: string;
+      lang = "";
+      onstart: (() => void) | null = null;
+      onend: (() => void) | null = null;
+      onerror: ((event: { error: string }) => void) | null = null;
+      constructor(text: string) {
+        this.text = text;
+      }
+    }
+
+    // Case 1: browser TTS missing -> unavailable = true
+    vi.stubGlobal("SpeechSynthesisUtterance", undefined);
+    vi.stubGlobal("speechSynthesis", undefined);
+    vi.spyOn(api, "POST").mockResolvedValue({
+      data: {
+        kind: "unavailable",
+        text: "先听清主旋律，再拆伴奏细节。",
+        engine: "browser",
+        reason_code: "tts_unavailable",
+      },
+      response: { ok: true, status: 200 },
+    } as never);
+
+    const host = mount(
+      <MemoryRouter>
+        <TutorShowcase
+          character={sampleCharacter}
+          isCurrent={false}
+          introSeq={0}
+          onChoose={() => {}}
+        />
+      </MemoryRouter>,
+    );
+
+    const previewBtn = host.querySelector<HTMLButtonElement>(`button[aria-label="${t.voice.preview}"]`);
+    await act(async () => {
+      previewBtn!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain(t.speech.unavailable);
+    expect(host.querySelector<HTMLElement>('[data-testid="tutor-video-box"]')?.getAttribute("data-pose")).not.toBe(
+      "lecturing",
+    );
+
+    // Case 2: browser TTS errors -> unavailable = true
+    const spoken: ControlledUtterance[] = [];
+    const cancel = vi.fn();
+    vi.stubGlobal("SpeechSynthesisUtterance", ControlledUtterance);
+    vi.stubGlobal("speechSynthesis", {
+      speak: vi.fn((u: ControlledUtterance) => {
+        spoken.push(u);
+      }),
+      cancel,
+    });
+
+    await act(async () => {
+      previewBtn!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(spoken).toHaveLength(1);
+    expect(host.textContent).not.toContain(t.speech.unavailable);
+
+    await act(async () => {
+      spoken[0]!.onerror?.({ error: "synthesis-failed" });
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain(t.speech.unavailable);
+
+    // Case 3: playBrowserSpeech cleanup cancels speechSynthesis and suppresses late callbacks
+    const onStart = vi.fn();
+    const onEnd = vi.fn();
+    const onError = vi.fn();
+    const cleanup = playBrowserSpeech("测试朗读", { onStart, onEnd, onError });
+    expect(spoken).toHaveLength(2);
+    const activeUtterance = spoken[1]!;
+    cleanup();
+    expect(cancel).toHaveBeenCalled();
+    expect(activeUtterance.onstart).toBeNull();
+    expect(activeUtterance.onend).toBeNull();
+    expect(activeUtterance.onerror).toBeNull();
+    expect(onStart).not.toHaveBeenCalled();
+    expect(onEnd).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
   });
 });

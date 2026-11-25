@@ -4,6 +4,8 @@ import pytest
 
 from app.models.domain import ProviderConnection
 from app.providers.anthropic_provider import AnthropicLLMProvider
+from app.providers.antigravity_acp import AntigravityACPProvider
+from app.providers.codex_app_server import CodexAppServerProvider
 from app.providers.elevenlabs_provider import ElevenLabsProviderAdapter
 from app.providers.errors import ProviderConfigurationError
 from app.providers.factory import (
@@ -61,6 +63,26 @@ def test_ollama_uses_openai_compatibility_without_persisted_dummy_key() -> None:
     assert isinstance(adapter, OpenAICompatibleProvider)
     assert adapter.name == "ollama"
     assert adapter.base_url == OLLAMA_DEFAULT_BASE_URL
+
+
+@pytest.mark.parametrize(
+    ("provider", "expected_type"),
+    [
+        ("antigravity-acp", AntigravityACPProvider),
+        ("codex-app-server", CodexAppServerProvider),
+    ],
+)
+def test_local_subscription_adapters_build_without_api_key(
+    provider: str,
+    expected_type: type,
+) -> None:
+    adapter = build_provider_adapter(
+        _connection(provider),
+        api_key=None,
+    )
+
+    assert isinstance(adapter, expected_type)
+    assert isinstance(build_llm_provider(_connection(provider), api_key=None), expected_type)
 
 
 def test_provider_factory_never_falls_back_for_unknown_provider() -> None:

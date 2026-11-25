@@ -43,7 +43,7 @@ class DefaultCharacterResponse(BaseModel):
 class PreviewRequest(BaseModel):
     character_id: str = Field(min_length=1, max_length=120)
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=240)] | None = None
-    voice_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9-]{5,60}$")
+    voice_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{2,60}$")
 
 
 class PreviewResult(BaseModel):

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import clsx from "clsx";
 import { browserApiFetch } from "@companion-space/api-client";
-import { api, bodyOf, charactersKey, fetchCharacters } from "../../app/api";
+import { api, bodyOf, charactersKey, fetchCharacters, voiceStatusKey } from "../../app/api";
 import { Loading, Problem } from "../../app/ui";
 import {
   ArrowRight,
@@ -38,7 +38,6 @@ import { useTutorSpeech } from "../voice/use-tutor-speech";
 
 const voiceSettingsKey = ["voice-settings"] as const;
 const sttSettingsKey = ["stt-settings"] as const;
-const voiceStatusKey = ["voice-status"] as const;
 const defaultVoice = {
   engine: "edge" as const,
   voice_id: "zh-CN-XiaoxiaoNeural",
@@ -93,7 +92,7 @@ function VoiceEditor({
       bodyOf(
         await api.PUT("/api/v2/voice/settings", {
           body: {
-            default: target === "default" ? draft : (settings.default ?? defaultVoice),
+            default: (target === "default" ? draft : (settings.default ?? null)) as unknown as VoiceSettings["default"],
             characters: character?.id
               ? { ...(settings.characters ?? {}), [character.id]: draft }
               : (settings.characters ?? {}),
