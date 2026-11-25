@@ -624,3 +624,127 @@
   - `tutor-qingheng`：`ok: true`，576×1024 @ 24fps VP9 Profile 0 `yuv420p` 无音轨单关键帧，14 段共 9,249,393 B（单段最大 1,038,054 B），9 段新入库 `seam_mae ≤ 0.013` / `seam_block_max ≤ 0.246` / `hub_mae ≤ 2.663`，7/7 表情图 1080×1920 WebP。
   - `tutor-lanyin`：`ok: true`，576×1024 @ 24fps VP9 Profile 0 `yuv420p` 无音轨单关键帧，11 段共 3,828,235 B（单段最大 582,000 B），5 段新入库 `seam_mae ≤ 1.134` / `seam_block_max ≤ 5.672` / `hub_mae ≤ 3.415`，7/7 表情图 1080×1920 WebP。
   - 全部 6 位老师完整 JSON 报告已落盘至 `docs/rebuild/review/UM/<slug>/metrics.json`。
+
+### 老师素材扩展 UM-2 全量入库收官（486 条 H3 视频全审与 6 师全量合入）— 代码与素材完成（自动化通过）（2026-11-25）
+
+**待完成与待验证（先写未完成项与已知限制）**
+
+- **DM-3 `intro_voice` 待所有者决定是否启用**：6 位老师全部 `intro_voice`（6/6，含 Opus 单声道音轨、音画联合裁剪同步）均已听测入库并通过严格校验，目前继续按 DM-3 默认不启用（老师页保持 U4 问候+讲话+课堂一致语音编排）；6 条音画质量均达可试验启用水准（雪川/初棠/岚玥句首干净，沈砚/青衡/澜音句首有轻微自然吸气声）。
+- **所有者手工与真机体验验收待执行**：UM-2 验收清单第 1–10 条（真机逐段观看动作自然度、配饰稳定性、P1/P2 轮换体感、减少动态效果实测、观感五问）及 `docs/rebuild/review/UM/<slug>/clips-sheet.jpg` 抽检仍待所有者亲测；DM-1 许可继续遵循方案 B（公开发布包使用 `scripts/build-portable.ps1 -ExcludeVideoClips`）。
+
+**已落地（UM-2 全量审片、10 槽定向补拍与 162/162 全新 H3 入库汇总）**
+
+- **10 处原 `NEED_RESHOOT` 槽位定向补拍闭环（30/30 零报错出片 + 双眼 1:1/2× 复核 10/10 全过，实现 162/162 全新 H3 零缺槽、零旧段兜底）**：
+  - 修订 `tools/tutorpack/generate-prompts.mjs`（严格隔离仅 10/162 槽位 `prompt_rev` 变化，152/162 零改动）：
+    - **全 6 师 `hint_finger`（6 槽）**：经 `02-shenyan` 3 轮先导实测证实 MiniMax H3 对孤立“竖食指向上”存在系统性反手/指背接枝硬先验（0/21）；采用方案 A 改为“食指轻点太阳穴/眉梢外侧（灵光一闪）+ 歪头会意闭唇笑”（复用 `think_chin` 面部锚点手背几何，`03-lanyue` 锁定右侧拱窗区且指尖在角下方），Pilot #4 (`s2241`) 及全 6 师 18/18 种子手背解剖 100% 干净。
+    - **单角色 4 槽**：`03-lanyue` `speak_explain_b`（`s3152`）/ `react_comfort`（`s3211`）锁定画面右侧拱窗区与边界留白并替换此前 2 条旧段兜底；`03-lanyue` `react_surprise`（`s3261`）与 `06-lanyin` `think_gaze`（`s6123`）加严闭唇与纯器乐 cue，全程闭唇且无皱眉。
+- **全 6 师 162/162 全新 H3 短片全量入库（0 旧段兜底、0 缺槽、0 拒收，P0–P2 全员 27/27 齐备，表情图全员 7/7 共 42 张完整）**：
+
+| 老师 | 新 H3 入库 | 兜底旧段 | 在线槽位 | 总短片体积（上限 14 MB） | 单段最大（上限 1.2 MB） | CRF 分层（T1/T2/T3） | 接缝 / 锚点误差上限 | 缺槽 | `intro_voice`（Opus 单声道） |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- |
+| 雪川（`tutor-xuechuan`） | 27 | 0 | 27/27 | 13,906,017 B (13.91 MB) | 810,545 B | 33–34 / 34–38 / 36–38 | seam≤0.011 / hub≤2.945 | 0 | 514 KB / 5.51s / settle=5333ms |
+| 沈砚（`tutor-shenyan`） | 27 | 0 | 27/27 | 9,612,634 B (9.61 MB) | 620,466 B | 32 / 32 / 32 | seam≤0.049 / hub≤2.306 | 0 | 374 KB / 6.38s / settle=6208ms |
+| 岚玥（`tutor-lanyue`） | 27 | 0 | 27/27 | 13,797,624 B (13.80 MB) | 774,078 B | 37–38 / 38–42 / 40–42 | seam≤0.032 / hub≤3.650 | 0 | 522 KB / 6.38s / settle=6208ms |
+| 初棠（`tutor-chutang`） | 27 | 0 | 27/27 | 13,553,209 B (13.55 MB) | 826,985 B | 36–37 / 36–41 / 39–41 | seam≤0.021 / hub≤3.456 | 0 | 519 KB / 6.33s / settle=6167ms |
+| 青衡（`tutor-qingheng`） | 27 | 0 | 27/27 | 13,836,690 B (13.84 MB) | 931,155 B | 33 / 33–37 / 35–38 | seam≤0.187 / hub≤2.732 | 0 | 482 KB / 6.05s / settle=5875ms |
+| 澜音（`tutor-lanyin`） | 27 | 0 | 27/27 | 9,011,571 B (9.01 MB) | 582,000 B | 32 / 32 / 32 | seam≤1.284 / hub≤3.354 | 0 | 394 KB / 4.09s / settle=3917ms |
+| **合计** | **162/162** | **0** | **162/162** | **73,717,745 B (73.72 MB)** | **全 ≤ 0.93 MB** | **0 拒收** | **6/6 `ok: true`** | **0 缺槽 / 0 补拍** | **6/6 通过** |
+
+- **入库工具链补强（`tools/tutorpack/`）**：
+  - 落地 14 MB 包级频次分层自适应 CRF 重编码（`--pack-budget 14000000`、`--start-crf`、`--max-crf`、`--workers`、`--sync-licenses`）：不降画布，一律从 `选中/` 原始 mp4 重新编码，高频核心循环优先保画质，同步做 `hub PNG` 与 `anchor.webp` 双重 `hub_mae ≤ 5.0` 上限锁与编码后接缝边界 ≤4 帧余弦过渡保护。
+  - 打通 `intro_voice` 音画联合裁剪（视频运动 + 音频 RMS 并集）与 `atrim` + Opus 单声道 64k + `-shortest` 同步编码，`validate --strict` 补齐 `Profile 0` / `keyframes == 1` / Opus 单声道校验；新增 `decode_edge_frames` 与 `decode_sampled_frames` 显著加速严格校验与对照图生成，并补齐 `tools/tutorpack/tests/test_pack_budget_and_ingest.py`（8 项单测与真实 FFmpeg 集成测试）。
+- **许可与前端展示收口**：
+  - `assets/avatars/LICENSES.md` 全量同步登记 **224 项**资产（6 师清单、42 张表情图、6 张锚点立绘与全部 162 段短片，短片与干声均 `allow_redistribution: false`，6 条 `intro_voice.webm` 标注 `VP9+Opus motion clip`）。
+  - 清除老师画廊与提示词导出文件名中遗留的“8 段 / 8/8”硬编码（改为由 `ACTIVE_CLIP_SLOTS` 动态显示 `{ready}/{total} 动态就绪`，全 6 师现为 `27/27 动态就绪`；导出名改为 `-video-prompts.md`），并在画廊与老师详情试听区统一接入 D11 浏览器朗读降级可见提示。
+
+**本地验证（2026-11-25，162/162 补拍入库后复验）**
+
+- **I22b 全 6 包严格媒体校验**（`cli.py validate assets/avatars/packs/tutor-<slug> --strict`，外部 `FFmpeg 9.0.1 / ffprobe`，`unchecked_items: []`）：**6 / 6 PASS**（162/162 全新 H3，全部 `576×1024 @ 24fps` VP9 Profile 0 `yuv420p` 单关键帧，单包 9.01–13.91 MB ≤ 14 MB、单段 ≤ 0.93 MB ≤ 1.2 MB）；全 6 师 `docs/rebuild/review/UM/<slug>/{clips-sheet.jpg,stills-sheet.jpg,metrics.json}` 已刷新。
+- **工具链与资产回归测试**：`ruff check tools/tutorpack` 全绿；`pytest services/api/tests/test_avatar_asset_licenses.py services/api/tests/test_tutor_catalog.py tools/tutorpack/tests`（含 224 项资产许可校验与 FFmpeg 9.0.1 工具链测试）全绿。
+- **最终全量门禁、E2E 与视觉巡览复验全绿（162/162 补拍入库后实测）**：
+  - `scripts/gate.ps1 -Frontend -Contract` 全绿：Ruff（`services/api`）PASS、后端 Pytest **517 passed / 2 skipped**（含 I22a 与 224 项 `test_avatar_asset_licenses.py`）、OpenAPI `generate:api:check` 与 `check_no_fakes.py` PASS、前端 `tsc`/`eslint`/Vitest **19 files / 118 tests passed**、`vite build` PASS。
+  - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**33 / 33 通过**（`m1–m8`、`I1–I23` 与 Phase 1–4 全绿；同步将 `I9` 断言由旧兜底 `think_chin` 更新为实测真实播放新入库的 `hint_finger`）。
+  - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- UM`：**53 步通过、0 失败、126 张截图**，§6.2 学生词汇表 **0 违规**；真浏览器核验画廊显示 6 师 `27/27 动态就绪`（零退役裂图）、试演页 `动态短片 27 / 27` 与 `静态表情图 7 / 7`。
+
+## DeepTutor 参考融合
+
+### Phase 1（结构化树形检索 + 可交互参数化函数白板）— 代码完成（自动化通过）（2026-11-23）
+
+**待完成与待验证（先写未完成项与已知限制）**
+
+- **真实模型实测与所有者课堂实测未做**：跨章节自由提问触发 `analysis/toc_route` 路由的真实模型命中率、以及真实课堂中模型输出带 `params` 的 `plot` 块与 `<board_param>` 标签的联动效果，待连接真实模型后实测验证；当前所有验证基于单元测试与测试替身网关。
+- **尚未提交到本地分支**：本轮 Phase 1 改动保留在工作区供所有者审阅后提交；Phase 2（拿题问老师 + 真题同构仿写）、Phase 3（可审计三层学习记忆）与 Phase 4（教材伴读 + 积木笔记）按停止点暂未开工。
+- **Playwright 浏览器 E2E 未重跑**：本次完整跑通后端 Pytest、Ruff、OpenAPI 契约、防空壳扫描与前端 TypeScript / ESLint / Vitest / Vite 构建；浏览器级视觉回归待按需执行。
+
+**已落地**
+
+- **模块 A · 轻量结构化树形检索（零新表、零新增依赖）**：
+  - `services/api/app/analysis/retrieval.py` 新增 `PageContext`、`retrieve_structured_pages` 与 `retrieve_with_structure`：优先沿当前 KP 的 1-hop `kp_edges` 邻接图谱、课程 KP、章节树 `material_sections` 标题与 `chunks_fts` 定位，并从 `material_pages` 整页回源（附 `section_title` 与 `has_image`）。
+  - 当本地结构化检索无直接命中且存在章节树时，通过 `libs/prompts/v3/analysis/toc_route.md`（已在 `libs/prompts/v3/variables.json` 登记 `student_question`）执行一次带缓存的目录选页，并严格按 `space_id` 校验所选页存在性，阻断跨课程与幻觉页码。
+  - `services/api/app/teaching/runtime.py` 在 `ANSWER_QUESTION` 路径接入 `retrieve_with_structure`，将整页上下文写入 `question_sources` 并去重并入 `source_excerpts`；`services/api/app/teaching/realizer.py` 同步补充 `ANSWER_QUESTION` 展示原页图指引。
+- **模块 B · 声明式参数化交互函数图与 `<board_param>` 课堂联动（零新依赖、零 `eval`）**：
+  - 后端：`services/api/app/teaching/lsp_parser.py` 支持 `<board_param target="..." name="..." value="..."/>` 流式解析与块别名映射；`services/api/app/teaching/validators.py` 强制校验目标为已存在 `plot` 块、参数已声明且数值在 `[min, max]` 区间内；`runtime.py` 支持打断重放与 `board.preview` 实时同步；`libs/prompts/v3/live/system.md` 更新标签说明。
+  - 前端：`packages/board`（`types.ts`、`validation.ts`、`reducer.ts`、`plot.tsx`、`components.tsx`、`board.module.css`）支持受限 `params`（≤4）与 `keyframes`（≤8）、`mathjs/number` AST 白名单扩展与 `function-plot` 原生 `scope` 求值、滑块/关键帧/恢复默认/演示轮播交互（`prefers-reduced-motion` 自动隐藏轮播）、纯语义 CSS 变量零硬编码色；`apps/web/src/features/classroom/`（`board-block.tsx`、`lesson-state.ts`、`use-classroom.ts`）与 `apps/web/src/locales/zh-CN.json` 完整接入。
+- **决策记录**：已将四阶段融合边界与 Phase 1 决定写入 `docs/rebuild/DECISIONS.md`。
+
+**本地验证**
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1 -Frontend -Contract` 全绿：
+  - Ruff clean；后端 Pytest **484 通过 / 0 失败 / 2 跳过**（新增 `test_analysis_retrieval.py` 3 项结构化检索与 `ANSWER_QUESTION` 测试、`test_teaching_lsp.py` `board_param` 边界校验与别名测试）。
+  - OpenAPI 契约检查（`generate:api:check`）与防空壳扫描（`scripts/check_no_fakes.py`）通过。
+  - 前端 `tsc --noEmit`、`eslint`、Vitest **16 文件 104 项通过**（新增 `board.test.tsx` 参数化校验与 reducer 2 项、`u6-classroom.test.tsx` 交互滑块/教师同步/减动效 DOM 行为 1 项，含 `styles-tokens.test.ts` 零硬编码色守门）、`vite build`（1.17s）通过。
+
+### Phase 2（「拿题问老师」双循环独立解题工坊 + 真题同构仿写）— 代码完成（自动化通过）（2026-11-23）
+
+**待完成与待验证（先写未完成项与已知限制）**
+
+- **真实模型与真实拍照识图实测未做**：上传手机实拍错题图经 `vision` 模型转写、真实模型经 `ItemVerifier` 双轮独立验算与真题仿写变式通过率，待接入真实 API Key 后在课程内亲测验证；当前全部基于单测与测试替身网关验证。
+- **Playwright 浏览器巡览未重跑**：本轮完成完整 `scripts/gate.ps1 -Frontend -Contract` 与 happy-dom 交互测试；尚未跑浏览器级视觉截图与 §6.2 巡览脚本。
+- **尚未提交到本地分支**：Phase 1 与 Phase 2 改动暂留在工作区（分支 `rebuild/tutor`），Phase 3（可审计三层学习记忆）与 Phase 4（教材伴读 + 积木笔记）按停止点暂未开工。
+
+**已落地**
+
+- **SQLite `v10 → v11` 迁移**：`services/api/app/repositories/migrations.py` 新增 `migrate_v10_to_v11` 创建 `solve_sessions` 表（按 `space_id` 外键 `ON DELETE CASCADE` 并建索引）；`test_m1_foundation.py` 已纳入 `v10 → v11` 升级备份与全新建库结构一致性测试。
+- **双循环解题与仿写内核**：
+  - 新增 `services/api/app/teaching/solve.py` 及 4 份提示词模板（`libs/prompts/v3/analysis/{solve_blueprint,solve_feedback,solve_step_detail,mimic_items}.md`，变量均登记在 `variables.json`）。
+  - Loop 1 支持文字/公式与 8 MB 以内 JPG/PNG/WebP 题目截图（Pillow 校验规范化落盘 + `transcribe_page` 识图），关联课程 KP/掌握度/迷思，经 `ItemVerifier` 独立验算，生成分步蓝图并对提示与教练反馈做 `answer_leaks` 过滤；未展开解法前绝不下发答案与步骤；未通过验算时诚实标记并禁用自动判分。
+  - Loop 2 支持确定性交互（`submit_idea` / `hint` / `show_solution` / `locate_step` 行级拆步细讲 / `finish`）。
+  - 真题同构仿写仅抽取非模考保留卷（`reserved_for_mock = 0`）真题作为风格范例，生成变式题强制经 `ItemVerifier` 复核后才入 `item_bank`，作答严格按 BKT 规则结算（看过原题解法后自动按 `hint_level = 1` 折减、不计净对；答错自动入 `review_cards`）。
+- **REST API 与 OpenAPI 契约**：新增 `services/api/app/api/routes/solve.py` 并挂入 `api/v2.py`，已重新生成 `packages/api-client/schema.d.ts` 并通过 `test_u7_error_codes.py` 错误码守门。
+- **前端「问一题」工作台**：新增 `apps/web/src/features/solve/{api.ts,solve-page.tsx}`，接入 `CourseHub` 标签页与 `/courses/:courseId/solve` 路由，补充 `apps/web/src/locales/zh-CN.json` 零黑话中文文案与全部错误码映射。
+- **决策记录**：已写入 `docs/rebuild/DECISIONS.md`。
+
+**本地验证**
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1 -Frontend -Contract` 全绿：
+  - Ruff clean；后端 Pytest **489 通过 / 0 失败 / 2 跳过**（新增 `test_solve_studio.py` 4 项端到端行为与防泄密/跨课隔离/图片校验/BKT 折减测试 + `test_m1_foundation.py` `v10 → v11` 迁移）。
+  - OpenAPI 契约（`generate:api:check`）与防空壳扫描（`scripts/check_no_fakes.py`）通过。
+  - 前端 `tsc --noEmit`、`eslint`、Vitest **17 文件 106 项通过**（新增 `solve-page.test.tsx` 2 项交互与诚实验算提示测试）、`vite build`（1.12s）通过。
+
+### Phase 3（可审计三层学习记忆「老师记住的你」）与 Phase 4（教材伴读 + 课程积木笔记）— 代码完成（自动化通过）（2026-11-23）
+
+**待完成与待验证（先写未完成项与已知限制）**
+
+- **真实模型实测与所有者联调未做**：连接真实 API Key 后验证 `memory_distill` / `memory_synthesize` 提炼质量、`reader_ask` 伴读讲解流畅度、`note_suggest` 易错点补全准确度，以及真实 PDF 扫描页原图伴读与 Anki 实机导入效果，均待所有者用真实课程资料亲测验收；当前所有自动化与浏览器验证基于单元测试与测试替身网关。
+- **尚未提交到本地分支**：Phase 1–4 全部改动暂保留在 `rebuild/tutor` 工作区（零未追踪临时文件），待所有者审阅确认后按 Phase 拆分或统一提交。
+
+**已落地**
+
+- **SQLite `v11 → v12` 与 `v12 → v13` 迁移**：`services/api/app/repositories/migrations.py` 升级至 `CURRENT_SCHEMA_VERSION = 13`，新增 `learning_traces`、`memory_facts`（Phase 3）与 `course_notes`、`note_blocks`（Phase 4），全部严格 `space_id` 隔离并设置 `ON DELETE CASCADE`；`test_m1_foundation.py` 覆盖 `v1 → v13` 全历史逐级升级与全新建库结构一致性。
+- **Phase 3 · 可审计三层学习记忆（「老师记住的你」）**：
+  - 后端：`services/api/app/learning/memory.py` + `services/api/app/api/routes/memory.py` + 模板 `libs/prompts/v3/analysis/{memory_distill,memory_synthesize}.md`。在 `finish.py`（零额外 LLM 调用）、`solve.py` 与 `notes.py` 落盘 L1 结构化轨迹指针；L2/L3 提炼强校验引用 ID 存在性与 `space_id` 归属（丢弃任何无实证或跨课引用）；`dismissed` 记忆永不进入 `recall_*` 及 `LessonRuntime`（`≤ 150` 字紧凑注入）/ `LessonPlanner` 提示词。
+  - 前端：新增 `apps/web/src/features/memory/{api.ts,memory-cards.tsx}`，在 `/courses/:courseId/progress` 嵌入 `CourseMemoryCard`（可点击依据链接、行内修订、置顶、忘掉、更新记忆），在 `/settings/me` 嵌入 `GlobalMemoryArchiveCard`（跨课习惯与各课要点管理），全站零技术黑话。
+- **Phase 4 · 沉浸式教材伴读 + 课程积木笔记**：
+  - 后端：`services/api/app/learning/notes.py` + `services/api/app/api/routes/notes.py` + 模板 `libs/prompts/v3/analysis/{reader_ask,note_suggest}.md`。支持教材按页概览与单页详情（附本页 KP 掌握度/真题频次徽标、原页图 URL 与不泄密答案的已复核随堂小测）、划选段落伴读提问（同步记 L1 轨迹）与小测 BKT 闭环（错题入 `review_cards`）；支持积木笔记 CRUD、`note_id="quick"` 一键收藏、Dito 风格严格只读不改库 Diff 建议、积木一键转 FSRS 闪卡及 Markdown / Anki TSV 导出。
+  - 前端：新增 `apps/web/src/features/notes/{api.ts,reader-page.tsx,notes-page.tsx}`，接入 `main.tsx` 路由与 `CourseHub`「笔记」标签页及资料列表「伴读」入口；扩展 `packages/board/components.tsx` 支持 `onSaveToNote`，在课堂白板（`classroom.tsx` / `board-panel.tsx` / `board-block.tsx`）、教材伴读与「问一题」推导步骤全面打通一键「收进笔记」。
+- **OpenAPI 契约、本地化与决策记录**：重新生成 `packages/api-client/schema.d.ts`，补齐 `apps/web/src/locales/zh-CN.json` 全部零黑话中文文案与 18 项结构化错误码映射，更新 `docs/rebuild/DECISIONS.md`。
+
+**本地验证**
+
+- `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1 -Frontend -Contract` 全绿：
+  - 2026-11-23 首轮：Ruff clean；后端 Pytest **495 通过 / 0 失败 / 2 跳过**；OpenAPI 契约与防空壳扫描通过；前端 `tsc`/`eslint`、Vitest **18 文件 109 项通过**、`vite build`（1.20s）通过。
+  - 2026-11-25 补齐浏览器 E2E 与视觉巡览复验：Ruff clean；后端 Pytest **516 通过 / 0 失败 / 2 跳过**；OpenAPI 契约与 `check_no_fakes.py` 通过；前端 `tsc`/`eslint`、Vitest **19 文件 118 项通过**、`vite build`（1.01s）通过。
+- **Phase 1–4 真浏览器 E2E 与视觉巡览补齐（2026-11-25）**：
+  - 将 `/courses/:id/solve`、`/courses/:id/notes`、`/courses/:id/materials/:mid/read` 纳入 `tests/e2e/ux-invariants.spec.ts`（`ALL_ROUTES` 29 条路由 + Phase 1–4 专项不变量）与 `tests/e2e/ui-tour.mjs`，并在 `services/api/tests/fakes/e2e.py` 补齐只读夹具与 9 个 Phase 1–4 替身提示词及课堂参数化 `plot`。
+  - `PLAYWRIGHT_CHANNEL=msedge npm run test:e2e`：**33 / 33 通过**（覆盖课堂参数化函数图交互、问一题详情、积木笔记参数化关键帧/恢复默认、教材伴读考点与小测、进度与设置记忆卡片；0 `pageerror`/0 `console.error`/单 `<h1>`/390px 0 水平溢出）。
+  - `PLAYWRIGHT_CHANNEL=msedge npm run review:tour -- UM`：**53 步通过、0 失败、126 张截图**输出至 `docs/rebuild/review/UM/`，§6.2 学生零黑话词表 **0 违规**（人工目视抽检发现的 `/solve` 右侧卡片 30–40px 溢出与夹具公式定界符已同步收口）。

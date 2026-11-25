@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$version = '1.0.0-rc.2'
+$version = '1.0.0'
 $pythonVersion = '3.14.10'
 $pythonArchive = "python-$pythonVersion-embed-amd64.zip"
 $pythonUrl = "https://www.python.org/ftp/python/$pythonVersion/$pythonArchive"
@@ -127,12 +127,20 @@ Copy-Tree 'README.md'
 Copy-Tree 'README.en.md'
 Copy-Tree 'CHANGELOG.md'
 Copy-Tree 'docs\images\six-anime-tutors.jpg'
-Copy-Tree 'docs\images\classroom-showcase.png'
-Copy-Tree 'docs\images\welcome-showcase.png'
+Copy-Tree 'docs\images\hero-demo.webp'
+Copy-Tree 'docs\images\ai-connect-showcase.png'
 Copy-Tree 'docs\images\characters-showcase.png'
-Copy-Tree 'docs\images\avatar-settings-showcase.png'
+Copy-Tree 'docs\images\audition-27-showcase.png'
 Copy-Tree 'docs\images\today-showcase.png'
+Copy-Tree 'docs\images\course-map-showcase.png'
+Copy-Tree 'docs\images\classroom-showcase.png'
+Copy-Tree 'docs\images\solve-showcase.png'
+Copy-Tree 'docs\images\notes-showcase.png'
+Copy-Tree 'docs\images\reader-showcase.png'
 Copy-Tree 'docs\images\progress-showcase.png'
+Copy-Tree 'docs\images\avatar-settings-showcase.png'
+Copy-Tree 'docs\images\welcome-showcase.png'
+Copy-Tree 'docs\images\mobile-classroom-showcase.png'
 New-Item -ItemType Directory -Path (Join-Path $stage 'data') -Force | Out-Null
 
 $clipModeNote = if ($ExcludeVideoClips) {

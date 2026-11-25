@@ -169,3 +169,40 @@
 - **单一数据源方案**：将 27 个活跃片段 + 9 个预留三段式片段 + 7 个表情图键 + 课堂外位置映射表统一放在 `libs/schemas/tutor_media_catalog.json`（已随便携包分发）。后端 `services/api/app/services/tutorpack.py`、命令行工具 `tools/tutorpack/cli.py` 与前端 `packages/avatar-engine/src/catalog.ts` 均从该文件派生，消除各处手写片段枚举。
 - **内置包刷新策略**：`TutorCatalog._normalize_recipe` 对 `source_kind == "builtin"` 的角色每次读取时从磁盘（`storage_root/avatar_packs/<id>` 优先，回退 `assets/avatars/packs/<id>`）刷新 `loop_pack`（clips / clip_meta / stills / canvas / media）与许可元数据，确保旧数据库升级后立即看到新入库的短片、表情图与真实许可，同时绝不覆盖用户改过的 `persona`、`voice`、`default_style_id` 或显式选择的 `preferred_tier`。
 - **外部工具与依赖**：`tools/tutorpack/media_ops.py` 仅复用仓库既有的 `Pillow` 与 `numpy`（零新增 Python/JS 依赖），FFmpeg / ffprobe 通过环境变量 `TUTORPACK_FFMPEG` / `TUTORPACK_FFPROBE`（或系统 PATH）按外部程序调用，不随产品分发。
+- **14 MB 包级频次分层自适应 CRF 编码与接缝边界保护（2026-11-25）**：全量 25–27 段入库坚持不降画布（保持 `576×1024 @ 24fps` 1-pass VP9 Profile 0 `yuv420p` 单关键帧；实测 2-pass + `arnr` 会使接缝 `seam_mae` 恶化至 3.2+，予以否决）。首轮 CRF 32 合计超出 14,000,000 B（含未替换旧段体积）时，一律从 `选中/` 原始 mp4 源重新编码（绝不对 `.webm` 二次有损转码），按课堂出现频次分层分配 CRF 偏移（Tier 1 核心高频循环 `0` / Tier 2 常规循环与主手势 `+2` / Tier 3 低频插入与副反应 `+4`），结合 `hub PNG` 与 `anchor.webp` 双重 `hub_mae ≤ 5.0` 上限锁与实测衰减率迭代收敛至 ≤ 14 MB；对编码前险低于阈值但 VP9 量化后跨过 §5 接缝/基准帧门槛的边界片段，按规格 §6 自动启用 ≤4 帧余弦过渡重试一次，严守全部 §5 阈值不放宽。
+- **`intro_voice` 音画联合裁剪与 Opus 单声道同步策略（2026-11-25）**：`intro_voice` 作为唯一允许带音轨的一次性片段，入库裁剪融合视觉动作包络与音频帧 RMS 能量包络（取并集并两端保留 ≥6 帧静息），编码阶段以 `atrim` + `asetpts` + 轻量淡入淡出 + `libopus` 单声道 64k + `-shortest` 精确对齐音画起止与时长，避免截断人声或口型漂移；`validate --strict` 同步强制校验 `Profile 0`、`keyframes == 1` 与 `intro_voice` Opus 单声道规范，`LICENSES.md` 标注 `VP9+Opus motion clip`（继续适用 MiniMax H3 社区许可 `allow_redistribution: false` 与 DM-3 默认不启用）。
+- **取消前端「许可与作者」展示卡片（2026-11-25，所有者决定）**：移除老师详情素材页（`/tutors/:id?tab=assets`）中的「许可与作者 / AI 生成素材 / 生成来源」前端展示卡片；底层 `assets/avatars/LICENSES.md`、`assets/THIRD_PARTY_NOTICES.md`、角色包 `manifest.json` 许可元数据与后端许可测试全部完整保留。
+
+## DeepTutor 参考融合 Phase 1 执行决定（2026-11-23）
+
+- **参考边界（Apache-2.0 架构借鉴，零外置设施/零 AGPL 依赖）**：围绕 [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) 的长板拆分四阶段演进路线（Phase 1 树形结构检索 + 交互参数白板；Phase 2 拿题问老师 + 真题仿写；Phase 3 可审计三层记忆；Phase 4 教材伴读 + 积木笔记），严守本仓单进程 FastAPI + SQLite、强 `space_id` 隔离、`ItemVerifier` 先解后教与学生零黑话词表红线，不引入 Neo4j / LightRAG / GraphRAG / PyMuPDF / MinerU 等外置或 AGPL 栈。
+- **模块 A · 轻量结构化树形检索（零新表、零依赖）**：在 `services/api/app/analysis/retrieval.py` 新增 `retrieve_structured_pages` 与 `retrieve_with_structure`，直接复用现有 `kp_edges`（1-hop 前置/后继图谱）、`material_sections`（章节树标题）与 `chunks_fts` 定位并从 `material_pages` 整页回源（附 `section_title` 与 `has_image`）。仅在本地结构化匹配缺失且课程存在章节树时，才通过 `libs/prompts/v3/analysis/toc_route.md` 调用一次带缓存的目录路由，并对返回页号严格按 `space_id` 校验防跨课与防幻觉；已接入 `LessonRuntime` 的 `ANSWER_QUESTION` 路径。
+- **模块 B · 声明式参数化交互函数图与 `<board_param>` 课堂联动（零新依赖、零 `eval`）**：扩展 `@companion-space/board` 的 `PlotSpec` 支持最多 4 个受限数值参数 `params` 与最多 8 个预设 `keyframes`，继续由 `mathjs/number` AST 白名单校验表达式并通过 `function-plot` 原生 `scope` 求值，样式全量使用语义 CSS 变量（零十六进制字面量），`prefers-reduced-motion` 下隐藏自动关键帧轮播并保留手动滑块与关键帧切换。后端 `LspParser`、`validate_board`、`LessonRuntime` 与前端 `reducer` / `lesson-state` / `use-classroom` 完整支持 `<board_param target="..." name="..." value="..."/>` 实时同步调参，严格校验参数名与 `[min, max]` 范围。
+
+## DeepTutor 参考融合 Phase 2 执行决定（2026-11-23）
+
+- **SQLite `v10 → v11` 迁移（`solve_sessions`）**：新增 `migrate_v10_to_v11` 创建 `solve_sessions` 表（按 `space_id` 外键 `ON DELETE CASCADE` 并建索引），冻结 `schema_base.py` 与 `schema_compat.py`、保持升级前自动备份 `companion.db.v10.bak` 与全新建库/逐级升级 `sqlite_master` 一致性。
+- **双循环独立解题内核（`services/api/app/teaching/solve.py`）**：
+  - **Loop 1（分析与独立验算）**：支持文字/公式题干及 8 MB 以内 JPEG/PNG/WebP 题目截图（经 Pillow 校验规范化落盘 `storage/courses/<space_id>/solve/` 并复用 `LLMGateway.transcribe_page` 识图），关联课程 KP 与掌握度/迷思，强制调用 `ItemVerifier` 独立求解两遍验算并生成分步讲题蓝图（`analysis/solve_blueprint`）；所有提示词提示与教练反馈均过 `build_forbidden` + `answer_leaks` 过滤，未展开解法前绝不向前端下发 `verified_answer` 与 `steps`。未通过验算（`disputed` / `unverified`）的题目诚实标明分歧，仅开放协同梳理思路、禁用自动判分且绝不写掌握度证据。
+  - **Loop 2（确定性引导交互）**：支持 `submit_idea`、`hint`、`show_solution`、`locate_step`（针对已展开任意一步调用 `analysis/solve_step_detail` 结合 `retrieve_structured_pages` 拆成 2–4 个更细小步）与 `finish`。
+- **真题同构仿写与诚实 BKT 闭环**：`generate_mimic_items` 仅抽取课程中非模考保留卷（`reserved_for_mock = 0`）的同考点真题作为风格范例，生成 1–2 道客观变式题并**强制经 `ItemVerifier` 复核**，仅 `verified` 题目写入 `item_bank(origin='generated', purpose='practice')`。作答沿用 `grade_objective` 与 `learner-model-and-planning.md` §2.2 规则：若学生此前看过原题完整解法，则变式题首答自动按 `hint_level = 1`（`w = 0.6`，不计净对）更新 `kp_mastery`；答错或点「不会」自动写入 `review_cards` 错题/复习队列。
+- **前端「问一题」工作台**：在 CourseHub 新增 `/courses/:courseId/solve` 标签页（零技术黑话），复用 `BoardBlock`（`steps` 行级「这一步没跟上」）、`ChoiceCardGroup`、`FileDropzone`、`TutorAvatar` 与 `useTutorSpeech`，保持单视频/语义色与 TanStack Query 精确键更新。
+
+## DeepTutor 参考融合 Phase 3 执行决定（2026-11-23）
+
+- **SQLite `v11 → v12` 迁移（`learning_traces` + `memory_facts`）**：新增 `migrate_v11_to_v12` 建立 L1 轻量结构化轨迹表 `learning_traces` 与 L2 课程记忆事实表 `memory_facts`（均按 `space_id` 外键 `ON DELETE CASCADE` 并建索引）；L3 跨课程综合档案存放在 `app_settings` 的 `"learner_memory_synthesis"` 键下，避免破坏 `LearnerProfile` 严格 `extra="forbid"` 契约。
+- **反幻觉与用户主权硬不变量（`services/api/app/learning/memory.py`）**：
+  - L1 仅记录结构化行为指针（课后小结 `finish.py`、解题定位 `solve.py`、伴读提问 `notes.py`），绝不落盘原始音频与闲聊长日志；且在 `finish_lesson` 同步记录 L1 轨迹时不增加额外 LLM 调用，保持既有课堂结课契约稳定。
+  - L2 提炼（`analysis/memory_distill`）与 L3 跨课汇总（`analysis/memory_synthesize`）均执行严格实证校验：任何引用不存在 ID 或跨 `space_id` 记录 ID 的候选项一律丢弃；所有持久化记忆都附带可点击回溯链接（课堂回放 / 问一题 / 学习进度）。
+  - 用户通过 `PATCH /api/v2/courses/{id}/memories/{mid}` 或 `/api/v2/learner/memory-archive/{nid}` 置顶、修订或忘掉（`status='dismissed'`）后，`dismissed` 条目立即移出列表且绝不进入 `recall_course_memories` / `recall_global_memory_notes` 与 `LessonRuntime`（`≤ 150` 字紧凑片段）/ `LessonPlanner` 提示词上下文。
+- **前端「老师记住的你」零黑话呈现**：在 `/courses/:courseId/progress` 嵌入 `CourseMemoryCard`（展示本课记忆与可点依据链接），在 `/settings/me` 嵌入 `GlobalMemoryArchiveCard`（跨课习惯与分课总览），全程使用「老师记住的你 / 忘掉这条 / 置顶」等自然语言，不暴露 `Trace Forest`、`L1/L2/L3` 等技术术语。
+
+## DeepTutor 参考融合 Phase 4 执行决定（2026-11-23）
+
+- **SQLite `v12 → v13` 迁移（`course_notes` + `note_blocks`）**：新增 `migrate_v12_to_v13` 创建课程积木笔记表 `course_notes` 与积木块表 `note_blocks`（`space_id` 隔离、`ON DELETE CASCADE`），直接复用 `@companion-space/board` 的 11 种积木类型（含交互式参数化 `plot`、公式 `math`、推导 `steps`、`callout`、`diagram`、`code` 等）与 `source_ref_json` 原页溯源。
+- **沉浸式教材伴读（`/courses/:courseId/materials/:materialId/read`）**：
+  - 复用 `material_sections` / `material_pages` / `knowledge_points` / `kp_mastery` / `kp_exam_stats` 与已复核 `item_bank`，按页展示本页考点掌握度与真题考频、原页图/文字切换、划选段落即时提问（`analysis/reader_ask`，同时写 `surface="read"` L1 轨迹）、朗读（`useTutorSpeech`）、一键收进笔记与本页随堂小测（严格不泄密答案，作答走 `grade_objective` 与 BKT 闭环，错题自动入 `review_cards`）。
+- **课程积木笔记与 Dito 风格只读 Diff 建议（`/courses/:courseId/notes`）**：
+  - 支持多端一键收进笔记（`note_id="quick"` 自动落入最近或默认笔记本，覆盖课堂白板 `BoardBlock`、教材伴读与「问一题」推导步骤）。
+  - 「请老师补易错点」（`POST /api/v2/courses/{id}/notes/{nid}/suggest`，模板 `analysis/note_suggest`）严格**只读不改库**，在前端以 Diff 卡片展示理由与预览块，仅当学生显式点击「采纳插入」时才追加到笔记，点击「忽略」零修改。
+  - 支持任意笔记积木一键转为 FSRS 闪卡（写入 `review_cards(kind='flashcard', state='pending')` 接入现有复习队列）以及导出带原页引用的 Markdown（`.md`）与 Anki TSV（`.tsv`）。
