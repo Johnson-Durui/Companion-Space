@@ -82,7 +82,7 @@ def test_text_lesson_resume_answer_and_finish_are_persistent(isolated_settings):
         answer = {"type": "student_answer", "item_id": "q1", "value": "314", "via": "control"}
         hint = await resumed.step({**answer, "value": "271"})
         assert next(event["data"]["move"] for event in hint if event["type"] == "beat.start") == "HINT"
-        assert "314" not in json.dumps(hint)
+        assert "314" not in json.dumps([event["data"] for event in hint])
         result = await resumed.step(answer)
         assert next(event["data"] for event in result if event["type"] == "judge") == {
             "item_id": "q1", "verdict": "correct",

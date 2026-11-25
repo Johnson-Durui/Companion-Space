@@ -16,9 +16,10 @@ export async function pick(
   // Base UI Select trigger renders as button[role="combobox"] and portals options to document.body
   const page = "page" in scope && typeof scope.page === "function" ? scope.page() : (scope as Page);
   await control.click();
+  await page.getByRole("option").first().waitFor({ state: "visible" });
   if (typeof option === "string") {
     const byValue = page.locator(`[role="option"][data-value="${option}"]`).first();
-    if (await byValue.isVisible().catch(() => false)) {
+    if ((await byValue.count()) > 0) {
       await byValue.click();
     } else {
       await page.getByRole("option", { name: option, exact: true }).click();
